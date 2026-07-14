@@ -58,7 +58,11 @@ const publicSubmissionSchema = new mongoose.Schema({
     },
     likes: { type: [String], default: [] },
     dislikes: { type: [String], default: [] },
-    reaction: { type: String, default: '' }
+    reaction: { type: String, default: '' },
+    isDeleted: {
+        type: Boolean,
+        default: false
+    }
 }, {
     timestamps: true
 });

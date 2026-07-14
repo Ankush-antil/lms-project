@@ -1,34 +1,58 @@
 import { useAuth } from '../../context/AuthContext';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import DashboardLayout from '../../components/layout/DashboardLayout';
-import { 
-    Users, GraduationCap, BookOpen, FileText, Inbox, RefreshCw, CheckCircle, 
-    XCircle, Clock, ExternalLink, ShieldAlert, Award, ArrowRight, Check, X, Trash2 
+import {
+    Users, GraduationCap, BookOpen, FileText, Inbox, RefreshCw, CheckCircle,
+    XCircle, Clock, ExternalLink, ShieldAlert, Award, ArrowRight, Check, X, Trash2,
+    Plus, Edit, Building2, Briefcase, Calculator, Megaphone, Heart, FolderOpen, Settings, UserX
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import AddUserModal from '../../components/AddUserModal';
+import AddCourseModal from '../../components/AddCourseModal';
 
-const StatCard = ({ title, value, icon: Icon, color, onClick }) => (
+const StatCard = ({ title, value, icon: Icon, color, onClick, onAdd, onEdit }) => (
     <div
         onClick={onClick}
-        className={`bg-white p-5 md:p-7 rounded-3xl shadow-sm border border-slate-100 hover:shadow-2xl hover:shadow-indigo-500/10 transition-all duration-500 group relative overflow-hidden h-full ${onClick ? 'cursor-pointer hover:-translate-y-1' : ''}`}
+        className={`bg-white p-3.5 md:p-4.5 rounded-2xl shadow-sm border border-slate-100 hover:shadow-2xl hover:shadow-indigo-500/10 transition-all duration-500 group relative overflow-hidden h-full ${onClick ? 'cursor-pointer hover:-translate-y-1' : ''}`}
     >
-        <div className={`absolute top-0 right-0 w-32 h-32 ${color} opacity-[0.03] -mr-16 -mt-16 rounded-full transition-transform group-hover:scale-150 duration-700`}></div>
-        <div className="flex items-center justify-between mb-4 md:mb-6 relative z-10">
-            <div className={`p-3 md:p-4 rounded-2xl ${color} bg-opacity-10 text-white shadow-sm transition-transform group-hover:scale-110 duration-500`}>
-                <Icon size={24} className={color.replace('bg-', 'text-')} />
+        <div className={`absolute top-0 right-0 w-24 h-24 ${color} opacity-[0.03] -mr-12 -mt-12 rounded-full transition-transform group-hover:scale-150 duration-700`}></div>
+        <div className="flex items-center justify-between mb-3 relative z-10">
+            <div className={`p-2.5 rounded-xl ${color} bg-opacity-10 text-white shadow-sm transition-transform group-hover:scale-110 duration-500`}>
+                <Icon size={18} className={color.replace('bg-', 'text-')} />
             </div>
-            <div className="flex flex-col items-end">
-                <span className="text-[9px] md:text-[10px] font-extrabold text-slate-400 uppercase tracking-[0.2em]">Portal</span>
-                <span className="text-[10px] font-bold text-indigo-600 flex items-center gap-1 mt-1 bg-indigo-50 px-2 py-0.5 rounded-full">
-                    Active
+            {(onAdd || onEdit) && (
+                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all duration-300">
+                    {onAdd && (
+                        <button
+                            onClick={(e) => { e.stopPropagation(); onAdd(); }}
+                            className="p-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-600 text-indigo-600 hover:text-white transition-all duration-200 cursor-pointer shadow-sm"
+                            title={`Add ${title}`}
+                        >
+                            <Plus size={13} />
+                        </button>
+                    )}
+                    {onEdit && (
+                        <button
+                            onClick={(e) => { e.stopPropagation(); onEdit(); }}
+                            className="p-1.5 rounded-xl bg-slate-50 hover:bg-slate-700 text-slate-500 hover:text-white transition-all duration-200 cursor-pointer shadow-sm"
+                            title={`Manage ${title}`}
+                        >
+                            <Edit size={13} />
+                        </button>
+                    )}
+                </div>
+            )}
+            {(!onAdd && !onEdit) && (
+                <span className="text-[9px] font-extrabold text-emerald-500 bg-emerald-50/70 px-2 py-0.5 rounded-full tracking-wide">
+                    Live
                 </span>
-            </div>
+            )}
         </div>
         <div className="relative z-10">
-            <h3 className="text-3xl md:text-4xl font-black text-slate-900 mb-1 lg:text-5xl">{value}</h3>
-            <p className="text-xs md:text-sm text-slate-500 font-bold uppercase tracking-wide opacity-80">{title}</p>
+            <h3 className="text-2xl md:text-3xl font-black text-slate-900 mb-0.5">{value}</h3>
+            <p className="text-[10px] md:text-xs text-slate-500 font-bold uppercase tracking-wider opacity-85 leading-tight">{title}</p>
         </div>
     </div>
 );
@@ -37,8 +61,13 @@ const InstituteDashboard = () => {
     const { user } = useAuth();
     const userInfo = user;
     const navigate = useNavigate();
-    
-    const [stats, setStats] = useState({ students: 0, teachers: 0, editors: 0, accountants: 0, pendingApps: 0, totalApps: 0 });
+
+    const [stats, setStats] = useState({
+        students: 0, teachers: 0, editors: 0, staff: 0, accountants: 0,
+        marketers: 0, parents: 0, registeredUsers: 0, guestUsers: 0,
+        limitedUsers: 0, totalUsers: 0, courses: 0, subjects: 0, tests: 0, services: 3,
+        pendingApps: 0, totalApps: 0
+    });
     const [applications, setApplications] = useState([]);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'applications'
@@ -47,6 +76,49 @@ const InstituteDashboard = () => {
     const [roleRequests, setRoleRequests] = useState([]);
     const [loadingRoleRequests, setLoadingRoleRequests] = useState(false);
     const [resolvingRoleId, setResolvingRoleId] = useState(null);
+
+    const [isUserModalOpen, setIsUserModalOpen] = useState(false);
+    const [modalRole, setModalRole] = useState('Student');
+    const [isCourseModalOpen, setIsCourseModalOpen] = useState(false);
+    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const dropdownRef = useRef(null);
+    const [quickAddRole, setQuickAddRole] = useState(null);
+
+    const rolesList = [
+        { label: 'Student', modal: 'user', role: 'Student', icon: GraduationCap },
+        { label: 'Teacher', modal: 'user', role: 'Teacher', icon: CheckCircle },
+        { label: 'Editor', modal: 'user', role: 'Editor', icon: Edit },
+        { label: 'Staff', modal: 'user', role: 'Staff', icon: Briefcase },
+        { label: 'Accountant', modal: 'user', role: 'Accountant', icon: Calculator },
+        { label: 'Marketer', modal: 'user', role: 'Marketer', icon: Megaphone },
+        { label: 'Parent', modal: 'user', role: 'Parent', icon: Heart },
+        { label: 'Limited User', modal: 'limited', role: 'Limited User', icon: UserX }
+    ];
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+                setIsDropdownOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const handleRoleClick = (item) => {
+        setIsDropdownOpen(false);
+        if (item.role === 'Limited User') {
+            toast('Limited Users are created automatically when candidates submit a public test. Share a public test link to register them.', {
+                icon: 'ℹ️',
+                duration: 6000
+            });
+            navigate('/institute/activities');
+        } else {
+            setModalRole(item.role);
+            setQuickAddRole(item.role);
+            setIsUserModalOpen(true);
+        }
+    };
 
     const fetchRoleRequests = async () => {
         try {
@@ -103,27 +175,81 @@ const InstituteDashboard = () => {
     const fetchDashboardData = async () => {
         try {
             setLoading(true);
-            
+
             const instId = userInfo?.institute?._id || userInfo?.institute;
-            
+
             // Parallel fetches for efficiency
-            const [studentsRes, teachersRes, editorsRes, accountantsRes, appsRes, instRes] = await Promise.all([
+            const [
+                studentsRes, teachersRes, editorsRes, staffRes, accountantsRes,
+                marketersRes, parentsRes, coursesRes, subjectsRes, testsRes,
+                appsRes, submissionsRes, instRes
+            ] = await Promise.all([
                 axios.get('/api/users?role=Student'),
                 axios.get('/api/users?role=Teacher'),
                 axios.get('/api/users?role=Editor'),
+                axios.get('/api/users?role=Staff'),
                 axios.get('/api/users?role=Accountant'),
+                axios.get('/api/users?role=Marketer'),
+                axios.get('/api/users?role=Parent'),
+                axios.get('/api/setup/courses?status=active'),
+                axios.get('/api/setup/subjects'),
+                axios.get('/api/tests'),
                 axios.get('/api/setup/institute-applications'),
+                axios.get('/api/submissions').catch(() => ({ data: [] })),
                 instId ? axios.get(`/api/setup/institutes/${instId}`) : Promise.resolve(null)
             ]);
 
             const apps = appsRes.data || [];
             const pendingAppsCount = apps.filter(app => app.status === 'Applied' || app.status === 'Under Review').length;
 
+            const studentsCount = studentsRes.data?.length || 0;
+            const teachersCount = teachersRes.data?.length || 0;
+            const editorsCount = editorsRes.data?.length || 0;
+            const staffCount = staffRes.data?.length || 0;
+            const accountantsCount = accountantsRes.data?.length || 0;
+            const marketersCount = marketersRes.data?.length || 0;
+            const parentsCount = parentsRes.data?.length || 0;
+
+            const registeredCount = studentsCount + teachersCount + editorsCount + staffCount + accountantsCount + marketersCount + parentsCount;
+            const guestCount = apps.length;
+
+            // Extract unique candidate emails from submissions
+            const uniqueLimitedEmails = new Set(
+                (submissionsRes.data || [])
+                    .filter(sub => sub.candidateEmail || sub.email)
+                    .map(sub => sub.candidateEmail || sub.email)
+            );
+            const limitedCount = uniqueLimitedEmails.size;
+
+            const totalUsersCount = registeredCount + guestCount + limitedCount;
+
+            // Unique subjects count
+            const courseList = coursesRes.data || [];
+            const uniqueSubjects = new Set();
+            courseList.forEach(c => {
+                if (c.subjects && Array.isArray(c.subjects)) {
+                    c.subjects.forEach(s => {
+                        if (s) uniqueSubjects.add(s.trim());
+                    });
+                }
+            });
+
             setStats({
-                students: studentsRes.data?.length || 0,
-                teachers: teachersRes.data?.length || 0,
-                editors: editorsRes.data?.length || 0,
-                accountants: accountantsRes.data?.length || 0,
+                students: studentsCount,
+                teachers: teachersCount,
+                editors: editorsCount,
+                staff: staffCount,
+                accountants: accountantsCount,
+                marketers: marketersCount,
+                parents: parentsCount,
+                registeredUsers: registeredCount,
+                guestUsers: guestCount,
+                limitedUsers: limitedCount,
+                totalUsers: totalUsersCount,
+                courses: courseList.length,
+                subjects: uniqueSubjects.size || (subjectsRes.data?.length || 0),
+                tests: testsRes.data?.length || 0,
+                services: 3,
                 pendingApps: pendingAppsCount,
                 totalApps: apps.length
             });
@@ -147,12 +273,12 @@ const InstituteDashboard = () => {
         try {
             setUpdatingId(appId);
             const { data } = await axios.put(`/api/setup/applications/${appId}/status`, { status: newStatus });
-            
+
             toast.success(`Application status updated to ${newStatus}`);
-            
+
             // Update local state
             setApplications(prev => prev.map(app => app._id === appId ? { ...app, status: newStatus } : app));
-            
+
             // Recompute stats
             setStats(prev => {
                 const updatedApps = applications.map(app => app._id === appId ? { ...app, status: newStatus } : app);
@@ -174,7 +300,7 @@ const InstituteDashboard = () => {
         try {
             const nextActive = currentIsActive === false ? true : false;
             await axios.put(`/api/users/${userId}`, { isActive: nextActive });
-            
+
             // Update local state
             setApplications(prev => prev.map(app => {
                 if (app._id === appId && app.user) {
@@ -182,7 +308,7 @@ const InstituteDashboard = () => {
                 }
                 return app;
             }));
-            
+
             toast.success(`Account ${nextActive ? 'activated' : 'deactivated'} successfully`);
         } catch (error) {
             console.error("Error toggling user status:", error);
@@ -196,7 +322,7 @@ const InstituteDashboard = () => {
                 setUpdatingId(appId);
                 await axios.delete(`/api/setup/applications/${appId}`);
                 toast.success("Application and account deleted successfully");
-                
+
                 // Update state
                 setApplications(prev => prev.filter(app => app._id !== appId));
                 setStats(prev => ({
@@ -227,50 +353,79 @@ const InstituteDashboard = () => {
 
     return (
         <DashboardLayout role="Institute">
-            {/* Header section */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-                <div>
-                    <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
-                        <span>{userInfo?.institute?.name || 'Institute Portal'}</span>
-                        <span className="text-xs bg-[#0b1329] text-white px-2.5 py-0.5 rounded-full font-bold uppercase">Institute Admin</span>
-                    </h1>
-                    <p className="text-slate-500 mt-1">Manage users, courses, tests, and guest enrollment requests.</p>
+            {/* Header section with actions */}
+            <div className="flex flex-col gap-4 mb-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                        <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
+                            <span>{userInfo?.institute?.name || 'Institute Portal'}</span>
+                            <span className="text-xs bg-[#0b1329] text-white px-2.5 py-0.5 rounded-full font-bold uppercase">Institute Admin</span>
+                        </h1>
+                        <p className="text-slate-500 mt-1 text-sm">Manage users, courses, tests, and guest enrollment requests.</p>
+                    </div>
+                    <div className="relative w-full sm:w-auto flex justify-end" ref={dropdownRef}>
+                        <button
+                            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                            className="px-5 py-2.5 bg-[#0b1329] text-white rounded-2xl hover:bg-[#152244] hover:shadow-lg transition-all font-bold text-sm flex items-center justify-center gap-2 shadow-xl shadow-[#0b1329]/15 active:scale-95 w-full sm:w-auto z-25 cursor-pointer"
+                        >
+                            <Plus size={16} /> Add User
+                        </button>
+                        {isDropdownOpen && (
+                            <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-slate-100 rounded-2xl shadow-xl z-50 overflow-hidden py-1.5 transition-all duration-300">
+                                {rolesList.map((item) => {
+                                    const Icon = item.icon;
+                                    return (
+                                        <button
+                                            key={item.label}
+                                            onClick={() => handleRoleClick(item)}
+                                            className="w-full text-left px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 transition-colors flex items-center gap-2.5 cursor-pointer"
+                                        >
+                                            <Icon size={15} className="text-slate-400 group-hover:text-indigo-600 transition-colors" />
+                                            {item.label}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
                 </div>
-                
-                {/* Mode Toggles */}
-                <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200 w-full md:w-auto">
-                    <button
-                        onClick={() => setActiveTab('overview')}
-                        className={`flex-1 md:flex-none px-6 py-2.5 rounded-xl text-xs font-black transition-all ${activeTab === 'overview' ? 'bg-[#0b1329] text-white shadow-md' : 'text-slate-600 hover:text-slate-900'}`}
-                    >
-                        Overview
-                    </button>
-                    {user?.institute?.controls?.dashboard?.application !== false && (
+
+                {/* Tab Switcher — scrollable on mobile */}
+                <div className="overflow-x-auto -mx-1 px-1">
+                    <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200 w-full sm:w-auto sm:inline-flex min-w-max">
                         <button
-                            onClick={() => setActiveTab('applications')}
-                            className={`flex-1 md:flex-none px-6 py-2.5 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 ${activeTab === 'applications' ? 'bg-[#0b1329] text-white shadow-md' : 'text-slate-655 hover:text-slate-905'}`}
+                            onClick={() => setActiveTab('overview')}
+                            className={`flex-1 sm:flex-none px-4 sm:px-5 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap ${activeTab === 'overview' ? 'bg-[#0b1329] text-white shadow-md' : 'text-slate-600 hover:text-slate-900'}`}
                         >
-                            Applications
-                            {stats.pendingApps > 0 && (
-                                <span className="bg-rose-500 text-white text-[9px] font-extrabold h-4 px-1.5 rounded-full flex items-center justify-center animate-pulse">
-                                    {stats.pendingApps}
-                                </span>
-                            )}
+                            Overview
                         </button>
-                    )}
-                    {user?.institute?.controls?.dashboard?.staffRequest !== false && (
-                        <button
-                            onClick={() => setActiveTab('role-requests')}
-                            className={`flex-1 md:flex-none px-6 py-2.5 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 ${activeTab === 'role-requests' ? 'bg-[#0b1329] text-white shadow-md' : 'text-slate-650 hover:text-slate-900'}`}
-                        >
-                            Staff Requests
-                            {roleRequests.length > 0 && (
-                                <span className="bg-rose-500 text-white text-[9px] font-extrabold h-4 px-1.5 rounded-full flex items-center justify-center animate-pulse">
-                                    {roleRequests.length}
-                                </span>
-                            )}
-                        </button>
-                    )}
+                        {user?.institute?.controls?.dashboard?.application !== false && (
+                            <button
+                                onClick={() => setActiveTab('applications')}
+                                className={`flex-1 sm:flex-none px-4 sm:px-5 py-2.5 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap ${activeTab === 'applications' ? 'bg-[#0b1329] text-white shadow-md' : 'text-slate-600 hover:text-slate-900'}`}
+                            >
+                                Applications
+                                {stats.pendingApps > 0 && (
+                                    <span className="bg-rose-500 text-white text-[9px] font-extrabold h-4 px-1.5 rounded-full flex items-center justify-center animate-pulse">
+                                        {stats.pendingApps}
+                                    </span>
+                                )}
+                            </button>
+                        )}
+                        {user?.institute?.controls?.dashboard?.staffRequest !== false && (
+                            <button
+                                onClick={() => setActiveTab('role-requests')}
+                                className={`flex-1 sm:flex-none px-4 sm:px-5 py-2.5 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap ${activeTab === 'role-requests' ? 'bg-[#0b1329] text-white shadow-md' : 'text-slate-650 hover:text-slate-900'}`}
+                            >
+                                Staff Requests
+                                {roleRequests.length > 0 && (
+                                    <span className="bg-rose-500 text-white text-[9px] font-extrabold h-4 px-1.5 rounded-full flex items-center justify-center animate-pulse">
+                                        {roleRequests.length}
+                                    </span>
+                                )}
+                            </button>
+                        )}
+                    </div>
                 </div>
             </div>
 
@@ -284,91 +439,68 @@ const InstituteDashboard = () => {
                         /* OVERVIEW TAB */
                         <div className="space-y-8 animate-fade-in">
                             {/* Stats Cards Grid */}
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
-                                <StatCard 
-                                    title="Students" 
-                                    value={stats.students} 
-                                    icon={GraduationCap} 
-                                    color="bg-indigo-600 text-indigo-600" 
-                                    onClick={() => navigate('/institute/students')} 
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4 select-none">
+                                <StatCard
+                                    title="Total User" value={stats.totalUsers || 0} icon={Users} color="bg-indigo-600 text-indigo-600"
                                 />
-                                <StatCard 
-                                    title="Teachers" 
-                                    value={stats.teachers} 
-                                    icon={Users} 
-                                    color="bg-emerald-500 text-emerald-500" 
-                                    onClick={() => navigate('/institute/teachers')} 
+                                <StatCard
+                                    title="Registered User" value={stats.registeredUsers || 0} icon={Users} color="bg-indigo-600 text-indigo-600"
                                 />
-                                <StatCard 
-                                    title="Editors" 
-                                    value={stats.editors} 
-                                    icon={Award} 
-                                    color="bg-purple-500 text-purple-500" 
-                                    onClick={() => navigate('/institute/editors')} 
+                                <StatCard title="Guest User" value={stats.guestUsers || 0} icon={Users} color="bg-indigo-600 text-indigo-600" />
+                                <StatCard title="Limited User" value={stats.limitedUsers || 0} icon={Users} color="bg-indigo-600 text-indigo-600" />
+                                <StatCard
+                                    title="Student" value={stats.students || 0} icon={GraduationCap} color="bg-blue-500 text-blue-500"
+                                    onClick={() => navigate('/institute/students')}
+                                    onAdd={() => { setQuickAddRole('Student'); setIsUserModalOpen(true); }}
+                                    onEdit={() => navigate('/institute/students')}
                                 />
-                                <StatCard 
-                                    title="Accountants" 
-                                    value={stats.accountants} 
-                                    icon={Users} 
-                                    color="bg-amber-500 text-amber-500" 
-                                    onClick={() => navigate('/institute/accountants')} 
+                                <StatCard
+                                    title="Teacher" value={stats.teachers || 0} icon={CheckCircle} color="bg-emerald-500 text-emerald-500"
+                                    onClick={() => navigate('/institute/teachers')}
+                                    onAdd={() => { setQuickAddRole('Teacher'); setIsUserModalOpen(true); }}
+                                    onEdit={() => navigate('/institute/teachers')}
                                 />
-                                <StatCard 
-                                    title="Pending Requests" 
-                                    value={stats.pendingApps} 
-                                    icon={Inbox} 
-                                    color="bg-blue-500 text-blue-500" 
-                                    onClick={() => setActiveTab('applications')} 
+                                <StatCard
+                                    title="Editor" value={stats.editors || 0} icon={Edit} color="bg-pink-500 text-pink-500"
+                                    onClick={() => navigate('/institute/editors')}
+                                    onAdd={() => { setQuickAddRole('Editor'); setIsUserModalOpen(true); }}
+                                    onEdit={() => navigate('/institute/editors')}
                                 />
+                                <StatCard
+                                    title="Staff" value={stats.staff || 0} icon={Briefcase} color="bg-cyan-600 text-cyan-600"
+                                    onClick={() => navigate('/institute/staff')}
+                                    onAdd={() => { setQuickAddRole('Staff'); setIsUserModalOpen(true); }}
+                                    onEdit={() => navigate('/institute/staff')}
+                                />
+                                <StatCard
+                                    title="Accountants" value={stats.accountants || 0} icon={Calculator} color="bg-teal-600 text-teal-600"
+                                    onClick={() => navigate('/institute/accountants')}
+                                    onAdd={() => { setQuickAddRole('Accountant'); setIsUserModalOpen(true); }}
+                                    onEdit={() => navigate('/institute/accountants')}
+                                />
+                                <StatCard
+                                    title="Marketers" value={stats.marketers || 0} icon={Megaphone} color="bg-yellow-500 text-yellow-500"
+                                    onClick={() => navigate('/institute/marketers')}
+                                    onAdd={() => { setQuickAddRole('Marketer'); setIsUserModalOpen(true); }}
+                                    onEdit={() => navigate('/institute/marketers')}
+                                />
+                                <StatCard
+                                    title="Parents" value={stats.parents || 0} icon={Heart} color="bg-rose-400 text-rose-400"
+                                    onClick={() => navigate('/institute/parents')}
+                                    onAdd={() => { setQuickAddRole('Parent'); setIsUserModalOpen(true); }}
+                                    onEdit={() => navigate('/institute/parents')}
+                                />
+
+                                <StatCard title="Courses" value={stats.courses || 0} icon={BookOpen} color="bg-sky-500 text-sky-500"
+                                    onClick={() => navigate('/institute/courses')}
+                                    onAdd={() => setIsCourseModalOpen(true)}
+                                    onEdit={() => navigate('/institute/courses')}
+                                />
+                                <StatCard title="Subjects" value={stats.subjects || 0} icon={FolderOpen} color="bg-violet-500 text-violet-500" onClick={() => navigate('/institute/subjects')} />
+                                <StatCard title="Activities" value={stats.tests || 0} icon={FileText} color="bg-purple-500 text-purple-500" onClick={() => navigate('/institute/activities')} />
+                                <StatCard title="Services" value={stats.services || 0} icon={Settings} color="bg-lime-600 text-lime-600" onClick={() => navigate('/institute/tools')} />
                             </div>
 
-                            {/* Welcome / Quick Actions */}
-                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                                <div className="lg:col-span-2 bg-[#0b1329] text-white rounded-3xl p-8 relative overflow-hidden shadow-lg flex flex-col justify-between min-h-[220px]">
-                                    <div className="absolute right-0 bottom-0 opacity-10 pointer-events-none transform translate-x-10 translate-y-10">
-                                        <GraduationCap size={260} />
-                                    </div>
-                                    <div className="relative z-10">
-                                        <h3 className="text-2xl font-extrabold mb-2">Welcome Back!</h3>
-                                        <p className="text-slate-300 text-sm max-w-md leading-relaxed">
-                                            As the Institute Admin, you can add or review credentials for teachers and editors, schedule examinations, and process incoming student applications for your courses.
-                                        </p>
-                                    </div>
-                                    <div className="flex flex-wrap gap-3 mt-6 relative z-10">
-                                        <button 
-                                            onClick={() => navigate('/institute/tests/builder')} 
-                                            className="px-5 py-2.5 bg-emerald-500 text-[#0b1329] hover:bg-emerald-400 font-extrabold text-xs uppercase tracking-wider rounded-xl transition-all active:scale-95 flex items-center gap-1.5"
-                                        >
-                                            Create Test <ArrowRight size={14} />
-                                        </button>
-                                        <button 
-                                            onClick={() => navigate('/institute/students')} 
-                                            className="px-5 py-2.5 bg-white/10 hover:bg-white/20 text-white font-extrabold text-xs uppercase tracking-wider rounded-xl transition-all active:scale-95"
-                                        >
-                                            View Student Base
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm flex flex-col justify-between">
-                                    <div>
-                                        <h3 className="font-extrabold text-slate-800 mb-2">Enrollment Quick Info</h3>
-                                        <p className="text-slate-500 text-xs leading-relaxed mb-4">
-                                            Course registration applications submitted by guest users on the landing page are listed under the applications tab. Keep track of requests to process registrations efficiently.
-                                        </p>
-                                    </div>
-                                    <div className="bg-slate-50 rounded-2xl p-4 space-y-3">
-                                        <div className="flex justify-between items-center text-xs">
-                                            <span className="text-slate-500 font-bold">Total Applications</span>
-                                            <span className="font-extrabold text-[#0b1329]">{stats.totalApps}</span>
-                                        </div>
-                                        <div className="flex justify-between items-center text-xs">
-                                            <span className="text-slate-550 font-bold">Pending Review</span>
-                                            <span className="font-extrabold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">{stats.pendingApps}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
                         </div>
                     ) : activeTab === 'applications' ? (
                         /* APPLICATIONS TAB */
@@ -378,7 +510,7 @@ const InstituteDashboard = () => {
                                     <Inbox size={20} className="text-[#0b1329]" />
                                     <span>Course Applications</span>
                                 </h3>
-                                <button 
+                                <button
                                     onClick={fetchDashboardData}
                                     className="p-2 text-slate-500 hover:text-[#0b1329] hover:bg-slate-100 rounded-full transition-all"
                                     title="Refresh Data"
@@ -427,11 +559,10 @@ const InstituteDashboard = () => {
                                                         </div>
                                                     </td>
                                                     <td className="p-5 whitespace-nowrap">
-                                                        <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
-                                                            app.role === 'Teacher'
-                                                                ? 'bg-purple-50 text-purple-700 border border-purple-100'
-                                                                : 'bg-blue-50 text-blue-700 border border-blue-100'
-                                                        }`}>
+                                                        <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${app.role === 'Teacher'
+                                                            ? 'bg-purple-50 text-purple-700 border border-purple-100'
+                                                            : 'bg-blue-50 text-blue-700 border border-blue-100'
+                                                            }`}>
                                                             {app.role || 'Student'}
                                                         </span>
                                                     </td>
@@ -453,15 +584,13 @@ const InstituteDashboard = () => {
                                                         {app.user ? (
                                                             <button
                                                                 onClick={() => handleToggleUserStatus(app._id, app.user._id, app.user.isActive)}
-                                                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
-                                                                    app.user.isActive !== false ? 'bg-emerald-500' : 'bg-slate-200'
-                                                                }`}
+                                                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${app.user.isActive !== false ? 'bg-emerald-500' : 'bg-slate-200'
+                                                                    }`}
                                                                 title={app.user.isActive !== false ? 'Click to Deactivate Account' : 'Click to Activate Account'}
                                                             >
                                                                 <span
-                                                                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                                                                        app.user.isActive !== false ? 'translate-x-6' : 'translate-x-1'
-                                                                    }`}
+                                                                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${app.user.isActive !== false ? 'translate-x-6' : 'translate-x-1'
+                                                                        }`}
                                                                 />
                                                             </button>
                                                         ) : (
@@ -664,6 +793,8 @@ const InstituteDashboard = () => {
                     )}
                 </>
             )}
+            <AddUserModal isOpen={isUserModalOpen} onClose={() => { setIsUserModalOpen(false); setQuickAddRole(null); }} role={quickAddRole || modalRole} onSuccess={fetchDashboardData} />
+            <AddCourseModal isOpen={isCourseModalOpen} onClose={() => setIsCourseModalOpen(false)} refreshData={fetchDashboardData} />
         </DashboardLayout>
     );
 };

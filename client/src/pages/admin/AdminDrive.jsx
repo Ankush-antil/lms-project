@@ -708,7 +708,7 @@ const AdminDrive = () => {
                         {/* Integrate Button */}
                         {canPerform('drive', 'integrateDrive') && (
                             <button
-                                onClick={() => toast('Coming Soon', { icon: '⏳' })}
+                                onClick={() => setShowGDriveModal(true)}
                                 className="flex items-center gap-2.5 px-5 py-3.5 bg-white hover:bg-slate-50 text-slate-700 rounded-full border border-slate-200 shadow-sm hover:shadow font-bold text-sm transition-all cursor-pointer active:scale-95"
                             >
                                 <img src="https://upload.wikimedia.org/wikipedia/commons/1/12/Google_Drive_icon_%282020%29.svg" alt="Google Drive" className="w-5 h-5 shrink-0" />
@@ -894,6 +894,8 @@ const AdminDrive = () => {
         <GoogleDriveModal
             isOpen={showGDriveModal}
             onClose={() => setShowGDriveModal(false)}
+            currentParentId={currentParentId}
+            onSaveSuccess={fetchItems}
         />
         </>
     );

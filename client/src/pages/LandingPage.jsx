@@ -395,7 +395,7 @@ const LandingPage = () => {
         const fetchCourses = async () => {
             try {
                 setLoadingCourses(true);
-                const { data } = await axios.get('/api/setup/courses?status=active');
+                const { data } = await axios.get('/api/setup/courses?status=active&landing=true');
                 setCourses(data);
                 const names = [...new Set(data.map(c => c.name))];
                 setUniqueCourses(names);
@@ -413,23 +413,7 @@ const LandingPage = () => {
         const fetchInstitutes = async () => {
             try {
                 setLoadingInstitutes(true);
-                const { data } = await axios.get('/api/setup/institutes');
-                setInstitutes(data);
-            } catch (err) {
-                console.error("Error fetching institutes:", err);
-            } finally {
-                setLoadingInstitutes(false);
-            }
-        };
-        fetchInstitutes();
-    }, []);
-
-    // Fetch institutes
-    useEffect(() => {
-        const fetchInstitutes = async () => {
-            try {
-                setLoadingInstitutes(true);
-                const { data } = await axios.get('/api/setup/institutes');
+                const { data } = await axios.get('/api/setup/institutes?landing=true');
                 setInstitutes(data);
             } catch (err) {
                 console.error("Error fetching institutes:", err);

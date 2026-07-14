@@ -366,7 +366,7 @@ const ParentsList = () => {
                     <h1 className="text-2xl font-bold text-slate-800">Parents Management</h1>
                     <p className="text-slate-500">Manage parents profiles and link them to students.</p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                     <input
                         type="file"
                         ref={importUsersRef}
@@ -466,7 +466,6 @@ const ParentsList = () => {
                         <thead>
                             <tr className="bg-slate-50/50 border-b border-slate-150 text-[11px] font-black text-slate-450 uppercase tracking-wider">
                                 <th className="px-6 py-4">Name</th>
-                                <th className="px-6 py-4">Email</th>
                                 <th className="px-6 py-4">Phone</th>
                                 <th className="px-6 py-4">Linked Student</th>
                                 <th className="px-6 py-4">Status</th>
@@ -476,15 +475,19 @@ const ParentsList = () => {
                         <tbody className="divide-y divide-slate-100 text-sm font-medium text-slate-700">
                             {loading ? (
                                 <tr>
-                                    <td colSpan="6" className="text-center py-8 text-slate-400 font-bold">
+                                    <td colSpan="5" className="text-center py-8 text-slate-400 font-bold">
                                         Loading Parents...
                                     </td>
                                 </tr>
                             ) : paginatedParents.length > 0 ? (
                                 paginatedParents.map((parent) => (
                                     <tr key={parent._id} className="hover:bg-slate-50/50 transition-colors">
-                                        <td className="px-6 py-4 font-bold text-slate-800">{parent.name}</td>
-                                        <td className="px-6 py-4">{parent.email}</td>
+                                        <td className="px-6 py-4">
+                                            <div className="flex flex-col">
+                                                <span className="font-bold text-slate-800">{parent.name}</span>
+                                                <span className="text-xs text-slate-405 font-medium">{parent.email}</span>
+                                            </div>
+                                        </td>
                                         <td className="px-6 py-4">{parent.mobileNumber || 'N/A'}</td>
                                         <td className="px-6 py-4">
                                             {parent.parentProfile?.student ? (
@@ -536,7 +539,7 @@ const ParentsList = () => {
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan="6" className="text-center py-8 text-slate-400 font-bold">
+                                    <td colSpan="5" className="text-center py-8 text-slate-400 font-bold">
                                         No parents found.
                                     </td>
                                 </tr>

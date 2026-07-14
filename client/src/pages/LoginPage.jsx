@@ -29,6 +29,7 @@ const LoginPage = () => {
             else if (data.role === 'Editor') navigate('/editor');
             else if (data.role === 'Institute') navigate('/institute');
             else if (data.role === 'Accountant') navigate('/accountant');
+            else if (data.role === 'Marketer') navigate('/marketer');
             else if (data.role === 'Staff') navigate('/staff');
             else if (data.role === 'Parent') navigate('/parent');
             else if (data.role === 'Guest') navigate('/guest');
@@ -41,14 +42,14 @@ const LoginPage = () => {
     };
 
     return (
-        <div className="h-screen w-screen overflow-hidden flex items-center justify-center bg-gradient-to-r from-[#fafafa] from-35% via-[#b8c5d6] to-[#0b1329] to-65% p-4 md:p-8">
-            <div className="flex w-full max-w-5xl h-[85vh] max-h-[580px] bg-transparent rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.3)] overflow-hidden border border-slate-200/50 relative">
+        <div className="min-h-screen w-screen flex items-center justify-center bg-gradient-to-r from-[#fafafa] from-35% via-[#b8c5d6] to-[#0b1329] to-65% p-4 md:p-8">
+            <div className="flex w-full max-w-5xl h-auto md:h-[85vh] md:max-h-[580px] bg-transparent rounded-[1.5rem] md:rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.3)] overflow-hidden border border-slate-200/50 relative">
                 {/* Left Side - Form (Off-White Theme) */}
                 <motion.div
                     initial={{ opacity: 0, x: -40 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ duration: 0.6, ease: 'easeOut' }}
-                    className="w-full md:w-1/2 p-6 md:p-12 flex flex-col justify-between h-full bg-[#f1f5f9]"
+                    className="w-full md:w-1/2 p-6 md:p-12 flex flex-col justify-between h-full bg-[#f1f5f9] min-h-[420px]"
                 >
                     <div>
                         {/* Title Section */}

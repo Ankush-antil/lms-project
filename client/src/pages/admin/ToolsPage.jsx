@@ -59,7 +59,7 @@ const ToolsPage = () => {
     const getToolsControls = () => {
         if (!user) return {};
         if (user.role === 'Admin' || user.role === 'Institute') {
-            return user.institute?.controls?.tools || {};
+            return {};
         }
         const role = user.role;
         if (role === 'Teacher') return user.teacherProfile?.controls?.tools || {};

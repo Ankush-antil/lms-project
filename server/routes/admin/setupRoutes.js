@@ -32,9 +32,13 @@ const {
     getDeletedInstitutes,
     restoreInstitute,
     permanentlyDeleteInstitute,
-    importInstitutes
+    importInstitutes,
+    getDeletedApplications,
+    restoreApplication,
+    permanentlyDeleteApplication,
+    importApplications
 } = require('../../controllers/admin/setupController');
-const { toggleInstituteFlag } = require('../../controllers/admin/setupController');
+const { toggleInstituteFlag, toggleCourseFlag } = require('../../controllers/admin/setupController');
 const { protect, admin, adminOrEditor, adminOrInstitute, parseUserOptional } = require('../../middleware/authMiddleware');
 
 router.route('/institutes')
@@ -101,6 +105,10 @@ router.route('/courses/:id')
     .put(protect, adminOrEditor, updateCourse)
     .delete(protect, adminOrEditor, deleteCourse);
 
+// Course toggle for landing page visibility etc
+router.route('/courses/:id/toggle')
+    .patch(protect, adminOrEditor, toggleCourseFlag);
+
 // Public: get section preview for a course (no auth needed)
 router.route('/courses/:id/section-preview')
     .get(getSectionPreview);
@@ -125,6 +133,18 @@ router.route('/register-student')
 // Institute applications routes (Internal/Isolated)
 router.route('/institute-applications')
     .get(protect, adminOrInstitute, getInstituteApplications);
+
+router.route('/applications/trash')
+    .get(protect, adminOrInstitute, getDeletedApplications);
+
+router.route('/applications/import')
+    .post(protect, adminOrInstitute, importApplications);
+
+router.route('/applications/:id/restore')
+    .put(protect, adminOrInstitute, restoreApplication);
+
+router.route('/applications/:id/permanent')
+    .delete(protect, adminOrInstitute, permanentlyDeleteApplication);
 
 router.route('/applications/:id/status')
     .put(protect, adminOrInstitute, updateApplicationStatus);

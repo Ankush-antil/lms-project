@@ -230,8 +230,8 @@ const [formData, setFormData] = useState({
     ];
 
     return createPortal(
-        <div className="fixed inset-0 z-[100] bg-slate-900/70 backdrop-blur-md animate-fade-in flex items-center justify-center p-4">
-            <div className="bg-white w-full max-w-2xl md:max-h-[92vh] md:rounded-[40px] shadow-2xl border border-slate-100 overflow-hidden relative animate-slide-up flex flex-col">
+        <div className="fixed inset-0 z-[100] bg-slate-900/70 backdrop-blur-md animate-fade-in flex items-center justify-center sm:p-4">
+            <div className="bg-white w-full h-full sm:h-auto max-w-2xl sm:max-h-[92vh] rounded-none sm:rounded-[32px] md:rounded-[40px] shadow-2xl border border-slate-100 overflow-hidden relative animate-slide-up flex flex-col">
                 
                 {/* Header Banner */}
                 <div className="bg-[#0b1329] relative flex-shrink-0 px-8 pt-7 pb-0">

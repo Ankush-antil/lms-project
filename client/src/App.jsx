@@ -15,10 +15,16 @@ import TeacherDetails from './pages/admin/TeacherDetails';
 import EditorsList from './pages/admin/EditorsList';
 import AccountantsList from './pages/admin/AccountantsList';
 import AccountantDashboard from './pages/accountant/AccountantDashboard';
+import AssetManagement from './pages/accountant/AssetManagement';
 import GuestDashboard from './pages/guest/GuestDashboard';
 import UsersList from './pages/admin/UsersList';
 import SubjectsList from './pages/admin/SubjectsList';
 import MarketersList from './pages/admin/MarketersList';
+import MarketerDashboard from './pages/marketer/MarketerDashboard';
+import LeadsManagement from './pages/marketer/LeadsManagement';
+import AdsManagement from './pages/marketer/AdsManagement';
+import ReferralMarketing from './pages/marketer/ReferralMarketing';
+import AffiliateMarketing from './pages/marketer/AffiliateMarketing';
 import AdminDrive from './pages/admin/AdminDrive';
 
 import TestsList from './pages/admin/TestsList';
@@ -277,6 +283,11 @@ function App() {
                                         <AccountantsList />
                                     </PrivateRoute>
                                 } />
+                                <Route path="/institute/marketers" element={
+                                    <PrivateRoute role="Institute">
+                                        <MarketersList />
+                                    </PrivateRoute>
+                                } />
                                 <Route path="/institute/courses" element={
                                     <PrivateRoute role="Institute">
                                         <CoursesList />
@@ -519,6 +530,11 @@ function App() {
                                         <AdminFeePortal />
                                     </PrivateRoute>
                                 } />
+                                <Route path="/accountant/assets" element={
+                                    <PrivateRoute role="Accountant">
+                                        <AssetManagement />
+                                    </PrivateRoute>
+                                } />
                                 <Route path="/accountant/drive" element={
                                     <PrivateRoute role="Accountant">
                                         <AdminDrive />
@@ -531,6 +547,48 @@ function App() {
                                 } />
                                 <Route path="/accountant/chat" element={
                                     <PrivateRoute role="Accountant">
+                                        <ChatPage />
+                                    </PrivateRoute>
+                                } />
+
+                                {/* Marketer Routes */}
+                                <Route path="/marketer" element={
+                                    <PrivateRoute role="Marketer">
+                                        <MarketerDashboard />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/marketer/leads" element={
+                                    <PrivateRoute role="Marketer">
+                                        <LeadsManagement />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/marketer/ads" element={
+                                    <PrivateRoute role="Marketer">
+                                        <AdsManagement />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/marketer/referrals" element={
+                                    <PrivateRoute role="Marketer">
+                                        <ReferralMarketing />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/marketer/affiliates" element={
+                                    <PrivateRoute role="Marketer">
+                                        <AffiliateMarketing />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/marketer/drive" element={
+                                    <PrivateRoute role="Marketer">
+                                        <AdminDrive />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/marketer/notes" element={
+                                    <PrivateRoute role="Marketer">
+                                        <NotesPage />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/marketer/chat" element={
+                                    <PrivateRoute role="Marketer">
                                         <ChatPage />
                                     </PrivateRoute>
                                 } />

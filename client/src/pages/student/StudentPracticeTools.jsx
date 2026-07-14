@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { 
     Calendar, Camera, Video, Mic, MonitorPlay, Phone, Settings, 
-    ChevronRight, AlertCircle, Info, Lock, Unlock, Clock, FolderOpen, Upload, FileText
+    ChevronRight, AlertCircle, Info, Lock, Unlock, Clock, FolderOpen, Upload, FileText, Menu
 } from 'lucide-react';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { parseDateToDdMmYyyy, getTodayDdMmYyyy } from '../../utils/dateUtils';
@@ -20,6 +20,7 @@ const StudentPracticeTools = () => {
     const dateParam = searchParams.get('date');
 
     const [selectedDate, setSelectedDate] = useState('');
+    const [isDateSidebarOpen, setIsDateSidebarOpen] = useState(false);
     const [loading, setLoading] = useState(true);
     
     // Storage lists
@@ -233,6 +234,7 @@ const StudentPracticeTools = () => {
 
     const handleSelectDate = (date) => {
         setSelectedDate(date);
+        setIsDateSidebarOpen(false);
         // Sync query parameter
         navigate(`/student/practice-tools?date=${date}`, { replace: true });
     };
@@ -341,8 +343,16 @@ const StudentPracticeTools = () => {
                     </div>
                 )}
                 
+                {/* Left Date Sidebar backdrop */}
+                {isDateSidebarOpen && (
+                    <div 
+                        className="fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-xs lg:hidden"
+                        onClick={() => setIsDateSidebarOpen(false)}
+                    />
+                )}
+
                 {/* ── LEFT DATE SIDEBAR ───────────────────────────────── */}
-                <aside className="w-72 border-r border-slate-200 flex flex-col bg-white shrink-0 overflow-hidden text-left">
+                <aside className={`fixed inset-y-0 left-0 z-50 w-72 border-r border-slate-200 flex flex-col bg-white shrink-0 overflow-hidden text-left transition-transform duration-300 lg:static lg:translate-x-0 ${isDateSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
                     <div className="p-6 border-b border-slate-150 shrink-0">
                         <div className="flex items-center gap-2 mb-1.5">
                             <Clock className="text-slate-700" size={18} />
@@ -405,6 +415,14 @@ const StudentPracticeTools = () => {
                     <div className="bg-white border-b border-slate-200 p-6 flex flex-col gap-2.5 shrink-0">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsDateSidebarOpen(true)}
+                                    className="lg:hidden p-2 bg-slate-50 border border-slate-200 text-slate-650 hover:bg-slate-100 rounded-xl transition-all shrink-0 cursor-pointer"
+                                    title="Open Date List"
+                                >
+                                    <Menu size={18} />
+                                </button>
                                 <div className="w-10 h-10 rounded-full bg-[#3E3ADD] text-white flex items-center justify-center shadow-md shadow-indigo-500/10 shrink-0">
                                     <Settings size={18} />
                                 </div>

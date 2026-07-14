@@ -5,7 +5,8 @@ import { useAuth } from '../../context/AuthContext';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { Download,  Upload, 
     Users, Search, Building, Mail, Briefcase, Calendar,
-    DollarSign, CheckSquare, Plus, Check, Clock, AlertCircle, Trash2, Edit, Filter, ChevronDown, Eye, Bell, CheckCircle
+    DollarSign, CheckSquare, Plus, Check, Clock, AlertCircle, Trash2, Edit, Filter, ChevronDown, Eye, Bell, CheckCircle,
+    Award, AlertTriangle, ChevronLeft
 } from 'lucide-react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
@@ -69,6 +70,17 @@ const StaffList = () => {
     const [selectedStaffForDetails, setSelectedStaffForDetails] = useState(null);
     const [institutes, setInstitutes] = useState([]);
     const [filterInstitute, setFilterInstitute] = useState('All');
+
+    // Points / Valuation Management states (Read-only on Admin side)
+    const [pointsLogs, setPointsLogs] = useState(() => {
+        const stored = localStorage.getItem('staff_points') || localStorage.getItem('staff_minus_points');
+        return stored ? JSON.parse(stored) : [];
+    });
+    const [selectedPreviewStaff, setSelectedPreviewStaff] = useState(null);
+    const [pointsDateFilter, setPointsDateFilter] = useState('year');
+    const [pointsParticularDate, setPointsParticularDate] = useState('');
+    const [pointsStartDate, setPointsStartDate] = useState('');
+    const [pointsEndDate, setPointsEndDate] = useState('');
 
     // Sub-modules state
     const [tasks, setTasks] = useState([
@@ -571,6 +583,7 @@ const StaffList = () => {
                         { id: 'attendance', label: 'Attendance Management', icon: Calendar },
                         { id: 'salary', label: 'Salary & Payouts', icon: DollarSign },
                         { id: 'task', label: 'Task Assignments', icon: CheckSquare },
+                        { id: 'minusPoints', label: 'Points Management', icon: Award },
                     ].map(t => {
                         const Icon = t.icon;
                         const isSel = activeTab === t.id;
@@ -604,19 +617,19 @@ const StaffList = () => {
                 {/* Tab content routing */}
                 {activeTab === 'directory' && (
                     <>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                <div style={{ position: 'relative' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', flex: '1 1 auto' }}>
+                                <div style={{ position: 'relative', flex: '1 1 220px', maxWidth: '320px' }}>
                                     <Search size={15} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
                                     <input
                                         value={search}
                                         onChange={e => setSearch(e.target.value)}
                                         placeholder="Search staff directory..."
                                         style={{
-                                            paddingLeft: 36, paddingRight: 16, paddingTop: 10, paddingBottom: 10,
+                                            width: '100%', paddingLeft: 36, paddingRight: 16, paddingTop: 10, paddingBottom: 10,
                                             border: '1.5px solid #e2e8f0', borderRadius: '12px', fontSize: '0.82rem',
                                             fontWeight: 600, color: '#374151', background: '#fff', outline: 'none',
-                                            minWidth: 260, fontFamily: 'inherit'
+                                            fontFamily: 'inherit', boxSizing: 'border-box'
                                         }}
                                     />
                                 </div>
@@ -712,10 +725,11 @@ const StaffList = () => {
                             <div style={{ textAlign: 'center', padding: '60px', color: '#94a3b8', fontWeight: 700 }}>Loading staff...</div>
                         ) : (
                             <div style={{ background: '#fff', borderRadius: '20px', overflow: 'hidden', border: '1px solid #f1f5f9', boxShadow: '0 2px 12px rgba(0,0,0,0.04)' }}>
-                                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                                <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+                                <table style={{ width: '100%', minWidth: '700px', borderCollapse: 'collapse' }}>
                                     <thead>
                                         <tr style={{ background: '#f8fafc', borderBottom: '1px solid #f1f5f9' }}>
-                                            {['#', 'Name', 'Email', 'Designation', 'Department', 'Institute', 'Status', 'Actions'].map(h => (
+                                            {['#', 'Name', 'Designation', 'Department', 'Institute', 'Minus Valuation', 'Status', 'Actions'].map(h => (
                                                 <th key={h} style={{ padding: '13px 16px', textAlign: h === 'Actions' ? 'right' : 'left', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                                                     {h}
                                                 </th>
@@ -725,7 +739,7 @@ const StaffList = () => {
                                     <tbody>
                                         {displayList.length === 0 ? (
                                             <tr>
-                                                <td colSpan={7} style={{ padding: '48px', textAlign: 'center', color: '#94a3b8', fontWeight: 700 }}>
+                                                <td colSpan={8} style={{ padding: '48px', textAlign: 'center', color: '#94a3b8', fontWeight: 700 }}>
                                                     No staff found
                                                 </td>
                                             </tr>
@@ -745,12 +759,10 @@ const StaffList = () => {
                                                         }}>
                                                             {s.name?.[0]?.toUpperCase() || '?'}
                                                         </div>
-                                                        <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#0f172a' }}>{s.name}</span>
-                                                    </div>
-                                                </td>
-                                                <td style={{ padding: '13px 16px', fontSize: '0.78rem', color: '#64748b', fontWeight: 600 }}>
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                                        <Mail size={12} style={{ color: '#94a3b8' }} /> {s.email}
+                                                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                                            <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#0f172a' }}>{s.name}</span>
+                                                            <span style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 650 }}>{s.email}</span>
+                                                        </div>
                                                     </div>
                                                 </td>
                                                 <td style={{ padding: '13px 16px', fontSize: '0.78rem', fontWeight: 700, color: '#374151' }}>
@@ -765,6 +777,9 @@ const StaffList = () => {
                                                         <Building size={12} style={{ color: '#94a3b8' }} />
                                                         {s.instituteName || s.institute?.name || 'All Institutes'}
                                                     </div>
+                                                </td>
+                                                <td style={{ padding: '13px 16px', fontSize: '0.78rem', fontWeight: 800, color: s.staffProfile?.minusPoints > 0 ? '#ef4444' : '#64748b' }}>
+                                                    {s.staffProfile?.minusPoints !== undefined ? s.staffProfile.minusPoints : 0}
                                                 </td>
                                                 <td style={{ padding: '13px 16px' }}>
                                                      <button
@@ -827,6 +842,7 @@ const StaffList = () => {
                                         ))}
                                     </tbody>
                                 </table>
+                                </div>
                             </div>
                         )}
                     </>
@@ -1372,6 +1388,276 @@ const StaffList = () => {
                         )}
                     </div>
                 )}
+
+                {activeTab === 'minusPoints' && (() => {
+                    const currentPreviewStaff = selectedPreviewStaff 
+                        ? (staffList.find(s => s._id === selectedPreviewStaff._id) || selectedPreviewStaff) 
+                        : null;
+                    return (
+                        <div style={{ background: '#fff', borderRadius: '24px', padding: '24px', border: '1px solid #f1f5f9', boxShadow: '0 2px 12px rgba(0,0,0,0.04)', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                            
+                            {/* Header Section */}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+                                <div>
+                                    <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 900, color: '#0f172a' }}>Points Management (Read-Only)</h3>
+                                    <p style={{ margin: '4px 0 0', fontSize: '0.72rem', color: '#64748b', fontWeight: 600 }}>
+                                        {currentPreviewStaff 
+                                            ? `Viewing plus and minus points log history for ${currentPreviewStaff.name}.` 
+                                            : 'Preview plus and minus points logs for all staff members.'}
+                                    </p>
+                                </div>
+                                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                                    {currentPreviewStaff && (
+                                        <button 
+                                            onClick={() => setSelectedPreviewStaff(null)}
+                                            style={{
+                                                display: 'flex', alignItems: 'center', gap: '6px',
+                                                background: '#f1f5f9', color: '#475569', border: 'none',
+                                                borderRadius: '12px', padding: '9px 16px', fontSize: '0.8rem',
+                                                fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit'
+                                            }}
+                                        >
+                                            <ChevronLeft size={16} /> Back to Staff List
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* View 1: Default Staff List View */}
+                            {!currentPreviewStaff ? (
+                                <div style={{ overflowX: 'auto', border: '1px solid #e2e8f0', borderRadius: '20px' }}>
+                                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                                        <thead>
+                                            <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
+                                                <th style={{ padding: '14px 16px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase' }}>#</th>
+                                                <th style={{ padding: '14px 16px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase' }}>Staff Name</th>
+                                                <th style={{ padding: '14px 16px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase' }}>Role / Designation</th>
+                                                <th style={{ padding: '14px 16px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Action</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {staffList.map((staff, idx) => {
+                                                return (
+                                                    <tr key={staff._id} style={{ borderBottom: '1px solid #f1f5f9', background: idx % 2 === 0 ? '#fff' : '#f8fafc' }}>
+                                                        <td style={{ padding: '14px 16px', fontSize: '0.78rem', fontWeight: 700, color: '#94a3b8' }}>{idx + 1}</td>
+                                                        <td style={{ padding: '14px 16px', fontSize: '0.85rem', fontWeight: 800, color: '#0f172a' }}>{staff.name}</td>
+                                                        <td style={{ padding: '14px 16px', fontSize: '0.78rem', color: '#475569', fontWeight: 600 }}>{staff.staffProfile?.designation || 'Staff'}</td>
+                                                        <td style={{ padding: '14px 16px', textAlign: 'center' }}>
+                                                            <button
+                                                                onClick={() => setSelectedPreviewStaff(staff)}
+                                                                style={{
+                                                                    background: '#e0e7ff', color: '#4338ca', border: 'none',
+                                                                    borderRadius: '8px', padding: '6px 14px', fontSize: '0.72rem',
+                                                                    fontWeight: 800, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px'
+                                                                }}
+                                                            >
+                                                                <Eye size={12} /> Preview Valuation
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            ) : (
+                                // View 2: Detailed Plus/Minus Tables for Selected Staff (Read-Only)
+                                <div>
+
+                                    {/* Unified Points Filter Toolbar */}
+                                    <div style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '12px',
+                                        flexWrap: 'wrap',
+                                        background: '#f8fafc',
+                                        padding: '10px 14px',
+                                        borderRadius: '12px',
+                                        border: '1px solid #e2e8f0',
+                                        marginBottom: '20px'
+                                    }}>
+                                        {/* Date Filter */}
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                            <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#475569' }}>Date:</span>
+                                            <select
+                                                value={pointsDateFilter}
+                                                onChange={e => setPointsDateFilter(e.target.value)}
+                                                style={{ padding: '4px 8px', borderRadius: '8px', border: '1.5px solid #cbd5e1', fontSize: '0.7rem', fontWeight: 700, color: '#334155', background: '#fff', cursor: 'pointer', outline: 'none' }}
+                                            >
+                                                <option value="today">Today</option>
+                                                <option value="month">This Month</option>
+                                                <option value="particular">Particular Date</option>
+                                                <option value="range">Date Range</option>
+                                                <option value="year">Complete Year</option>
+                                            </select>
+                                        </div>
+
+                                        {pointsDateFilter === 'particular' && (
+                                            <input type="date" value={pointsParticularDate} onChange={e => setPointsParticularDate(e.target.value)} style={{ padding: '4px 8px', borderRadius: '8px', border: '1.5px solid #cbd5e1', fontSize: '0.7rem', fontWeight: 600, outline: 'none' }} />
+                                        )}
+                                        {pointsDateFilter === 'range' && (
+                                            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                                                <input type="date" value={pointsStartDate} onChange={e => setPointsStartDate(e.target.value)} style={{ padding: '4px 8px', borderRadius: '8px', border: '1.5px solid #cbd5e1', fontSize: '0.7rem', fontWeight: 600, outline: 'none' }} />
+                                                <span style={{ fontSize: '0.68rem', color: '#64748b' }}>to</span>
+                                                <input type="date" value={pointsEndDate} onChange={e => setPointsEndDate(e.target.value)} style={{ padding: '4px 8px', borderRadius: '8px', border: '1.5px solid #cbd5e1', fontSize: '0.7rem', fontWeight: 600, outline: 'none' }} />
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {(() => {
+                                        const filterPointsLog = (log) => {
+                                            const logDate = log.date || new Date().toISOString().split('T')[0];
+                                            const todayStr = new Date().toISOString().split('T')[0];
+
+                                            if (pointsDateFilter === 'today') {
+                                                return logDate === todayStr;
+                                            }
+                                            if (pointsDateFilter === 'month') {
+                                                const currentMonthStr = todayStr.substring(0, 7);
+                                                return logDate.startsWith(currentMonthStr);
+                                            }
+                                            if (pointsDateFilter === 'range') {
+                                                if (!pointsStartDate || !pointsEndDate) return true;
+                                                return logDate >= pointsStartDate && logDate <= pointsEndDate;
+                                            }
+                                            if (pointsDateFilter === 'particular') {
+                                                if (!pointsParticularDate) return true;
+                                                return logDate === pointsParticularDate;
+                                            }
+                                            if (pointsDateFilter === 'year') {
+                                                return true;
+                                            }
+                                            return true;
+                                        };
+
+                                        const plusLogsFiltered = pointsLogs.filter(l => l.staffId === currentPreviewStaff._id && l.type === 'plus' && filterPointsLog(l));
+                                        const minusLogsFiltered = pointsLogs.filter(l => l.staffId === currentPreviewStaff._id && l.type === 'minus' && filterPointsLog(l));
+
+                                        return (
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
+                                                {/* Left: Plus Valuation Table */}
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                                                        <Award size={18} style={{ color: '#16a34a' }} />
+                                                        <h4 style={{ margin: 0, fontSize: '0.82rem', fontWeight: 900, color: '#16a34a', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                            Plus Valuation Log
+                                                            <span style={{ background: '#dcfce7', color: '#16a34a', borderRadius: '12px', padding: '2px 8px', fontSize: '0.68rem', fontWeight: 800 }}>
+                                                                {plusLogsFiltered.length}
+                                                            </span>
+                                                        </h4>
+                                                    </div>
+                                                    
+                                                    {plusLogsFiltered.length === 0 ? (
+                                                        <div style={{ padding: '16px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0', color: '#94a3b8', fontSize: '0.75rem', fontWeight: 650 }}>
+                                                            No plus valuation logs match this filter.
+                                                        </div>
+                                                    ) : (
+                                                        <div style={{ overflowX: 'auto', border: '1px solid #e2e8f0', borderRadius: '16px', background: '#fff' }}>
+                                                            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                                                                <thead>
+                                                                    <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
+                                                                        <th style={{ padding: '10px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>Date</th>
+                                                                        <th style={{ padding: '10px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>Task / Reason</th>
+                                                                        <th style={{ padding: '10px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>Valuation</th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody>
+                                                                    {plusLogsFiltered.map((log, idx) => (
+                                                                        <tr key={log.id} style={{ borderBottom: '1px solid #f1f5f9', background: idx % 2 === 0 ? '#fff' : '#f8fafc' }}>
+                                                                            <td style={{ padding: '12px 14px', fontSize: '0.75rem', color: '#64748b', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                                                                                📅 {new Date(log.date + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                                                            </td>
+                                                                            <td style={{ padding: '12px 14px' }}>
+                                                                                {log.taskTitle && (
+                                                                                    <div style={{ fontSize: '0.72rem', color: '#4f46e5', fontWeight: 800, marginBottom: '2px' }}>📋 Task: {log.taskTitle}</div>
+                                                                                )}
+                                                                                <div style={{ fontSize: '0.8rem', color: '#334155', fontWeight: 650 }}>{log.reason}</div>
+                                                                            </td>
+                                                                            <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>
+                                                                                <span style={{
+                                                                                    background: '#dcfce7',
+                                                                                    color: '#15803d',
+                                                                                    borderRadius: '8px',
+                                                                                    padding: '4px 10px',
+                                                                                    fontSize: '0.75rem',
+                                                                                    fontWeight: 800
+                                                                                }}>
+                                                                                    +{log.points}
+                                                                                </span>
+                                                                            </td>
+                                                                        </tr>
+                                                                    ))}
+                                                                </tbody>
+                                                            </table>
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                {/* Right: Minus Points Table */}
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                                                        <AlertTriangle size={18} style={{ color: '#ef4444' }} />
+                                                        <h4 style={{ margin: 0, fontSize: '0.82rem', fontWeight: 900, color: '#ef4444', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                            Minus Valuation Log
+                                                            <span style={{ background: '#fee2e2', color: '#ef4444', borderRadius: '12px', padding: '2px 8px', fontSize: '0.68rem', fontWeight: 800 }}>
+                                                                {minusLogsFiltered.length}
+                                                            </span>
+                                                        </h4>
+                                                    </div>
+                                                    
+                                                    {minusLogsFiltered.length === 0 ? (
+                                                        <div style={{ padding: '16px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0', color: '#94a3b8', fontSize: '0.75rem', fontWeight: 650 }}>
+                                                            No minus valuation logs match this filter.
+                                                        </div>
+                                                    ) : (
+                                                        <div style={{ overflowX: 'auto', border: '1px solid #e2e8f0', borderRadius: '16px', background: '#fff' }}>
+                                                            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                                                                <thead>
+                                                                    <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
+                                                                        <th style={{ padding: '10px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>Date</th>
+                                                                        <th style={{ padding: '10px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>Task / Reason</th>
+                                                                        <th style={{ padding: '10px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>Valuation</th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody>
+                                                                    {minusLogsFiltered.map((log, idx) => (
+                                                                        <tr key={log.id} style={{ borderBottom: '1px solid #f1f5f9', background: idx % 2 === 0 ? '#fff' : '#f8fafc' }}>
+                                                                            <td style={{ padding: '12px 14px', fontSize: '0.75rem', color: '#64748b', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                                                                                📅 {new Date(log.date + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                                                            </td>
+                                                                            <td style={{ padding: '12px 14px' }}>
+                                                                                {log.taskTitle && (
+                                                                                    <div style={{ fontSize: '0.72rem', color: '#ef4444', fontWeight: 800, marginBottom: '2px' }}>📋 Task: {log.taskTitle}</div>
+                                                                                )}
+                                                                                <div style={{ fontSize: '0.8rem', color: '#334155', fontWeight: 650 }}>{log.reason}</div>
+                                                                            </td>
+                                                                            <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>
+                                                                                <span style={{
+                                                                                    background: '#fee2e2',
+                                                                                    color: '#ef4444',
+                                                                                    borderRadius: '8px',
+                                                                                    padding: '4px 10px',
+                                                                                    fontSize: '0.75rem',
+                                                                                    fontWeight: 800
+                                                                                }}>
+                                                                                    -{log.points}
+                                                                                </span>
+                                                                            </td>
+                                                                        </tr>
+                                                                    ))}
+                                                                </tbody>
+                                                            </table>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        );
+                                    })()}
+                                </div>
+                            )}
+                        </div>
+                    );
+                })()}
             </div>
         </DashboardLayout>
         <AddUserModal

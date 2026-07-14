@@ -118,8 +118,8 @@ const UserProfileModal = ({ userId, isOpen, onClose }) => {
     if (!isOpen) return null;
 
     return createPortal(
-        <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-md animate-fade-in flex items-center justify-center p-4">
-            <div className="bg-white w-full max-w-xl md:max-h-[85vh] md:rounded-[40px] shadow-2xl border border-slate-100 overflow-hidden relative animate-slide-up flex flex-col">
+        <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-md animate-fade-in flex items-center justify-center sm:p-4">
+            <div className="bg-white w-full h-full sm:h-auto max-w-xl sm:max-h-[85vh] rounded-none sm:rounded-[32px] md:rounded-[40px] shadow-2xl border border-slate-100 overflow-hidden relative animate-slide-up flex flex-col">
                 {/* Header/Banner */}
                 <div className="h-28 bg-[#0b1329] relative">
                     <button
@@ -350,7 +350,7 @@ const UserProfileModal = ({ userId, isOpen, onClose }) => {
                                             {passwordMessage && <p className="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1.5 rounded-xl border border-emerald-100">{passwordMessage}</p>}
                                             {passwordError && <p className="text-[11px] font-bold text-rose-600 bg-rose-50 px-2.5 py-1.5 rounded-xl border border-rose-100">{passwordError}</p>}
 
-                                            <div className="grid grid-cols-2 gap-3">
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                                 <div className="flex flex-col gap-1">
                                                     <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest pl-1">New Password</label>
                                                     <input

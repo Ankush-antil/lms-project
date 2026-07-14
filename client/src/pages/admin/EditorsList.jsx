@@ -420,7 +420,7 @@ const EditorsList = () => {
                         </div>
                     )}
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                     <button
                         onClick={() => setIsTrashOpen(true)}
                         className="px-3.5 py-2.5 text-slate-500 hover:text-red-650 hover:bg-red-50 bg-white border border-slate-200 rounded-2xl transition-all flex items-center gap-1.5 text-sm font-bold shadow-sm cursor-pointer"
@@ -590,15 +590,14 @@ const EditorsList = () => {
                                 <th className="p-4 font-semibold whitespace-nowrap">Assigned Course</th>
                                 <th className="p-4 font-semibold whitespace-nowrap">Assigned Subjects</th>
                                 <th className="p-4 font-semibold whitespace-nowrap">Mobile</th>
-                                <th className="p-4 font-semibold whitespace-nowrap">Email</th>
                                 <th className="p-4 font-semibold whitespace-nowrap">Status</th>
-                                <th className="p-4 font-semibold text-right whitespace-nowrap sticky right-0 bg-slate-50 border-l border-slate-200 z-10">Actions</th>
+                                <th className="p-4 font-semibold text-right whitespace-nowrap sticky right-0 bg-slate-50 shadow-[-8px_0_16px_-4px_rgba(0,0,0,0.06)] border-l border-slate-200 z-10">Actions</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
                             {loading ? (
                                 <tr>
-                                    <td colSpan="9" className="p-8 text-center text-slate-500">
+                                    <td colSpan="8" className="p-8 text-center text-slate-500">
                                         <div className="flex justify-center items-center gap-2">
                                             <div className="w-5 h-5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
                                             Loading editors...
@@ -620,12 +619,15 @@ const EditorsList = () => {
                                                         editor.name[0]
                                                     )}
                                                 </div>
-                                                <span
-                                                    className="font-medium text-slate-800 cursor-pointer hover:text-indigo-650 transition-colors"
-                                                    onClick={() => openProfile(editor._id)}
-                                                >
-                                                    <TruncatedCell text={editor.name} maxLength={20} />
-                                                </span>
+                                                <div className="flex flex-col">
+                                                    <span
+                                                        className="font-medium text-slate-800 cursor-pointer hover:text-indigo-650 transition-colors"
+                                                        onClick={() => openProfile(editor._id)}
+                                                    >
+                                                        <TruncatedCell text={editor.name} maxLength={20} />
+                                                    </span>
+                                                    <span className="text-slate-400 text-xs font-semibold">{editor.email}</span>
+                                                </div>
                                             </div>
                                         </td>
                                         <td className="p-4 text-slate-600 font-mono text-sm whitespace-nowrap">{editor._id.slice(-6)}</td>
@@ -639,9 +641,6 @@ const EditorsList = () => {
                                             <TruncatedCell text={editor.editorProfile?.subjects?.join(', ') || 'N/A'} maxLength={20} />
                                         </td>
                                         <td className="p-4 text-slate-600 text-sm whitespace-nowrap">{editor.mobileNumber || 'N/A'}</td>
-                                        <td className="p-4 text-slate-600 whitespace-nowrap">
-                                            <TruncatedCell text={editor.email} maxLength={25} />
-                                        </td>
                                         <td className="p-4 whitespace-nowrap">
                                             <button
                                                 type="button"
@@ -684,7 +683,7 @@ const EditorsList = () => {
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan="9" className="p-8 text-center text-slate-500 font-semibold">
+                                    <td colSpan="8" className="p-8 text-center text-slate-500 font-semibold">
                                         No editors found.
                                     </td>
                                 </tr>

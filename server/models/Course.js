@@ -62,6 +62,10 @@ const courseSchema = new mongoose.Schema({
     isDemo: {
         type: Boolean,
         default: false
+    },
+    showOnLanding: {
+        type: Boolean,
+        default: false  // Show this course on public landing page
     }
 }, {
     timestamps: true

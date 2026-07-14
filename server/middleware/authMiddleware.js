@@ -58,11 +58,11 @@ const adminOrEditor = (req, res, next) => {
 };
 
 const adminOrInstitute = (req, res, next) => {
-    if (req.user && (req.user.role === 'Admin' || req.user.role === 'Institute')) {
+    if (req.user && (req.user.role === 'Admin' || req.user.role === 'Institute' || req.user.role === 'Marketer')) {
         next();
     } else {
-        console.warn(`ADMIN/INSTITUTE UNAUTHORIZED: ${req.method} ${req.originalUrl} - Role: ${req.user?.role}`);
-        res.status(401).json({ message: 'Not authorized as admin or institute admin' });
+        console.warn(`ADMIN/INSTITUTE/MARKETER UNAUTHORIZED: ${req.method} ${req.originalUrl} - Role: ${req.user?.role}`);
+        res.status(401).json({ message: 'Not authorized as admin, institute admin or marketer' });
     }
 };
 

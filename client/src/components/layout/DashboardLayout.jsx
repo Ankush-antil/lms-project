@@ -227,6 +227,12 @@ const menuItems = {
         { name: 'Notes', icon: StickyNote, path: '/accountant/notes' },
         { name: 'Chat', icon: MessageSquare, path: '/accountant/chat' },
     ],
+    Marketer: [
+        { name: 'Dashboard', icon: LayoutDashboard, path: '/marketer' },
+        { name: 'Drive', icon: HardDrive, path: '/marketer/drive' },
+        { name: 'Notes', icon: StickyNote, path: '/marketer/notes' },
+        { name: 'Chat', icon: MessageSquare, path: '/marketer/chat' },
+    ],
     Student: [
         { name: 'My Activities', icon: FileText, path: '/student/tests' },
         { name: 'Dashboard', icon: LayoutDashboard, path: '/student' },

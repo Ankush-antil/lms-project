@@ -19,6 +19,7 @@ import GuestDashboard from './pages/guest/GuestDashboard';
 import UsersList from './pages/admin/UsersList';
 import SubjectsList from './pages/admin/SubjectsList';
 import MarketersList from './pages/admin/MarketersList';
+import MarketerDashboard from './pages/marketer/MarketerDashboard';
 import AdminDrive from './pages/admin/AdminDrive';
 
 import TestsList from './pages/admin/TestsList';
@@ -529,6 +530,28 @@ function App() {
                                 } />
                                 <Route path="/accountant/chat" element={
                                     <PrivateRoute role="Accountant">
+                                        <ChatPage />
+                                    </PrivateRoute>
+                                } />
+
+                                {/* Marketer Routes */}
+                                <Route path="/marketer" element={
+                                    <PrivateRoute role="Marketer">
+                                        <MarketerDashboard />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/marketer/drive" element={
+                                    <PrivateRoute role="Marketer">
+                                        <AdminDrive />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/marketer/notes" element={
+                                    <PrivateRoute role="Marketer">
+                                        <NotesPage />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/marketer/chat" element={
+                                    <PrivateRoute role="Marketer">
                                         <ChatPage />
                                     </PrivateRoute>
                                 } />

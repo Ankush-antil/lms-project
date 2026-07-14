@@ -689,7 +689,7 @@ const verifyOtp = asyncHandler(async (req, res) => {
 // @access  Private/Institute or Admin
 const getInstituteApplications = asyncHandler(async (req, res) => {
     let query = {};
-    if (req.user.role === 'Institute') {
+    if (req.user.role === 'Institute' || req.user.role === 'Marketer') {
         query.institute = req.user.institute;
     } else if (req.user.role !== 'Admin') {
         res.status(403);

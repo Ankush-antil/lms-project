@@ -7,7 +7,7 @@ import {
     ChevronLeft, ChevronRight, ChevronDown, MessageSquare, Bell, BellRing, Settings,
     BarChart3, UserPlus, Trash2, Wallet, CreditCard, HardDrive,
     Calculator, Megaphone, Calendar, StickyNote, Briefcase, DollarSign, CheckSquare,
-    RefreshCw, Award
+    RefreshCw, Award, Package
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useSocket } from '../../context/SocketContext';
@@ -222,6 +222,7 @@ const menuItems = {
     Accountant: [
         { name: 'Dashboard', icon: LayoutDashboard, path: '/accountant' },
         { name: 'Fee Portal', icon: CreditCard, path: '/accountant/fee-portal' },
+        { name: 'Asset Management', icon: Package, path: '/accountant/assets' },
         { name: 'Attendance', icon: Calendar, path: '/admin/attendance-portal' },
         { name: 'Drive', icon: HardDrive, path: '/accountant/drive' },
         { name: 'Notes', icon: StickyNote, path: '/accountant/notes' },

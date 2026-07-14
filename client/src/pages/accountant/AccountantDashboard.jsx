@@ -7,7 +7,7 @@ import DashboardLayout from '../../components/layout/DashboardLayout';
 import { 
     Coins, MessageSquare, FolderOpen, FileText, Sparkles, 
     TrendingUp, Calendar, ArrowRight, UserCheck, AlertCircle, 
-    DollarSign, CreditCard, ChevronRight, Activity 
+    DollarSign, CreditCard, ChevronRight, Activity, Package
 } from 'lucide-react';
 
 const AccountantDashboard = () => {
@@ -89,6 +89,14 @@ const AccountantDashboard = () => {
                                 className={`px-5 py-3 bg-white text-slate-900 rounded-2xl hover:bg-slate-50 transition-all font-bold text-sm flex items-center gap-2 shadow-lg hover:scale-[1.02] active:scale-[0.98] cursor-pointer ${getControlStatus('feePortal').enabled === false ? 'opacity-65 cursor-not-allowed' : ''}`}
                             >
                                 <Coins size={16} className="text-amber-600" /> Collect Fee
+                            </button>
+                        )}
+                        {!(getControlStatus('assets').enabled === false && getControlStatus('assets').mode === 'hide') && (
+                            <button
+                                onClick={() => handleFeatureClick('assets', '/accountant/assets')}
+                                className={`px-5 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl transition-all font-bold text-sm flex items-center gap-2 shadow-lg hover:scale-[1.02] active:scale-[0.98] cursor-pointer ${getControlStatus('assets').enabled === false ? 'opacity-65 cursor-not-allowed' : ''}`}
+                            >
+                                <Package size={16} /> Asset Desk
                             </button>
                         )}
                     </div>
@@ -363,6 +371,28 @@ const AccountantDashboard = () => {
                                 className="text-xs text-blue-600 font-extrabold flex items-center gap-1 hover:underline pt-4 mt-2 cursor-pointer w-fit"
                             >
                                 Open Chat {getControlStatus('chat').enabled === false ? '(Disabled)' : ''} <ArrowRight size={14} />
+                            </button>
+                        </div>
+                    )}
+
+                    {/* Tool 5: Asset & Inventory Desk */}
+                    {!(getControlStatus('assets').enabled === false && getControlStatus('assets').mode === 'hide') && (
+                        <div className={`bg-white rounded-3xl border border-slate-100 shadow-sm p-6 flex flex-col justify-between group hover:shadow-xl transition-all duration-300 relative overflow-hidden min-h-[220px] ${getControlStatus('assets').enabled === false ? 'opacity-60' : ''}`}>
+                            <div className="absolute top-0 left-0 w-2 h-full bg-indigo-600"></div>
+                            <div>
+                                <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110">
+                                    <Package size={24} />
+                                </div>
+                                <h4 className="font-extrabold text-slate-800 text-lg mb-2">Asset & Inventory Desk</h4>
+                                <p className="text-xs text-slate-500 leading-relaxed font-medium">
+                                    Catalog institute property, track active assignments, manage maintenance services, and view warranty statuses.
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => handleFeatureClick('assets', '/accountant/assets')}
+                                className="text-xs text-indigo-600 font-extrabold flex items-center gap-1 hover:underline pt-4 mt-2 cursor-pointer w-fit"
+                            >
+                                Open Asset Desk {getControlStatus('assets').enabled === false ? '(Disabled)' : ''} <ArrowRight size={14} />
                             </button>
                         </div>
                     )}

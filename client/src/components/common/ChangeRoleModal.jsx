@@ -24,6 +24,8 @@ const ChangeRoleModal = ({ isOpen, onClose }) => {
     const [selectedCourse, setSelectedCourse] = useState('');
     const [pendingRequests, setPendingRequests] = useState([]);
     const [loadingRequests, setLoadingRequests] = useState(false);
+    const [switchingToRole, setSwitchingToRole] = useState('');
+    const [rolePassword, setRolePassword] = useState('');
 
     const allRoles = ['Admin', 'Teacher', 'Student', 'Editor', 'Institute', 'Accountant', 'Marketer', 'Staff', 'Parent'];
     
@@ -67,11 +69,14 @@ const ChangeRoleModal = ({ isOpen, onClose }) => {
 
     if (!isOpen || !user) return null;
 
-    const handleSwitchRole = async (targetRole) => {
+    const handleSwitchRole = async (targetRole, passwordVal = '') => {
         if (targetRole === user.role) return;
         setSubmitting(true);
         try {
-            const { data } = await axios.put('/api/users/switch-role', { newRole: targetRole });
+            const { data } = await axios.put('/api/users/switch-role', { 
+                newRole: targetRole,
+                password: passwordVal || undefined
+            });
             toast.success(`Active role switched to ${targetRole}`);
             
             // Reload user session and redirect using AuthContext helper
@@ -87,6 +92,8 @@ const ChangeRoleModal = ({ isOpen, onClose }) => {
             toast.error(error.response?.data?.message || 'Error switching role');
         } finally {
             setSubmitting(false);
+            setSwitchingToRole('');
+            setRolePassword('');
         }
     };
 
@@ -143,7 +150,14 @@ const ChangeRoleModal = ({ isOpen, onClose }) => {
                                     <button
                                         key={roleName}
                                         disabled={submitting}
-                                        onClick={() => handleSwitchRole(roleName)}
+                                        onClick={() => {
+                                            if (user?.role === 'Student') {
+                                                setSwitchingToRole(roleName);
+                                                setRolePassword('');
+                                            } else {
+                                                handleSwitchRole(roleName);
+                                            }
+                                        }}
                                         className={`flex items-center gap-3 p-3.5 rounded-2xl border text-left font-bold text-xs transition-all ${
                                             isActive
                                                 ? 'bg-indigo-50 border-indigo-200 text-indigo-600 shadow-sm shadow-indigo-100'
@@ -260,6 +274,57 @@ const ChangeRoleModal = ({ isOpen, onClose }) => {
                     )}
                 </div>
             </div>
+
+            {switchingToRole && (
+                <div className="fixed inset-0 z-[1000] bg-slate-950/65 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="bg-[#0b1329] text-white w-full max-w-sm rounded-3xl p-6 border border-slate-800 shadow-2xl animate-in fade-in zoom-in duration-200">
+                        <h3 className="text-base font-black text-slate-100 mb-2">Security Verification</h3>
+                        <p className="text-[11px] text-slate-400 font-bold mb-4">
+                            You are switching from a Student profile. Please enter your account password to switch to the <span className="text-indigo-400">{switchingToRole}</span> role.
+                        </p>
+                        <form
+                            onSubmit={(e) => {
+                                e.preventDefault();
+                                if (!rolePassword) {
+                                    toast.error("Please enter your password");
+                                    return;
+                                }
+                                handleSwitchRole(switchingToRole, rolePassword);
+                            }}
+                            className="space-y-4"
+                        >
+                            <div>
+                                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block">Your Password</label>
+                                <input
+                                    type="password"
+                                    required
+                                    value={rolePassword}
+                                    onChange={(e) => setRolePassword(e.target.value)}
+                                    placeholder="••••••••"
+                                    className="w-full bg-slate-900 border border-slate-850 rounded-xl py-2.5 px-4 text-xs font-bold text-white outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all placeholder-slate-600"
+                                />
+                            </div>
+                            <div className="flex items-center justify-end gap-2 pt-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setSwitchingToRole('')}
+                                    className="px-4 py-2 text-[10px] font-bold text-slate-400 hover:text-white transition-all bg-transparent border border-slate-800 rounded-xl cursor-pointer"
+                                    disabled={submitting}
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="px-5 py-2 text-[10px] font-bold text-white bg-indigo-600 hover:bg-indigo-500 transition-all rounded-xl cursor-pointer shadow-lg shadow-indigo-600/15 disabled:opacity-50"
+                                    disabled={submitting}
+                                >
+                                    {submitting ? "Verifying..." : "Verify & Switch"}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

@@ -15,6 +15,7 @@ import TeacherDetails from './pages/admin/TeacherDetails';
 import EditorsList from './pages/admin/EditorsList';
 import AccountantsList from './pages/admin/AccountantsList';
 import AccountantDashboard from './pages/accountant/AccountantDashboard';
+import AssetManagement from './pages/accountant/AssetManagement';
 import GuestDashboard from './pages/guest/GuestDashboard';
 import UsersList from './pages/admin/UsersList';
 import SubjectsList from './pages/admin/SubjectsList';
@@ -525,6 +526,11 @@ function App() {
                                 <Route path="/accountant/fee-portal" element={
                                     <PrivateRoute role="Accountant">
                                         <AdminFeePortal />
+                                    </PrivateRoute>
+                                } />
+                                <Route path="/accountant/assets" element={
+                                    <PrivateRoute role="Accountant">
+                                        <AssetManagement />
                                     </PrivateRoute>
                                 } />
                                 <Route path="/accountant/drive" element={

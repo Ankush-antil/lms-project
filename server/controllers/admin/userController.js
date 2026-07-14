@@ -1267,7 +1267,7 @@ const rejectRoleRequest = asyncHandler(async (req, res) => {
 // @route   PUT /api/users/switch-role
 // @access  Private
 const switchRole = asyncHandler(async (req, res) => {
-    const { newRole } = req.body;
+    const { newRole, password } = req.body;
     const userId = req.user._id;
 
     const validRoles = ['Admin', 'Teacher', 'Student', 'Editor', 'Institute', 'Accountant', 'Marketer', 'Staff', 'Parent'];
@@ -1277,6 +1277,19 @@ const switchRole = asyncHandler(async (req, res) => {
     }
 
     const user = await User.findById(userId);
+
+    // Verify password if switching from Student role
+    if (user.role === 'Student') {
+        if (!password) {
+            res.status(400);
+            throw new Error('Password is required to switch from Student role');
+        }
+        const isMatch = await user.matchPassword(password);
+        if (!isMatch) {
+            res.status(401);
+            throw new Error('Invalid password. Access denied.');
+        }
+    }
 
     // Admin can switch to ANY role. Institute can switch to any role EXCEPT Admin.
     // Other users can only switch to roles in their allowedRoles array (or current active role).

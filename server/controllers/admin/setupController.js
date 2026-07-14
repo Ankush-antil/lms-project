@@ -11,10 +11,15 @@ const twilio = require('twilio');
 // @route   GET /api/institutes
 // @access  Public (or Private)
 const getInstitutes = asyncHandler(async (req, res) => {
+    const { landing } = req.query;
+    const matchQuery = { isDeleted: { $ne: true } };
+    if (landing === 'true') {
+        matchQuery.showOnLanding = true;
+    }
     // Get all institutes and their course counts
     const institutes = await Institute.aggregate([
         {
-            $match: { isDeleted: { $ne: true } }
+            $match: matchQuery
         },
         {
             $lookup: {
@@ -40,6 +45,7 @@ const getInstitutes = asyncHandler(async (req, res) => {
                 admissionOpen: 1,
                 teacherHiring: 1,
                 editorHiring: 1,
+                showOnLanding: 1,
                 controls: 1
             }
         }
@@ -51,8 +57,8 @@ const getInstitutes = asyncHandler(async (req, res) => {
 // @route   PATCH /api/setup/institutes/:id/toggle
 // @access  Private/Admin or Institute
 const toggleInstituteFlag = asyncHandler(async (req, res) => {
-    const { flag } = req.body; // 'admissionOpen' | 'teacherHiring' | 'editorHiring'
-    const allowed = ['admissionOpen', 'teacherHiring', 'editorHiring'];
+    const { flag } = req.body; // 'admissionOpen' | 'teacherHiring' | 'editorHiring' | 'showOnLanding'
+    const allowed = ['admissionOpen', 'teacherHiring', 'editorHiring', 'showOnLanding'];
     if (!allowed.includes(flag)) {
         res.status(400);
         throw new Error('Invalid flag');
@@ -70,6 +76,26 @@ const toggleInstituteFlag = asyncHandler(async (req, res) => {
     institute[flag] = !institute[flag];
     await institute.save();
     res.json({ flag, value: institute[flag] });
+});
+
+// @desc    Toggle course flag (Admin only)
+// @route   PATCH /api/setup/courses/:id/toggle
+// @access  Private/Admin
+const toggleCourseFlag = asyncHandler(async (req, res) => {
+    const { flag } = req.body; // 'showOnLanding'
+    const allowed = ['showOnLanding'];
+    if (!allowed.includes(flag)) {
+        res.status(400);
+        throw new Error('Invalid flag');
+    }
+    const course = await Course.findById(req.params.id);
+    if (!course) {
+        res.status(404);
+        throw new Error('Course not found');
+    }
+    course[flag] = !course[flag];
+    await course.save();
+    res.json({ flag, value: course[flag] });
 });
 
 // @desc    Get single institute details
@@ -303,12 +329,16 @@ const createInstitute = asyncHandler(async (req, res) => {
 // @route   GET /api/courses
 // @access  Public
 const getCourses = asyncHandler(async (req, res) => {
-    const { instituteId, status } = req.query;
+    const { instituteId, status, landing } = req.query;
     const query = { isDeleted: { $ne: true } };
     if (instituteId) query.institute = instituteId;
 
     if (status !== 'all') {
         query.status = status || 'active';
+    }
+
+    if (landing === 'true') {
+        query.showOnLanding = true;
     }
 
     // Isolate courses for Institute and Editor roles
@@ -1619,5 +1649,6 @@ module.exports = {
     getDeletedApplications,
     restoreApplication,
     permanentlyDeleteApplication,
-    importApplications
+    importApplications,
+    toggleCourseFlag
 };

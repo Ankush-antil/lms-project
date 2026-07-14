@@ -38,7 +38,7 @@ const {
     permanentlyDeleteApplication,
     importApplications
 } = require('../../controllers/admin/setupController');
-const { toggleInstituteFlag } = require('../../controllers/admin/setupController');
+const { toggleInstituteFlag, toggleCourseFlag } = require('../../controllers/admin/setupController');
 const { protect, admin, adminOrEditor, adminOrInstitute, parseUserOptional } = require('../../middleware/authMiddleware');
 
 router.route('/institutes')
@@ -104,6 +104,10 @@ router.route('/courses/:id/permanent')
 router.route('/courses/:id')
     .put(protect, adminOrEditor, updateCourse)
     .delete(protect, adminOrEditor, deleteCourse);
+
+// Course toggle for landing page visibility etc
+router.route('/courses/:id/toggle')
+    .patch(protect, adminOrEditor, toggleCourseFlag);
 
 // Public: get section preview for a course (no auth needed)
 router.route('/courses/:id/section-preview')

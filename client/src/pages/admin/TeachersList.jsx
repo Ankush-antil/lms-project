@@ -679,7 +679,6 @@ const TeachersList = () => {
                                 <th className="p-4 font-semibold whitespace-nowrap">Institute</th>
                                 <th className="p-4 font-semibold whitespace-nowrap">Assigned Course</th>
                                 <th className="p-4 font-semibold whitespace-nowrap">Mobile</th>
-                                <th className="p-4 font-semibold whitespace-nowrap">Email</th>
                                 <th className="p-4 font-semibold whitespace-nowrap">Status</th>
                                 <th className="p-4 font-semibold text-right whitespace-nowrap sticky right-0 bg-slate-50 shadow-[-8px_0_16px_-4px_rgba(0,0,0,0.06)] border-l border-slate-200 z-10">Actions</th>
                             </tr>
@@ -700,12 +699,15 @@ const TeachersList = () => {
                                                         teacher.name[0]
                                                     )}
                                                 </div>
-                                                <span
-                                                    className="font-medium text-slate-800 cursor-pointer hover:text-indigo-600 transition-colors"
-                                                    onClick={() => openProfile(teacher._id)}
-                                                >
-                                                    <TruncatedCell text={teacher.name} maxLength={20} />
-                                                </span>
+                                                <div className="flex flex-col">
+                                                    <span
+                                                        className="font-medium text-slate-800 cursor-pointer hover:text-indigo-600 transition-colors"
+                                                        onClick={() => openProfile(teacher._id)}
+                                                    >
+                                                        <TruncatedCell text={teacher.name} maxLength={20} />
+                                                    </span>
+                                                    <span className="text-slate-400 text-xs font-semibold">{teacher.email}</span>
+                                                </div>
                                             </div>
                                         </td>
                                         <td className="p-4 text-slate-600 font-mono text-sm whitespace-nowrap">{teacher._id.slice(-6)}</td>
@@ -727,9 +729,6 @@ const TeachersList = () => {
                                             )}
                                         </td>
                                         <td className="p-4 text-slate-600 text-sm whitespace-nowrap">{teacher.mobileNumber || 'N/A'}</td>
-                                        <td className="p-4 text-slate-600 whitespace-nowrap">
-                                            <TruncatedCell text={teacher.email} maxLength={25} />
-                                        </td>
                                         <td className="p-4 whitespace-nowrap">
                                             <button
                                                 onClick={() => handleToggleStatus(teacher._id, teacher.isActive)}
@@ -771,7 +770,7 @@ const TeachersList = () => {
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan="7" className="p-8 text-center text-slate-500">
+                                    <td colSpan="8" className="p-8 text-center text-slate-500">
                                         No teachers found.
                                     </td>
                                 </tr>

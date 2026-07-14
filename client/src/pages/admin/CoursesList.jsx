@@ -219,6 +219,17 @@ const CoursesList = () => {
         }
     };
 
+    const handleToggleLanding = async (id) => {
+        try {
+            const { data } = await axios.patch(`/api/setup/courses/${id}/toggle`, { flag: 'showOnLanding' });
+            setCourses(courses.map(course => course._id === id ? { ...course, showOnLanding: data.value } : course));
+            toast.success('Landing page visibility updated');
+        } catch (error) {
+            console.error("Error toggling landing page visibility:", error);
+            toast.error(error.response?.data?.message || 'Failed to toggle visibility');
+        }
+    };
+
     const filteredCourses = courses.filter(course => {
         const matchesSearch = 
             course.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -523,13 +534,14 @@ const CoursesList = () => {
                                         <th className="p-4 font-semibold whitespace-nowrap">Created By</th>
                                     </>
                                 )}
+                                <th className="p-4 font-semibold text-center whitespace-nowrap">Show on Landing</th>
                                 <th className="p-4 font-semibold text-right whitespace-nowrap sticky right-0 bg-slate-50 border-l border-slate-200 z-10 shadow-[-8px_0_16px_-4px_rgba(0,0,0,0.06)]">Actions</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
                             {loading ? (
                                 <tr>
-                                    <td colSpan={user?.role === 'Admin' ? 6 : 4} className="p-8 text-center text-slate-500">
+                                    <td colSpan={user?.role === 'Admin' ? 7 : 5} className="p-8 text-center text-slate-500">
                                         <div className="flex justify-center items-center gap-2">
                                             <div className="w-5 h-5 border-2 border-[#0b1329] border-t-transparent rounded-full animate-spin"></div>
                                             Loading courses...
@@ -584,6 +596,18 @@ const CoursesList = () => {
                                             </>
                                         )}
 
+                                        <td className="p-4 whitespace-nowrap text-center">
+                                            <label className="relative inline-flex items-center cursor-pointer select-none">
+                                                <input 
+                                                    type="checkbox" 
+                                                    className="sr-only peer" 
+                                                    checked={course.showOnLanding || false}
+                                                    onChange={() => handleToggleLanding(course._id)}
+                                                />
+                                                <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                                            </label>
+                                        </td>
+
                                         {/* Actions */}
                                         <td className="p-4 text-right whitespace-nowrap sticky right-0 bg-white group-hover:bg-slate-50 transition-colors border-l border-slate-100 shadow-[-8px_0_16px_-4px_rgba(0,0,0,0.06)]">
                                             <div className="flex items-center justify-end gap-1.5">
@@ -623,7 +647,7 @@ const CoursesList = () => {
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan={user?.role === 'Admin' ? 6 : 4} className="p-8 text-center text-slate-500 font-bold">
+                                    <td colSpan={user?.role === 'Admin' ? 7 : 5} className="p-8 text-center text-slate-500 font-bold">
                                         No courses found
                                     </td>
                                 </tr>

@@ -25,6 +25,7 @@ const instituteSchema = new mongoose.Schema({
     admissionOpen: { type: Boolean, default: false },   // Show Student apply button
     teacherHiring: { type: Boolean, default: false },   // Show Teacher apply button
     editorHiring: { type: Boolean, default: false },   // Show Editor apply button
+    showOnLanding: { type: Boolean, default: false },  // Show institute on public landing page
     wifiNetworks: { type: [String], default: [] },
     controls: { type: mongoose.Schema.Types.Mixed, default: {} },
     isDeleted: {

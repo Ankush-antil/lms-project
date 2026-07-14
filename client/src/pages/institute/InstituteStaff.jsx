@@ -1413,14 +1413,14 @@ const InstituteStaff = () => {
                                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                                     <thead>
                                         <tr style={{ background: '#f8fafc', borderBottom: '1px solid #f1f5f9' }}>
-                                            {['#', 'Name', 'Email', 'Designation', 'Department', 'Minus Valuation', 'Status', 'Actions'].map(h => (
+                                            {['#', 'Name', 'Designation', 'Department', 'Minus Valuation', 'Status', 'Actions'].map(h => (
                                                 <th key={h} style={{ padding: '13px 16px', textAlign: 'left', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{h}</th>
                                             ))}
                                         </tr>
                                      </thead>
                                      <tbody>
                                          {displayList.length === 0 ? (
-                                             <tr><td colSpan={8} style={{ padding: '48px', textAlign: 'center', color: '#94a3b8', fontWeight: 700 }}>No staff found</td></tr>
+                                             <tr><td colSpan={7} style={{ padding: '48px', textAlign: 'center', color: '#94a3b8', fontWeight: 700 }}>No staff found</td></tr>
                                          ) : displayList.map((s, i) => (
                                              <tr key={s._id || i} style={{ borderBottom: '1px solid #f8fafc' }}
                                                  onMouseEnter={e => e.currentTarget.style.background = '#fafafa'}
@@ -1431,10 +1431,12 @@ const InstituteStaff = () => {
                                                          <div style={{ width: 32, height: 32, borderRadius: '10px', background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '0.78rem', fontWeight: 900 }}>
                                                              {s.name?.[0]?.toUpperCase() || '?'}
                                                          </div>
-                                                         <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#0f172a' }}>{s.name}</span>
+                                                         <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                                             <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#0f172a' }}>{s.name}</span>
+                                                             <span style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 650 }}>{s.email}</span>
+                                                         </div>
                                                      </div>
                                                  </td>
-                                                 <td style={{ padding: '13px 16px', fontSize: '0.78rem', color: '#64748b', fontWeight: 600 }}>{s.email}</td>
                                                  <td style={{ padding: '13px 16px', fontSize: '0.78rem', fontWeight: 700, color: '#374151' }}>{s.staffProfile?.designation || '—'}</td>
                                                  <td style={{ padding: '13px 16px', fontSize: '0.78rem', fontWeight: 600, color: '#64748b' }}>{s.staffProfile?.department || '—'}</td>
                                                  <td style={{ padding: '13px 16px', fontSize: '0.78rem', fontWeight: 800, color: s.staffProfile?.minusPoints > 0 ? '#ef4444' : '#64748b' }}>

@@ -237,6 +237,17 @@ const InstitutesList = () => {
         }
     };
 
+    const handleToggleLanding = async (id) => {
+        try {
+            const { data } = await axios.patch(`/api/setup/institutes/${id}/toggle`, { flag: 'showOnLanding' });
+            setInstitutes(institutes.map(inst => inst._id === id ? { ...inst, showOnLanding: data.value } : inst));
+            toast.success('Landing page visibility updated');
+        } catch (error) {
+            console.error("Error toggling landing page visibility:", error);
+            toast.error(error.response?.data?.message || 'Failed to toggle visibility');
+        }
+    };
+
     const filteredInstitutes = institutes.filter(inst =>
         inst.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         inst.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -555,6 +566,7 @@ const InstitutesList = () => {
                                         <th className="p-4 font-semibold whitespace-nowrap">Code</th>
                                         <th className="p-4 font-semibold whitespace-nowrap">Courses</th>
                                         <th className="p-4 font-semibold whitespace-nowrap">Location</th>
+                                        <th className="p-4 font-semibold whitespace-nowrap text-center">Show on Landing</th>
                                         <th className="p-4 font-semibold text-right whitespace-nowrap sticky right-0 bg-slate-50 shadow-[-8px_0_16px_-4px_rgba(0,0,0,0.06)] border-l border-slate-200 z-10">Actions</th>
                                     </tr>
                                 </thead>
@@ -566,6 +578,7 @@ const InstitutesList = () => {
                                                 <td className="p-4"><div className="h-4 bg-slate-100 rounded w-16"></div></td>
                                                 <td className="p-4"><div className="h-4 bg-slate-100 rounded w-20"></div></td>
                                                 <td className="p-4"><div className="h-4 bg-slate-100 rounded w-40"></div></td>
+                                                <td className="p-4"><div className="h-4 bg-slate-100 rounded w-16 mx-auto"></div></td>
                                                 <td className="p-4 text-right"><div className="h-4 bg-slate-100 rounded w-16 ml-auto"></div></td>
                                             </tr>
                                         ))
@@ -623,6 +636,17 @@ const InstitutesList = () => {
                                                         <span><TruncatedCell text={inst.address || 'Not specified'} maxLength={20} /></span>
                                                     </div>
                                                 </td>
+                                                <td className="p-4 whitespace-nowrap text-center">
+                                                    <label className="relative inline-flex items-center cursor-pointer select-none">
+                                                        <input 
+                                                            type="checkbox" 
+                                                            className="sr-only peer" 
+                                                            checked={inst.showOnLanding || false}
+                                                            onChange={() => handleToggleLanding(inst._id)}
+                                                        />
+                                                        <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                                                    </label>
+                                                </td>
                                                 <td className="p-4 whitespace-nowrap text-right sticky right-0 bg-white group-hover:bg-slate-50 border-l border-slate-100 shadow-[-8px_0_16px_-4px_rgba(0,0,0,0.06)] z-10">
                                                     <button
                                                         onClick={() => {
@@ -663,7 +687,7 @@ const InstitutesList = () => {
                                         ))
                                     ) : (
                                         <tr>
-                                            <td colSpan="5" className="p-8 text-center text-slate-500">
+                                            <td colSpan="6" className="p-8 text-center text-slate-500">
                                                 No institutes found.
                                             </td>
                                         </tr>

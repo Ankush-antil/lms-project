@@ -508,7 +508,6 @@ const MarketersList = () => {
                                 <th className="p-4 font-semibold whitespace-nowrap">ID</th>
                                 <th className="p-4 font-semibold whitespace-nowrap">Institute</th>
                                 <th className="p-4 font-semibold whitespace-nowrap">Mobile</th>
-                                <th className="p-4 font-semibold whitespace-nowrap">Email</th>
                                 <th className="p-4 font-semibold whitespace-nowrap">Status</th>
                                 <th className="p-4 font-semibold text-right whitespace-nowrap sticky right-0 bg-slate-50 border-l border-slate-200 z-10">Actions</th>
                             </tr>
@@ -516,7 +515,7 @@ const MarketersList = () => {
                         <tbody className="divide-y divide-slate-100">
                             {loading ? (
                                 <tr>
-                                    <td colSpan="7" className="p-8 text-center text-slate-500">
+                                    <td colSpan="6" className="p-8 text-center text-slate-500">
                                         <div className="flex justify-center items-center gap-2">
                                             <div className="w-5 h-5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
                                             Loading marketers...
@@ -538,12 +537,15 @@ const MarketersList = () => {
                                                         marketer.name[0]
                                                     )}
                                                 </div>
-                                                <span
-                                                    className="font-medium text-slate-800 cursor-pointer hover:text-indigo-600 transition-colors"
-                                                    onClick={() => openProfile(marketer._id)}
-                                                >
-                                                    <TruncatedCell text={marketer.name} maxLength={20} />
-                                                </span>
+                                                <div className="flex flex-col">
+                                                    <span
+                                                        className="font-medium text-slate-800 cursor-pointer hover:text-indigo-650 transition-colors"
+                                                        onClick={() => openProfile(marketer._id)}
+                                                    >
+                                                        <TruncatedCell text={marketer.name} maxLength={20} />
+                                                    </span>
+                                                    <span className="text-slate-400 text-xs font-semibold">{marketer.email}</span>
+                                                </div>
                                             </div>
                                         </td>
                                         <td className="p-4 text-slate-600 font-mono text-sm whitespace-nowrap">{marketer._id.slice(-6)}</td>
@@ -551,9 +553,6 @@ const MarketersList = () => {
                                             <TruncatedCell text={marketer.institute?.name || marketer.institute || 'N/A'} maxLength={20} />
                                         </td>
                                         <td className="p-4 text-slate-600 text-sm whitespace-nowrap">{marketer.mobileNumber || 'N/A'}</td>
-                                        <td className="p-4 text-slate-600 whitespace-nowrap">
-                                            <TruncatedCell text={marketer.email} maxLength={25} />
-                                        </td>
                                         <td className="p-4 whitespace-nowrap">
                                              <button
                                                  type="button"
@@ -596,7 +595,7 @@ const MarketersList = () => {
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan="7" className="p-8 text-center text-slate-500">
+                                    <td colSpan="6" className="p-8 text-center text-slate-500">
                                         No marketers found.
                                     </td>
                                 </tr>

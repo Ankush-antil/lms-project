@@ -2964,6 +2964,9 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
     const [publishing, setPublishing] = useState(false);
     const [saving, setSaving] = useState(false);
     const [loading, setLoading] = useState(!!id);
+    const [historyData, setHistoryData] = useState([]);
+    const [historyLoading, setHistoryLoading] = useState(false);
+    const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
 
     // Publish Options Modal States
     const [isPublishOptionsModalOpen, setIsPublishOptionsModalOpen] = useState(false);
@@ -3198,6 +3201,24 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
             fetchTest();
         }
     }, [id, navigate]);
+
+    // Fetch history logs
+    useEffect(() => {
+        if (id && activeTab === 'History') {
+            const fetchHistory = async () => {
+                try {
+                    setHistoryLoading(true);
+                    const res = await axios.get(`/api/tests/${id}/history`);
+                    setHistoryData(res.data || []);
+                } catch (error) {
+                    console.error("Error fetching test history:", error);
+                } finally {
+                    setHistoryLoading(false);
+                }
+            };
+            fetchHistory();
+        }
+    }, [id, activeTab, historyRefreshKey]);
 
     // Drag-and-Drop and addition logic
     const handleDragStart = (e, element) => {
@@ -3793,6 +3814,22 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                 }
             }
 
+            // Log history
+            const targetId = id || publishedTest?._id;
+            if (targetId) {
+                try {
+                    const actionVal = mode === 'draft' ? 'saved' : 'published';
+                    const descVal = mode === 'draft' 
+                        ? `Saved draft of "${titleVal}"`
+                        : `Published "${titleVal}" (${mode} mode) with ${formElements.length} element(s)`;
+                    await axios.post(`/api/tests/${targetId}/history`, {
+                        action: actionVal,
+                        description: descVal,
+                        meta: { mode, title: titleVal, questionCount: formElements.length }
+                    });
+                } catch (_) {}
+            }
+
             setPublishing(false);
             setIsPublishOptionsModalOpen(false);
 
@@ -3924,19 +3961,32 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                 }
             };
 
+            let targetId = id;
             if (id) {
                 await axios.put(`/api/tests/${id}`, testData);
                 toast.success('Changes saved successfully! ✓');
             } else {
                 const res = await axios.post('/api/tests', testData);
                 toast.success('Activity saved successfully! ✓');
-                // Update URL with new id so subsequent saves use PUT
                 const newId = res.data?._id;
+                targetId = newId;
                 if (newId) {
                     const newUrl = new URL(window.location.href);
                     newUrl.searchParams.set('id', newId);
                     window.history.replaceState({}, '', newUrl.toString());
                 }
+            }
+
+            // Log history
+            if (targetId) {
+                try {
+                    await axios.post(`/api/tests/${targetId}/history`, {
+                        action: 'saved',
+                        description: `Saved changes to "${titleVal}" with ${formElements.length} widget(s)`,
+                        meta: { questionCount: formElements.length, title: titleVal }
+                    });
+                    setHistoryRefreshKey(prev => prev + 1);
+                } catch (_) {}
             }
         } catch (error) {
             console.error('Error saving form:', error);
@@ -5438,27 +5488,55 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                             <div className="flex-1 overflow-y-auto p-8 space-y-6 bg-slate-50 animate-slide-up">
                                 <div className="max-w-xl mx-auto space-y-6">
                                     <h1 className="text-2xl font-extrabold text-slate-800">Version Revision History</h1>
-                                    <div className="space-y-4 relative before:absolute before:left-3 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200">
-                                        {[
-                                            { rev: 'V3', date: 'Jun 6, 2026, 3:30 PM', author: 'Admin User', desc: 'Published updated questions (Multiple Choice & Ratings)' },
-                                            { rev: 'V2', date: 'Jun 6, 2026, 11:15 AM', author: 'Admin User', desc: 'Connected to Web Development Bootcamp course' },
-                                            { rev: 'V1', date: 'Jun 5, 2026, 5:00 PM', author: 'Admin User', desc: 'Created form draft' }
-                                        ].map((rev, rIdx) => (
-                                            <div key={rIdx} className="flex gap-6 relative items-start">
-                                                <div className={`w-6.5 h-6.5 rounded-full flex items-center justify-center text-[10px] font-bold text-white shadow-md z-10 ${rIdx === 0 ? 'bg-[#0b1329] shadow-slate-200' : 'bg-slate-400'
-                                                    }`}>
-                                                    {rev.rev}
-                                                </div>
-                                                <div className="flex-1 bg-white p-4 border border-slate-200/50 rounded-2xl shadow-sm space-y-1">
-                                                    <div className="flex justify-between items-center">
-                                                        <span className="text-xs font-bold text-slate-400">{rev.date}</span>
-                                                        <span className="text-xs font-semibold text-[#0b1329]">{rev.author}</span>
+                                    
+                                    {historyLoading ? (
+                                        <div className="flex flex-col items-center justify-center py-12 gap-2 text-slate-400">
+                                            <Loader2 className="animate-spin w-8 h-8" />
+                                            <span className="text-sm font-semibold">Loading version history...</span>
+                                        </div>
+                                    ) : !id ? (
+                                        <div className="bg-white p-6 rounded-2xl border border-slate-200/50 shadow-sm text-center">
+                                            <p className="text-sm text-slate-500 font-semibold">Save or Publish this activity first to start tracking version history.</p>
+                                        </div>
+                                    ) : historyData.length === 0 ? (
+                                        <div className="bg-white p-6 rounded-2xl border border-slate-200/50 shadow-sm text-center">
+                                            <p className="text-sm text-slate-500 font-semibold">No version updates recorded yet.</p>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-4 relative before:absolute before:left-3.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200">
+                                            {historyData.map((item, idx) => {
+                                                const versionNumber = historyData.length - idx;
+                                                const formattedDate = new Date(item.createdAt).toLocaleString(undefined, {
+                                                    dateStyle: 'medium',
+                                                    timeStyle: 'short'
+                                                });
+                                                return (
+                                                    <div key={item._id || idx} className="flex gap-6 relative items-start">
+                                                        <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white shadow-md z-10 ${
+                                                            idx === 0 ? 'bg-[#0b1329] shadow-slate-200' : 'bg-slate-400'
+                                                        }`}>
+                                                            V{versionNumber}
+                                                        </div>
+                                                        <div className="flex-1 bg-white p-4 border border-slate-200/50 rounded-2xl shadow-sm space-y-1">
+                                                            <div className="flex justify-between items-center">
+                                                                <span className="text-[11px] font-bold text-slate-450">{formattedDate}</span>
+                                                                <div className="flex items-center gap-1.5">
+                                                                    <div className="w-5 h-5 rounded-full bg-slate-100 text-[#0b1329] flex items-center justify-center font-bold text-[9px] uppercase border border-slate-200">
+                                                                        {(item.userName || 'U')[0]}
+                                                                    </div>
+                                                                    <span className="text-xs font-bold text-[#0b1329]">
+                                                                        {item.userName || 'Unknown'} 
+                                                                        <span className="text-[10px] text-slate-400 font-semibold ml-1">({item.userRole || 'Admin'})</span>
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+                                                            <p className="text-sm font-semibold text-slate-700 leading-snug">{item.description}</p>
+                                                        </div>
                                                     </div>
-                                                    <p className="text-sm font-semibold text-slate-700 leading-snug">{rev.desc}</p>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         )}

@@ -2,6 +2,7 @@ const asyncHandler = require('express-async-handler');
 const Test = require('../../models/Test');
 const Activity = require('../../models/Activity');
 const User = require('../../models/User');
+const TestHistory = require('../../models/TestHistory');
 
 // @desc    Create new test
 // @route   POST /api/tests
@@ -620,6 +621,33 @@ const duplicateTest = asyncHandler(async (req, res) => {
     res.status(201).json(duplicatedTest);
 });
 
+// @desc    Get history for a test
+// @route   GET /api/tests/:id/history
+// @access  Private
+const getTestHistory = asyncHandler(async (req, res) => {
+    const history = await TestHistory.find({ test: req.params.id })
+        .sort({ createdAt: -1 })
+        .limit(100);
+    res.json(history);
+});
+
+// @desc    Add a history entry for a test
+// @route   POST /api/tests/:id/history
+// @access  Private
+const addTestHistory = asyncHandler(async (req, res) => {
+    const { action, description, meta } = req.body;
+    const entry = await TestHistory.create({
+        test: req.params.id,
+        user: req.user._id,
+        userName: req.user.name || 'Unknown',
+        userRole: req.user.role || 'Admin',
+        action: action || 'saved',
+        description: description || '',
+        meta: meta || {}
+    });
+    res.status(201).json(entry);
+});
+
 module.exports = { 
     createTest, 
     getTests, 
@@ -632,6 +660,8 @@ module.exports = {
     restoreTest,
     permanentlyDeleteTest,
     importTests,
-    duplicateTest
+    duplicateTest,
+    getTestHistory,
+    addTestHistory
 };
 

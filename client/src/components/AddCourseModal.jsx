@@ -1,8 +1,8 @@
 import { useAuth } from '../context/AuthContext';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import toast from 'react-hot-toast';
 import axios from 'axios';
-import { X, Upload, Link as LinkIcon, FileText, BookOpen } from 'lucide-react';
+import { X, Upload, Link as LinkIcon, FileText, BookOpen, Check } from 'lucide-react';
 import { createPortal } from 'react-dom';
 
 const AddCourseModal = ({ isOpen, onClose, refreshData, course = null, isDemoPreset = false }) => {
@@ -105,6 +105,94 @@ const AddCourseModal = ({ isOpen, onClose, refreshData, course = null, isDemoPre
             }
         }
     }, [allSubjects, formData.subjects, isDurationManuallyEdited]);
+
+    const [subjectInput, setSubjectInput] = useState('');
+    const [showDropdown, setShowDropdown] = useState(false);
+    const dropdownRef = useRef(null);
+
+    useEffect(() => {
+        const handleOutsideClick = (e) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+                setShowDropdown(false);
+            }
+        };
+        document.addEventListener('mousedown', handleOutsideClick);
+        return () => document.removeEventListener('mousedown', handleOutsideClick);
+    }, []);
+
+    const instituteSubjects = useMemo(() => {
+        if (!formData.instituteId) return [];
+        const uniq = new Set();
+        const list = [];
+        allSubjects.forEach(s => {
+            const instId = s.institute?._id || s.institute;
+            if (instId && String(instId) === String(formData.instituteId)) {
+                const nameLower = s.name?.trim().toLowerCase();
+                if (nameLower && !uniq.has(nameLower)) {
+                    uniq.add(nameLower);
+                    list.push(s.name.trim());
+                }
+            }
+        });
+        return list;
+    }, [allSubjects, formData.instituteId]);
+
+    const filteredInstituteSubjects = useMemo(() => {
+        return instituteSubjects.filter(sub => 
+            sub.toLowerCase().includes(subjectInput.toLowerCase())
+        );
+    }, [instituteSubjects, subjectInput]);
+
+    const addSubjectTag = (tag) => {
+        const cleanTag = tag.trim();
+        if (!cleanTag) return;
+        
+        const currentTags = formData.subjects ? formData.subjects.split(',').map(s => s.trim()).filter(Boolean) : [];
+        if (!currentTags.some(t => t.toLowerCase() === cleanTag.toLowerCase())) {
+            const updatedTags = [...currentTags, cleanTag];
+            setFormData(prev => ({ ...prev, subjects: updatedTags.join(', ') }));
+        }
+        setSubjectInput('');
+    };
+
+    const removeSubjectTag = (indexToRemove) => {
+        const currentTags = formData.subjects ? formData.subjects.split(',').map(s => s.trim()).filter(Boolean) : [];
+        const updatedTags = currentTags.filter((_, idx) => idx !== indexToRemove);
+        setFormData(prev => ({ ...prev, subjects: updatedTags.join(', ') }));
+    };
+
+    const handleInputChange = (e) => {
+        const val = e.target.value;
+        if (val.endsWith(',')) {
+            addSubjectTag(val.slice(0, -1));
+        } else {
+            setSubjectInput(val);
+        }
+    };
+
+    const handleKeyDown = (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            if (subjectInput.trim()) {
+                addSubjectTag(subjectInput);
+            }
+        } else if (e.key === 'Backspace' && !subjectInput) {
+            const currentTags = formData.subjects ? formData.subjects.split(',').map(s => s.trim()).filter(Boolean) : [];
+            if (currentTags.length > 0) {
+                removeSubjectTag(currentTags.length - 1);
+            }
+        }
+    };
+
+    const toggleSubjectSelection = (subName) => {
+        const currentTags = formData.subjects ? formData.subjects.split(',').map(s => s.trim()).filter(Boolean) : [];
+        const index = currentTags.findIndex(t => t.toLowerCase() === subName.toLowerCase());
+        if (index !== -1) {
+            removeSubjectTag(index);
+        } else {
+            addSubjectTag(subName);
+        }
+    };
 
     const handleSyllabusFileUpload = async (e) => {
         const file = e.target.files[0];
@@ -256,16 +344,78 @@ const AddCourseModal = ({ isOpen, onClose, refreshData, course = null, isDemoPre
                                     placeholder="CSE-2024"
                                 />
                             </div>
-                            <div>
+                            <div className="relative" ref={dropdownRef}>
                                 <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Subjects</label>
+                                
+                                <div 
+                                    onClick={() => setShowDropdown(true)}
+                                    className="w-full min-h-[46px] bg-slate-50 border border-slate-100 rounded-2xl p-2 flex flex-wrap gap-1.5 focus-within:ring-2 focus-within:ring-indigo-500/10 focus-within:border-indigo-300 transition-all cursor-text items-center"
+                                >
+                                    {/* Selected subject pills */}
+                                    {formData.subjects ? formData.subjects.split(',').map(s => s.trim()).filter(Boolean).map((sub, idx) => (
+                                        <span 
+                                            key={idx}
+                                            className="bg-indigo-50 text-[#3E3ADD] font-extrabold text-[11px] px-2 py-1 rounded-xl flex items-center gap-1 border border-indigo-100 select-none animate-fade-in"
+                                        >
+                                            {sub}
+                                            <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    removeSubjectTag(idx);
+                                                }}
+                                                className="hover:text-indigo-900 transition-colors text-[10px] ml-0.5"
+                                            >
+                                                ✕
+                                            </button>
+                                        </span>
+                                    )) : null}
+
+                                    {/* Text Input */}
+                                    <input
+                                        type="text"
+                                        className="flex-1 bg-transparent border-none outline-none text-sm font-bold text-slate-700 min-w-[100px] p-0.5"
+                                        value={subjectInput}
+                                        onChange={handleInputChange}
+                                        onKeyDown={handleKeyDown}
+                                        onFocus={() => setShowDropdown(true)}
+                                        placeholder={formData.subjects ? "" : "Select or type subject..."}
+                                    />
+                                </div>
+
+                                {/* Hidden input for browser required validation */}
                                 <input
                                     type="text"
-                                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-300 transition-all"
                                     required
                                     value={formData.subjects}
-                                    onChange={e => setFormData({ ...formData, subjects: e.target.value })}
-                                    placeholder="Physics, Maths, C++"
+                                    onChange={() => {}}
+                                    className="opacity-0 w-0 h-0 absolute pointer-events-none"
                                 />
+
+                                {/* Dropdown List */}
+                                {showDropdown && (
+                                    <div className="absolute left-0 right-0 mt-1.5 bg-white border border-slate-200 rounded-2xl shadow-2xl z-[120] max-h-52 overflow-y-auto custom-scrollbar p-1">
+                                        {filteredInstituteSubjects.length > 0 ? (
+                                            filteredInstituteSubjects.map((subName, index) => {
+                                                const isSelected = formData.subjects ? formData.subjects.split(',').map(s => s.trim().toLowerCase()).includes(subName.toLowerCase()) : false;
+                                                return (
+                                                    <div
+                                                        key={index}
+                                                        onClick={() => toggleSubjectSelection(subName)}
+                                                        className={`flex items-center justify-between px-3.5 py-2.5 text-xs font-bold rounded-xl cursor-pointer transition-colors ${isSelected ? 'bg-indigo-50/50 text-[#3E3ADD]' : 'text-slate-700 hover:bg-slate-50'}`}
+                                                    >
+                                                        <span>{subName}</span>
+                                                        {isSelected && <Check size={14} className="text-[#3E3ADD]" />}
+                                                    </div>
+                                                );
+                                            })
+                                        ) : (
+                                            <div className="px-3.5 py-2.5 text-xs font-bold text-slate-400 italic text-center">
+                                                No suggestions found. Press Enter to add "{subjectInput}"
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                         </div>
 

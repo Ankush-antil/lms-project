@@ -350,34 +350,88 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
     // Update index/day options when course, subject, or mappings change
     useEffect(() => {
         let duration = 50; // fallback
+        let daysList = [];
+
         if (formData.course && formData.course.length > 0 && formData.subject && formData.subject.length > 0 && allCourses.length > 0) {
             const selectedCourses = allCourses.filter(c => formData.course.includes(c.name));
-            
-            // Find max duration among selected courses/subjects
-            let maxDuration = 0;
-            selectedCourses.forEach(course => {
-                const firstSub = formData.subject[0];
-                const durationEntry = course.subjectDurations?.find(
-                    sd => sd.subjectName?.toLowerCase() === firstSub?.toLowerCase()
-                );
-                const subDur = durationEntry && durationEntry.duration > 0 ? durationEntry.duration : course.duration;
-                if (subDur > maxDuration) {
-                    maxDuration = subDur;
-                }
-            });
+            const firstCourse = selectedCourses[0];
+            const firstSub = formData.subject[0];
 
-            if (maxDuration > 0) {
-                duration = maxDuration;
+            if (firstCourse) {
+                const subjects = firstCourse.subjects || [];
+                const durations = firstCourse.subjectDurations || [];
+                const totalDuration = firstCourse.duration || 5;
+
+                let currentDayIndex = 1;
+                const mapping = [];
+
+                if (durations && durations.length > 0) {
+                    durations.forEach(d => {
+                        const subName = d.subjectName;
+                        const subDur = Number(d.duration) || 0;
+                        const subDays = [];
+                        for (let i = 1; i <= subDur; i++) {
+                            subDays.push({
+                                dayNum: i,
+                                indexNum: currentDayIndex,
+                                id: `Index ${currentDayIndex}`
+                            });
+                            currentDayIndex++;
+                        }
+                        if (subDays.length > 0) {
+                            mapping.push({
+                                subjectName: subName,
+                                days: subDays
+                            });
+                        }
+                    });
+                }
+
+                const mappedSubjectNames = mapping.map(m => m.subjectName.toLowerCase());
+                const remainingSubjects = subjects.filter(s => !mappedSubjectNames.includes(s.toLowerCase()));
+
+                if (remainingSubjects.length > 0) {
+                    const remainingDays = Math.max(totalDuration - currentDayIndex + 1, 0);
+                    const daysPerSubject = remainingDays > 0 ? Math.floor(remainingDays / remainingSubjects.length) : 0;
+                    const extraDays = remainingDays > 0 ? remainingDays % remainingSubjects.length : 0;
+
+                    remainingSubjects.forEach((subName, idx) => {
+                        let subDur = daysPerSubject + (idx < extraDays ? 1 : 0);
+                        if (subDur <= 0) subDur = 5;
+                        const subDays = [];
+                        for (let i = 1; i <= subDur; i++) {
+                            subDays.push({
+                                dayNum: i,
+                                indexNum: currentDayIndex,
+                                id: `Index ${currentDayIndex}`
+                            });
+                            currentDayIndex++;
+                        }
+                        if (subDays.length > 0) {
+                            mapping.push({
+                                subjectName: subName,
+                                days: subDays
+                            });
+                        }
+                    });
+                }
+
+                const matchedGroup = mapping.find(m => m.subjectName.toLowerCase() === firstSub.toLowerCase());
+                if (matchedGroup) {
+                    daysList = matchedGroup.days.map(d => d.id);
+                }
             }
         }
+
+        if (daysList.length === 0) {
+            daysList = Array.from({ length: duration }, (_, i) => `Index ${i + 1}`);
+        }
+
         setOptions(prev => ({
             ...prev,
-            index: Array.from({ length: duration }, (_, i) => {
-                const inboxId = `index ${i + 1}`;
-                return indexMappings[inboxId] || `Index ${i + 1}`;
-            })
+            index: daysList
         }));
-    }, [formData.course, formData.subject, allCourses, indexMappings]);
+    }, [formData.course, formData.subject, allCourses]);
 
     const handleCreateNew = (field, key) => {
         const newValue = prompt(`Enter new ${field}:`);

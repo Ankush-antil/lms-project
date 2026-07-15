@@ -84,6 +84,13 @@ const validateInboxSubjectConflict = async (testId, testDetails, currentInstitut
                     
                     const hasConflict = existingSubs.some(eSub => !newSubsLower.includes(eSub));
                     if (hasConflict) {
+                        try {
+                            const fs = require('fs');
+                            const path = require('path');
+                            const debugMsg = `[CONFLICT DEBUG] ${new Date().toISOString()}\nCourse: ${cName}\nIndex: ${index}\nExisting Test: ${existingTest.title} (ID: ${existingTest._id})\nExisting Subjects: ${existingTest.subject} (Normalized: ${existingSubs.join(',')})\nNew Subjects: ${subject} (Normalized: ${newSubsLower.join(',')})\n\n`;
+                            fs.appendFileSync(path.join(__dirname, '../../error.log'), debugMsg);
+                        } catch (_) {}
+
                         if (res) res.status(400);
                         throw new Error(`This inbox (${index}) in course "${cName}" is already assigned to a different subject: "${existingTest.subject}". Only tests of the same subject can be added to this inbox.`);
                     }

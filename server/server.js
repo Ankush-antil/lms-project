@@ -129,6 +129,16 @@ app.use((err, req, res, next) => {
         message = `${field.charAt(0).toUpperCase() + field.slice(1)} already exists in the database. Please use a different value.`;
     }
 
+    // Write to error.log for debugging
+    try {
+        const fs = require('fs');
+        const path = require('path');
+        const logContent = `[${new Date().toISOString()}] ${req.method} ${req.originalUrl}\nStatus: ${statusCode}\nMessage: ${message}\nStack: ${err.stack}\n\n`;
+        fs.appendFileSync(path.join(__dirname, 'error.log'), logContent);
+    } catch (logErr) {
+        console.error('Failed to write to error.log:', logErr);
+    }
+
     res.status(statusCode).json({
         message,
         stack: process.env.NODE_ENV === 'production' ? null : err.stack
@@ -166,4 +176,4 @@ const startServer = async () => {
 };
 
 startServer();
-// Nodemon sync trigger comment restarted - 9
+// Nodemon sync trigger comment restarted - 11

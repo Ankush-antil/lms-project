@@ -2962,6 +2962,7 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
     });
 
     const [publishing, setPublishing] = useState(false);
+    const [saving, setSaving] = useState(false);
     const [loading, setLoading] = useState(!!id);
 
     // Publish Options Modal States
@@ -3822,6 +3823,129 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
         }
     };
 
+    // Quick Save — saves the current form data without changing publish mode or navigating away
+    const handleSave = async () => {
+        if (formElements.length === 0) {
+            toast.error('Please add at least one form widget to save!');
+            return;
+        }
+        try {
+            setSaving(true);
+            const titleVal = connectData?.name?.trim() || 'Untitled Draft Test';
+            const currentMode = publishModeSelected || 'connected';
+
+            const testData = {
+                testDetails: {
+                    title: titleVal,
+                    institute: connectData?.institute || user?.institute?.name || (typeof user?.institute === 'string' ? user.institute : 'Default Institute'),
+                    course: connectData?.course || '',
+                    subject: connectData?.subject || '',
+                    date: connectData?.date || new Date().toISOString().split('T')[0],
+                    index: connectData?.index || 'Index 1',
+                    activity: connectData?.activity || 'Quiz',
+                    publishMode: currentMode,
+                    discussionActivity: discussionActivity,
+                    assignmentType: 'all',
+                    assignedStudents: [],
+                    allowTeacherEdit: allowTeacherEdit,
+                    isAssigned: connectData?.isAssigned || false
+                },
+                questions: formElements.map((el, index) => ({
+                    id: `q${index}`,
+                    text: el.text?.trim() || `${el.label} Question ${index + 1}`,
+                    type: el.label,
+                    marks: el.marks !== undefined ? el.marks : 1,
+                    description: el.description || '',
+                    helperText: el.noteContent || el.helperText || '',
+                    uploadedResource: el.uploadedResource || null,
+                    instructions: el.instructions || '',
+                    required: !!el.required,
+                    enabled: el.enabled !== false,
+                    negativeMarks: el.negativeMarks || 0,
+                    partialMarks: !!el.partialMarks,
+                    evaluationMode: el.evaluationMode || 'auto',
+                    validation: el.validation || {},
+                    assistive: el.assistive || {},
+                    particulars: el.particulars || {},
+                    logicalSettings: el.logicalSettings || {},
+                    validationSettings: el.validationSettings || {},
+                    insertedImages: el.insertedImages || [],
+                    logic: el.logic || {},
+                    textLogic: el.textLogic || {},
+                    advanced: el.advanced || {},
+                    options: el.options || [],
+                    matchingPairs: el.matchingPairs || [],
+                    blankAnswers: el.blankAnswers || [],
+                    uploadedFiles: el.uploadedFiles || [],
+                    tableData: el.tableData || null,
+                    addons: el.addons || [],
+                    appliedToAllAddons: el.appliedToAllAddons || [],
+                    appliedToAllMoreSettings: el.appliedToAllMoreSettings || [],
+                    moreSettings: el.moreSettings || { allowUpload: false, allowChat: false, allowSubmitFinish: false },
+                    mediaUrl: el.mediaUrl || '',
+                    writeMode: !!el.writeMode,
+                    audioUrl: el.audioUrl || '',
+                    imageUrl: el.imageUrl || '',
+                    altText: el.altText || '',
+                    align: el.align || 'center',
+                    pdfUrl: el.pdfUrl || '',
+                    youtubeUrl: el.youtubeUrl || '',
+                    embeddedVideoUrl: el.embeddedVideoUrl || '',
+                    webpageUrl: el.webpageUrl || '',
+                    webpageHeight: el.webpageHeight || 400,
+                    webpageScroll: el.webpageScroll || 'yes',
+                    smPlatform: el.smPlatform || '',
+                    smPostUrl: el.smPostUrl || '',
+                    multiMaxFiles: el.multiMaxFiles || 5,
+                    multiMaxSizeMB: el.multiMaxSizeMB || 10,
+                    multiFileType: el.multiFileType || 'all',
+                    videoCallDuration: el.videoCallDuration || 5,
+                    videoCallRole: el.videoCallRole || 'interviewer',
+                    videoCallScenario: el.videoCallScenario || '',
+                    videoUrl: el.videoUrl || '',
+                    videoWidth: el.videoWidth || 500,
+                    htmlContent: el.htmlContent || '',
+                    autoplay: !!el.autoplay,
+                    loop: !!el.loop,
+                    quality: el.quality || '1080p',
+                    includeMic: !!el.includeMic,
+                    screenshotScope: el.screenshotScope || 'Entire Screen',
+                    agentName: el.agentName || '',
+                    greetingMessage: el.greetingMessage || '',
+                    systemPersona: el.systemPersona || '',
+                    voicePersona: el.voicePersona || 'alloy',
+                    scriptScenario: el.scriptScenario || '',
+                    activityType: el.activityType || 'AI Lab',
+                    activityRules: el.activityRules || ''
+                })),
+                settings: {
+                    duration: 60,
+                    passingMarks: 40
+                }
+            };
+
+            if (id) {
+                await axios.put(`/api/tests/${id}`, testData);
+                toast.success('Changes saved successfully! ✓');
+            } else {
+                const res = await axios.post('/api/tests', testData);
+                toast.success('Activity saved successfully! ✓');
+                // Update URL with new id so subsequent saves use PUT
+                const newId = res.data?._id;
+                if (newId) {
+                    const newUrl = new URL(window.location.href);
+                    newUrl.searchParams.set('id', newId);
+                    window.history.replaceState({}, '', newUrl.toString());
+                }
+            }
+        } catch (error) {
+            console.error('Error saving form:', error);
+            toast.error(error.response?.data?.message || 'Error saving changes');
+        } finally {
+            setSaving(false);
+        }
+    };
+
     // Filter sidebar elements based on Search box
     const filteredElements = sidebarElements.filter(el =>
         el.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -4031,8 +4155,7 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                         </button>
                     )}
 
-                    {['Edit', 'Responses', 'History', 'Collaborate', 'Preview'].filter((tab) => {
-                        if (tab === 'Responses') return hasActivityControl('responses') !== false;
+                    {['Edit', 'History', 'Collaborate', 'Preview'].filter((tab) => {
                         if (tab === 'Collaborate') return hasActivityControl('collaborate') !== false;
                         return true;
                     }).map((tab) => (
@@ -4503,7 +4626,11 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                 )}
                 <div className="flex-1 flex flex-col">
                     {/* Secondary Toolbar */}
-                    <div className="h-12 bg-blue-100 border-b text-black border-slate-200 px-6 flex items-center justify-center">
+                    <div className="h-12 bg-blue-100 border-b text-black border-slate-200 px-6 flex items-center">
+                        {/* Left spacer — balances Save button width on right */}
+                        <div className="flex-1" />
+
+                        {/* Center: toolbar buttons */}
                         <div className="flex items-center gap-6">
                             {hasActivityControl('theme') !== false && (
                                 <button
@@ -4570,6 +4697,27 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                                     <span>Save as Template</span>
                                 </button>
                             )}
+                        </div>
+
+                        {/* Right: Quick Save Button */}
+                        <div className="flex-1 flex justify-end">
+                            <button
+                                onClick={handleSave}
+                                disabled={saving || publishing}
+                                className="flex items-center gap-1.5 px-4 py-1.5 bg-[#0b1329] hover:bg-[#1a2a4a] text-white rounded-lg text-xs font-bold shadow transition-all active:scale-95 disabled:opacity-50"
+                            >
+                                {saving ? (
+                                    <>
+                                        <svg className="animate-spin" width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}><circle cx="12" cy="12" r="10" strokeOpacity="0.3"/><path d="M12 2a10 10 0 0 1 10 10"/></svg>
+                                        <span>Saving...</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Save size={13} />
+                                        <span>Save</span>
+                                    </>
+                                )}
+                            </button>
                         </div>
                     </div>
 

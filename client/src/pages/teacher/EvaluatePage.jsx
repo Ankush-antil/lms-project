@@ -775,7 +775,7 @@ const EvaluatePage = () => {
                             <span className="font-bold text-slate-900 break-words block">{test?.date || (test?.createdAt ? new Date(test.createdAt).toLocaleDateString('en-GB') : 'N/A')}</span>
                         </div>
                         <div className="bg-[#F8FAFC] p-4 rounded-2xl border border-slate-100">
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Test Index</span>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Test Inbox</span>
                             <span className="font-bold text-slate-900 break-words block">{test?.index || 'N/A'}</span>
                         </div>
                         <div className="bg-[#F8FAFC] p-4 rounded-2xl border border-slate-100">
@@ -881,7 +881,7 @@ const EvaluatePage = () => {
                                         <span className="font-bold text-slate-900">{test?.date || (test?.createdAt ? new Date(test.createdAt).toLocaleDateString('en-GB') : 'N/A')}</span>
                                     </div>
                                     <div>
-                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Test Index</span>
+                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Test Inbox</span>
                                         <span className="font-bold text-slate-900">{test?.index || 'N/A'}</span>
                                     </div>
                                     <div>

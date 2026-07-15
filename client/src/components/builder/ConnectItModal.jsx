@@ -126,7 +126,7 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
         institute: [],
         course: [],
         subject: [],
-        index: Array.from({ length: 50 }, (_, i) => `Index ${i + 1}`),
+        index: Array.from({ length: 50 }, (_, i) => `Inbox ${i + 1}`),
         activity: ['Viva', 'Exam', 'Assignment', 'Test', 'Quiz']
     });
 
@@ -158,7 +158,7 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
             }
             setIndexMappings(mapping);
         } catch (err) {
-            console.error("Error fetching index mappings:", err);
+            console.error("Error fetching inbox mappings:", err);
         } finally {
             setLoadingMappings(false);
         }
@@ -179,14 +179,14 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
         if (foundKey) {
             targetInboxId = foundKey;
         } else {
-            const match = currentOption.match(/^Index\s+(\d+)$/i);
+            const match = currentOption.match(/^(Index|Inbox)\s+(\d+)$/i);
             if (match) {
-                targetInboxId = `index ${match[1]}`;
+                targetInboxId = `inbox ${match[2]}`;
             }
         }
 
         if (!targetInboxId) {
-            toast.error('Cannot rename custom added indices');
+            toast.error('Cannot rename custom added inboxes');
             return;
         }
 
@@ -205,7 +205,7 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
                     courseId: courseIdToSend,
                     subject: selectedSubjects.join(', ')
                 });
-                toast.success('Index renamed across all courses with this subject!');
+                toast.success('Inbox renamed across all courses with this subject!');
                 // Refresh mappings using subject for cross-course accuracy
                 await fetchIndexMappings(courseIdToSend, selectedSubjects);
                 if (formData.index === currentOption) {
@@ -213,7 +213,7 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
                 }
             } catch (err) {
                 console.error("Rename error:", err);
-                toast.error('Failed to rename index');
+                toast.error('Failed to rename inbox');
             }
         }
     };
@@ -374,7 +374,7 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
                             subDays.push({
                                 dayNum: i,
                                 indexNum: currentDayIndex,
-                                id: `Index ${currentDayIndex}`
+                                id: `Inbox ${currentDayIndex}`
                             });
                             currentDayIndex++;
                         }
@@ -403,7 +403,7 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
                             subDays.push({
                                 dayNum: i,
                                 indexNum: currentDayIndex,
-                                id: `Index ${currentDayIndex}`
+                                id: `Inbox ${currentDayIndex}`
                             });
                             currentDayIndex++;
                         }
@@ -424,7 +424,7 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
         }
 
         if (daysList.length === 0) {
-            daysList = Array.from({ length: duration }, (_, i) => `Index ${i + 1}`);
+            daysList = Array.from({ length: duration }, (_, i) => `Inbox ${i + 1}`);
         }
 
         setOptions(prev => ({
@@ -533,25 +533,25 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
                         {formData.subject && formData.subject.length > 0 ? (
                             loadingMappings ? (
                                 <div className="space-y-1.5">
-                                    <label className="text-sm font-semibold text-slate-600">Test Day / Index</label>
+                                    <label className="text-sm font-semibold text-slate-600">Test Day / Inbox</label>
                                     <div className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-400 flex items-center gap-2 transition-all">
                                         <div className="animate-spin rounded-full h-4 w-4 border-2 border-indigo-500 border-t-transparent"></div>
-                                        <span className="text-sm font-medium animate-pulse">Loading index configurations...</span>
+                                        <span className="text-sm font-medium animate-pulse">Loading inbox configurations...</span>
                                     </div>
                                 </div>
                             ) : (
                                 <CustomSelect
-                                    label="Test Day / Index"
+                                    label="Test Day / Inbox"
                                     value={formData.index}
                                     options={options.index}
                                     onChange={(val) => setFormData(prev => ({ ...prev, index: val }))}
-                                    onCreateNew={() => handleCreateNew('Test Day / Index', 'index')}
+                                    onCreateNew={() => handleCreateNew('Test Day / Inbox', 'index')}
                                     onRenameOption={handleRenameIndex}
                                     renderOption={(opt) => {
                                         const norm = (opt || '').trim().toLowerCase();
                                         return indexMappings[norm] || opt;
                                     }}
-                                    placeholder="Select Day / Index"
+                                    placeholder="Select Day / Inbox"
                                 />
                             )
                         ) : null}

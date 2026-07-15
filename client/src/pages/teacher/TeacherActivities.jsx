@@ -951,7 +951,7 @@ const TeacherActivities = () => {
                         daysList.push({
                             dayNum: i,
                             indexNum: currentDayIndex,
-                            id: `Index ${currentDayIndex}`
+                            id: `Inbox ${currentDayIndex}`
                         });
                         currentDayIndex++;
                     }
@@ -982,7 +982,7 @@ const TeacherActivities = () => {
                             daysList.push({
                                 dayNum: i,
                                 indexNum: currentDayIndex,
-                                id: `Index ${currentDayIndex}`
+                                id: `Inbox ${currentDayIndex}`
                             });
                             currentDayIndex++;
                         }
@@ -1001,7 +1001,7 @@ const TeacherActivities = () => {
                     daysList.push({
                         dayNum: dayCounter,
                         indexNum: currentDayIndex,
-                        id: `Index ${currentDayIndex}`
+                        id: `Inbox ${currentDayIndex}`
                     });
                     currentDayIndex++;
                     dayCounter++;
@@ -1021,7 +1021,7 @@ const TeacherActivities = () => {
                 daysList.push({
                     dayNum: i,
                     indexNum: i,
-                    id: `Index ${i}`
+                    id: `Inbox ${i}`
                 });
             }
             mapping.push({
@@ -3529,7 +3529,7 @@ const TeacherActivities = () => {
 
                                 <div className="grid grid-cols-2 gap-6">
                                     <div>
-                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Test Index</span>
+                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Test Inbox</span>
                                         <span className="font-bold text-slate-900">{infoModalData.index || 'N/A'}</span>
                                     </div>
                                     <div>

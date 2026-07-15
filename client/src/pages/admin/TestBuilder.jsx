@@ -2956,7 +2956,7 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
         course: '',
         subject: '',
         date: new Date().toISOString().split('T')[0],
-        index: 'Index 1',
+        index: 'Inbox 1',
         activity: 'Quiz',
         isAssigned: false
     });
@@ -3048,7 +3048,7 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                         course: test.course || '',
                         subject: test.subject || '',
                         date: test.date || new Date().toISOString().split('T')[0],
-                        index: test.index || 'Index 1',
+                        index: test.index || 'Inbox 1',
                         activity: test.activity || 'Quiz',
                         isAssigned: !!test.isAssigned
                     });
@@ -3711,7 +3711,7 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                         ? (connectData?.subject || '')
                         : (settingsObj?.selectedFolder ? (settingsObj.selectedFolder.subject || '') : 'General'),
                     date: connectData?.date || new Date().toISOString().split('T')[0],
-                    index: (mode === 'connected' || mode === 'draft') ? (connectData?.index || 'Index 1') : 'Public Index',
+                    index: (mode === 'connected' || mode === 'draft') ? (connectData?.index || 'Inbox 1') : 'Public Inbox',
                     activity: (mode === 'connected' || mode === 'draft') ? (connectData?.activity || 'Quiz') : 'Quiz',
                     publishMode: mode,
                     publicSettings: mode === 'public' ? (settingsObj || publicSettings) : {},
@@ -3878,7 +3878,7 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                     course: connectData?.course || '',
                     subject: connectData?.subject || '',
                     date: connectData?.date || new Date().toISOString().split('T')[0],
-                    index: connectData?.index || 'Index 1',
+                    index: connectData?.index || 'Inbox 1',
                     activity: connectData?.activity || 'Quiz',
                     publishMode: currentMode,
                     discussionActivity: discussionActivity,

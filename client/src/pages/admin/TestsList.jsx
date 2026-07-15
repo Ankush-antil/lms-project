@@ -2491,7 +2491,7 @@ const TestsList = () => {
                                         <th className="p-4 font-extrabold whitespace-nowrap">Subject</th>
                                         <th className="p-4 font-extrabold whitespace-nowrap">Duration</th>
                                         <th className="p-4 font-extrabold whitespace-nowrap">Questions</th>
-                                        <th className="p-4 font-extrabold whitespace-nowrap">Test Index</th>
+                                        <th className="p-4 font-extrabold whitespace-nowrap">Test Inbox</th>
                                         <th className="p-4 font-extrabold whitespace-nowrap">Created By</th>
                                         <th className="p-4 font-extrabold text-center whitespace-nowrap">Responses</th>
                                         <th className="p-4 font-extrabold text-right whitespace-nowrap sticky right-0 bg-slate-50 border-l border-slate-200 z-10">Actions</th>

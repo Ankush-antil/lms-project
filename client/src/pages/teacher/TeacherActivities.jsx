@@ -937,8 +937,11 @@ const TeacherActivities = () => {
             if (!instMatch) return false;
 
             // 2. Match Subject
-            const testSub = test.subject?.trim().toLowerCase() || '';
-            const subMatch = subjects.some(sub => testSub === sub);
+            const testSubs = (test.subject || '')
+                .split(',')
+                .map(s => s.trim().toLowerCase())
+                .filter(Boolean);
+            const subMatch = testSubs.some(tSub => subjects.includes(tSub));
             if (!subMatch) return false;
 
             // 3. Match Course

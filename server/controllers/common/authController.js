@@ -200,6 +200,30 @@ const registerUser = async (req, res) => {
     }
 };
 
+// @desc    Validate switchable saved accounts against database (detect deleted/disabled users)
+// @route   POST /api/auth/validate-accounts
+// @access  Public
+const validateAccounts = async (req, res) => {
+    try {
+        const { emails } = req.body;
+        if (!emails || !Array.isArray(emails)) {
+            return res.status(400).json({ message: 'Invalid emails list' });
+        }
+        
+        // Find existing, active users
+        const activeUsers = await User.find({
+            email: { $in: emails.map(e => new RegExp(`^${e.trim()}$`, 'i')) },
+            isDeleted: { $ne: true }
+        }).select('email');
+        
+        const activeEmails = activeUsers.map(u => u.email.toLowerCase());
+        res.json({ activeEmails });
+    } catch (error) {
+        console.error('Error validating accounts:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+};
+
 // @desc    Set cookie for a token (used during account switching across subdomains)
 // @route   POST /api/auth/set-token-cookie
 // @access  Public
@@ -217,6 +241,6 @@ const setTokenCookie = async (req, res) => {
     }
 };
 
-module.exports = { loginUser, registerUser, getMe, logoutUser, setTokenCookie };
+module.exports = { loginUser, registerUser, getMe, logoutUser, setTokenCookie, validateAccounts };
 
 

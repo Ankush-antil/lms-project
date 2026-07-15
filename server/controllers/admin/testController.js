@@ -100,6 +100,53 @@ const validateInboxSubjectConflict = async (testId, testDetails, currentInstitut
     }
 };
 
+const getGlobalIdForSubjectDay = async (courseIdOrName, subjectName, localDayNum) => {
+    const mongoose = require('mongoose');
+    const Course = require('../../models/Course');
+    let course;
+    if (mongoose.Types.ObjectId.isValid(courseIdOrName)) {
+        course = await Course.findById(courseIdOrName);
+    } else {
+        course = await Course.findOne({ name: courseIdOrName });
+    }
+    if (!course) return `Inbox ${localDayNum}`;
+
+    const subjects = course.subjects || [];
+    const durations = course.subjectDurations || [];
+    const totalDuration = course.duration || 5;
+
+    let currentDayIndex = 1;
+    const mapping = [];
+
+    if (durations && durations.length > 0) {
+        durations.forEach(d => {
+            const subName = d.subjectName;
+            const subDur = Number(d.duration) || 0;
+            const subDays = [];
+            for (let i = 1; i <= subDur; i++) {
+                subDays.push({
+                    dayNum: i,
+                    id: `Inbox ${currentDayIndex}`
+                });
+                currentDayIndex++;
+            }
+            if (subDays.length > 0) {
+                mapping.push({
+                    subjectName: subName,
+                    days: subDays
+                });
+            }
+        });
+    }
+
+    const matchedGroup = mapping.find(m => m.subjectName.toLowerCase() === subjectName.toLowerCase());
+    if (matchedGroup) {
+        const day = matchedGroup.days.find(d => d.dayNum === localDayNum);
+        if (day) return day.id;
+    }
+    return `Inbox ${localDayNum}`;
+};
+
 const createTest = asyncHandler(async (req, res) => {
     const { testDetails, settings, questions } = req.body;
 
@@ -126,24 +173,64 @@ const createTest = asyncHandler(async (req, res) => {
         }
     }
 
-    await validateInboxSubjectConflict(null, testDetails, testDetails.institute, res);
+    const subjects = (testDetails.subject || '').split(',').map(s => s.trim()).filter(Boolean);
+    const match = (testDetails.index || '').match(/\d+/);
+    const localDayNum = match ? parseInt(match[0], 10) : 1;
 
-    const test = await Test.create({
-        ...testDetails,
-        settings,
-        questions,
-        createdBy: req.user._id
-    });
+    let createdTest = null;
 
-    // Log Activity
-    await Activity.create({
-        type: 'TEST_CREATED',
-        message: 'New Test created',
-        detail: `${test.title} (${test.course})`,
-        user: req.user._id
-    });
+    if (subjects.length > 0) {
+        for (let i = 0; i < subjects.length; i++) {
+            const sub = subjects[i];
+            const globalIndex = await getGlobalIdForSubjectDay(testDetails.course, sub, localDayNum);
+            
+            const detailsCopy = {
+                ...testDetails,
+                subject: sub,
+                index: globalIndex
+            };
 
-    res.status(201).json(test);
+            await validateInboxSubjectConflict(null, detailsCopy, detailsCopy.institute, res);
+
+            const testDoc = await Test.create({
+                ...detailsCopy,
+                settings,
+                questions,
+                createdBy: req.user._id
+            });
+
+            if (i === 0) {
+                createdTest = testDoc;
+            }
+
+            // Log Activity
+            await Activity.create({
+                type: 'TEST_CREATED',
+                message: 'New Test created',
+                detail: `${testDoc.title} (${testDoc.course} - ${sub})`,
+                user: req.user._id
+            });
+        }
+    } else {
+        await validateInboxSubjectConflict(null, testDetails, testDetails.institute, res);
+        
+        createdTest = await Test.create({
+            ...testDetails,
+            settings,
+            questions,
+            createdBy: req.user._id
+        });
+
+        // Log Activity
+        await Activity.create({
+            type: 'TEST_CREATED',
+            message: 'New Test created',
+            detail: `${createdTest.title} (${createdTest.course})`,
+            user: req.user._id
+        });
+    }
+
+    res.status(201).json(createdTest);
 });
 
 // @desc    Get all tests (for Admin/Teacher/Institute)
@@ -270,15 +357,68 @@ const updateTest = asyncHandler(async (req, res) => {
             }
         }
 
-        // Validate inbox subject conflict
+        // Validate inbox subject conflict and handle multi-subject auto-duplication on update
         if (testDetails) {
-            const mergedDetails = {
-                index: testDetails.index !== undefined ? testDetails.index : test.index,
-                subject: testDetails.subject !== undefined ? testDetails.subject : test.subject,
-                course: testDetails.course !== undefined ? testDetails.course : test.course,
-                institute: testDetails.institute !== undefined ? testDetails.institute : test.institute
-            };
-            await validateInboxSubjectConflict(test._id, mergedDetails, test.institute, res);
+            const subjects = (testDetails.subject || test.subject || '').split(',').map(s => s.trim()).filter(Boolean);
+            if (subjects.length > 1) {
+                // Keep the first subject for the current test
+                const firstSub = subjects[0];
+                const match = (testDetails.index || test.index || '').match(/\d+/);
+                const localDayNum = match ? parseInt(match[0], 10) : 1;
+                const firstSubIndex = await getGlobalIdForSubjectDay(testDetails.course || test.course, firstSub, localDayNum);
+                
+                testDetails.subject = firstSub;
+                testDetails.index = firstSubIndex;
+
+                const mergedDetails = {
+                    index: firstSubIndex,
+                    subject: firstSub,
+                    course: testDetails.course !== undefined ? testDetails.course : test.course,
+                    institute: testDetails.institute !== undefined ? testDetails.institute : test.institute
+                };
+                await validateInboxSubjectConflict(test._id, mergedDetails, test.institute, res);
+
+                // Create duplicate tests for the remaining subjects
+                for (let i = 1; i < subjects.length; i++) {
+                    const sub = subjects[i];
+                    const subIndex = await getGlobalIdForSubjectDay(testDetails.course || test.course, sub, localDayNum);
+                    
+                    const detailsCopy = {
+                        title: testDetails.title !== undefined ? testDetails.title : test.title,
+                        description: testDetails.description !== undefined ? testDetails.description : test.description,
+                        institute: testDetails.institute !== undefined ? testDetails.institute : test.institute,
+                        course: testDetails.course !== undefined ? testDetails.course : test.course,
+                        date: testDetails.date !== undefined ? testDetails.date : test.date,
+                        activity: testDetails.activity !== undefined ? testDetails.activity : test.activity,
+                        publishMode: testDetails.publishMode !== undefined ? testDetails.publishMode : test.publishMode,
+                        publicSettings: testDetails.publicSettings !== undefined ? testDetails.publicSettings : test.publicSettings,
+                        allowTeacherEdit: testDetails.allowTeacherEdit !== undefined ? testDetails.allowTeacherEdit : test.allowTeacherEdit,
+                        discussionActivity: testDetails.discussionActivity !== undefined ? testDetails.discussionActivity : test.discussionActivity,
+                        isAssigned: testDetails.isAssigned !== undefined ? testDetails.isAssigned : test.isAssigned,
+                        assignedStudents: testDetails.assignedStudents !== undefined ? testDetails.assignedStudents : test.assignedStudents,
+                        assignmentType: testDetails.assignmentType !== undefined ? testDetails.assignmentType : test.assignmentType,
+                        subject: sub,
+                        index: subIndex
+                    };
+
+                    await validateInboxSubjectConflict(null, detailsCopy, detailsCopy.institute, res);
+
+                    await Test.create({
+                        ...detailsCopy,
+                        settings: settings !== undefined ? settings : test.settings,
+                        questions: questions !== undefined ? questions : test.questions,
+                        createdBy: req.user._id
+                    });
+                }
+            } else {
+                const mergedDetails = {
+                    index: testDetails.index !== undefined ? testDetails.index : test.index,
+                    subject: testDetails.subject !== undefined ? testDetails.subject : test.subject,
+                    course: testDetails.course !== undefined ? testDetails.course : test.course,
+                    institute: testDetails.institute !== undefined ? testDetails.institute : test.institute
+                };
+                await validateInboxSubjectConflict(test._id, mergedDetails, test.institute, res);
+            }
         }
 
         if (testDetails.title !== undefined) test.title = testDetails.title;

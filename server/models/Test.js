@@ -218,7 +218,8 @@ const testSchema = new mongoose.Schema({
         default: false
     }
 }, {
-    timestamps: true
+    timestamps: true,
+    versionKey: false
 });
 
 const Test = mongoose.model('Test', testSchema);

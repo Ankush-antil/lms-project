@@ -68,7 +68,8 @@ const courseSchema = new mongoose.Schema({
         default: false  // Show this course on public landing page
     }
 }, {
-    timestamps: true
+    timestamps: true,
+    versionKey: false
 });
 
 // Compound index for unique code per institute

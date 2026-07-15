@@ -23,6 +23,7 @@ import { colors, spacing, fontSizes, borderRadius } from '../../theme/colors';
 import { Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
 import { BASE_URL } from '../../config/api';
+import { ImagePreviewModal } from '../../components/common/ImagePreviewModal';
 
 const ContactTeacher = ({ navigation }) => {
     const { user } = useAuth();
@@ -46,6 +47,8 @@ const ContactTeacher = ({ navigation }) => {
     const [chatInput, setChatInput] = useState('');
     const [editingMessage, setEditingMessage] = useState(null);
     const [isPeerTyping, setIsPeerTyping] = useState(false);
+    const [previewImageUrl, setPreviewImageUrl] = useState(null);
+    const [showPreviewModal, setShowPreviewModal] = useState(false);
 
     // Search and attachment states
     const [chatSearchQuery, setChatSearchQuery] = useState('');
@@ -624,7 +627,8 @@ const ContactTeacher = ({ navigation }) => {
                                                             <TouchableOpacity 
                                                                 onPress={() => {
                                                                     const url = msg.fileUrl.startsWith('http') ? msg.fileUrl : `${BASE_URL}${msg.fileUrl}`;
-                                                                    Linking.openURL(url).catch(err => console.error("Couldn't open URL", err));
+                                                                    setPreviewImageUrl(url);
+                                                                    setShowPreviewModal(true);
                                                                 }}
                                                                 activeOpacity={0.8}
                                                             >
@@ -792,6 +796,12 @@ const ContactTeacher = ({ navigation }) => {
                     </KeyboardAvoidingView>
                 </Modal>
             )}
+
+            <ImagePreviewModal
+                visible={showPreviewModal}
+                imageUrl={previewImageUrl}
+                onClose={() => setShowPreviewModal(false)}
+            />
         </View>
     );
 };

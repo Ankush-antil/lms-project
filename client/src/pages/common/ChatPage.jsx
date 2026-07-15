@@ -79,6 +79,34 @@ const ChatPage = () => {
 
     const [editingResearchMessageId, setEditingResearchMessageId] = useState(null);
 
+    // Image Preview states
+    const [previewImages, setPreviewImages] = useState([]);
+    const [activePreviewIndex, setActivePreviewIndex] = useState(-1);
+    const [zoomLevel, setZoomLevel] = useState(1);
+    const [rotation, setRotation] = useState(0);
+
+    const handleImagePreviewClick = (clickedMsg) => {
+        const currentMessages = contactType === 'research' ? researchMessages : messages;
+        const imagesInChat = currentMessages.filter(msg => 
+            msg && msg.fileUrl && 
+            (msg.fileType?.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp)$/i.test(msg.fileUrl))
+        );
+        
+        const index = imagesInChat.findIndex(imgMsg => imgMsg._id === clickedMsg._id);
+        
+        if (index !== -1) {
+            setPreviewImages(imagesInChat);
+            setActivePreviewIndex(index);
+            setZoomLevel(1);
+            setRotation(0);
+        } else {
+            setPreviewImages([clickedMsg]);
+            setActivePreviewIndex(0);
+            setZoomLevel(1);
+            setRotation(0);
+        }
+    };
+
     // Video options modal states & refs
     const [showVideoOptionsModal, setShowVideoOptionsModal] = useState(false);
     const videoFileInputRef = useRef(null);
@@ -2869,9 +2897,9 @@ const ChatPage = () => {
                                                                     ) : msg.fileType?.startsWith('audio/') || /\.(webm|mp3|wav|ogg|m4a)$/i.test(msg.fileName) ? (
                                                                         <audio controls src={msg.fileUrl} className="w-full max-w-[240px] focus:outline-none" />
                                                                     ) : msg.fileType?.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp)$/i.test(msg.fileUrl) ? (
-                                                                        <a href={msg.fileUrl} target="_blank" rel="noopener noreferrer">
+                                                                        <div onClick={(e) => { e.preventDefault(); handleImagePreviewClick(msg); }} className="cursor-pointer">
                                                                             <img src={msg.fileUrl} alt={msg.fileName || 'Attached Image'} onLoad={() => scrollToBottom('smooth')} className="max-w-full h-auto max-h-60 object-cover hover:opacity-90 transition-opacity" />
-                                                                        </a>
+                                                                        </div>
                                                                     ) : (
                                                                         <div className={`flex items-center gap-3 p-3 rounded-2xl ${isSelf ? 'bg-indigo-700/50 text-white' : 'bg-slate-100 text-slate-800'}`}>
                                                                             <File size={24} className={isSelf ? 'text-indigo-200' : 'text-indigo-600'} />
@@ -3329,9 +3357,9 @@ const ChatPage = () => {
                                                                             ) : msg.fileType?.startsWith('audio/') || /\.(webm|mp3|wav|ogg|m4a)$/i.test(msg.fileName) ? (
                                                                                 <audio controls src={msg.fileUrl} className="w-full max-w-[240px] focus:outline-none" />
                                                                             ) : msg.fileType?.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp)$/i.test(msg.fileUrl) ? (
-                                                                                <a href={msg.fileUrl} target="_blank" rel="noopener noreferrer">
+                                                                                <div onClick={(e) => { e.preventDefault(); handleImagePreviewClick(msg); }} className="cursor-pointer">
                                                                                     <img src={msg.fileUrl} alt={msg.fileName || 'Attached Image'} onLoad={() => scrollToBottom('smooth')} className="max-w-full h-auto max-h-60 object-cover hover:opacity-90 transition-opacity" />
-                                                                                </a>
+                                                                                </div>
                                                                             ) : (
                                                                                 <div className={`flex items-center gap-3 p-3 rounded-2xl ${isSelf ? 'bg-indigo-700/50 text-white' : 'bg-slate-100 text-slate-800'}`}>
                                                                                     <File size={24} className={isSelf ? 'text-indigo-250' : 'text-indigo-650'} />
@@ -4189,6 +4217,168 @@ const ChatPage = () => {
                             </button>
                         </div>
                     </div>
+                </div>,
+                document.body
+            )}
+
+            {/* 9. Fullscreen Image Previewer Modal (Web) */}
+            {activePreviewIndex !== -1 && previewImages.length > 0 && createPortal(
+                <div className="fixed inset-0 bg-black bg-opacity-95 z-[9999] flex flex-col justify-between select-none">
+                    
+                    {/* Top Bar */}
+                    <div className="flex items-center justify-between p-4 bg-gradient-to-b from-black/80 to-transparent text-white">
+                        <div className="flex flex-col text-left">
+                            <span className="font-semibold text-sm">
+                                {previewImages[activePreviewIndex].fileName || 'Image'}
+                            </span>
+                            <span className="text-xs text-slate-400">
+                                {previewImages[activePreviewIndex].sender === user._id ? 'You' : (contactType === 'research' ? selectedResearchContact?.name : selectedContact?.name || 'Contact')} • {new Date(previewImages[activePreviewIndex].createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                        </div>
+
+                        {/* Controls */}
+                        <div className="flex items-center gap-4 text-slate-300">
+                            {/* Zoom Out */}
+                            <button 
+                                onClick={() => setZoomLevel(prev => Math.max(0.5, prev - 0.25))}
+                                className="hover:text-white transition-colors p-1.5 hover:bg-white/10 rounded-full cursor-pointer"
+                                title="Zoom Out"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 12h-15" />
+                                </svg>
+                            </button>
+
+                            {/* Zoom In */}
+                            <button 
+                                onClick={() => setZoomLevel(prev => Math.min(4, prev + 0.25))}
+                                className="hover:text-white transition-colors p-1.5 hover:bg-white/10 rounded-full cursor-pointer"
+                                title="Zoom In"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                                </svg>
+                            </button>
+
+                            {/* Rotate */}
+                            <button 
+                                onClick={() => setRotation(prev => (prev + 90) % 360)}
+                                className="hover:text-white transition-colors p-1.5 hover:bg-white/10 rounded-full cursor-pointer"
+                                title="Rotate"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+                                </svg>
+                            </button>
+
+                            {/* Download */}
+                            <a 
+                                href={previewImages[activePreviewIndex].fileUrl} 
+                                download={previewImages[activePreviewIndex].fileName || 'download'}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="hover:text-white transition-colors p-1.5 hover:bg-white/10 rounded-full cursor-pointer"
+                                title="Download"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                                </svg>
+                            </a>
+
+                            {/* Close */}
+                            <button 
+                                onClick={() => setActivePreviewIndex(-1)}
+                                className="hover:text-white transition-colors p-1.5 hover:bg-white/10 rounded-full cursor-pointer ml-2"
+                                title="Close"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Main Image View Area */}
+                    <div className="flex-1 flex items-center justify-between px-6 relative">
+                        {/* Left Arrow */}
+                        <button 
+                            onClick={() => {
+                                if (activePreviewIndex > 0) {
+                                    setActivePreviewIndex(activePreviewIndex - 1);
+                                    setZoomLevel(1);
+                                    setRotation(0);
+                                }
+                            }}
+                            disabled={activePreviewIndex === 0}
+                            className={`p-3 rounded-full bg-slate-900/60 text-white hover:bg-slate-800/80 transition-all border border-slate-700/50 cursor-pointer ${activePreviewIndex === 0 ? 'opacity-20 cursor-not-allowed' : ''}`}
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-6 h-6">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+                            </svg>
+                        </button>
+
+                        {/* Center Image with transforms */}
+                        <div className="flex-1 h-[68vh] flex items-center justify-center overflow-hidden">
+                            <img 
+                                src={previewImages[activePreviewIndex].fileUrl} 
+                                alt={previewImages[activePreviewIndex].fileName || 'Preview'} 
+                                style={{
+                                    transform: `scale(${zoomLevel}) rotate(${rotation}deg)`,
+                                    transition: 'transform 0.15s ease-out'
+                                }}
+                                className="max-w-[80vw] max-h-[65vh] object-contain pointer-events-none select-none shadow-2xl rounded-lg"
+                            />
+                        </div>
+
+                        {/* Right Arrow */}
+                        <button 
+                            onClick={() => {
+                                if (activePreviewIndex < previewImages.length - 1) {
+                                    setActivePreviewIndex(activePreviewIndex + 1);
+                                    setZoomLevel(1);
+                                    setRotation(0);
+                                }
+                            }}
+                            disabled={activePreviewIndex === previewImages.length - 1}
+                            className={`p-3 rounded-full bg-slate-900/60 text-white hover:bg-slate-800/80 transition-all border border-slate-700/50 cursor-pointer ${activePreviewIndex === previewImages.length - 1 ? 'opacity-20 cursor-not-allowed' : ''}`}
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-6 h-6">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                            </svg>
+                        </button>
+                    </div>
+
+                    {/* Bottom Carousel of Thumbnails */}
+                    <div className="bg-black/90 py-4 px-6 border-t border-slate-900/80 flex flex-col items-center gap-2">
+                        <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider">
+                            {activePreviewIndex + 1} of {previewImages.length}
+                        </span>
+                        
+                        <div className="flex items-center gap-2 overflow-x-auto max-w-full py-1.5 scrollbar-thin scrollbar-thumb-slate-800">
+                            {previewImages.map((img, idx) => (
+                                <button
+                                    key={img._id || idx}
+                                    onClick={() => {
+                                        setActivePreviewIndex(idx);
+                                        setZoomLevel(1);
+                                        setRotation(0);
+                                    }}
+                                    className={`w-12 h-12 rounded-lg border-2 overflow-hidden transition-all flex-shrink-0 cursor-pointer ${
+                                        idx === activePreviewIndex 
+                                            ? 'border-indigo-500 scale-105 opacity-100 shadow-md shadow-indigo-500/20' 
+                                            : 'border-slate-800/50 opacity-40 hover:opacity-90'
+                                    }`}
+                                >
+                                    <img 
+                                        src={img.fileUrl} 
+                                        alt="thumbnail" 
+                                        className="w-full h-full object-cover"
+                                    />
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
                 </div>,
                 document.body
             )}

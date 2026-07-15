@@ -13,6 +13,7 @@ import { AppHeader, EmptyState } from '../../components/common/UIComponents';
 import * as DocumentPicker from 'expo-document-picker';
 import { BASE_URL } from '../../config/api';
 import { CameraView, Camera } from 'expo-camera';
+import { ImagePreviewModal } from '../../components/common/ImagePreviewModal';
 
 const ChatScreen = ({ navigation }) => {
     const { user } = useAuth();
@@ -32,6 +33,8 @@ const ChatScreen = ({ navigation }) => {
 
     // Chat modal states
     const [activeContact, setActiveContact] = useState(null);
+    const [previewImageUrl, setPreviewImageUrl] = useState(null);
+    const [showPreviewModal, setShowPreviewModal] = useState(false);
     const [chatMessages, setChatMessages] = useState([]);
     const [chatInput, setChatInput] = useState('');
     const [isPeerTyping, setIsPeerTyping] = useState(false);
@@ -722,11 +725,20 @@ const ChatScreen = ({ navigation }) => {
                                         >
                                             {msg.fileUrl ? (
                                                 msg.fileType?.startsWith('image/') ? (
-                                                    <Image 
-                                                        source={{ uri: `${BASE_URL}${msg.fileUrl}` }} 
-                                                        style={{ width: 220, height: 160, borderRadius: 8, marginBottom: 4 }} 
-                                                        resizeMode="cover" 
-                                                    />
+                                                    <TouchableOpacity
+                                                        onPress={() => {
+                                                            const url = msg.fileUrl.startsWith('http') ? msg.fileUrl : `${BASE_URL}${msg.fileUrl}`;
+                                                            setPreviewImageUrl(url);
+                                                            setShowPreviewModal(true);
+                                                        }}
+                                                        activeOpacity={0.8}
+                                                    >
+                                                        <Image 
+                                                            source={{ uri: msg.fileUrl.startsWith('http') ? msg.fileUrl : `${BASE_URL}${msg.fileUrl}` }} 
+                                                            style={{ width: 220, height: 160, borderRadius: 8, marginBottom: 4 }} 
+                                                            resizeMode="cover" 
+                                                        />
+                                                    </TouchableOpacity>
                                                 ) : (
                                                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: isMe ? '#cbeabf' : '#f0f0f0', padding: 8, borderRadius: 8, marginBottom: 4 }}>
                                                         <Ionicons name="document-text-outline" size={24} color="#008069" />
@@ -894,6 +906,12 @@ const ChatScreen = ({ navigation }) => {
                     )}
                 </KeyboardAvoidingView>
             </Modal>
+
+            <ImagePreviewModal
+                visible={showPreviewModal}
+                imageUrl={previewImageUrl}
+                onClose={() => setShowPreviewModal(false)}
+            />
         </View>
     );
 };

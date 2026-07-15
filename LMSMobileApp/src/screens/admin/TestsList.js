@@ -8,12 +8,15 @@ import axios from 'axios';
 import { AppHeader, LoadingScreen, EmptyState, SectionCard, Badge } from '../../components/common/UIComponents';
 import { colors, spacing, fontSizes, borderRadius } from '../../theme/colors';
 import { Ionicons } from '@expo/vector-icons';
+import { ShareModal } from '../../components/common/ShareModal';
 
 const TestsList = ({ navigation }) => {
     const [tests, setTests] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [search, setSearch] = useState('');
+    const [shareModalVisible, setShareModalVisible] = useState(false);
+    const [shareData, setShareData] = useState({});
 
     const fetchData = async () => {
         try {
@@ -41,17 +44,14 @@ const TestsList = ({ navigation }) => {
         ]);
     };
 
-    const shareTest = async (test) => {
-        try {
-            const shareUrl = `${BASE_URL}${test.publishMode === 'public' ? '/public-test/' : '/take-test/'}${test._id}`;
-            await Share.share({
-                message: `Take this test:\n\nTitle: ${test.title}\nSubject: ${test.subject}\nLink: ${shareUrl}`,
-                url: shareUrl,
-                title: test.title
-            });
-        } catch (error) {
-            Alert.alert('Error', 'Could not share the test link');
-        }
+    const shareTest = (test) => {
+        const shareUrl = `${BASE_URL}${test.publishMode === 'public' ? '/public-test/' : '/take-test/'}${test._id}`;
+        setShareData({
+            type: 'text',
+            text: `Take this test:\n\nTitle: ${test.title}\nSubject: ${test.subject}\nLink: ${shareUrl}`,
+            message: `Take this test:\n\nTitle: ${test.title}\nSubject: ${test.subject}\nLink: ${shareUrl}`
+        });
+        setShareModalVisible(true);
     };
 
     const [activeTab, setActiveTab] = useState('connected'); // 'connected' | 'public'
@@ -149,6 +149,11 @@ const TestsList = ({ navigation }) => {
                         </View>
                     </View>
                 )}
+            />
+            <ShareModal
+                visible={shareModalVisible}
+                onClose={() => setShareModalVisible(false)}
+                shareData={shareData}
             />
         </View>
     );

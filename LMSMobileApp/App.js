@@ -1,12 +1,101 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, View, Text, Modal, ActivityIndicator } from 'react-native';
+import { StyleSheet, View, Text, Modal, ActivityIndicator, NativeModules, DeviceEventEmitter, Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import * as Updates from 'expo-updates';
-import { AuthProvider } from './src/context/AuthContext';
+import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { SocketProvider } from './src/context/SocketContext';
 import AppNavigator from './src/navigation/AppNavigator';
+import { ShareTargetModal } from './src/components/common/ShareTargetModal';
+
+function AppContent() {
+    const { user } = useAuth();
+    const [sharedText, setSharedText] = useState(null);
+    const [modalVisible, setModalVisible] = useState(false);
+
+    useEffect(() => {
+        console.log('[SHARE_DEBUG] AppContent mounted. user status:', !!user);
+        if (Platform.OS !== 'android') return;
+
+        const { ReceiveShareModule } = NativeModules;
+        if (!ReceiveShareModule) {
+            console.log('[SHARE_DEBUG] ReceiveShareModule is NOT available');
+            return;
+        }
+
+        const handleSharedText = (text) => {
+            console.log('[SHARE_DEBUG] handleSharedText callback text:', text);
+            if (text) {
+                setSharedText(text);
+                setModalVisible(true);
+            }
+        };
+
+        // Check for initial intent
+        ReceiveShareModule.getSharedText().then((text) => {
+            console.log('[SHARE_DEBUG] getSharedText initial text result:', text);
+            handleSharedText(text);
+        });
+
+        // Listen for new share intents
+        console.log('[SHARE_DEBUG] Adding onSharedTextReceived listener');
+        const subscription = DeviceEventEmitter.addListener(
+            'onSharedTextReceived',
+            (text) => {
+                console.log('[SHARE_DEBUG] Listener received text:', text);
+                handleSharedText(text);
+            }
+        );
+
+        return () => {
+            console.log('[SHARE_DEBUG] Removing onSharedTextReceived listener');
+            subscription.remove();
+        };
+    }, []);
+
+    // Check on user login change in case text was shared before login
+    useEffect(() => {
+        console.log('[SHARE_DEBUG] User state changed:', !!user);
+        if (user && Platform.OS === 'android') {
+            const { ReceiveShareModule } = NativeModules;
+            if (ReceiveShareModule) {
+                ReceiveShareModule.getSharedText().then((text) => {
+                    console.log('[SHARE_DEBUG] getSharedText on user login text result:', text);
+                    if (text) {
+                        setSharedText(text);
+                        setModalVisible(true);
+                    }
+                });
+            }
+        }
+    }, [user]);
+
+    const handleCloseModal = () => {
+        setModalVisible(false);
+        setSharedText(null);
+        if (Platform.OS === 'android') {
+            const { ReceiveShareModule } = NativeModules;
+            if (ReceiveShareModule) {
+                ReceiveShareModule.clearSharedText();
+            }
+        }
+    };
+
+    return (
+        <>
+            <AppNavigator />
+            <Toast />
+            {user && (
+                <ShareTargetModal
+                    visible={modalVisible}
+                    sharedText={sharedText}
+                    onClose={handleCloseModal}
+                />
+            )}
+        </>
+    );
+}
 
 export default function App() {
     const [updateStatus, setUpdateStatus] = useState('idle'); // 'checking', 'downloading', 'restarting', 'idle'
@@ -50,8 +139,7 @@ export default function App() {
             <SafeAreaProvider>
                 <AuthProvider>
                     <SocketProvider>
-                        <AppNavigator />
-                        <Toast />
+                        <AppContent />
                     </SocketProvider>
                 </AuthProvider>
             </SafeAreaProvider>

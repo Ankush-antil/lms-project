@@ -56,6 +56,10 @@ const ChangeRoleModal = ({ visible, onClose }) => {
     const [pendingRequests, setPendingRequests] = useState([]);
     const [loadingRequests, setLoadingRequests] = useState(false);
 
+    // Password verification states
+    const [password, setPassword] = useState('');
+    const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
+
     // Admin context switching suboptions states
     const [institutes, setInstitutes] = useState([]);
     const [selectedInst, setSelectedInst] = useState('');
@@ -117,6 +121,14 @@ const ChangeRoleModal = ({ visible, onClose }) => {
     const handleSwitchRoleClick = (targetRole) => {
         if (targetRole === user.role) return;
         
+        // If current role is Student, we must prompt for password
+        if (user.role === 'Student') {
+            setPendingSwitchRole(targetRole);
+            setPassword('');
+            setShowPasswordPrompt(true);
+            return;
+        }
+
         // If they are Admin/Institute, and they switch to any role EXCEPT Admin itself, we must show configuration options!
         if (hasAdminPrivilege && targetRole !== 'Admin') {
             setPendingSwitchRole(targetRole);
@@ -129,6 +141,26 @@ const ChangeRoleModal = ({ visible, onClose }) => {
         } else {
             // Direct switch for normal users or Admin switching to Admin
             executeRoleSwitch(targetRole, {});
+        }
+    };
+
+    const handlePasswordConfirm = () => {
+        if (!password.trim()) {
+            Alert.alert('Error', 'Please enter your password');
+            return;
+        }
+        setShowPasswordPrompt(false);
+
+        // If switching from Student to another role and user has admin privilege, configure context
+        if (hasAdminPrivilege && pendingSwitchRole !== 'Admin') {
+            setSelectedInst(user.institute?._id || user.institute || '');
+            setSelectedCourse('');
+            setSelectedSection('A');
+            setSelectedCourses([]);
+            setSelectedSections(['A']);
+            setShowContextConfig(true);
+        } else {
+            executeRoleSwitch(pendingSwitchRole, { password });
         }
     };
 
@@ -492,6 +524,7 @@ const ChangeRoleModal = ({ visible, onClose }) => {
                                 style={[ss.submitBtn, { backgroundColor: C.indigo, marginTop: 20 }, (!selectedInst || (pendingSwitchRole === 'Student' && !selectedCourse)) && { opacity: 0.5 }]} 
                                 onPress={() => {
                                     executeRoleSwitch(pendingSwitchRole, {
+                                        password: password || undefined,
                                         institute: selectedInst,
                                         courseId: pendingSwitchRole === 'Student' ? selectedCourse : undefined,
                                         section: pendingSwitchRole === 'Student' ? selectedSection : undefined,
@@ -598,6 +631,41 @@ const ChangeRoleModal = ({ visible, onClose }) => {
                     </View>
                 </TouchableOpacity>
             </Modal>
+
+            {/* ──── PASSWORD PROMPT SUB-SHEET ──── */}
+            <Modal visible={showPasswordPrompt} transparent animationType="fade" onRequestClose={() => setShowPasswordPrompt(false)}>
+                <TouchableOpacity style={ss.overlay} activeOpacity={1} onPress={() => setShowPasswordPrompt(false)}>
+                    <View style={ss.subSheet} onStartShouldSetResponder={() => true}>
+                        <Text style={ss.subSheetTitle}>Switching from Student Role</Text>
+                        <Text style={[ss.inputLabel, { textTransform: 'none', marginBottom: 12 }]}>
+                            Enter your account password to verify your identity and switch role:
+                        </Text>
+                        <TextInput
+                            style={ss.passwordInput}
+                            placeholder="Enter password"
+                            placeholderTextColor={C.muted}
+                            secureTextEntry={true}
+                            value={password}
+                            onChangeText={setPassword}
+                            autoFocus={true}
+                        />
+                        <View style={ss.btnRow}>
+                            <TouchableOpacity 
+                                style={[ss.subBtn, { backgroundColor: C.bg, borderWidth: 1, borderColor: C.border }]} 
+                                onPress={() => setShowPasswordPrompt(false)}
+                            >
+                                <Text style={[ss.subBtnText, { color: C.sub }]}>Cancel</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity 
+                                style={[ss.subBtn, { backgroundColor: C.indigo }]} 
+                                onPress={handlePasswordConfirm}
+                            >
+                                <Text style={ss.subBtnText}>Confirm</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </TouchableOpacity>
+            </Modal>
         </Modal>
     );
 };
@@ -654,7 +722,37 @@ const ss = StyleSheet.create({
     secBtnText: { fontSize: fz.sm, fontWeight: '800', color: C.sub },
 
     loaderOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(255,255,255,0.85)', alignItems: 'center', justifyContent: 'center', borderTopLeftRadius: r.xl, borderTopRightRadius: r.xl },
-    loaderText: { marginTop: 10, fontSize: fz.sm, fontWeight: '700', color: C.text }
+    loaderText: { marginTop: 10, fontSize: fz.sm, fontWeight: '700', color: C.text },
+
+    passwordInput: {
+        backgroundColor: C.bg,
+        borderWidth: 1,
+        borderColor: C.border,
+        borderRadius: r.md,
+        paddingHorizontal: 14,
+        height: 46,
+        fontSize: fz.sm,
+        color: C.text,
+        marginBottom: 16,
+    },
+    btnRow: {
+        flexDirection: 'row',
+        gap: 10,
+        justifyContent: 'flex-end',
+    },
+    subBtn: {
+        paddingHorizontal: 20,
+        height: 40,
+        borderRadius: r.sm,
+        alignItems: 'center',
+        justifyContent: 'center',
+        minWidth: 80,
+    },
+    subBtnText: {
+        fontSize: fz.sm,
+        fontWeight: '800',
+        color: C.white,
+    }
 });
 
 export default ChangeRoleModal;

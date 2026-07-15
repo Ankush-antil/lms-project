@@ -21,6 +21,7 @@ import { parseDateToDdMmYyyy, getTodayDdMmYyyy } from '../../../utils/dateUtils'
 import Toast from 'react-native-toast-message';
 import { BASE_URL } from '../../../config/api';
 import GoogleDriveModal from '../../../components/common/GoogleDriveModal';
+import { ShareModal } from '../../../components/common/ShareModal';
 
 // Formatting helpers
 const formatRulerTime = (secs) => {
@@ -118,15 +119,11 @@ const getWaveformData = (item, count = 35) => {
         for (let i = 0; i < count; i++) {
             const start = Math.floor(i * step);
             const end = Math.floor((i + 1) * step);
-            let max = 0.1;
-            for (let j = start; j < end; j++) {
-                if (j < rawWave.length && rawWave[j] > max) {
-                    max = rawWave[j];
-                }
-            }
-            bars.push(max);
+            const index = Math.floor(i * step);
+            const val = raw[index] || 0.15;
+            wave.push(Math.max(0.15, Math.min(1.0, val)));
         }
-        return bars;
+        return wave;
     }
 
     const seed = item.id || item._id || item.filename || 'default';
@@ -157,6 +154,10 @@ const VoiceRecorderPage = ({ route, navigation }) => {
     // Google Drive state
     const [driveModalOpen, setDriveModalOpen] = React.useState(false);
     const [driveFileMeta, setDriveFileMeta] = React.useState({ name: '', uri: '' });
+
+    // Share states
+    const [shareModalVisible, setShareModalVisible] = React.useState(false);
+    const [shareData, setShareData] = React.useState({});
     
     // Playback state
     const [playingId, setPlayingId] = React.useState(null);
@@ -595,16 +596,15 @@ const VoiceRecorderPage = ({ route, navigation }) => {
         );
     };
 
-    const shareFile = async (uri, filename) => {
-        try {
-            await Share.share({
-                message: uri,
-                url: uri,
-                title: filename
-            });
-        } catch (e) {
-            console.warn(e);
-        }
+    const shareFile = (uri, filename) => {
+        setShareData({
+            type: 'file',
+            fileUrl: uri,
+            fileName: filename || 'recording.mp3',
+            fileType: 'audio',
+            message: `Check out my voice recording: ${uri}`
+        });
+        setShareModalVisible(true);
     };
 
 
@@ -1020,6 +1020,12 @@ const VoiceRecorderPage = ({ route, navigation }) => {
                     />
                 </View>
             )}
+
+            <ShareModal
+                visible={shareModalVisible}
+                onClose={() => setShareModalVisible(false)}
+                shareData={shareData}
+            />
         </View>
     );
 };

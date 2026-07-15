@@ -20,6 +20,7 @@ import { parseDateToDdMmYyyy, getTodayDdMmYyyy } from '../../../utils/dateUtils'
 import Toast from 'react-native-toast-message';
 import { BASE_URL } from '../../../config/api';
 import GoogleDriveModal from '../../../components/common/GoogleDriveModal';
+import { ShareModal } from '../../../components/common/ShareModal';
 
 const ScreenshotToolPage = ({ route, navigation }) => {
     const { date: dateParam } = route.params || {};
@@ -37,6 +38,10 @@ const ScreenshotToolPage = ({ route, navigation }) => {
     // Google Drive state
     const [driveModalOpen, setDriveModalOpen] = useState(false);
     const [driveFileMeta, setDriveFileMeta] = useState({ name: '', uri: '' });
+
+    // Share states
+    const [shareModalVisible, setShareModalVisible] = useState(false);
+    const [shareData, setShareData] = useState({});
 
     // Fetch cloud files
     const fetchCloudFiles = async () => {
@@ -224,16 +229,15 @@ const ScreenshotToolPage = ({ route, navigation }) => {
         );
     };
 
-    const shareFile = async (uri, filename) => {
-        try {
-            await Share.share({
-                message: uri,
-                url: uri,
-                title: filename
-            });
-        } catch (e) {
-            console.warn(e);
-        }
+    const shareFile = (uri, filename) => {
+        setShareData({
+            type: 'file',
+            fileUrl: uri,
+            fileName: filename || 'screenshot.jpg',
+            fileType: 'image',
+            message: `Check out my screenshot: ${uri}`
+        });
+        setShareModalVisible(true);
     };
 
     return (
@@ -401,6 +405,12 @@ const ScreenshotToolPage = ({ route, navigation }) => {
                 onSaveSuccess={() => {
                     fetchCloudFiles();
                 }}
+            />
+
+            <ShareModal
+                visible={shareModalVisible}
+                onClose={() => setShareModalVisible(false)}
+                shareData={shareData}
             />
         </View>
     );

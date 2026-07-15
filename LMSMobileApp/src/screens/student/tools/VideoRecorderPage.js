@@ -22,6 +22,7 @@ import { parseDateToDdMmYyyy, getTodayDdMmYyyy } from '../../../utils/dateUtils'
 import Toast from 'react-native-toast-message';
 import { BASE_URL } from '../../../config/api';
 import GoogleDriveModal from '../../../components/common/GoogleDriveModal';
+import { ShareModal } from '../../../components/common/ShareModal';
 
 const VideoRecorderPage = ({ route, navigation }) => {
     const { date: dateParam } = route.params || {};
@@ -45,6 +46,10 @@ const VideoRecorderPage = ({ route, navigation }) => {
     // Google Drive state
     const [driveModalOpen, setDriveModalOpen] = useState(false);
     const [driveFileMeta, setDriveFileMeta] = useState({ name: '', uri: '' });
+
+    // Share states
+    const [shareModalVisible, setShareModalVisible] = useState(false);
+    const [shareData, setShareData] = useState({});
 
     // Fetch cloud files
     const fetchCloudFiles = async () => {
@@ -232,16 +237,15 @@ const VideoRecorderPage = ({ route, navigation }) => {
         );
     };
 
-    const shareFile = async (uri, filename) => {
-        try {
-            await Share.share({
-                message: uri,
-                url: uri,
-                title: filename
-            });
-        } catch (e) {
-            console.warn(e);
-        }
+    const shareFile = (uri, filename) => {
+        setShareData({
+            type: 'file',
+            fileUrl: uri,
+            fileName: filename || 'video.mp4',
+            fileType: 'video',
+            message: `Check out my video: ${uri}`
+        });
+        setShareModalVisible(true);
     };
 
     return (
@@ -464,6 +468,12 @@ const VideoRecorderPage = ({ route, navigation }) => {
                     </View>
                 </View>
             </Modal>
+
+            <ShareModal
+                visible={shareModalVisible}
+                onClose={() => setShareModalVisible(false)}
+                shareData={shareData}
+            />
         </View>
     );
 };

@@ -18,6 +18,7 @@ import { colors, spacing, fontSizes, borderRadius } from '../../../theme/colors'
 import { AppHeader } from '../../../components/common/UIComponents';
 import { parseDateToDdMmYyyy, getTodayDdMmYyyy } from '../../../utils/dateUtils';
 import Toast from 'react-native-toast-message';
+import { ShareModal } from '../../../components/common/ShareModal';
 
 // Base64 helper for uploading raw strings as files in React Native
 const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
@@ -50,6 +51,10 @@ const WebCallingPage = ({ route, navigation }) => {
     const [loadingLogs, setLoadingLogs] = useState(false);
     const [uploading, setUploading] = useState(false);
     const [activeSection, setActiveSection] = useState('call'); // 'call' | 'local_logs' | 'cloud_logs'
+
+    // Share states
+    const [shareModalVisible, setShareModalVisible] = useState(false);
+    const [shareData, setShareData] = useState({});
 
     // Call Simulation States
     const [callModalVisible, setCallModalVisible] = useState(false);
@@ -368,16 +373,15 @@ const WebCallingPage = ({ route, navigation }) => {
         );
     };
 
-    const shareFile = async (uri, filename) => {
-        try {
-            await Share.share({
-                message: uri,
-                url: uri,
-                title: filename
-            });
-        } catch (e) {
-            console.warn(e);
-        }
+    const shareFile = (uri, filename) => {
+        setShareData({
+            type: 'file',
+            fileUrl: uri,
+            fileName: filename || 'recording.mp4',
+            fileType: 'video',
+            message: `Check out my call recording: ${uri}`
+        });
+        setShareModalVisible(true);
     };
 
     const formatTime = (secs) => {
@@ -705,6 +709,12 @@ const WebCallingPage = ({ route, navigation }) => {
                     </View>
                 </View>
             </Modal>
+
+            <ShareModal
+                visible={shareModalVisible}
+                onClose={() => setShareModalVisible(false)}
+                shareData={shareData}
+            />
         </View>
     );
 };

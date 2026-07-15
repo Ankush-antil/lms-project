@@ -132,6 +132,7 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
 
     const [indexMappings, setIndexMappings] = useState({});
     const [loadingMappings, setLoadingMappings] = useState(false);
+    const [dayNumberMap, setDayNumberMap] = useState({});
 
     const parseCommaSeparated = (str) => {
         if (!str) return [];
@@ -419,12 +420,26 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
                 const matchedGroup = mapping.find(m => m.subjectName.toLowerCase() === firstSub.toLowerCase());
                 if (matchedGroup) {
                     daysList = matchedGroup.days.map(d => d.id);
+                    const dayMap = {};
+                    matchedGroup.days.forEach(d => {
+                        dayMap[d.id] = d.dayNum;
+                        dayMap[d.id.toLowerCase()] = d.dayNum;
+                        dayMap[d.id.trim().toLowerCase()] = d.dayNum;
+                    });
+                    setDayNumberMap(dayMap);
                 }
             }
         }
 
         if (daysList.length === 0) {
             daysList = Array.from({ length: duration }, (_, i) => `Inbox ${i + 1}`);
+            const dayMap = {};
+            daysList.forEach((id, i) => {
+                dayMap[id] = i + 1;
+                dayMap[id.toLowerCase()] = i + 1;
+                dayMap[id.trim().toLowerCase()] = i + 1;
+            });
+            setDayNumberMap(dayMap);
         }
 
         setOptions(prev => ({
@@ -549,7 +564,14 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
                                     onRenameOption={handleRenameIndex}
                                     renderOption={(opt) => {
                                         const norm = (opt || '').trim().toLowerCase();
-                                        return indexMappings[norm] || opt;
+                                        if (indexMappings[norm]) {
+                                            return indexMappings[norm];
+                                        }
+                                        const localDayNum = dayNumberMap[norm];
+                                        if (localDayNum !== undefined) {
+                                            return `Inbox ${localDayNum}`;
+                                        }
+                                        return opt;
                                     }}
                                     placeholder="Select Day / Inbox"
                                 />

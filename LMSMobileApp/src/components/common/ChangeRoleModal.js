@@ -121,27 +121,32 @@ const ChangeRoleModal = ({ visible, onClose }) => {
     const handleSwitchRoleClick = (targetRole) => {
         if (targetRole === user.role) return;
         
-        // If current role is Student, we must prompt for password
-        if (user.role === 'Student') {
+        // If current user is Admin/Institute (based on allowedRoles/role), they never need a password
+        if (hasAdminPrivilege) {
+            if (targetRole !== 'Admin') {
+                setPendingSwitchRole(targetRole);
+                setSelectedInst(user.institute?._id || user.institute || '');
+                setSelectedCourse('');
+                setSelectedSection('A');
+                setSelectedCourses([]);
+                setSelectedSections(['A']);
+                setShowContextConfig(true);
+            } else {
+                executeRoleSwitch(targetRole, {});
+            }
+            return;
+        }
+
+        // If current role is Student or Teacher, we must prompt for password
+        if (user.role === 'Student' || user.role === 'Teacher') {
             setPendingSwitchRole(targetRole);
             setPassword('');
             setShowPasswordPrompt(true);
             return;
         }
 
-        // If they are Admin/Institute, and they switch to any role EXCEPT Admin itself, we must show configuration options!
-        if (hasAdminPrivilege && targetRole !== 'Admin') {
-            setPendingSwitchRole(targetRole);
-            setSelectedInst(user.institute?._id || user.institute || '');
-            setSelectedCourse('');
-            setSelectedSection('A');
-            setSelectedCourses([]);
-            setSelectedSections(['A']);
-            setShowContextConfig(true);
-        } else {
-            // Direct switch for normal users or Admin switching to Admin
-            executeRoleSwitch(targetRole, {});
-        }
+        // Direct switch for other normal users
+        executeRoleSwitch(targetRole, {});
     };
 
     const handlePasswordConfirm = () => {
@@ -151,7 +156,7 @@ const ChangeRoleModal = ({ visible, onClose }) => {
         }
         setShowPasswordPrompt(false);
 
-        // If switching from Student to another role and user has admin privilege, configure context
+        // If switching from Student/Teacher to another role and user has admin privilege, configure context
         if (hasAdminPrivilege && pendingSwitchRole !== 'Admin') {
             setSelectedInst(user.institute?._id || user.institute || '');
             setSelectedCourse('');
@@ -636,7 +641,7 @@ const ChangeRoleModal = ({ visible, onClose }) => {
             <Modal visible={showPasswordPrompt} transparent animationType="fade" onRequestClose={() => setShowPasswordPrompt(false)}>
                 <TouchableOpacity style={ss.overlay} activeOpacity={1} onPress={() => setShowPasswordPrompt(false)}>
                     <View style={ss.subSheet} onStartShouldSetResponder={() => true}>
-                        <Text style={ss.subSheetTitle}>Switching from Student Role</Text>
+                        <Text style={ss.subSheetTitle}>Switching from {user?.role} Role</Text>
                         <Text style={[ss.inputLabel, { textTransform: 'none', marginBottom: 12 }]}>
                             Enter your account password to verify your identity and switch role:
                         </Text>

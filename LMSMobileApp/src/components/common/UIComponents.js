@@ -6,6 +6,7 @@ import {
     TouchableOpacity,
     StatusBar,
     Platform,
+    Image,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
@@ -29,7 +30,11 @@ export const AppHeader = ({ title, showBack = false, rightAction, rightIcon, rig
                     </TouchableOpacity>
                 ) : (
                     <View style={styles.logoMark}>
-                        <Ionicons name="school" size={18} color={colors.white} />
+                        <Image 
+                            source={require('../../../assets/logo.jpg')} 
+                            style={styles.logoImage} 
+                            resizeMode="cover"
+                        />
                     </View>
                 )}
                 <Text style={styles.headerTitle} numberOfLines={1}>{title}</Text>
@@ -70,7 +75,11 @@ export const SectionCard = ({ children, style }) => (
 export const LoadingScreen = () => (
     <View style={styles.loadingContainer}>
         <View style={styles.loadingSpinner}>
-            <Ionicons name="school" size={36} color={colors.accent} />
+            <Image 
+                source={require('../../../assets/logo.jpg')} 
+                style={styles.loadingLogoImage} 
+                resizeMode="contain"
+            />
         </View>
         <Text style={styles.loadingText}>Loading...</Text>
     </View>
@@ -234,5 +243,15 @@ const styles = StyleSheet.create({
         fontWeight: '700',
         textTransform: 'uppercase',
         letterSpacing: 0.5,
+    },
+    logoImage: {
+        width: '100%',
+        height: '100%',
+        borderRadius: 18,
+    },
+    loadingLogoImage: {
+        width: 48,
+        height: 48,
+        borderRadius: 24,
     },
 });

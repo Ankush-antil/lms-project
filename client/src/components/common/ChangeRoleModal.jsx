@@ -170,14 +170,18 @@ const ChangeRoleModal = ({ isOpen, onClose }) => {
                                         key={roleName}
                                         disabled={submitting}
                                         onClick={() => {
-                                            if (hasAdminPrivilege && roleName !== 'Admin') {
-                                                setShowConfigForRole(roleName);
-                                                setSelectedInst(user.institute?._id || user.institute || '');
-                                                setSelectedCourse('');
-                                                setSelectedSectionContext('A');
-                                                setSelectedCoursesContext([]);
-                                                setSelectedSectionsContext(['A']);
-                                            } else if (user?.role === 'Student') {
+                                            if (hasAdminPrivilege) {
+                                                if (roleName !== 'Admin') {
+                                                    setShowConfigForRole(roleName);
+                                                    setSelectedInst(user.institute?._id || user.institute || '');
+                                                    setSelectedCourse('');
+                                                    setSelectedSectionContext('A');
+                                                    setSelectedCoursesContext([]);
+                                                    setSelectedSectionsContext(['A']);
+                                                } else {
+                                                    handleSwitchRole(roleName);
+                                                }
+                                            } else if (user?.role === 'Student' || user?.role === 'Teacher') {
                                                 setSwitchingToRole(roleName);
                                                 setRolePassword('');
                                             } else {
@@ -466,7 +470,7 @@ const ChangeRoleModal = ({ isOpen, onClose }) => {
                     <div className="bg-[#0b1329] text-white w-full max-w-sm rounded-3xl p-6 border border-slate-800 shadow-2xl animate-in fade-in zoom-in duration-200">
                         <h3 className="text-base font-black text-slate-100 mb-2">Security Verification</h3>
                         <p className="text-[11px] text-slate-400 font-bold mb-4">
-                            You are switching from a Student profile. Please enter your account password to switch to the <span className="text-indigo-400">{switchingToRole}</span> role.
+                            You are switching from a {user?.role} profile. Please enter your account password to switch to the <span className="text-indigo-400">{switchingToRole}</span> role.
                         </p>
                         <form
                             onSubmit={(e) => {

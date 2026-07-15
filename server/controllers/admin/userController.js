@@ -1841,11 +1841,12 @@ const switchRole = asyncHandler(async (req, res) => {
 
     const user = await User.findById(userId);
 
-    // Verify password if switching from Student role
-    if (user.role === 'Student') {
+    // Verify password if switching from Student or Teacher role (and user is not an Admin/Institute)
+    const isOriginalAdminOrInstitute = user.allowedRoles && (user.allowedRoles.includes('Admin') || user.allowedRoles.includes('Institute'));
+    if ((user.role === 'Student' || user.role === 'Teacher') && !isOriginalAdminOrInstitute) {
         if (!password) {
             res.status(400);
-            throw new Error('Password is required to switch from Student role');
+            throw new Error(`Password is required to switch from ${user.role} role`);
         }
         const isMatch = await user.matchPassword(password);
         if (!isMatch) {

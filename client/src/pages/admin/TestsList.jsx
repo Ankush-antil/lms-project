@@ -777,8 +777,10 @@ const TestsList = () => {
         if (!tabMatch) return false;
 
         const titleMatch = (test.title || 'Untitled').toLowerCase().includes(searchTerm.toLowerCase());
-        const subjectMatch = filterSubject === 'All' || test.subject === filterSubject;
-        const courseMatch = filterCourse === 'All' || test.course === filterCourse;
+        const subjectMatch = filterSubject === 'All' || 
+            (test.subject && test.subject.split(',').map(s => s.trim().toLowerCase()).includes(filterSubject.toLowerCase()));
+        const courseMatch = filterCourse === 'All' || 
+            (test.course && test.course.split(',').map(c => c.trim().toLowerCase()).includes(filterCourse.toLowerCase()));
         const instituteMatch = filterInstitute === 'All' || test.institute === filterInstitute;
         return titleMatch && subjectMatch && courseMatch && instituteMatch;
     }).sort((a, b) => {
@@ -793,8 +795,10 @@ const TestsList = () => {
 
     const filteredPublicTests = publicTests.filter(test => {
         const titleMatch = (test.title || '').toLowerCase().includes(searchTerm.toLowerCase());
-        const subjectMatch = filterSubject === 'All' || test.subject === filterSubject;
-        const courseMatch = filterCourse === 'All' || test.course === filterCourse;
+        const subjectMatch = filterSubject === 'All' || 
+            (test.subject && test.subject.split(',').map(s => s.trim().toLowerCase()).includes(filterSubject.toLowerCase()));
+        const courseMatch = filterCourse === 'All' || 
+            (test.course && test.course.split(',').map(c => c.trim().toLowerCase()).includes(filterCourse.toLowerCase()));
         const instituteMatch = filterInstitute === 'All' || test.institute === filterInstitute;
         return titleMatch && subjectMatch && courseMatch && instituteMatch;
     });
@@ -990,15 +994,33 @@ const TestsList = () => {
 
     const uniqueCourses = useMemo(() => {
         const testsFilteredByInst = currentTestsList.filter(t => filterInstitute === 'All' || t.institute === filterInstitute);
-        return ['All', ...new Set(testsFilteredByInst.map(t => t.course).filter(c => c && c.trim() !== ''))];
+        const courses = new Set();
+        testsFilteredByInst.forEach(t => {
+            if (t.course) {
+                t.course.split(',').forEach(c => {
+                    const trimmed = c.trim();
+                    if (trimmed) courses.add(trimmed);
+                });
+            }
+        });
+        return ['All', ...Array.from(courses)];
     }, [currentTestsList, filterInstitute]);
 
     const uniqueSubjects = useMemo(() => {
         const testsFilteredByInstAndCrs = currentTestsList.filter(t =>
             (filterInstitute === 'All' || t.institute === filterInstitute) &&
-            (filterCourse === 'All' || t.course === filterCourse)
+            (filterCourse === 'All' || (t.course && t.course.split(',').map(c => c.trim().toLowerCase()).includes(filterCourse.toLowerCase())))
         );
-        return ['All', ...new Set(testsFilteredByInstAndCrs.map(t => t.subject).filter(s => s && s.trim() !== ''))];
+        const subjects = new Set();
+        testsFilteredByInstAndCrs.forEach(t => {
+            if (t.subject) {
+                t.subject.split(',').forEach(s => {
+                    const trimmed = s.trim();
+                    if (trimmed) subjects.add(trimmed);
+                });
+            }
+        });
+        return ['All', ...Array.from(subjects)];
     }, [currentTestsList, filterInstitute, filterCourse]);
 
     // Aggregated tree: Institute -> Course -> Subject -> [Tests]

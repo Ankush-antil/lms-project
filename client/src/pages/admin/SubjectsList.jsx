@@ -436,7 +436,9 @@ const SubjectsList = () => {
             }
             
             groups[key].testCount += (s.testCount || 0);
-            groups[key].duration += (s.duration || 0);
+            if (groups[key].duration === 0) {
+                groups[key].duration = s.duration || 0;
+            }
         });
         
         return Object.values(groups);

@@ -59,6 +59,18 @@ const SubjectsList = () => {
     const [newSubjectTeachers, setNewSubjectTeachers] = useState([]);
     const [newSubjectCourses, setNewSubjectCourses] = useState([]);
 
+    const [activeCoursesDropdown, setActiveCoursesDropdown] = useState(null);
+
+    useEffect(() => {
+        const handleOutsideClick = (e) => {
+            if (activeCoursesDropdown && !e.target.closest('.courses-popover-container')) {
+                setActiveCoursesDropdown(null);
+            }
+        };
+        document.addEventListener('mousedown', handleOutsideClick);
+        return () => document.removeEventListener('mousedown', handleOutsideClick);
+    }, [activeCoursesDropdown]);
+
     useEffect(() => {
         if (selectedCourseId && isAddModalOpen) {
             const fetchCourseStudents = async () => {
@@ -695,14 +707,53 @@ const SubjectsList = () => {
                                         </td>
  
                                         {/* Course */}
-                                        <td className="p-4 text-sm text-slate-700 max-w-[280px] whitespace-normal">
-                                            <div className="flex flex-wrap gap-1.5">
-                                                {s.courses?.map((c, cIdx) => (
-                                                    <span key={cIdx} className="px-2.5 py-1 bg-slate-50 text-slate-700 rounded-full text-[11px] font-semibold border border-slate-100" title={`${c.name} (${c.duration} Days)`}>
-                                                        <TruncatedCell text={c.name} maxLength={20} /> ({c.duration}D)
+                                        <td className="p-4 text-sm text-slate-700 max-w-[280px] courses-popover-container relative">
+                                            {s.courses && s.courses.length > 0 ? (
+                                                <div className="flex items-center gap-1.5 flex-wrap">
+                                                    {/* Show first course */}
+                                                    <span className="px-2.5 py-1 bg-slate-50 text-slate-700 rounded-full text-[11px] font-semibold border border-slate-100 whitespace-nowrap">
+                                                        <TruncatedCell text={s.courses[0].name} maxLength={15} /> ({s.courses[0].duration}D)
                                                     </span>
-                                                ))}
-                                            </div>
+
+                                                    {/* Show +N more button if there are more courses */}
+                                                    {s.courses.length > 1 && (
+                                                        <div className="relative inline-block">
+                                                            <button
+                                                                type="button"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    const key = `${s.name}-${index}`;
+                                                                    setActiveCoursesDropdown(activeCoursesDropdown === key ? null : key);
+                                                                }}
+                                                                className="px-2 py-0.5 bg-indigo-50 hover:bg-indigo-100 text-[#3E3ADD] rounded-full text-[10px] font-extrabold border border-indigo-100 transition-all cursor-pointer whitespace-nowrap active:scale-95 flex items-center justify-center"
+                                                            >
+                                                                +{s.courses.length - 1} more
+                                                            </button>
+
+                                                            {activeCoursesDropdown === `${s.name}-${index}` && (
+                                                                <div className="absolute left-0 mt-1.5 w-60 bg-white border border-slate-200 rounded-2xl shadow-2xl z-40 p-2.5 space-y-1.5 animate-fade-in text-left">
+                                                                    <div className="px-1 py-0.5 border-b border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-wider">
+                                                                        Assigned Courses
+                                                                    </div>
+                                                                    <div className="max-h-40 overflow-y-auto custom-scrollbar space-y-1">
+                                                                        {s.courses.slice(1).map((c, cIdx) => (
+                                                                            <div 
+                                                                                key={cIdx} 
+                                                                                className="px-2.5 py-2 hover:bg-slate-50 rounded-xl text-xs font-bold text-slate-750 flex items-center justify-between transition-colors"
+                                                                            >
+                                                                                <span className="truncate mr-2" title={c.name}>{c.name}</span>
+                                                                                <span className="shrink-0 text-[10px] text-indigo-650 bg-indigo-50 px-2 py-0.5 rounded-lg border border-indigo-100">{c.duration} Days</span>
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ) : (
+                                                <span className="text-slate-400 italic">No course assigned</span>
+                                            )}
                                         </td>
  
                                         {/* Institute */}

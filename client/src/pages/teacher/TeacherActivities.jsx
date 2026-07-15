@@ -1063,7 +1063,7 @@ const TeacherActivities = () => {
         // Generate standard keys from 1 to courseDuration
         const standardKeys = [];
         for (let i = 1; i <= courseDuration; i++) {
-            standardKeys.push(`Index ${i}`);
+            standardKeys.push(`Inbox ${i}`);
         }
 
         // Add any other keys present in testsGrouped or materialsGrouped that are not standard

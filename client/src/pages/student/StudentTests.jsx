@@ -750,7 +750,7 @@ const StudentTests = () => {
         // Generate standard keys from 1 to courseDuration
         const standardKeys = [];
         for (let i = 1; i <= courseDuration; i++) {
-            standardKeys.push(`Index ${i}`);
+            standardKeys.push(`Inbox ${i}`);
         }
 
         // Add any other keys present in testsGrouped or materialsGrouped that are not standard
@@ -889,7 +889,7 @@ const StudentTests = () => {
         if (!selectedItem) return 'Select an Inbox';
         const config = inboxConfigs.find(c => c.inboxId?.trim().toLowerCase() === selectedItem.trim().toLowerCase());
         if (config && config.displayName) return config.displayName;
-        if (activeDayDetails) return `Index ${activeDayDetails.dayNum}`;
+        if (activeDayDetails) return `Inbox ${activeDayDetails.dayNum}`;
         return selectedGroup ? getDisplayTitle(selectedGroup.title) : 'Inbox';
     }, [selectedItem, activeDayDetails, inboxConfigs, selectedGroup]);
 
@@ -1000,7 +1000,7 @@ const StudentTests = () => {
                     c.inboxId?.trim().toLowerCase() === day.id?.trim().toLowerCase() &&
                     (!c.subject || c.subject.trim().toLowerCase() === group.subjectName.trim().toLowerCase())
                 );
-                const cleanDisplayName = config && config.displayName ? config.displayName : `Index ${day.dayNum}`;
+                const cleanDisplayName = config && config.displayName ? config.displayName : `Inbox ${day.dayNum}`;
                 const titleWithIndex = cleanDisplayName;
 
                 return {

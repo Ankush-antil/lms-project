@@ -143,8 +143,11 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
         setLoadingMappings(true);
         try {
             const params = { courseId };
-            if (subjectList && subjectList.length > 0) {
-                params.subject = subjectList.join(', ');
+            if (subjectList) {
+                const subStr = Array.isArray(subjectList) ? subjectList.join(', ') : subjectList;
+                if (subStr) {
+                    params.subject = subStr;
+                }
             }
             const { data } = await axios.get('/api/users/inbox-configs/course-subject', { params });
             const mapping = {};
@@ -166,7 +169,7 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
     };
 
     const handleRenameIndex = async (currentOption) => {
-        const selectedSubjects = Array.isArray(formData.subject) ? formData.subject : [];
+        const selectedSubjects = Array.isArray(formData.subject) ? formData.subject : (formData.subject ? [formData.subject] : []);
         const selectedCourseNames = Array.isArray(formData.course) ? formData.course : [];
 
         if (selectedCourseNames.length === 0 && selectedSubjects.length === 0) {
@@ -273,7 +276,7 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
                 setFormData({
                     institute: initialData.institute || defaultInstName,
                     course: parseCommaSeparated(initialData.course),
-                    subject: parseCommaSeparated(initialData.subject),
+                    subject: initialData.subject || '',
                     date: initialData.date || new Date().toISOString().split('T')[0],
                     index: initialData.index || '',
                     activity: initialData.activity || '',
@@ -284,7 +287,7 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
                 setFormData({
                     institute: defaultInstName,
                     course: [],
-                    subject: [],
+                    subject: '',
                     date: '',
                     index: '',
                     activity: '',
@@ -323,16 +326,16 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
 
             setOptions(prev => ({ ...prev, subject: uniqueSubjects }));
 
-            // Adjust selected subject array to only keep valid subjects
+            // Adjust selected subject to keep if valid
             setFormData(prev => {
-                const currentSelected = prev.subject || [];
-                const validSelected = currentSelected.filter(s => uniqueSubjects.includes(s));
-                return { ...prev, subject: validSelected };
+                const currentSelected = prev.subject;
+                const isValid = currentSelected && uniqueSubjects.includes(currentSelected);
+                return { ...prev, subject: isValid ? currentSelected : '' };
             });
 
         } else {
             setOptions(prev => ({ ...prev, subject: [] }));
-            setFormData(prev => ({ ...prev, subject: [] }));
+            setFormData(prev => ({ ...prev, subject: '' }));
         }
     }, [formData.course, allCourses]);
 
@@ -341,7 +344,7 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
         if (formData.course && formData.course.length > 0 && allCourses.length > 0) {
             const selectedCourses = allCourses.filter(c => formData.course.includes(c.name));
             if (selectedCourses[0]) {
-                fetchIndexMappings(selectedCourses[0]._id, formData.subject || []);
+                fetchIndexMappings(selectedCourses[0]._id, formData.subject || '');
             }
         } else {
             setIndexMappings({});
@@ -353,10 +356,10 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
         let duration = 50; // fallback
         let daysList = [];
 
-        if (formData.course && formData.course.length > 0 && formData.subject && formData.subject.length > 0 && allCourses.length > 0) {
+        if (formData.course && formData.course.length > 0 && formData.subject && allCourses.length > 0) {
             const selectedCourses = allCourses.filter(c => formData.course.includes(c.name));
             const firstCourse = selectedCourses[0];
-            const firstSub = formData.subject[0];
+            const firstSub = formData.subject;
 
             if (firstCourse) {
                 const subjects = firstCourse.subjects || [];
@@ -532,7 +535,7 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
                             onChange={(val) => setFormData(prev => ({ ...prev, subject: val }))}
                             onCreateNew={() => handleCreateNew('Subject Name', 'subject')}
                             placeholder="Select Subject"
-                            isMulti={true}
+                            isMulti={false}
                         />
 
                         <div className="space-y-1.5">

@@ -58,6 +58,11 @@ const validateInboxSubjectConflict = async (testId, testDetails, currentInstitut
         const coursesArr = course.split(',').map(c => c.trim()).filter(Boolean);
         const subjectsArr = subject.split(',').map(s => s.trim()).filter(Boolean);
 
+        const normalizeSubjectName = (name) => {
+            if (!name) return '';
+            return name.trim().toLowerCase().replace(/s$/, '');
+        };
+
         for (const cName of coursesArr) {
             const query = {
                 isDeleted: { $ne: true },
@@ -74,8 +79,8 @@ const validateInboxSubjectConflict = async (testId, testDetails, currentInstitut
             for (const existingTest of existingTests) {
                 if (existingTest.subject && existingTest.subject.trim()) {
                     // Check if any subject in existingTest matches any in subjectsArr
-                    const existingSubs = existingTest.subject.split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
-                    const newSubsLower = subjectsArr.map(s => s.toLowerCase());
+                    const existingSubs = existingTest.subject.split(',').map(s => normalizeSubjectName(s)).filter(Boolean);
+                    const newSubsLower = subjectsArr.map(s => normalizeSubjectName(s));
                     
                     const hasConflict = existingSubs.some(eSub => !newSubsLower.includes(eSub));
                     if (hasConflict) {

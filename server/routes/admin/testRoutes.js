@@ -12,7 +12,9 @@ const {
     restoreTest,
     permanentlyDeleteTest,
     importTests,
-    duplicateTest
+    duplicateTest,
+    getTestHistory,
+    addTestHistory
 } = require('../../controllers/admin/testController');
 const { protect, adminOrEditor } = require('../../middleware/authMiddleware');
 
@@ -46,5 +48,9 @@ router.route('/:id')
 
 router.route('/:id/collaborate')
     .put(protect, adminOrEditor, updateTestCollaborators);
+
+router.route('/:id/history')
+    .get(protect, getTestHistory)
+    .post(protect, addTestHistory);
 
 module.exports = router;

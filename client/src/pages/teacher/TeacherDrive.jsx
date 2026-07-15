@@ -88,7 +88,7 @@ const TeacherDrive = () => {
                         daysList.push({
                             dayNum: i,
                             indexNum: currentDayIndex,
-                            id: `Index ${currentDayIndex}`
+                            id: `Inbox ${currentDayIndex}`
                         });
                         currentDayIndex++;
                     }
@@ -119,7 +119,7 @@ const TeacherDrive = () => {
                             daysList.push({
                                 dayNum: i,
                                 indexNum: currentDayIndex,
-                                id: `Index ${currentDayIndex}`
+                                id: `Inbox ${currentDayIndex}`
                             });
                             currentDayIndex++;
                         }
@@ -138,7 +138,7 @@ const TeacherDrive = () => {
                     daysList.push({
                         dayNum: dayCounter,
                         indexNum: currentDayIndex,
-                        id: `Index ${currentDayIndex}`
+                        id: `Inbox ${currentDayIndex}`
                     });
                     currentDayIndex++;
                     dayCounter++;
@@ -158,7 +158,7 @@ const TeacherDrive = () => {
                 daysList.push({
                     dayNum: i,
                     indexNum: i,
-                    id: `Index ${i}`
+                    id: `Inbox ${i}`
                 });
             }
             mapping.push({
@@ -409,7 +409,7 @@ const TeacherDrive = () => {
                                                                     <BookOpen size={13} />
                                                                 </div>
                                                                 <h3 className={`font-bold text-xs truncate ${isActive ? 'text-indigo-900' : 'text-slate-750'}`}>
-                                                                    Index {day.dayNum}
+                                                                    Inbox {day.dayNum}
                                                                 </h3>
                                                             </div>
                                                         </div>
@@ -435,7 +435,7 @@ const TeacherDrive = () => {
                             </div>
                             <div>
                                 <h1 className="text-lg font-extrabold text-indigo-950 tracking-tight leading-none">
-                                    {selectedInboxId ? `Index ${selectedDayNumber}` : 'Select an Index'}
+                                    {selectedInboxId ? `Inbox ${selectedDayNumber}` : 'Select an Inbox'}
                                 </h1>
                                 <p className="text-[10px] font-semibold text-slate-400 mt-1 uppercase tracking-wider">
                                     {selectedCourse ? `${selectedCourse.name} · ${selectedSubjectName}` : 'Private Drive'}
@@ -555,7 +555,7 @@ const TeacherDrive = () => {
                         <div className="mb-5">
                             <h2 className="text-base font-extrabold text-slate-850">Upload to Private Drive</h2>
                             <p className="text-[10px] text-slate-400 mt-1 font-black uppercase tracking-wider">
-                                {selectedInboxId ? `Subject: ${selectedSubjectName} · Index ${selectedDayNumber}` : ''}
+                                {selectedInboxId ? `Subject: ${selectedSubjectName} · Inbox ${selectedDayNumber}` : ''}
                             </p>
                         </div>
 

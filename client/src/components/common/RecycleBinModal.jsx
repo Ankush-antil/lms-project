@@ -162,7 +162,7 @@ const RecycleBinModal = ({
                                 <button
                                     disabled={selectedIds.size === 0}
                                     onClick={() => setBulkConfirmDelete(true)}
-                                    className="flex items-center gap-1 px-3 py-2 bg-red-650 hover:bg-red-700 text-white rounded-xl text-xs font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm cursor-pointer border border-red-750"
+                                    className="flex items-center gap-1 px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm cursor-pointer border border-red-700"
                                 >
                                     <Trash2 size={13} />
                                     Delete Selected ({selectedIds.size})
@@ -172,13 +172,13 @@ const RecycleBinModal = ({
 
                         {bulkConfirmDelete && (
                             <div className="p-3 bg-red-50/50 border border-red-200/50 rounded-xl flex items-center justify-between gap-3 animate-fade-in">
-                                <span className="text-[11px] font-black text-red-750 flex items-center gap-1">
+                                <span className="text-[11px] font-black text-red-700 flex items-center gap-1">
                                     <AlertTriangle size={14} /> Permanently delete {selectedIds.size} items?
                                 </span>
                                 <div className="flex items-center gap-1.5">
                                     <button
                                         onClick={handleBulkDelete}
-                                        className="px-2.5 py-1 bg-red-650 hover:bg-red-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm cursor-pointer"
+                                        className="px-2.5 py-1 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm cursor-pointer"
                                     >
                                         Yes, Delete
                                     </button>
@@ -262,7 +262,7 @@ const RecycleBinModal = ({
                                                     <button
                                                         disabled={isActionRunning}
                                                         onClick={() => handlePermanentDelete(item._id)}
-                                                        className="px-2.5 py-1 bg-red-650 hover:bg-red-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm flex items-center gap-1 cursor-pointer"
+                                                        className="px-2.5 py-1 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm flex items-center gap-1 cursor-pointer"
                                                     >
                                                         {isActionRunning ? <Loader2 size={12} className="animate-spin" /> : 'Yes, Delete'}
                                                     </button>

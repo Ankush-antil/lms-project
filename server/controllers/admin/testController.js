@@ -2,6 +2,7 @@ const asyncHandler = require('express-async-handler');
 const Test = require('../../models/Test');
 const Activity = require('../../models/Activity');
 const User = require('../../models/User');
+const TestHistory = require('../../models/TestHistory');
 
 // @desc    Create new test
 // @route   POST /api/tests
@@ -57,6 +58,11 @@ const validateInboxSubjectConflict = async (testId, testDetails, currentInstitut
         const coursesArr = course.split(',').map(c => c.trim()).filter(Boolean);
         const subjectsArr = subject.split(',').map(s => s.trim()).filter(Boolean);
 
+        const normalizeSubjectName = (name) => {
+            if (!name) return '';
+            return name.trim().toLowerCase().replace(/s$/, '');
+        };
+
         for (const cName of coursesArr) {
             const query = {
                 isDeleted: { $ne: true },
@@ -73,11 +79,18 @@ const validateInboxSubjectConflict = async (testId, testDetails, currentInstitut
             for (const existingTest of existingTests) {
                 if (existingTest.subject && existingTest.subject.trim()) {
                     // Check if any subject in existingTest matches any in subjectsArr
-                    const existingSubs = existingTest.subject.split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
-                    const newSubsLower = subjectsArr.map(s => s.toLowerCase());
+                    const existingSubs = existingTest.subject.split(',').map(s => normalizeSubjectName(s)).filter(Boolean);
+                    const newSubsLower = subjectsArr.map(s => normalizeSubjectName(s));
                     
                     const hasConflict = existingSubs.some(eSub => !newSubsLower.includes(eSub));
                     if (hasConflict) {
+                        try {
+                            const fs = require('fs');
+                            const path = require('path');
+                            const debugMsg = `[CONFLICT DEBUG] ${new Date().toISOString()}\nCourse: ${cName}\nIndex: ${index}\nExisting Test: ${existingTest.title} (ID: ${existingTest._id})\nExisting Subjects: ${existingTest.subject} (Normalized: ${existingSubs.join(',')})\nNew Subjects: ${subject} (Normalized: ${newSubsLower.join(',')})\n\n`;
+                            fs.appendFileSync(path.join(__dirname, '../../error.log'), debugMsg);
+                        } catch (_) {}
+
                         if (res) res.status(400);
                         throw new Error(`This inbox (${index}) in course "${cName}" is already assigned to a different subject: "${existingTest.subject}". Only tests of the same subject can be added to this inbox.`);
                     }
@@ -620,6 +633,33 @@ const duplicateTest = asyncHandler(async (req, res) => {
     res.status(201).json(duplicatedTest);
 });
 
+// @desc    Get history for a test
+// @route   GET /api/tests/:id/history
+// @access  Private
+const getTestHistory = asyncHandler(async (req, res) => {
+    const history = await TestHistory.find({ test: req.params.id })
+        .sort({ createdAt: -1 })
+        .limit(100);
+    res.json(history);
+});
+
+// @desc    Add a history entry for a test
+// @route   POST /api/tests/:id/history
+// @access  Private
+const addTestHistory = asyncHandler(async (req, res) => {
+    const { action, description, meta } = req.body;
+    const entry = await TestHistory.create({
+        test: req.params.id,
+        user: req.user._id,
+        userName: req.user.name || 'Unknown',
+        userRole: req.user.role || 'Admin',
+        action: action || 'saved',
+        description: description || '',
+        meta: meta || {}
+    });
+    res.status(201).json(entry);
+});
+
 module.exports = { 
     createTest, 
     getTests, 
@@ -632,6 +672,8 @@ module.exports = {
     restoreTest,
     permanentlyDeleteTest,
     importTests,
-    duplicateTest
+    duplicateTest,
+    getTestHistory,
+    addTestHistory
 };
 

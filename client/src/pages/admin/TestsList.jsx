@@ -83,6 +83,7 @@ const TestsList = () => {
     const [riTest, setRiTest] = useState(null);
     const [showRiModal, setShowRiModal] = useState(false);
     const [isTrashOpen, setIsTrashOpen] = useState(false);
+    const [inboxDisplayNames, setInboxDisplayNames] = useState({}); // key: "inboxId::subject" -> displayName
 
     // Google Forms Style Responses States
     const [viewMode, setViewMode] = useState('list'); // 'list' | 'responses'
@@ -272,8 +273,42 @@ const TestsList = () => {
         try {
             setLoading(true);
             const res = await axios.get('/api/tests');
-            // Filter out tests that are public
-            setTests(Array.isArray(res.data) ? res.data.filter(t => t.publishMode !== 'public') : []);
+            const filtered = Array.isArray(res.data) ? res.data.filter(t => t.publishMode !== 'public') : [];
+            setTests(filtered);
+
+            // Build display name lookup from inbox configs
+            const courseSubjectPairs = [];
+            const seen = new Set();
+            filtered.forEach(t => {
+                if (t.course && t.subject) {
+                    const key = `${t.course}::${t.subject}`;
+                    if (!seen.has(key)) {
+                        seen.add(key);
+                        courseSubjectPairs.push({ course: t.course, subject: t.subject });
+                    }
+                }
+            });
+
+            if (courseSubjectPairs.length > 0) {
+                try {
+                    const allSubjects = [...new Set(courseSubjectPairs.map(p => p.subject))];
+                    const { data: configs } = await axios.get('/api/users/inbox-configs/course-subject', {
+                        params: { subject: allSubjects.join(',') }
+                    });
+                    const map = {};
+                    (configs || []).forEach(c => {
+                        if (c.inboxId && c.displayName) {
+                            const k = c.subject ? `${c.inboxId}::${c.subject.toLowerCase()}` : c.inboxId;
+                            map[k] = c.displayName;
+                            // also index by inboxId alone as fallback
+                            if (!map[c.inboxId]) map[c.inboxId] = c.displayName;
+                        }
+                    });
+                    setInboxDisplayNames(map);
+                } catch (_) {
+                    // silently ignore — fallback to raw index
+                }
+            }
         } catch (error) {
             console.error("Error fetching tests:", error);
             toast.error("Error loading tests");
@@ -2456,7 +2491,7 @@ const TestsList = () => {
                                         <th className="p-4 font-extrabold whitespace-nowrap">Subject</th>
                                         <th className="p-4 font-extrabold whitespace-nowrap">Duration</th>
                                         <th className="p-4 font-extrabold whitespace-nowrap">Questions</th>
-                                        <th className="p-4 font-extrabold whitespace-nowrap">Test Index</th>
+                                        <th className="p-4 font-extrabold whitespace-nowrap">Test Inbox</th>
                                         <th className="p-4 font-extrabold whitespace-nowrap">Created By</th>
                                         <th className="p-4 font-extrabold text-center whitespace-nowrap">Responses</th>
                                         <th className="p-4 font-extrabold text-right whitespace-nowrap sticky right-0 bg-slate-50 border-l border-slate-200 z-10">Actions</th>
@@ -2518,9 +2553,19 @@ const TestsList = () => {
                                                 {test.questions?.length || 0} Qs
                                             </td>
                                             <td className="p-4 whitespace-nowrap">
-                                                {test.index ? (
-                                                    <span className="font-bold text-[#0b1329] px-2 py-0.5 bg-slate-100 border border-slate-200 rounded text-xs">{test.index}</span>
-                                                ) : (
+                                                {test.index ? (() => {
+                                                    const subjectKey = `${test.index}::${(test.subject || '').toLowerCase()}`;
+                                                    const displayName = inboxDisplayNames[subjectKey] || inboxDisplayNames[test.index] || test.index;
+                                                    const isRenamed = displayName !== test.index;
+                                                    return (
+                                                        <span
+                                                            className="font-bold text-[#0b1329] px-2 py-0.5 bg-slate-100 border border-slate-200 rounded text-xs"
+                                                            title={isRenamed ? `Original: ${test.index}` : ''}
+                                                        >
+                                                            {displayName}
+                                                        </span>
+                                                    );
+                                                })() : (
                                                     <span className="text-slate-400 italic text-xs">No Index</span>
                                                 )}
                                             </td>

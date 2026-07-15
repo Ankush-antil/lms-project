@@ -137,6 +137,70 @@ const getCategoryDisplayName = (act) => {
     return act.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 };
 
+const getMatchingInboxIdsForTest = (test, subjectDaysMapping) => {
+    if (!test.index) return ['no index'];
+    const testIndexNorm = test.index.trim().toLowerCase();
+    
+    // Find the subjects of the test
+    const testSubjects = (test.subject || '')
+        .split(',')
+        .map(s => s.trim().toLowerCase())
+        .filter(Boolean);
+        
+    if (testSubjects.length === 0) {
+        return [testIndexNorm];
+    }
+    
+    // Use the first subject to find the local dayNum of this test
+    const firstSub = testSubjects[0];
+    const firstSubGroup = subjectDaysMapping.find(
+        g => g.subjectName.toLowerCase() === firstSub
+    );
+    
+    let localDayNum = null;
+    if (firstSubGroup) {
+        // Find if the test index matches any day's ID in firstSubGroup
+        const matchedDay = firstSubGroup.days.find(d => {
+            const dIdNorm = d.id.trim().toLowerCase();
+            return dIdNorm === testIndexNorm;
+        });
+        if (matchedDay) {
+            localDayNum = matchedDay.dayNum;
+        } else {
+            const match = testIndexNorm.match(/\d+/);
+            if (match) {
+                localDayNum = parseInt(match[0], 10);
+            }
+        }
+    } else {
+        const match = testIndexNorm.match(/\d+/);
+        if (match) {
+            localDayNum = parseInt(match[0], 10);
+        }
+    }
+
+    if (localDayNum === null) {
+        return [testIndexNorm];
+    }
+
+    // Now, for EVERY subject in testSubjects, find the global ID that corresponds to this localDayNum
+    const matchedGlobalIds = [];
+    testSubjects.forEach(subName => {
+        const group = subjectDaysMapping.find(g => g.subjectName.toLowerCase() === subName);
+        if (group) {
+            const day = group.days.find(d => d.dayNum === localDayNum);
+            if (day) {
+                matchedGlobalIds.push(day.id.trim().toLowerCase());
+            }
+        }
+    });
+
+    if (matchedGlobalIds.length === 0) {
+        return [testIndexNorm];
+    }
+    return matchedGlobalIds;
+};
+
 const StudentTests = () => {
     const { user } = useAuth();
     const userInfo = user;
@@ -583,7 +647,7 @@ const StudentTests = () => {
                     daysList.push({
                         dayNum: i,
                         indexNum: currentDayIndex,
-                        id: `Index ${currentDayIndex}`
+                        id: `Inbox ${currentDayIndex}`
                     });
                     currentDayIndex++;
                 }
@@ -612,7 +676,7 @@ const StudentTests = () => {
                     daysList.push({
                         dayNum: i,
                         indexNum: currentDayIndex,
-                        id: `Index ${currentDayIndex}`
+                        id: `Inbox ${currentDayIndex}`
                     });
                     currentDayIndex++;
                 }
@@ -630,7 +694,7 @@ const StudentTests = () => {
                 daysList.push({
                     dayNum: dayCounter,
                     indexNum: currentDayIndex,
-                    id: `Index ${currentDayIndex}`
+                    id: `Inbox ${currentDayIndex}`
                 });
                 currentDayIndex++;
                 dayCounter++;
@@ -649,7 +713,7 @@ const StudentTests = () => {
                 daysList.push({
                     dayNum: i,
                     indexNum: i,
-                    id: `Index ${i}`
+                    id: `Inbox ${i}`
                 });
             }
             mapping.push({
@@ -693,7 +757,7 @@ const StudentTests = () => {
                     daysList.push({
                         dayNum: i,
                         indexNum: currentDayIndex,
-                        id: `Index ${currentDayIndex}`
+                        id: `Inbox ${currentDayIndex}`
                     });
                     currentDayIndex++;
                 }
@@ -715,26 +779,30 @@ const StudentTests = () => {
             subjectDaysMapping.flatMap(g => g.days.map(d => d.id.trim().toLowerCase()))
         );
 
-        // Group tests by normalized index
+        // Group tests by matched global inbox IDs
         const testsGrouped = tests.reduce((acc, test) => {
-            const indexStr = test.index || 'No Index';
-            const normalizedRaw = indexStr.trim().toLowerCase();
-            const config = inboxConfigs.find(c => {
-                const cInboxId = c.inboxId?.trim().toLowerCase();
-                const cDisplayName = c.displayName?.trim().toLowerCase();
-                const cSubject = c.subject?.trim().toLowerCase();
+            const matchedIds = getMatchingInboxIdsForTest(test, subjectDaysMapping);
+            matchedIds.forEach(id => {
+                const normalizedRaw = id.toLowerCase();
+                const config = inboxConfigs.find(c => {
+                    const cInboxId = c.inboxId?.trim().toLowerCase();
+                    const cDisplayName = c.displayName?.trim().toLowerCase();
+                    const cSubject = c.subject?.trim().toLowerCase();
 
-                if (validDayIds.size > 0 && !validDayIds.has(cInboxId)) return false;
+                    if (validDayIds.size > 0 && !validDayIds.has(cInboxId)) return false;
 
-                // Match subject if present in both
-                if (cSubject && test.subject && cSubject !== test.subject.trim().toLowerCase()) return false;
+                    // Match subject if present in both
+                    if (cSubject && test.subject && !test.subject.trim().toLowerCase().includes(cSubject)) return false;
 
-                return cDisplayName === normalizedRaw || cInboxId === normalizedRaw;
+                    return cDisplayName === normalizedRaw || cInboxId === normalizedRaw;
+                });
+                const normalized = config ? config.inboxId.trim().toLowerCase() : normalizedRaw;
+
+                if (!acc[normalized]) acc[normalized] = [];
+                if (!acc[normalized].some(t => t._id === test._id)) {
+                    acc[normalized].push(test);
+                }
             });
-            const normalized = config ? config.inboxId.trim().toLowerCase() : normalizedRaw;
-
-            if (!acc[normalized]) acc[normalized] = [];
-            acc[normalized].push(test);
             return acc;
         }, {});
 
@@ -750,7 +818,7 @@ const StudentTests = () => {
         // Generate standard keys from 1 to courseDuration
         const standardKeys = [];
         for (let i = 1; i <= courseDuration; i++) {
-            standardKeys.push(`Index ${i}`);
+            standardKeys.push(`Inbox ${i}`);
         }
 
         // Add any other keys present in testsGrouped or materialsGrouped that are not standard
@@ -889,7 +957,7 @@ const StudentTests = () => {
         if (!selectedItem) return 'Select an Inbox';
         const config = inboxConfigs.find(c => c.inboxId?.trim().toLowerCase() === selectedItem.trim().toLowerCase());
         if (config && config.displayName) return config.displayName;
-        if (activeDayDetails) return `Index ${activeDayDetails.dayNum}`;
+        if (activeDayDetails) return `Inbox ${activeDayDetails.dayNum}`;
         return selectedGroup ? getDisplayTitle(selectedGroup.title) : 'Inbox';
     }, [selectedItem, activeDayDetails, inboxConfigs, selectedGroup]);
 
@@ -1000,7 +1068,7 @@ const StudentTests = () => {
                     c.inboxId?.trim().toLowerCase() === day.id?.trim().toLowerCase() &&
                     (!c.subject || c.subject.trim().toLowerCase() === group.subjectName.trim().toLowerCase())
                 );
-                const cleanDisplayName = config && config.displayName ? config.displayName : `Index ${day.dayNum}`;
+                const cleanDisplayName = config && config.displayName ? config.displayName : `Inbox ${day.dayNum}`;
                 const titleWithIndex = cleanDisplayName;
 
                 return {
@@ -2013,7 +2081,7 @@ const StudentTests = () => {
 
                                 <div className="grid grid-cols-2 gap-6">
                                     <div>
-                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Test Index</span>
+                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Test Inbox</span>
                                         <span className="font-bold text-slate-900">{infoModalData.index || 'N/A'}</span>
                                     </div>
                                     <div>

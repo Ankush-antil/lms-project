@@ -67,6 +67,31 @@ export const AuthProvider = ({ children }) => {
             console.log('[AuthContext] Auto-authenticating from URL token parameter');
             localStorage.setItem('authToken', tokenParam);
         }
+
+        // Validate saved accounts in localStorage on startup to prune deleted/inactive users
+        const validateSavedAccounts = async () => {
+            try {
+                const existingStr = localStorage.getItem('lmsSavedAccounts');
+                if (existingStr) {
+                    const accounts = JSON.parse(existingStr);
+                    if (Array.isArray(accounts) && accounts.length > 0) {
+                        const emails = accounts.map(acc => acc.user?.email).filter(Boolean);
+                        if (emails.length > 0) {
+                            const { data } = await axios.post('/api/auth/validate-accounts', { emails });
+                            if (data && Array.isArray(data.activeEmails)) {
+                                const activeMap = new Set(data.activeEmails.map(e => e.toLowerCase()));
+                                const filtered = accounts.filter(acc => acc.user?.email && activeMap.has(acc.user.email.toLowerCase()));
+                                localStorage.setItem('lmsSavedAccounts', JSON.stringify(filtered));
+                            }
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error("Failed to validate saved accounts:", e);
+            }
+        };
+
+        validateSavedAccounts();
         fetchUser();
     }, []);
 

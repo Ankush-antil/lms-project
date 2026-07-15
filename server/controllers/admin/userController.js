@@ -1086,7 +1086,7 @@ const getStudentSubjectDaysMapping = async (studentId, targetCourseId) => {
                 daysList.push({
                     dayNum: i,
                     indexNum: currentDayIndex,
-                    id: `Index ${currentDayIndex}`
+                    id: `Inbox ${currentDayIndex}`
                 });
                 currentDayIndex++;
             }
@@ -1115,7 +1115,7 @@ const getStudentSubjectDaysMapping = async (studentId, targetCourseId) => {
                 daysList.push({
                     dayNum: i,
                     indexNum: currentDayIndex,
-                    id: `Index ${currentDayIndex}`
+                    id: `Inbox ${currentDayIndex}`
                 });
                 currentDayIndex++;
             }
@@ -1133,7 +1133,7 @@ const getStudentSubjectDaysMapping = async (studentId, targetCourseId) => {
             daysList.push({
                 dayNum: dayCounter,
                 indexNum: currentDayIndex,
-                id: `Index ${currentDayIndex}`
+                id: `Inbox ${currentDayIndex}`
             });
             currentDayIndex++;
             dayCounter++;
@@ -1152,7 +1152,7 @@ const getStudentSubjectDaysMapping = async (studentId, targetCourseId) => {
             daysList.push({
                 dayNum: i,
                 indexNum: i,
-                id: `Index ${i}`
+                id: `Inbox ${i}`
             });
         }
         mapping.push({
@@ -1208,7 +1208,7 @@ const getStudentSubjectDaysMapping = async (studentId, targetCourseId) => {
                 daysList.push({
                     dayNum: i,
                     indexNum: currentDayIndex,
-                    id: `Index ${currentDayIndex}`
+                    id: `Inbox ${currentDayIndex}`
                 });
                 currentDayIndex++;
             }

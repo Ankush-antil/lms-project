@@ -36,7 +36,8 @@ const {
     getDeletedApplications,
     restoreApplication,
     permanentlyDeleteApplication,
-    importApplications
+    importApplications,
+    deleteSubject
 } = require('../../controllers/admin/setupController');
 const { toggleInstituteFlag, toggleCourseFlag } = require('../../controllers/admin/setupController');
 const { protect, admin, adminOrEditor, adminOrInstitute, parseUserOptional } = require('../../middleware/authMiddleware');
@@ -80,7 +81,8 @@ router.route('/courses')
 
 router.route('/subjects')
     .get(protect, adminOrEditor, getSubjects)
-    .post(protect, adminOrEditor, createSubject);
+    .post(protect, adminOrEditor, createSubject)
+    .delete(protect, adminOrEditor, deleteSubject);
 
 router.route('/subjects/update')
     .put(protect, adminOrEditor, updateSubjectDetails);

@@ -44,13 +44,13 @@ const loginUser = async (req, res) => {
         // Log for debugging
         console.log(`Login attempt for: ${email}`);
 
-        const user = await User.findOne({ email: { $regex: new RegExp(`^${email}$`, 'i') } })
+                const user = await User.findOne({ email: { $regex: new RegExp(`^${email}$`, 'i') } })
             .populate([
                 { path: 'institute', select: 'name imageUrl controls' },
-                { path: 'studentProfile.course', select: 'name subjects' },
+                { path: 'studentProfile.course', select: 'name subjects duration subjectDurations' },
                 { path: 'studentProfile.coursesList.course', select: 'name subjects duration subjectDurations' },
-                { path: 'teacherProfile.assignedCourses', select: 'name' },
-                { path: 'editorProfile.assignedCourses', select: 'name' },
+                { path: 'teacherProfile.assignedCourses', select: 'name subjects subjectDurations' },
+                { path: 'editorProfile.assignedCourses', select: 'name subjects subjectDurations' },
                 { path: 'guestProfile.demoCourse', select: 'name' }
             ]);
 
@@ -65,19 +65,33 @@ const loginUser = async (req, res) => {
             // Set Cookie
             res.cookie('token', token, getCookieOptions(req));
 
+            const userObj = user.toObject();
+            if (userObj.role === 'Teacher') {
+                const teacherSubjects = userObj.teacherProfile?.subjects || [];
+                if (userObj.teacherProfile && userObj.teacherProfile.assignedCourses) {
+                    userObj.teacherProfile.assignedCourses = userObj.teacherProfile.assignedCourses.map(course => {
+                        if (course) {
+                            course.subjects = (course.subjects || []).filter(subject => teacherSubjects.includes(subject));
+                            course.subjectDurations = (course.subjectDurations || []).filter(sd => teacherSubjects.includes(sd.subjectName));
+                        }
+                        return course;
+                    });
+                }
+            }
+
             res.json({
-                _id: user._id,
-                name: user.name,
-                email: user.email,
-                role: user.role,
-                allowedRoles: user.allowedRoles || [user.role],
-                institute: user.institute,
-                mobileNumber: user.mobileNumber,
-                avatar: user.avatar,
-                studentProfile: user.studentProfile,
-                teacherProfile: user.teacherProfile,
-                editorProfile: user.editorProfile,
-                guestProfile: user.guestProfile,
+                _id: userObj._id,
+                name: userObj.name,
+                email: userObj.email,
+                role: userObj.role,
+                allowedRoles: userObj.allowedRoles || [userObj.role],
+                institute: userObj.institute,
+                mobileNumber: userObj.mobileNumber,
+                avatar: userObj.avatar,
+                studentProfile: userObj.studentProfile,
+                teacherProfile: userObj.teacherProfile,
+                editorProfile: userObj.editorProfile,
+                guestProfile: userObj.guestProfile,
                 token: token
             });
         } else {
@@ -100,13 +114,26 @@ const getMe = async (req, res) => {
                 { path: 'institute', select: 'name imageUrl controls' },
                 { path: 'studentProfile.course', select: 'name subjects duration subjectDurations' },
                 { path: 'studentProfile.coursesList.course', select: 'name subjects duration subjectDurations' },
-                { path: 'teacherProfile.assignedCourses', select: 'name' },
+                { path: 'teacherProfile.assignedCourses', select: 'name subjects subjectDurations' },
                 { path: 'teacherProfile.assignedStudents', select: 'name email studentProfile' },
-                { path: 'editorProfile.assignedCourses', select: 'name' },
+                { path: 'editorProfile.assignedCourses', select: 'name subjects subjectDurations' },
                 { path: 'guestProfile.demoCourse', select: 'name' }
             ]);
         if (user) {
-            res.json(user);
+            const userObj = user.toObject();
+            if (userObj.role === 'Teacher') {
+                const teacherSubjects = userObj.teacherProfile?.subjects || [];
+                if (userObj.teacherProfile && userObj.teacherProfile.assignedCourses) {
+                    userObj.teacherProfile.assignedCourses = userObj.teacherProfile.assignedCourses.map(course => {
+                        if (course) {
+                            course.subjects = (course.subjects || []).filter(subject => teacherSubjects.includes(subject));
+                            course.subjectDurations = (course.subjectDurations || []).filter(sd => teacherSubjects.includes(sd.subjectName));
+                        }
+                        return course;
+                    });
+                }
+            }
+            res.json(userObj);
         } else {
             res.status(404).json({ message: 'User not found' });
         }

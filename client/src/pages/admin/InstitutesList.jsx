@@ -12,6 +12,7 @@ import EditInstituteModal from '../../components/EditInstituteModal';
 import InstituteDetailsModal from '../../components/InstituteDetailsModal';
 import TruncatedCell from '../../components/common/TruncatedCell';
 import RecycleBinModal from '../../components/common/RecycleBinModal';
+import BulkEditModal from '../../components/common/BulkEditModal';
 
 
 const InstitutesList = () => {
@@ -37,6 +38,16 @@ const InstitutesList = () => {
     const [savingControls, setSavingControls] = useState(false);
     const [isTrashOpen, setIsTrashOpen] = useState(false);
     const [expandedSections, setExpandedSections] = useState({});
+
+    // Bulk actions
+    const [selectedIds, setSelectedIds] = useState(new Set());
+    const [bulkAction, setBulkAction] = useState('');
+    const [isBulkEditOpen, setIsBulkEditOpen] = useState(false);
+
+    useEffect(() => {
+        setSelectedIds(new Set());
+        setBulkAction('');
+    }, [activeTab]);
 
     const toggleSection = (section) => {
         setExpandedSections(prev => ({
@@ -227,12 +238,52 @@ const InstitutesList = () => {
         if (window.confirm('Are you sure you want to delete this institute? This may affect users and courses associated with it.')) {
             try {
 
-                
+
                 await axios.delete(`/api/setup/institutes/${id}`);
                 setInstitutes(institutes.filter(i => i._id !== id));
                 toast.success('Institute deleted successfully');
             } catch (error) {
                 toast.error(error.response?.data?.message || 'Error deleting institute');
+            }
+        }
+    };
+
+    const handleApplyBulkAction = async () => {
+        if (selectedIds.size === 0 || !bulkAction) return;
+
+        if (bulkAction === 'edit') {
+            setIsBulkEditOpen(true);
+            return;
+        }
+
+        if (bulkAction === 'delete') {
+            const confirmMsg = activeTab === 'pending'
+                ? `Are you sure you want to reject the ${selectedIds.size} selected registration requests?`
+                : `Are you sure you want to delete the ${selectedIds.size} selected institutes? This may affect users and courses associated with them.`;
+
+            if (window.confirm(confirmMsg)) {
+                try {
+                    const promises = Array.from(selectedIds).map(id => {
+                        if (activeTab === 'active') {
+                            return axios.delete(`/api/setup/institutes/${id}`);
+                        } else if (activeTab === 'pending') {
+                            return axios.put(`/api/registration-requests/${id}/admin-resolve`, { status: 'Rejected' });
+                        }
+                        return Promise.resolve();
+                    });
+
+                    await Promise.all(promises);
+                    toast.success('Successfully completed bulk action');
+                    setSelectedIds(new Set());
+                    setBulkAction('');
+                    fetchData();
+                    if (activeTab === 'pending') {
+                        fetchPendingRequests();
+                    }
+                } catch (err) {
+                    console.error("Bulk action error:", err);
+                    toast.error('Failed to complete some actions');
+                }
             }
         }
     };
@@ -510,15 +561,36 @@ const InstitutesList = () => {
                 <>
                     {/* Search */}
                     <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex flex-col md:flex-row gap-4 justify-between items-center mb-6">
-                        <div className="relative w-full md:w-96">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-                            <input
-                                type="text"
-                                placeholder="Search by Name, Code or Location..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-100 rounded-lg outline-none focus:ring-2 focus:ring-slate-500/10 focus:border-slate-300 transition-all text-sm"
-                            />
+                        <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-[480px]">
+                            <div className="relative w-full sm:flex-1">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+                                <input
+                                    type="text"
+                                    placeholder="Search by Name, Code or Location..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-100 rounded-lg outline-none focus:ring-2 focus:ring-slate-500/10 focus:border-slate-300 transition-all text-sm"
+                                />
+                            </div>
+                            <div className="flex items-center gap-2 w-full sm:w-auto">
+                                <select
+                                    value={bulkAction}
+                                    onChange={(e) => setBulkAction(e.target.value)}
+                                    className="bg-slate-50 border border-slate-100 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 outline-none cursor-pointer h-[38px] min-w-[120px]"
+                                >
+                                    <option value="">Bulk Action</option>
+                                    <option value="edit">Edit Selected</option>
+                                    <option value="delete">Delete Selected</option>
+                                </select>
+                                <button
+                                    type="button"
+                                    onClick={handleApplyBulkAction}
+                                    disabled={selectedIds.size === 0 || !bulkAction}
+                                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-100 disabled:text-slate-400 text-white rounded-xl text-xs font-bold transition-all disabled:cursor-not-allowed cursor-pointer whitespace-nowrap h-[38px] active:scale-95 flex items-center justify-center border border-transparent disabled:border-slate-100"
+                                >
+                                    Apply to All ({selectedIds.size})
+                                </button>
+                            </div>
                         </div>
                         <div className="flex flex-wrap items-center gap-4 w-full md:w-auto justify-between md:justify-end">
                             {/* Entries selector */}
@@ -559,9 +631,23 @@ const InstitutesList = () => {
                     {/* Table */}
                     <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
                         <div className="overflow-x-auto">
-                            <table className="min-w-full text-left border-collapse">
+                             <table className="min-w-full text-left border-collapse">
                                 <thead>
                                     <tr className="bg-slate-50 border border-slate-200 text-slate-500 text-sm uppercase tracking-wider">
+                                        <th className="p-4 w-10">
+                                            <input
+                                                type="checkbox"
+                                                checked={paginatedInstitutes.length > 0 && selectedIds.size === paginatedInstitutes.length}
+                                                onChange={() => {
+                                                    if (selectedIds.size === paginatedInstitutes.length) {
+                                                        setSelectedIds(new Set());
+                                                    } else {
+                                                        setSelectedIds(new Set(paginatedInstitutes.map(item => item._id)));
+                                                    }
+                                                }}
+                                                className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer accent-indigo-650"
+                                            />
+                                        </th>
                                         <th className="p-4 font-semibold whitespace-nowrap">Institution Name</th>
                                         <th className="p-4 font-semibold whitespace-nowrap">Code</th>
                                         <th className="p-4 font-semibold whitespace-nowrap">Courses</th>
@@ -574,6 +660,7 @@ const InstitutesList = () => {
                                     {loading ? (
                                         [1, 2, 3].map(n => (
                                             <tr key={n} className="animate-pulse">
+                                                <td className="p-4 w-10"><div className="w-4 h-4 bg-slate-100 rounded"></div></td>
                                                 <td className="p-4"><div className="h-4 bg-slate-100 rounded w-48"></div></td>
                                                 <td className="p-4"><div className="h-4 bg-slate-100 rounded w-16"></div></td>
                                                 <td className="p-4"><div className="h-4 bg-slate-100 rounded w-20"></div></td>
@@ -585,6 +672,24 @@ const InstitutesList = () => {
                                     ) : paginatedInstitutes.length > 0 ? (
                                         paginatedInstitutes.map((inst) => (
                                             <tr key={inst._id} className="hover:bg-slate-50 transition-colors group">
+                                                <td className="p-4 w-10">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={selectedIds.has(inst._id)}
+                                                        onChange={() => {
+                                                            setSelectedIds(prev => {
+                                                                const next = new Set(prev);
+                                                                if (next.has(inst._id)) {
+                                                                    next.delete(inst._id);
+                                                                } else {
+                                                                    next.add(inst._id);
+                                                                }
+                                                                return next;
+                                                            });
+                                                        }}
+                                                        className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer accent-indigo-650"
+                                                    />
+                                                </td>
                                                 <td className="p-4 whitespace-nowrap">
                                                     <div className="flex items-center gap-3">
                                                         <div 
@@ -687,7 +792,7 @@ const InstitutesList = () => {
                                         ))
                                     ) : (
                                         <tr>
-                                            <td colSpan="6" className="p-8 text-center text-slate-500">
+                                            <td colSpan="7" className="p-8 text-center text-slate-500">
                                                 No institutes found.
                                             </td>
                                         </tr>
@@ -764,11 +869,25 @@ const InstitutesList = () => {
                 </>
             ) : (
                 /* Pending Approvals View */
-                <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden animate-fade-in text-left">
+<div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden animate-fade-in text-left">
                     <div className="overflow-x-auto">
                         <table className="min-w-full text-left border-collapse">
                             <thead>
                                 <tr className="bg-slate-50 border border-slate-200 text-slate-505 text-xs font-bold uppercase tracking-wider">
+                                    <th className="p-4 w-10">
+                                        <input
+                                            type="checkbox"
+                                            checked={pendingRequests.length > 0 && selectedIds.size === pendingRequests.length}
+                                            onChange={() => {
+                                                if (selectedIds.size === pendingRequests.length) {
+                                                    setSelectedIds(new Set());
+                                                } else {
+                                                    setSelectedIds(new Set(pendingRequests.map(item => item._id)));
+                                                }
+                                            }}
+                                            className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer accent-indigo-650"
+                                        />
+                                    </th>
                                     <th className="p-4 font-semibold whitespace-nowrap">Institution Name</th>
                                     <th className="p-4 font-semibold whitespace-nowrap">Requested Code</th>
                                     <th className="p-4 font-semibold whitespace-nowrap">Contact Email</th>
@@ -781,6 +900,7 @@ const InstitutesList = () => {
                                 {loadingRequests ? (
                                     [1, 2, 3].map(n => (
                                         <tr key={n} className="animate-pulse">
+                                            <td className="p-4 w-10"><div className="w-4 h-4 bg-slate-100 rounded"></div></td>
                                             <td className="p-4"><div className="h-4 bg-slate-100 rounded w-48"></div></td>
                                             <td className="p-4"><div className="h-4 bg-slate-100 rounded w-16"></div></td>
                                             <td className="p-4"><div className="h-4 bg-slate-100 rounded w-32"></div></td>
@@ -792,6 +912,24 @@ const InstitutesList = () => {
                                 ) : pendingRequests.length > 0 ? (
                                     pendingRequests.map((req) => (
                                         <tr key={req._id} className="hover:bg-slate-50 transition-colors">
+                                            <td className="p-4 w-10">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selectedIds.has(req._id)}
+                                                    onChange={() => {
+                                                        setSelectedIds(prev => {
+                                                            const next = new Set(prev);
+                                                            if (next.has(req._id)) {
+                                                                next.delete(req._id);
+                                                            } else {
+                                                                next.add(req._id);
+                                                            }
+                                                            return next;
+                                                        });
+                                                    }}
+                                                    className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer accent-indigo-650"
+                                                />
+                                            </td>
                                             <td className="p-4 whitespace-nowrap font-extrabold text-slate-800">{req.name}</td>
                                             <td className="p-4 whitespace-nowrap font-mono text-xs">
                                                 <span className="bg-indigo-50 text-indigo-705 px-2 py-0.5 rounded font-black">
@@ -821,7 +959,7 @@ const InstitutesList = () => {
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan="6" className="p-12 text-center text-slate-400 font-bold text-sm">
+                                        <td colSpan="7" className="p-12 text-center text-slate-400 font-bold text-sm">
                                             No pending institute registration requests.
                                         </td>
                                     </tr>
@@ -1115,6 +1253,18 @@ const InstitutesList = () => {
                 restoreUrlPattern={(id) => `/api/setup/institutes/${id}/restore`}
                 permanentDeleteUrlPattern={(id) => `/api/setup/institutes/${id}/permanent`}
                 renderItemDetail={(item) => `Code: ${item.code} | Email: ${item.contactEmail}`}
+            />
+            <BulkEditModal
+                isOpen={isBulkEditOpen}
+                onClose={() => setIsBulkEditOpen(false)}
+                type="institute"
+                selectedIds={Array.from(selectedIds)}
+                onSuccess={() => {
+                    fetchData();
+                    if (activeTab === 'pending') {
+                        fetchPendingRequests();
+                    }
+                }}
             />
         </DashboardLayout>
     );

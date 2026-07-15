@@ -1,10 +1,11 @@
 import { useAuth } from '../../context/AuthContext';
-import { X, Info, ChevronDown, Plus } from 'lucide-react';
+import { X, Info, ChevronDown, Plus, Edit } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
 import { createPortal } from 'react-dom';
+import toast from 'react-hot-toast';
 
-const CustomSelect = ({ label, value, options, onChange, onCreateNew, placeholder }) => {
+const CustomSelect = ({ label, value, options, onChange, onCreateNew, onRenameOption, placeholder, isMulti = false, renderOption }) => {
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef(null);
 
@@ -18,6 +19,30 @@ const CustomSelect = ({ label, value, options, onChange, onCreateNew, placeholde
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
 
+    const isSelected = (option) => {
+        if (isMulti) {
+            return Array.isArray(value) && value.includes(option);
+        }
+        return value === option;
+    };
+
+    const handleOptionClick = (option) => {
+        if (isMulti) {
+            const currentValues = Array.isArray(value) ? value : [];
+            const newValues = currentValues.includes(option)
+                ? currentValues.filter(v => v !== option)
+                : [...currentValues, option];
+            onChange(newValues);
+        } else {
+            onChange(option);
+            setIsOpen(false);
+        }
+    };
+
+    const displayValue = isMulti 
+        ? (Array.isArray(value) && value.length > 0 ? value.map(v => renderOption ? renderOption(v) : v).join(', ') : '')
+        : (renderOption ? renderOption(value) : value);
+
     return (
         <div className="space-y-1.5 relative" ref={dropdownRef}>
             <label className="text-sm font-semibold text-slate-600">{label}</label>
@@ -25,23 +50,43 @@ const CustomSelect = ({ label, value, options, onChange, onCreateNew, placeholde
                 className={`w-full p-2.5 bg-white border ${isOpen ? 'border-indigo-500 ring-2 ring-indigo-100' : 'border-slate-300'} rounded-lg text-slate-700 cursor-pointer flex justify-between items-center transition-all`}
                 onClick={() => setIsOpen(!isOpen)}
             >
-                <span className={value ? 'text-slate-700' : 'text-slate-400'}>{value || placeholder}</span>
-                <ChevronDown size={16} className={`text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                <span className={`truncate ${displayValue ? 'text-slate-700' : 'text-slate-400'}`}>{displayValue || placeholder}</span>
+                <ChevronDown size={16} className={`text-slate-400 transition-transform flex-shrink-0 ${isOpen ? 'rotate-180' : ''}`} />
             </div>
 
             {isOpen && (
-                <div className="absolute top-full left-0 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-xl z-50 overflow-hidden animate-fade-in max-h-60 flex flex-col">
+                <div className="absolute top-full left-0 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-xl z-50 overflow-hidden animate-fade-in max-h-60 flex flex-col animate-fade-in">
                     <div className="flex-1 overflow-y-auto">
                         {options.map((option, idx) => (
                             <div
                                 key={idx}
-                                className={`px-3 py-2 text-sm hover:bg-slate-50 cursor-pointer ${value === option ? 'bg-indigo-50 text-indigo-600 font-medium' : 'text-slate-600'}`}
-                                onClick={() => {
-                                    onChange(option);
-                                    setIsOpen(false);
-                                }}
+                                className={`px-3 py-2 text-sm hover:bg-slate-50 cursor-pointer flex items-center justify-between ${isSelected(option) ? 'bg-indigo-50 text-indigo-600 font-medium' : 'text-slate-600'}`}
+                                onClick={() => handleOptionClick(option)}
                             >
-                                {option}
+                                <div className="flex items-center gap-2.5 min-w-0 w-full">
+                                    {isMulti && (
+                                        <input
+                                            type="checkbox"
+                                            checked={isSelected(option)}
+                                            onChange={() => {}} // handled by parent onClick
+                                            className="rounded text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5 border-slate-300 cursor-pointer flex-shrink-0"
+                                        />
+                                    )}
+                                    <span className="truncate">{renderOption ? renderOption(option) : option}</span>
+                                </div>
+                                {onRenameOption && !isMulti && (
+                                    <button
+                                        type="button"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            onRenameOption(option);
+                                        }}
+                                        className="p-1 text-slate-400 hover:text-indigo-650 hover:bg-indigo-50 rounded transition-all cursor-pointer flex-shrink-0"
+                                        title="Rename Index"
+                                    >
+                                        <Edit size={13} />
+                                    </button>
+                                )}
                             </div>
                         ))}
                     </div>
@@ -67,8 +112,8 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
     const { user } = useAuth();
     const [formData, setFormData] = useState({
         institute: '',
-        course: '',
-        subject: '',
+        course: [],
+        subject: [],
         date: '',
         index: '',
         activity: '',
@@ -85,13 +130,98 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
         activity: ['Viva', 'Exam', 'Assignment', 'Test', 'Quiz']
     });
 
+    const [indexMappings, setIndexMappings] = useState({});
+    const [loadingMappings, setLoadingMappings] = useState(false);
+
+    const parseCommaSeparated = (str) => {
+        if (!str) return [];
+        return str.split(',').map(s => s.trim()).filter(Boolean);
+    };
+
+    const fetchIndexMappings = async (courseId, subjectList) => {
+        setLoadingMappings(true);
+        try {
+            const params = { courseId };
+            if (subjectList && subjectList.length > 0) {
+                params.subject = subjectList.join(', ');
+            }
+            const { data } = await axios.get('/api/users/inbox-configs/course-subject', { params });
+            const mapping = {};
+            if (Array.isArray(data)) {
+                data.forEach(cfg => {
+                    if (cfg.inboxId && cfg.displayName) {
+                        mapping[cfg.inboxId] = cfg.displayName;
+                        mapping[cfg.inboxId.toLowerCase()] = cfg.displayName;
+                        mapping[cfg.inboxId.trim().toLowerCase()] = cfg.displayName;
+                    }
+                });
+            }
+            setIndexMappings(mapping);
+        } catch (err) {
+            console.error("Error fetching index mappings:", err);
+        } finally {
+            setLoadingMappings(false);
+        }
+    };
+
+    const handleRenameIndex = async (currentOption) => {
+        const selectedSubjects = Array.isArray(formData.subject) ? formData.subject : [];
+        const selectedCourseNames = Array.isArray(formData.course) ? formData.course : [];
+
+        if (selectedCourseNames.length === 0 && selectedSubjects.length === 0) {
+            toast.error('Please select a course or subject first');
+            return;
+        }
+
+        // Find which inboxId this currentOption corresponds to
+        let targetInboxId = '';
+        const foundKey = Object.keys(indexMappings).find(k => indexMappings[k] === currentOption);
+        if (foundKey) {
+            targetInboxId = foundKey;
+        } else {
+            const match = currentOption.match(/^Index\s+(\d+)$/i);
+            if (match) {
+                targetInboxId = `index ${match[1]}`;
+            }
+        }
+
+        if (!targetInboxId) {
+            toast.error('Cannot rename custom added indices');
+            return;
+        }
+
+        const newName = prompt(`Rename "${currentOption}" to:`, currentOption);
+        if (newName && newName.trim() && newName !== currentOption) {
+            try {
+                // Use the first selected course for the API call; the server
+                // will find all other courses sharing the same subject automatically.
+                const firstCourseName = selectedCourseNames[0] || '';
+                const selectedCourse = allCourses.find(c => c.name === firstCourseName);
+                const courseIdToSend = selectedCourse?._id || undefined;
+
+                await axios.post('/api/users/inbox-configs', {
+                    inboxId: targetInboxId,
+                    displayName: newName.trim(),
+                    courseId: courseIdToSend,
+                    subject: selectedSubjects.join(', ')
+                });
+                toast.success('Index renamed across all courses with this subject!');
+                // Refresh mappings using subject for cross-course accuracy
+                await fetchIndexMappings(courseIdToSend, selectedSubjects);
+                if (formData.index === currentOption) {
+                    setFormData(prev => ({ ...prev, index: newName.trim() }));
+                }
+            } catch (err) {
+                console.error("Rename error:", err);
+                toast.error('Failed to rename index');
+            }
+        }
+    };
+
     useEffect(() => {
         if (isOpen) {
             const fetchData = async () => {
                 try {
-
-                    
-
                     const [instRes, courseRes] = await Promise.all([
                         axios.get('/api/setup/institutes'),
                         axios.get('/api/setup/courses')
@@ -131,7 +261,6 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
         }
     }, [isOpen, user]);
 
-
     useEffect(() => {
         if (isOpen) {
             let defaultInstName = '';
@@ -142,8 +271,8 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
             if (initialData) {
                 setFormData({
                     institute: initialData.institute || defaultInstName,
-                    course: initialData.course || '',
-                    subject: initialData.subject || '',
+                    course: parseCommaSeparated(initialData.course),
+                    subject: parseCommaSeparated(initialData.subject),
                     date: initialData.date || new Date().toISOString().split('T')[0],
                     index: initialData.index || '',
                     activity: initialData.activity || '',
@@ -153,8 +282,8 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
             } else {
                 setFormData({
                     institute: defaultInstName,
-                    course: '',
-                    subject: '',
+                    course: [],
+                    subject: [],
                     date: '',
                     index: '',
                     activity: '',
@@ -165,41 +294,90 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
         }
     }, [isOpen, initialData, user]);
 
-    // Update subjects when course changes
+    // Update subjects and load custom index/day names when selected courses change
     useEffect(() => {
-        if (formData.course && allCourses.length > 0) {
-            const selectedCourse = allCourses.find(c => c.name === formData.course);
-            if (selectedCourse) {
-                setOptions(prev => ({ ...prev, subject: selectedCourse.subjects || [] }));
-                // Reset subject if not in the new course's list
-                if (selectedCourse.subjects && !selectedCourse.subjects.includes(formData.subject)) {
-                    setFormData(prev => ({ ...prev, subject: selectedCourse.subjects[0] || '' }));
+        if (formData.course && formData.course.length > 0 && allCourses.length > 0) {
+            const selectedCourses = allCourses.filter(c => formData.course.includes(c.name));
+            
+            // Count frequency of subjects
+            const subjectCounts = {};
+            selectedCourses.forEach(course => {
+                const subs = course.subjects || [];
+                subs.forEach(s => {
+                    subjectCounts[s] = (subjectCounts[s] || 0) + 1;
+                });
+            });
+
+            const uniqueSubjects = Object.keys(subjectCounts);
+
+            // Sort by frequency descending (top) and then alphabetically
+            uniqueSubjects.sort((a, b) => {
+                const freqA = subjectCounts[a];
+                const freqB = subjectCounts[b];
+                if (freqA !== freqB) {
+                    return freqB - freqA;
                 }
-            }
+                return a.localeCompare(b);
+            });
+
+            setOptions(prev => ({ ...prev, subject: uniqueSubjects }));
+
+            // Adjust selected subject array to only keep valid subjects
+            setFormData(prev => {
+                const currentSelected = prev.subject || [];
+                const validSelected = currentSelected.filter(s => uniqueSubjects.includes(s));
+                return { ...prev, subject: validSelected };
+            });
+
+        } else {
+            setOptions(prev => ({ ...prev, subject: [] }));
+            setFormData(prev => ({ ...prev, subject: [] }));
         }
     }, [formData.course, allCourses]);
 
-    // Update index/day options when course and subject change
+    // Fetch index mappings when course or subject selection changes
+    useEffect(() => {
+        if (formData.course && formData.course.length > 0 && allCourses.length > 0) {
+            const selectedCourses = allCourses.filter(c => formData.course.includes(c.name));
+            if (selectedCourses[0]) {
+                fetchIndexMappings(selectedCourses[0]._id, formData.subject || []);
+            }
+        } else {
+            setIndexMappings({});
+        }
+    }, [formData.course, formData.subject, allCourses]);
+
+    // Update index/day options when course, subject, or mappings change
     useEffect(() => {
         let duration = 50; // fallback
-        if (formData.course && formData.subject && allCourses.length > 0) {
-            const selectedCourse = allCourses.find(c => c.name === formData.course);
-            if (selectedCourse) {
-                const durationEntry = selectedCourse.subjectDurations?.find(
-                    sd => sd.subjectName?.toLowerCase() === formData.subject?.toLowerCase()
+        if (formData.course && formData.course.length > 0 && formData.subject && formData.subject.length > 0 && allCourses.length > 0) {
+            const selectedCourses = allCourses.filter(c => formData.course.includes(c.name));
+            
+            // Find max duration among selected courses/subjects
+            let maxDuration = 0;
+            selectedCourses.forEach(course => {
+                const firstSub = formData.subject[0];
+                const durationEntry = course.subjectDurations?.find(
+                    sd => sd.subjectName?.toLowerCase() === firstSub?.toLowerCase()
                 );
-                if (durationEntry && durationEntry.duration > 0) {
-                    duration = durationEntry.duration;
-                } else if (selectedCourse.duration > 0) {
-                    duration = selectedCourse.duration;
+                const subDur = durationEntry && durationEntry.duration > 0 ? durationEntry.duration : course.duration;
+                if (subDur > maxDuration) {
+                    maxDuration = subDur;
                 }
+            });
+
+            if (maxDuration > 0) {
+                duration = maxDuration;
             }
         }
         setOptions(prev => ({
             ...prev,
-            index: Array.from({ length: duration }, (_, i) => `Day ${i + 1}`)
+            index: Array.from({ length: duration }, (_, i) => {
+                const inboxId = `index ${i + 1}`;
+                return indexMappings[inboxId] || `Index ${i + 1}`;
+            })
         }));
-    }, [formData.course, formData.subject, allCourses]);
+    }, [formData.course, formData.subject, allCourses, indexMappings]);
 
     const handleCreateNew = (field, key) => {
         const newValue = prompt(`Enter new ${field}:`);
@@ -208,11 +386,31 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
                 ...prev,
                 [key]: [...prev[key], newValue]
             }));
-            setFormData(prev => ({
-                ...prev,
-                [key]: newValue
-            }));
+            setFormData(prev => {
+                if (key === 'course' || key === 'subject') {
+                    return {
+                        ...prev,
+                        [key]: [...(prev[key] || []), newValue]
+                    };
+                }
+                return {
+                    ...prev,
+                    [key]: newValue
+                };
+            });
         }
+    };
+
+    const handleSave = () => {
+        if (!onSave) return;
+        const courseStr = Array.isArray(formData.course) ? formData.course.join(', ') : formData.course;
+        const subjectStr = Array.isArray(formData.subject) ? formData.subject.join(', ') : formData.subject;
+
+        onSave({
+            ...formData,
+            course: courseStr,
+            subject: subjectStr
+        });
     };
 
     if (!isOpen) return null;
@@ -255,6 +453,7 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
                             options={options.course}
                             onChange={(val) => setFormData(prev => ({ ...prev, course: val }))}
                             placeholder="Select Course"
+                            isMulti={true}
                         />
 
                         <CustomSelect
@@ -264,6 +463,7 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
                             onChange={(val) => setFormData(prev => ({ ...prev, subject: val }))}
                             onCreateNew={() => handleCreateNew('Subject Name', 'subject')}
                             placeholder="Select Subject"
+                            isMulti={true}
                         />
 
                         <div className="space-y-1.5">
@@ -276,14 +476,31 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
                             />
                         </div>
 
-                        <CustomSelect
-                            label="Test Day / Index"
-                            value={formData.index}
-                            options={options.index}
-                            onChange={(val) => setFormData(prev => ({ ...prev, index: val }))}
-                            onCreateNew={() => handleCreateNew('Test Day / Index', 'index')}
-                            placeholder="Select Day / Index"
-                        />
+                        {formData.subject && formData.subject.length > 0 ? (
+                            loadingMappings ? (
+                                <div className="space-y-1.5">
+                                    <label className="text-sm font-semibold text-slate-600">Test Day / Index</label>
+                                    <div className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-400 flex items-center gap-2 transition-all">
+                                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-indigo-500 border-t-transparent"></div>
+                                        <span className="text-sm font-medium animate-pulse">Loading index configurations...</span>
+                                    </div>
+                                </div>
+                            ) : (
+                                <CustomSelect
+                                    label="Test Day / Index"
+                                    value={formData.index}
+                                    options={options.index}
+                                    onChange={(val) => setFormData(prev => ({ ...prev, index: val }))}
+                                    onCreateNew={() => handleCreateNew('Test Day / Index', 'index')}
+                                    onRenameOption={handleRenameIndex}
+                                    renderOption={(opt) => {
+                                        const norm = (opt || '').trim().toLowerCase();
+                                        return indexMappings[norm] || opt;
+                                    }}
+                                    placeholder="Select Day / Index"
+                                />
+                            )
+                        ) : null}
 
                         <CustomSelect
                             label="Type of Activity"
@@ -343,7 +560,7 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
                         Cancel
                     </button>
                     <button
-                        onClick={() => onSave && onSave(formData)}
+                        onClick={handleSave}
                         className="px-8 py-3 bg-indigo-600 text-white font-bold rounded-2xl hover:bg-indigo-700 shadow-xl shadow-indigo-200 transition-all active:scale-95 text-sm"
                     >
                         Save Information

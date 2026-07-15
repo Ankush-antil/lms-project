@@ -12,16 +12,16 @@ const PublicSubmission = require('../../models/PublicSubmission');
 // @access  Private/Admin
 const getDashboardStats = asyncHandler(async (req, res) => {
     // 1. User stats by roles (counted under active role or any of their allowed roles)
-    const studentCount = await User.countDocuments({ $or: [{ role: 'Student' }, { allowedRoles: 'Student' }] });
-    const teacherCount = await User.countDocuments({ $or: [{ role: 'Teacher' }, { allowedRoles: 'Teacher' }] });
-    const editorCount = await User.countDocuments({ $or: [{ role: 'Editor' }, { allowedRoles: 'Editor' }] });
-    const staffCount = await User.countDocuments({ $or: [{ role: 'Staff' }, { allowedRoles: 'Staff' }] });
-    const accountantCount = await User.countDocuments({ $or: [{ role: 'Accountant' }, { allowedRoles: 'Accountant' }] });
-    const marketerCount = await User.countDocuments({ $or: [{ role: 'Marketer' }, { allowedRoles: 'Marketer' }] });
-    const parentCount = await User.countDocuments({ $or: [{ role: 'Parent' }, { allowedRoles: 'Parent' }] });
+    const studentCount = await User.countDocuments({ role: 'Student' });
+    const teacherCount = await User.countDocuments({ role: 'Teacher' });
+    const editorCount = await User.countDocuments({ role: 'Editor' });
+    const staffCount = await User.countDocuments({ role: 'Staff' });
+    const accountantCount = await User.countDocuments({ role: 'Accountant' });
+    const marketerCount = await User.countDocuments({ role: 'Marketer' });
+    const parentCount = await User.countDocuments({ role: 'Parent' });
 
     // 2. User classification counts
-    const registeredCount = await User.countDocuments({});
+    const registeredCount = await User.countDocuments({ role: { $ne: 'Admin' } });
     const guestCount = await Application.countDocuments({});
     
     // Limited users are unique candidates in PublicSubmissions
@@ -32,11 +32,11 @@ const getDashboardStats = asyncHandler(async (req, res) => {
     const totalUsersCount = registeredCount + guestCount + limitedCount;
 
     // 3. Content counts
-    const courseCount = await Course.countDocuments({});
-    const instituteCount = await Institute.countDocuments({});
+    const courseCount = await Course.countDocuments({ isDeleted: { $ne: true } });
+    const instituteCount = await Institute.countDocuments({ isDeleted: { $ne: true } });
     
-    // Unique subjects aggregation from all courses
-    const coursesForSubjects = await Course.find({}, 'subjects');
+    // Unique subjects aggregation from all active courses
+    const coursesForSubjects = await Course.find({ isDeleted: { $ne: true } }, 'subjects');
     const uniqueSubjects = new Set();
     coursesForSubjects.forEach(c => {
         if (c.subjects && Array.isArray(c.subjects)) {

@@ -61,13 +61,13 @@ const getTests = asyncHandler(async (req, res) => {
                         {
                             $or: [
                                 { course: { $in: [null, '', undefined] } },
-                                { course: { $regex: new RegExp(`^\\s*${escapeRegex(courseName)}\\s*$`, 'i') } }
+                                { course: { $regex: new RegExp(`(^|,)\\s*${escapeRegex(courseName)}\\s*(,|$)`, 'i') } }
                             ]
                         },
                         {
-                            subject: {
-                                $in: subjects.map(sub => new RegExp(`^\\s*${escapeRegex(sub)}\\s*$`, 'i'))
-                            }
+                            $or: subjects.map(sub => ({
+                                subject: { $regex: new RegExp(`(^|,)\\s*${escapeRegex(sub)}\\s*(,|$)`, 'i') }
+                            }))
                         }
                     ]
                 });
@@ -75,14 +75,14 @@ const getTests = asyncHandler(async (req, res) => {
                 courseSubjectQueries.push({
                     $or: [
                         { course: { $in: [null, '', undefined] } },
-                        { course: { $regex: new RegExp(`^\\s*${escapeRegex(courseName)}\\s*$`, 'i') } }
+                        { course: { $regex: new RegExp(`(^|,)\\s*${escapeRegex(courseName)}\\s*(,|$)`, 'i') } }
                     ]
                 });
             } else if (subjects.length > 0) {
                 courseSubjectQueries.push({
-                    subject: {
-                        $in: subjects.map(sub => new RegExp(`^\\s*${escapeRegex(sub)}\\s*$`, 'i'))
-                    }
+                    $or: subjects.map(sub => ({
+                        subject: { $regex: new RegExp(`(^|,)\\s*${escapeRegex(sub)}\\s*(,|$)`, 'i') }
+                    }))
                 });
             }
         }

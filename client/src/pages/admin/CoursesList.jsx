@@ -7,6 +7,7 @@ import DashboardLayout from '../../components/layout/DashboardLayout';
 import { Search, Plus, Trash2, Edit, BookOpen, Building, Hash, GraduationCap, Eye, Filter, ChevronDown, Upload, Download } from 'lucide-react';
 import AddCourseModal from '../../components/AddCourseModal';
 import CourseDetailsModal from '../../components/CourseDetailsModal';
+import BulkEditModal from '../../components/common/BulkEditModal';
 import TruncatedCell from '../../components/common/TruncatedCell';
 import RecycleBinModal from '../../components/common/RecycleBinModal';
 
@@ -27,6 +28,16 @@ const CoursesList = () => {
     const [activeSection, setActiveSection] = useState('lms'); // 'lms' or 'demo'
     const [isExportDropdownOpen, setIsExportDropdownOpen] = useState(false);
     const importCoursesRef = useRef(null);
+
+    // Bulk actions
+    const [selectedIds, setSelectedIds] = useState(new Set());
+    const [bulkAction, setBulkAction] = useState('');
+    const [isBulkEditOpen, setIsBulkEditOpen] = useState(false);
+
+    useEffect(() => {
+        setSelectedIds(new Set());
+        setBulkAction('');
+    }, [activeSection]);
 
     const uniqueInstitutes = [
         ...new Map(
@@ -215,6 +226,30 @@ const CoursesList = () => {
                 toast.success('Course deleted successfully');
             } catch (error) {
                 toast.error(error.response?.data?.message || 'Error deleting course');
+            }
+        }
+    };
+
+    const handleApplyBulkAction = async () => {
+        if (selectedIds.size === 0 || !bulkAction) return;
+
+        if (bulkAction === 'edit') {
+            setIsBulkEditOpen(true);
+            return;
+        }
+
+        if (bulkAction === 'delete') {
+            if (window.confirm(`Are you sure you want to delete the ${selectedIds.size} selected courses? This will affect students and teachers enrolled in them.`)) {
+                try {
+                    await Promise.all(Array.from(selectedIds).map(id => axios.delete(`/api/setup/courses/${id}`)));
+                    toast.success('Successfully deleted selected courses');
+                    setSelectedIds(new Set());
+                    setBulkAction('');
+                    fetchData();
+                } catch (err) {
+                    console.error("Bulk delete error:", err);
+                    toast.error('Failed to delete some courses');
+                }
             }
         }
     };
@@ -443,15 +478,35 @@ const CoursesList = () => {
 
             {/* Search and Filters */}
             <div className="bg-white p-3 rounded-2xl shadow-sm border border-slate-100 flex flex-col sm:flex-row items-start sm:items-center gap-3 flex-wrap w-full mb-6">
-                <div className="relative w-full sm:flex-1 sm:min-w-[200px] sm:max-w-sm">
-                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                    <input
-                        type="text"
-                        placeholder="Search courses, codes or institutes..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-100 rounded-2xl pl-10 pr-4 py-3 text-sm font-bold text-slate-700 placeholder-slate-400 outline-none focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500/50 transition-all"
-                    />
+                <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-[480px]">
+                    <div className="relative w-full sm:flex-1">
+                        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                        <input
+                            type="text"
+                            placeholder="Search courses, codes or institutes..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full bg-slate-50 border border-slate-100 rounded-2xl pl-10 pr-4 py-3 text-sm font-bold text-slate-700 placeholder-slate-400 outline-none focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500/50 transition-all"
+                        />
+                    </div>
+                    <div className="flex items-center gap-2 w-full sm:w-auto">
+                        <select
+                            value={bulkAction}
+                            onChange={(e) => setBulkAction(e.target.value)}
+                            className="bg-slate-50 border border-slate-100 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 outline-none cursor-pointer h-[44px] min-w-[120px]"
+                        >
+                            <option value="">Bulk Action</option>
+                            <option value="delete">Delete Selected</option>
+                        </select>
+                        <button
+                            type="button"
+                            onClick={handleApplyBulkAction}
+                            disabled={selectedIds.size === 0 || !bulkAction}
+                            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-100 disabled:text-slate-400 text-white rounded-xl text-xs font-bold transition-all disabled:cursor-not-allowed cursor-pointer whitespace-nowrap h-[44px] active:scale-95 flex items-center justify-center border border-transparent disabled:border-slate-100"
+                        >
+                            Apply to All ({selectedIds.size})
+                        </button>
+                    </div>
                 </div>
 
                 {/* Course Name Filter */}
@@ -525,6 +580,20 @@ const CoursesList = () => {
                     <table className="min-w-full text-left border-collapse">
                         <thead>
                             <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 text-sm uppercase tracking-wider">
+                                <th className="p-4 w-10">
+                                    <input
+                                        type="checkbox"
+                                        checked={paginatedCourses.length > 0 && selectedIds.size === paginatedCourses.length}
+                                        onChange={() => {
+                                            if (selectedIds.size === paginatedCourses.length) {
+                                                setSelectedIds(new Set());
+                                            } else {
+                                                setSelectedIds(new Set(paginatedCourses.map(item => item._id)));
+                                            }
+                                        }}
+                                        className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer accent-indigo-650"
+                                    />
+                                </th>
                                 <th className="p-4 font-semibold whitespace-nowrap">Course Name</th>
                                 <th className="p-4 font-semibold whitespace-nowrap">Code</th>
                                 <th className="p-4 font-semibold whitespace-nowrap">Subjects</th>
@@ -541,7 +610,7 @@ const CoursesList = () => {
                         <tbody className="divide-y divide-slate-100">
                             {loading ? (
                                 <tr>
-                                    <td colSpan={user?.role === 'Admin' ? 7 : 5} className="p-8 text-center text-slate-500">
+                                    <td colSpan={user?.role === 'Admin' ? 8 : 6} className="p-8 text-center text-slate-500">
                                         <div className="flex justify-center items-center gap-2">
                                             <div className="w-5 h-5 border-2 border-[#0b1329] border-t-transparent rounded-full animate-spin"></div>
                                             Loading courses...
@@ -551,6 +620,24 @@ const CoursesList = () => {
                             ) : paginatedCourses.length > 0 ? (
                                 paginatedCourses.map((course) => (
                                     <tr key={course._id} className="hover:bg-slate-50/80 transition-colors group">
+                                        <td className="p-4 w-10">
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedIds.has(course._id)}
+                                                onChange={() => {
+                                                    setSelectedIds(prev => {
+                                                        const next = new Set(prev);
+                                                        if (next.has(course._id)) {
+                                                            next.delete(course._id);
+                                                        } else {
+                                                            next.add(course._id);
+                                                        }
+                                                        return next;
+                                                    });
+                                                }}
+                                                className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer accent-indigo-650"
+                                            />
+                                        </td>
                                         {/* Course Name */}
                                         <td className="p-4 whitespace-nowrap">
                                             <div className="flex items-center gap-3">
@@ -647,7 +734,7 @@ const CoursesList = () => {
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan={user?.role === 'Admin' ? 7 : 5} className="p-8 text-center text-slate-500 font-bold">
+                                    <td colSpan={user?.role === 'Admin' ? 8 : 6} className="p-8 text-center text-slate-500 font-bold">
                                         No courses found
                                     </td>
                                 </tr>
@@ -751,6 +838,13 @@ const CoursesList = () => {
                 restoreUrlPattern={(id) => `/api/setup/courses/${id}/restore`}
                 permanentDeleteUrlPattern={(id) => `/api/setup/courses/${id}/permanent`}
                 renderItemDetail={(item) => `Code: ${item.code} | Subjects: ${item.subjects?.join(', ') || 'N/A'}`}
+            />
+            <BulkEditModal
+                isOpen={isBulkEditOpen}
+                onClose={() => setIsBulkEditOpen(false)}
+                type="course"
+                selectedIds={Array.from(selectedIds)}
+                onSuccess={fetchData}
             />
         </DashboardLayout>
     );

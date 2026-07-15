@@ -503,10 +503,53 @@ const StudentTests = () => {
     }, [userInfo, selectedCourseId]);
 
     const courseDuration = useMemo(() => {
-        const profileDuration = activeCourseObj?.duration;
-        if (profileDuration && profileDuration > 0) return profileDuration;
+        const course = activeCourseObj;
+        const subjectDurations = course?.subjectDurations || [];
+        const totalCourseDuration = course?.duration || 0;
 
-        // Fallback: find highest index in tests
+        // Sum durations for student's assigned subjects.
+        // For subjects not in the current course's subjectDurations (cross-course),
+        // look them up across all enrolled courses.
+        if (activeAssignedSubjects && activeAssignedSubjects.length > 0) {
+            const lowerAssigned = activeAssignedSubjects.map(s => s.toLowerCase());
+            let subjectSum = 0;
+            const coveredSubjects = new Set();
+
+            // First: sum from current course
+            subjectDurations.forEach(d => {
+                const dNameL = (d.subjectName || '').toLowerCase();
+                if (lowerAssigned.includes(dNameL)) {
+                    subjectSum += Number(d.duration) || 0;
+                    coveredSubjects.add(dNameL);
+                }
+            });
+
+            // Second: for subjects not in current course, look across all enrolled courses
+            const allEnrolledCourses = (userInfo?.studentProfile?.coursesList || [])
+                .map(item => item.course)
+                .filter(c => c && typeof c === 'object');
+
+            lowerAssigned.forEach(subL => {
+                if (coveredSubjects.has(subL)) return;
+                for (const ec of allEnrolledCourses) {
+                    const entry = (ec.subjectDurations || []).find(
+                        d => (d.subjectName || '').toLowerCase() === subL
+                    );
+                    if (entry && Number(entry.duration) > 0) {
+                        subjectSum += Number(entry.duration);
+                        coveredSubjects.add(subL);
+                        break;
+                    }
+                }
+            });
+
+            if (subjectSum > 0) return subjectSum;
+        }
+
+        // Fallback: use total course duration
+        if (totalCourseDuration > 0) return totalCourseDuration;
+
+        // Last resort: find highest numeric index in tests
         let maxIndex = 0;
         tests.forEach(test => {
             if (test.index) {
@@ -518,13 +561,178 @@ const StudentTests = () => {
             }
         });
         return Math.max(maxIndex, 5); // Default to at least 5 inboxes
-    }, [activeCourseObj, tests]);
+    }, [activeCourseObj, activeAssignedSubjects, tests, userInfo]);
+
+
+    const subjectDaysMapping = useMemo(() => {
+        if (!userInfo || !activeCourseObj) return [];
+        const course = activeCourseObj;
+        const subjects = course.subjects || [];
+        const durations = course.subjectDurations || [];
+        const totalDuration = course.duration || 5;
+
+        let currentDayIndex = 1;
+        const mapping = [];
+
+        if (durations && durations.length > 0) {
+            durations.forEach(d => {
+                const subName = d.subjectName;
+                const subDur = Number(d.duration) || 0;
+                const daysList = [];
+                for (let i = 1; i <= subDur; i++) {
+                    daysList.push({
+                        dayNum: i,
+                        indexNum: currentDayIndex,
+                        id: `Index ${currentDayIndex}`
+                    });
+                    currentDayIndex++;
+                }
+                if (daysList.length > 0) {
+                    mapping.push({
+                        subjectName: subName,
+                        days: daysList
+                    });
+                }
+            });
+        }
+
+        const mappedSubjectNames = mapping.map(m => m.subjectName.toLowerCase());
+        const remainingSubjects = subjects.filter(s => !mappedSubjectNames.includes(s.toLowerCase()));
+
+        if (remainingSubjects.length > 0) {
+            const remainingDays = Math.max(totalDuration - currentDayIndex + 1, 0);
+            const daysPerSubject = remainingDays > 0 ? Math.floor(remainingDays / remainingSubjects.length) : 0;
+            const extraDays = remainingDays > 0 ? remainingDays % remainingSubjects.length : 0;
+
+            remainingSubjects.forEach((subName, idx) => {
+                let subDur = daysPerSubject + (idx < extraDays ? 1 : 0);
+                if (subDur <= 0) subDur = 5; // default to 5 if course duration is already exceeded
+                const daysList = [];
+                for (let i = 1; i <= subDur; i++) {
+                    daysList.push({
+                        dayNum: i,
+                        indexNum: currentDayIndex,
+                        id: `Index ${currentDayIndex}`
+                    });
+                    currentDayIndex++;
+                }
+                if (daysList.length > 0) {
+                    mapping.push({
+                        subjectName: subName,
+                        days: daysList
+                    });
+                }
+            });
+        } else if (currentDayIndex <= totalDuration) {
+            const daysList = [];
+            let dayCounter = 1;
+            while (currentDayIndex <= totalDuration) {
+                daysList.push({
+                    dayNum: dayCounter,
+                    indexNum: currentDayIndex,
+                    id: `Index ${currentDayIndex}`
+                });
+                currentDayIndex++;
+                dayCounter++;
+            }
+            if (daysList.length > 0) {
+                mapping.push({
+                    subjectName: 'Other Subjects',
+                    days: daysList
+                });
+            }
+        }
+
+        if (mapping.length === 0) {
+            const daysList = [];
+            for (let i = 1; i <= totalDuration; i++) {
+                daysList.push({
+                    dayNum: i,
+                    indexNum: i,
+                    id: `Index ${i}`
+                });
+            }
+            mapping.push({
+                subjectName: 'General',
+                days: daysList
+            });
+        }
+
+        // ----------------------------------------------------------------
+        // Cross-course subjects: if student has subjects assigned that are
+        // NOT yet in the mapping (e.g. Computer Fundamentals defined in a
+        // different course), look them up across ALL student-enrolled courses
+        // and append their index slots starting after the current course ends.
+        // ----------------------------------------------------------------
+        if (activeAssignedSubjects && activeAssignedSubjects.length > 0) {
+            const mappedLower = new Set(mapping.map(m => m.subjectName.toLowerCase()));
+            const allEnrolledCourses = (userInfo?.studentProfile?.coursesList || [])
+                .map(item => item.course)
+                .filter(c => c && typeof c === 'object');
+
+            activeAssignedSubjects.forEach(subName => {
+                const subNameL = subName.toLowerCase();
+                if (mappedLower.has(subNameL)) return; // already in mapping
+
+                // Find duration from any enrolled course
+                let foundDur = 0;
+                for (const ec of allEnrolledCourses) {
+                    const entry = (ec.subjectDurations || []).find(
+                        d => (d.subjectName || '').toLowerCase() === subNameL
+                    );
+                    if (entry && Number(entry.duration) > 0) {
+                        foundDur = Number(entry.duration);
+                        break;
+                    }
+                }
+
+                if (foundDur === 0) foundDur = 1; // fallback: at least show the section
+
+                const daysList = [];
+                for (let i = 1; i <= foundDur; i++) {
+                    daysList.push({
+                        dayNum: i,
+                        indexNum: currentDayIndex,
+                        id: `Index ${currentDayIndex}`
+                    });
+                    currentDayIndex++;
+                }
+                mapping.push({ subjectName: subName, days: daysList });
+                mappedLower.add(subNameL);
+            });
+        }
+
+        if (activeAssignedSubjects && activeAssignedSubjects.length > 0) {
+            const lowerAssigned = activeAssignedSubjects.map(s => s.toLowerCase());
+            return mapping.filter(m => lowerAssigned.includes(m.subjectName.toLowerCase()));
+        }
+
+        return mapping;
+    }, [userInfo, activeCourseObj, activeAssignedSubjects]);
 
     const dynamicInboxItems = useMemo(() => {
+        const validDayIds = new Set(
+            subjectDaysMapping.flatMap(g => g.days.map(d => d.id.trim().toLowerCase()))
+        );
+
         // Group tests by normalized index
         const testsGrouped = tests.reduce((acc, test) => {
             const indexStr = test.index || 'No Index';
-            const normalized = indexStr.trim().toLowerCase();
+            const normalizedRaw = indexStr.trim().toLowerCase();
+            const config = inboxConfigs.find(c => {
+                const cInboxId = c.inboxId?.trim().toLowerCase();
+                const cDisplayName = c.displayName?.trim().toLowerCase();
+                const cSubject = c.subject?.trim().toLowerCase();
+
+                if (validDayIds.size > 0 && !validDayIds.has(cInboxId)) return false;
+
+                // Match subject if present in both
+                if (cSubject && test.subject && cSubject !== test.subject.trim().toLowerCase()) return false;
+
+                return cDisplayName === normalizedRaw || cInboxId === normalizedRaw;
+            });
+            const normalized = config ? config.inboxId.trim().toLowerCase() : normalizedRaw;
+
             if (!acc[normalized]) acc[normalized] = [];
             acc[normalized].push(test);
             return acc;
@@ -566,16 +774,25 @@ const StudentTests = () => {
             const testsInInbox = testsGrouped[normalized] || [];
             const materialsInInbox = materialsGrouped[normalized] || [];
 
-            const config = inboxConfigs.find(c => c.inboxId?.trim().toLowerCase() === normalized);
+            const subjectName = (() => {
+                for (const group of subjectDaysMapping) {
+                    if (group.days.some(d => d.id.trim().toLowerCase() === normalized)) {
+                        return group.subjectName;
+                    }
+                }
+                return '';
+            })();
+            const config = inboxConfigs.find(c => 
+                c.inboxId?.trim().toLowerCase() === normalized &&
+                (!c.subject || c.subject.trim().toLowerCase() === subjectName.trim().toLowerCase())
+            );
             const isVisible = config ? config.visible : true;
 
             const match = keyName.match(/\d+/);
             const idxNum = match ? parseInt(match[0], 10) : 1;
             const week = Math.ceil(idxNum / 7);
             const offsetDays = (week - 1) * 7;
-            const inboxUnlockDateMs = new Date(enrollmentDate).getTime() + offsetDays * 24 * 60 * 60 * 1000;
-            const isInboxDisabledByDefault = Date.now() < inboxUnlockDateMs;
-
+            const isInboxDisabledByDefault = false;
             const isInboxDisabled = config && config.disabled !== undefined ? config.disabled : isInboxDisabledByDefault;
 
             const customTitle = config && config.displayName ? config.displayName : keyName;
@@ -591,7 +808,7 @@ const StudentTests = () => {
                 hasContent: testsInInbox.length > 0 || materialsInInbox.length > 0
             };
         }).filter(item => item.visible);
-    }, [tests, allStudyMaterials, submittedTestIds, inboxConfigs, courseDuration, userInfo]);
+    }, [tests, allStudyMaterials, submittedTestIds, inboxConfigs, courseDuration, userInfo, subjectDaysMapping]);
 
     useEffect(() => {
         if (!selectedItem && dynamicInboxItems.length > 0) {
@@ -602,118 +819,11 @@ const StudentTests = () => {
 
     const selectedGroup = dynamicInboxItems.find(item => item.id === selectedItem);
 
-    const subjectDaysMapping = useMemo(() => {
-        if (!userInfo || !activeCourseObj) return [];
-        const course = activeCourseObj;
-        const subjects = course.subjects || [];
-        const durations = course.subjectDurations || [];
-        const totalDuration = course.duration || 5;
-
-        let currentDayIndex = 1;
-        const mapping = [];
-
-        if (durations && durations.length > 0) {
-            durations.forEach(d => {
-                const subName = d.subjectName;
-                const subDur = Number(d.duration) || 0;
-                const daysList = [];
-                for (let i = 1; i <= subDur; i++) {
-                    if (currentDayIndex <= totalDuration) {
-                        daysList.push({
-                            dayNum: i,
-                            indexNum: currentDayIndex,
-                            id: `Index ${currentDayIndex}`
-                        });
-                        currentDayIndex++;
-                    }
-                }
-                if (daysList.length > 0) {
-                    mapping.push({
-                        subjectName: subName,
-                        days: daysList
-                    });
-                }
-            });
-        }
-
-        if (currentDayIndex <= totalDuration) {
-            const mappedSubjectNames = mapping.map(m => m.subjectName.toLowerCase());
-            const remainingSubjects = subjects.filter(s => !mappedSubjectNames.includes(s.toLowerCase()));
-
-            if (remainingSubjects.length > 0) {
-                const remainingDays = totalDuration - currentDayIndex + 1;
-                const daysPerSubject = Math.floor(remainingDays / remainingSubjects.length);
-                const extraDays = remainingDays % remainingSubjects.length;
-
-                remainingSubjects.forEach((subName, idx) => {
-                    const subDur = daysPerSubject + (idx < extraDays ? 1 : 0);
-                    const daysList = [];
-                    for (let i = 1; i <= subDur; i++) {
-                        if (currentDayIndex <= totalDuration) {
-                            daysList.push({
-                                dayNum: i,
-                                indexNum: currentDayIndex,
-                                id: `Index ${currentDayIndex}`
-                            });
-                            currentDayIndex++;
-                        }
-                    }
-                    if (daysList.length > 0) {
-                        mapping.push({
-                            subjectName: subName,
-                            days: daysList
-                        });
-                    }
-                });
-            } else {
-                const daysList = [];
-                let dayCounter = 1;
-                while (currentDayIndex <= totalDuration) {
-                    daysList.push({
-                        dayNum: dayCounter,
-                        indexNum: currentDayIndex,
-                        id: `Index ${currentDayIndex}`
-                    });
-                    currentDayIndex++;
-                    dayCounter++;
-                }
-                if (daysList.length > 0) {
-                    mapping.push({
-                        subjectName: 'Other Subjects',
-                        days: daysList
-                    });
-                }
-            }
-        }
-
-        if (mapping.length === 0) {
-            const daysList = [];
-            for (let i = 1; i <= totalDuration; i++) {
-                daysList.push({
-                    dayNum: i,
-                    indexNum: i,
-                    id: `Index ${i}`
-                });
-            }
-            mapping.push({
-                subjectName: 'General',
-                days: daysList
-            });
-        }
-
-        if (activeAssignedSubjects && activeAssignedSubjects.length > 0) {
-            const lowerAssigned = activeAssignedSubjects.map(s => s.toLowerCase());
-            return mapping.filter(m => lowerAssigned.includes(m.subjectName.toLowerCase()));
-        }
-
-        return mapping;
-    }, [userInfo, activeCourseObj, activeAssignedSubjects]);
-
     useEffect(() => {
         if (subjectDaysMapping.length > 0) {
             const initial = {};
             subjectDaysMapping.forEach(g => {
-                initial[g.subjectName] = true;
+                initial[g.subjectName] = false;
             });
             setExpandedSubjects(initial);
         }
@@ -779,7 +889,7 @@ const StudentTests = () => {
         if (!selectedItem) return 'Select an Inbox';
         const config = inboxConfigs.find(c => c.inboxId?.trim().toLowerCase() === selectedItem.trim().toLowerCase());
         if (config && config.displayName) return config.displayName;
-        if (activeDayDetails) return `Inbox ${activeDayDetails.dayNum}`;
+        if (activeDayDetails) return `Index ${activeDayDetails.dayNum}`;
         return selectedGroup ? getDisplayTitle(selectedGroup.title) : 'Inbox';
     }, [selectedItem, activeDayDetails, inboxConfigs, selectedGroup]);
 
@@ -886,8 +996,11 @@ const StudentTests = () => {
                 const matchesSearch = getDisplayTitle(inboxItem.title).toLowerCase().includes(inboxSearchQuery.toLowerCase());
                 if (!matchesSearch) return null;
 
-                const config = inboxConfigs.find(c => c.inboxId?.trim().toLowerCase() === day.id?.trim().toLowerCase());
-                const cleanDisplayName = config && config.displayName ? config.displayName : `Inbox ${day.dayNum}`;
+                const config = inboxConfigs.find(c => 
+                    c.inboxId?.trim().toLowerCase() === day.id?.trim().toLowerCase() &&
+                    (!c.subject || c.subject.trim().toLowerCase() === group.subjectName.trim().toLowerCase())
+                );
+                const cleanDisplayName = config && config.displayName ? config.displayName : `Index ${day.dayNum}`;
                 const titleWithIndex = cleanDisplayName;
 
                 return {
@@ -1167,7 +1280,7 @@ const StudentTests = () => {
                             <div className="text-center py-12 text-slate-400 text-xs font-semibold">No inboxes found.</div>
                         ) : (
                             groupedInboxItems.map(group => {
-                                const isExpanded = expandedSubjects[group.subjectName] !== false;
+                                const isExpanded = expandedSubjects[group.subjectName] === true;
                                 return (
                                     <div key={group.subjectName} className="space-y-1.5 animate-fade-in mb-3">
                                         {/* Subject Collapsible Header */}

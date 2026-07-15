@@ -53,21 +53,36 @@ const validateInboxSubjectConflict = async (testId, testDetails, currentInstitut
         const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         const Test = require('../../models/Test');
         
-        const query = {
-            isDeleted: { $ne: true },
-            institute: { $regex: new RegExp(`^\\s*${escapeRegex(institute)}\\s*$`, 'i') },
-            course: { $regex: new RegExp(`^\\s*${escapeRegex(course)}\\s*$`, 'i') },
-            index: { $regex: new RegExp(`^\\s*${escapeRegex(index)}\\s*$`, 'i') }
-        };
-        
-        if (testId) {
-            query._id = { $ne: testId };
-        }
-        
-        const existingTest = await Test.findOne(query);
-        if (existingTest && existingTest.subject && existingTest.subject.trim().toLowerCase() !== subject.trim().toLowerCase()) {
-            if (res) res.status(400);
-            throw new Error(`This inbox (${index}) is already assigned to a different subject: "${existingTest.subject}". Only tests of the same subject can be added to this inbox.`);
+        // Split courses and subjects to check each one individually
+        const coursesArr = course.split(',').map(c => c.trim()).filter(Boolean);
+        const subjectsArr = subject.split(',').map(s => s.trim()).filter(Boolean);
+
+        for (const cName of coursesArr) {
+            const query = {
+                isDeleted: { $ne: true },
+                institute: { $regex: new RegExp(`^\\s*${escapeRegex(institute)}\\s*$`, 'i') },
+                course: { $regex: new RegExp(`(^|,)\\s*${escapeRegex(cName)}\\s*(,|$)`, 'i') },
+                index: { $regex: new RegExp(`^\\s*${escapeRegex(index)}\\s*$`, 'i') }
+            };
+            
+            if (testId) {
+                query._id = { $ne: testId };
+            }
+            
+            const existingTests = await Test.find(query);
+            for (const existingTest of existingTests) {
+                if (existingTest.subject && existingTest.subject.trim()) {
+                    // Check if any subject in existingTest matches any in subjectsArr
+                    const existingSubs = existingTest.subject.split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+                    const newSubsLower = subjectsArr.map(s => s.toLowerCase());
+                    
+                    const hasConflict = existingSubs.some(eSub => !newSubsLower.includes(eSub));
+                    if (hasConflict) {
+                        if (res) res.status(400);
+                        throw new Error(`This inbox (${index}) in course "${cName}" is already assigned to a different subject: "${existingTest.subject}". Only tests of the same subject can be added to this inbox.`);
+                    }
+                }
+            }
         }
     }
 };

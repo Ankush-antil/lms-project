@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import axios from 'axios';
 import * as XLSX from 'xlsx';
 import DashboardLayout from '../../components/layout/DashboardLayout';
-import { Search, Filter, Eye, X, BookOpen, Calendar, HelpCircle, FileText, CheckCircle, AlertCircle, Plus, Edit2, Upload, Download } from 'lucide-react';
+import { Search, Filter, Eye, X, BookOpen, Calendar, HelpCircle, FileText, CheckCircle, AlertCircle, Plus, Edit2, Upload, Download, Trash2 } from 'lucide-react';
 import TruncatedCell from '../../components/common/TruncatedCell';
 
 const SubjectsList = () => {
@@ -14,6 +14,15 @@ const SubjectsList = () => {
     const [filterCourse, setFilterCourse] = useState('All');
     const [subjects, setSubjects] = useState([]);
     const [loading, setLoading] = useState(true);
+
+    // Bulk actions
+    const [selectedIds, setSelectedIds] = useState(new Set());
+    const [bulkAction, setBulkAction] = useState('');
+
+    useEffect(() => {
+        setSelectedIds(new Set());
+        setBulkAction('');
+    }, [filterCourse]);
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(10);
     const [isExportDropdownOpen, setIsExportDropdownOpen] = useState(false);
@@ -195,6 +204,34 @@ const SubjectsList = () => {
             console.error("Error fetching setup data:", error);
             toast.error("Failed to load subjects, courses, or teachers");
             setLoading(false);
+        }
+    };
+
+    const handleApplyBulkAction = async () => {
+        if (selectedIds.size === 0 || !bulkAction) return;
+
+        if (bulkAction === 'delete') {
+            if (window.confirm(`Are you sure you want to delete the ${selectedIds.size} selected subjects? This will clear them from their respective courses.`)) {
+                try {
+                    const promises = Array.from(selectedIds).map(item => {
+                        const [courseId, subjectName] = item.split(':::');
+                        return axios.delete('/api/setup/subjects', {
+                            data: {
+                                courseId: courseId === 'none' ? undefined : courseId,
+                                subjectName
+                            }
+                        });
+                    });
+                    await Promise.all(promises);
+                    toast.success('Successfully deleted selected subjects');
+                    setSelectedIds(new Set());
+                    setBulkAction('');
+                    fetchData();
+                } catch (err) {
+                    console.error("Bulk delete error:", err);
+                    toast.error('Failed to delete some subjects');
+                }
+            }
         }
     };
 
@@ -456,15 +493,35 @@ const SubjectsList = () => {
 
             {/* Filters */}
             <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex flex-col md:flex-row gap-4 justify-between items-center mb-6">
-                <div className="relative w-full md:w-96">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-                    <input
-                        type="text"
-                        placeholder="Search by Subject, Course, Institute or Teacher..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-10 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
-                    />
+                <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-[480px]">
+                    <div className="relative w-full sm:flex-1">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+                        <input
+                            type="text"
+                            placeholder="Search by Subject, Course, Institute or Teacher..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-2.5 px-10 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
+                        />
+                    </div>
+                    <div className="flex items-center gap-2 w-full sm:w-auto">
+                        <select
+                            value={bulkAction}
+                            onChange={(e) => setBulkAction(e.target.value)}
+                            className="bg-slate-50 border border-slate-100 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 outline-none cursor-pointer h-[38px] min-w-[120px]"
+                        >
+                            <option value="">Bulk Action</option>
+                            <option value="delete">Delete Selected</option>
+                        </select>
+                        <button
+                            type="button"
+                            onClick={handleApplyBulkAction}
+                            disabled={selectedIds.size === 0 || !bulkAction}
+                            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-100 disabled:text-slate-400 text-white rounded-xl text-xs font-bold transition-all disabled:cursor-not-allowed cursor-pointer whitespace-nowrap h-[38px] active:scale-95 flex items-center justify-center border border-transparent disabled:border-slate-100"
+                        >
+                            Apply to All ({selectedIds.size})
+                        </button>
+                    </div>
                 </div>
 
                 <div className="flex flex-row items-center gap-2.5 flex-wrap md:flex-nowrap w-full md:w-auto justify-between md:justify-end">
@@ -518,6 +575,20 @@ const SubjectsList = () => {
                     <table className="min-w-full text-left border-collapse">
                         <thead>
                             <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 text-sm uppercase tracking-wider">
+                                <th className="p-4 w-10">
+                                    <input
+                                        type="checkbox"
+                                        checked={paginatedSubjects.length > 0 && selectedIds.size === paginatedSubjects.length}
+                                        onChange={() => {
+                                            if (selectedIds.size === paginatedSubjects.length) {
+                                                setSelectedIds(new Set());
+                                            } else {
+                                                setSelectedIds(new Set(paginatedSubjects.map(item => `${item.course?._id || 'none'}:::${item.name}`)));
+                                            }
+                                        }}
+                                        className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer accent-indigo-650"
+                                    />
+                                </th>
                                 <th className="p-4 font-semibold whitespace-nowrap">Subject Name</th>
                                 <th className="p-4 font-semibold whitespace-nowrap">Course</th>
                                 <th className="p-4 font-semibold whitespace-nowrap">Institute</th>
@@ -530,7 +601,7 @@ const SubjectsList = () => {
                         <tbody className="divide-y divide-slate-100">
                             {loading ? (
                                 <tr>
-                                    <td colSpan="7" className="p-8 text-center text-slate-500">
+                                    <td colSpan="8" className="p-8 text-center text-slate-500">
                                         <div className="flex justify-center items-center gap-2">
                                             <div className="w-5 h-5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
                                             Loading subjects...
@@ -540,6 +611,25 @@ const SubjectsList = () => {
                             ) : paginatedSubjects.length > 0 ? (
                                 paginatedSubjects.map((s, index) => (
                                     <tr key={`${s.name}-${index}`} className="hover:bg-slate-50 transition-colors group">
+                                        <td className="p-4 w-10">
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedIds.has(`${s.course?._id || 'none'}:::${s.name}`)}
+                                                onChange={() => {
+                                                    setSelectedIds(prev => {
+                                                        const next = new Set(prev);
+                                                        const key = `${s.course?._id || 'none'}:::${s.name}`;
+                                                        if (next.has(key)) {
+                                                            next.delete(key);
+                                                        } else {
+                                                            next.add(key);
+                                                        }
+                                                        return next;
+                                                    });
+                                                }}
+                                                className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer accent-indigo-650"
+                                            />
+                                        </td>
                                         {/* Subject Name */}
                                         <td className="p-4 whitespace-nowrap">
                                             <div className="flex items-center gap-2.5">
@@ -607,12 +697,36 @@ const SubjectsList = () => {
                                                     <Edit2 size={16} />
                                                 </button>
                                             )}
+                                            {(currentUser?.role === 'Admin' || currentUser?.role === 'Editor') && (
+                                                <button
+                                                    onClick={async () => {
+                                                        if (window.confirm(`Are you sure you want to delete "${s.name}"?`)) {
+                                                            try {
+                                                                await axios.delete('/api/setup/subjects', {
+                                                                    data: {
+                                                                        courseId: s.course?._id,
+                                                                        subjectName: s.name
+                                                                    }
+                                                                });
+                                                                toast.success('Subject deleted successfully');
+                                                                fetchData();
+                                                            } catch (err) {
+                                                                toast.error(err.response?.data?.message || 'Error deleting subject');
+                                                            }
+                                                        }
+                                                    }}
+                                                    className="p-2 text-slate-400 hover:text-red-650 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                                                    title="Delete Subject"
+                                                >
+                                                    <Trash2 size={16} />
+                                                </button>
+                                            )}
                                         </td>
                                     </tr>
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan="7" className="p-8 text-center text-slate-500">
+                                    <td colSpan="8" className="p-8 text-center text-slate-500">
                                         No subjects found matching your search.
                                     </td>
                                 </tr>

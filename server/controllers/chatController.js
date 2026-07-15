@@ -359,9 +359,13 @@ const getStudentTests = asyncHandler(async (req, res) => {
     if (studentSubject) {
         const subjects = studentSubject.split(',').map(s => s.trim()).filter(Boolean);
         if (subjects.length > 0) {
-            query.subject = {
-                $in: subjects.map(sub => new RegExp(`^\\s*${escapeRegex(sub)}\\s*$`, 'i'))
-            };
+            query.$and = [
+                {
+                    $or: subjects.map(sub => ({
+                        subject: { $regex: new RegExp(`(^|,)\\s*${escapeRegex(sub)}\\s*(,|$)`, 'i') }
+                    }))
+                }
+            ];
         } else {
             query.subject = { $in: [null, '', undefined] };
         }
@@ -370,10 +374,17 @@ const getStudentTests = asyncHandler(async (req, res) => {
     }
 
     if (studentCourse) {
-        query.$or = [
-            { course: { $in: [null, '', undefined] } },
-            { course: { $regex: new RegExp(`^\\s*${escapeRegex(studentCourse)}\\s*$`, 'i') } }
-        ];
+        const courseMatchCondition = {
+            $or: [
+                { course: { $in: [null, '', undefined] } },
+                { course: { $regex: new RegExp(`(^|,)\\s*${escapeRegex(studentCourse)}\\s*(,|$)`, 'i') } }
+            ]
+        };
+        if (query.$and) {
+            query.$and.push(courseMatchCondition);
+        } else {
+            query.$and = [courseMatchCondition];
+        }
     }
 
     const tests = await Test.find(query).sort({ createdAt: -1 });

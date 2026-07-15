@@ -8,6 +8,7 @@ import DashboardLayout from '../../components/layout/DashboardLayout';
 import { Download,  Upload,  Search, Plus, Trash2, Edit, Filter, ChevronDown, Calendar, UserCheck, Save } from 'lucide-react';
 import AddUserModal from '../../components/AddUserModal';
 import EditUserModal from '../../components/EditUserModal';
+import BulkEditModal from '../../components/common/BulkEditModal';
 import { useUserProfile } from '../../components/common/UserProfileContext';
 import TruncatedCell from '../../components/common/TruncatedCell';
 import RecycleBinModal from '../../components/common/RecycleBinModal';
@@ -69,6 +70,17 @@ const TeachersList = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(10);
     const [activeTab, setActiveTab] = useState('directory'); // directory, attendance
+    
+    // Bulk action states
+    const [selectedIds, setSelectedIds] = useState(new Set());
+    const [bulkAction, setBulkAction] = useState('');
+    const [isBulkEditOpen, setIsBulkEditOpen] = useState(false);
+
+    useEffect(() => {
+        setSelectedIds(new Set());
+        setBulkAction('');
+    }, [activeTab]);
+
     const [selectedTeacherId, setSelectedTeacherId] = useState(null);
     const [attendanceDate, setAttendanceDate] = useState(new Date().toISOString().split('T')[0]);
     const [attendanceRecords, setAttendanceRecords] = useState({});
@@ -247,6 +259,45 @@ const TeachersList = () => {
                 toast.success('Teacher deleted successfully');
             } catch (error) {
                 toast.error('Error deleting teacher');
+            }
+        }
+    };
+
+    const handleApplyBulkAction = async () => {
+        if (selectedIds.size === 0 || !bulkAction) return;
+
+        if (bulkAction === 'edit') {
+            if (activeTab === 'directory') {
+                setIsBulkEditOpen(true);
+            }
+            return;
+        }
+
+        if (bulkAction === 'delete') {
+            const confirmMsg = activeTab === 'attendance'
+                ? `Are you sure you want to delete attendance logs for the ${selectedIds.size} selected teachers on ${attendanceDate}?`
+                : `Are you sure you want to delete the ${selectedIds.size} selected teachers?`;
+
+            if (window.confirm(confirmMsg)) {
+                try {
+                    const promises = Array.from(selectedIds).map(id => {
+                        if (activeTab === 'directory') {
+                            return axios.delete(`/api/users/${id}`);
+                        } else if (activeTab === 'attendance') {
+                            return axios.delete(`/api/users/${id}/physical-attendance/${attendanceDate}`);
+                        }
+                        return Promise.resolve();
+                    });
+
+                    await Promise.all(promises);
+                    toast.success('Successfully completed bulk deletion');
+                    setSelectedIds(new Set());
+                    setBulkAction('');
+                    fetchData();
+                } catch (err) {
+                    console.error("Bulk delete error:", err);
+                    toast.error('Failed to complete some actions');
+                }
             }
         }
     };
@@ -563,16 +614,37 @@ const TeachersList = () => {
                 <>
                     {/* Filters */}
                     <div className="bg-white p-3 rounded-2xl shadow-sm border border-slate-100 flex flex-col sm:flex-row items-start sm:items-center gap-3 flex-wrap w-full animate-fade-in">
-                <div className="relative w-full sm:flex-1 sm:min-w-[180px] sm:max-w-xs">
-                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                    <input
-                        type="text"
-                        placeholder="Search by Name or ID..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-100 rounded-2xl pl-10 pr-4 py-3 text-sm font-bold text-slate-700 placeholder-slate-400 outline-none focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500/50 transition-all"
-                    />
-                </div>
+                        <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:flex-1 sm:max-w-md">
+                            <div className="relative w-full sm:flex-1">
+                                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                                <input
+                                    type="text"
+                                    placeholder="Search by Name or ID..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl pl-10 pr-4 py-2.5 text-sm font-bold text-slate-700 placeholder-slate-400 outline-none focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500/50 transition-all"
+                                />
+                            </div>
+                            <div className="flex items-center gap-2 w-full sm:w-auto">
+                                <select
+                                    value={bulkAction}
+                                    onChange={(e) => setBulkAction(e.target.value)}
+                                    className="bg-slate-50 border border-slate-100 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 outline-none cursor-pointer h-[38px] min-w-[120px]"
+                                >
+                                    <option value="">Bulk Action</option>
+                                    <option value="edit">Edit Selected</option>
+                                    <option value="delete">Delete Selected</option>
+                                </select>
+                                <button
+                                    type="button"
+                                    onClick={handleApplyBulkAction}
+                                    disabled={selectedIds.size === 0 || !bulkAction}
+                                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-100 disabled:text-slate-400 text-white rounded-xl text-xs font-bold transition-all disabled:cursor-not-allowed cursor-pointer whitespace-nowrap h-[38px] active:scale-95 flex items-center justify-center border border-transparent disabled:border-slate-100"
+                                >
+                                    Apply to All ({selectedIds.size})
+                                </button>
+                            </div>
+                        </div>
 
                 <div className="flex flex-row items-center gap-2 flex-wrap">
                     {/* Entries selector */}
@@ -673,6 +745,20 @@ const TeachersList = () => {
                     <table className="min-w-full text-left border-collapse">
                         <thead>
                             <tr className="bg-slate-50 border border-slate-200 text-slate-500 text-sm uppercase tracking-wider">
+                                <th className="p-4 w-10">
+                                    <input
+                                        type="checkbox"
+                                        checked={paginatedTeachers.length > 0 && selectedIds.size === paginatedTeachers.length}
+                                        onChange={() => {
+                                            if (selectedIds.size === paginatedTeachers.length) {
+                                                setSelectedIds(new Set());
+                                            } else {
+                                                setSelectedIds(new Set(paginatedTeachers.map(item => item._id)));
+                                            }
+                                        }}
+                                        className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer accent-indigo-650"
+                                    />
+                                </th>
                                 <th className="p-4 font-semibold whitespace-nowrap">Teacher Name</th>
                                 <th className="p-4 font-semibold whitespace-nowrap">ID</th>
                                 <th className="p-4 font-semibold whitespace-nowrap">Subjects</th>
@@ -687,6 +773,24 @@ const TeachersList = () => {
                              {paginatedTeachers.length > 0 ? (
                                 paginatedTeachers.map((teacher) => (
                                     <tr key={teacher._id} className="hover:bg-slate-50 transition-colors group">
+                                        <td className="p-4 w-10">
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedIds.has(teacher._id)}
+                                                onChange={() => {
+                                                    setSelectedIds(prev => {
+                                                        const next = new Set(prev);
+                                                        if (next.has(teacher._id)) {
+                                                            next.delete(teacher._id);
+                                                        } else {
+                                                            next.add(teacher._id);
+                                                        }
+                                                        return next;
+                                                    });
+                                                }}
+                                                className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer accent-indigo-650"
+                                            />
+                                        </td>
                                         <td className="p-4 whitespace-nowrap">
                                             <div className="flex items-center gap-3">
                                                 <div
@@ -770,7 +874,7 @@ const TeachersList = () => {
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan="8" className="p-8 text-center text-slate-500">
+                                    <td colSpan="9" className="p-8 text-center text-slate-500">
                                         No teachers found.
                                     </td>
                                 </tr>
@@ -851,15 +955,35 @@ const TeachersList = () => {
                 <div className="space-y-6 animate-fade-in">
                     {/* Attendance Filter Row */}
                     <div className="bg-white p-3 rounded-2xl shadow-sm border border-slate-100 flex flex-row items-center gap-3 flex-wrap md:flex-nowrap w-full">
-                        <div className="relative flex-1 min-w-[180px] max-w-xs">
-                            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                            <input
-                                type="text"
-                                placeholder="Search by Name or ID..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-full bg-slate-50 border border-slate-100 rounded-2xl pl-10 pr-4 py-3 text-sm font-bold text-slate-700 placeholder-slate-400 outline-none focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500/50 transition-all"
-                            />
+                        <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:flex-1 sm:max-w-md animate-fade-in">
+                            <div className="relative w-full sm:flex-1">
+                                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                                <input
+                                    type="text"
+                                    placeholder="Search by Name or ID..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl pl-10 pr-4 py-2.5 text-sm font-bold text-slate-700 placeholder-slate-400 outline-none focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500/50 transition-all"
+                                />
+                            </div>
+                            <div className="flex items-center gap-2 w-full sm:w-auto">
+                                <select
+                                    value={bulkAction}
+                                    onChange={(e) => setBulkAction(e.target.value)}
+                                    className="bg-slate-50 border border-slate-100 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 outline-none cursor-pointer h-[38px] min-w-[120px]"
+                                >
+                                    <option value="">Bulk Action</option>
+                                    <option value="delete">Delete Selected</option>
+                                </select>
+                                <button
+                                    type="button"
+                                    onClick={handleApplyBulkAction}
+                                    disabled={selectedIds.size === 0 || !bulkAction}
+                                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-100 disabled:text-slate-400 text-white rounded-xl text-xs font-bold transition-all disabled:cursor-not-allowed cursor-pointer whitespace-nowrap h-[38px] active:scale-95 flex items-center justify-center border border-transparent disabled:border-slate-100"
+                                >
+                                    Apply to All ({selectedIds.size})
+                                </button>
+                            </div>
                         </div>
 
                         <div className="flex flex-row items-center gap-2.5 flex-wrap md:flex-nowrap">
@@ -920,13 +1044,27 @@ const TeachersList = () => {
                             <table className="w-full text-left border-collapse table-fixed">
                                 <thead>
                                     <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 text-xs uppercase tracking-wider font-semibold">
-                                        <th className="p-4 w-[24%] text-left">Teacher Name</th>
+                                        <th className="p-4 w-[5%] text-left">
+                                            <input
+                                                type="checkbox"
+                                                checked={paginatedTeachers.length > 0 && selectedIds.size === paginatedTeachers.length}
+                                                onChange={() => {
+                                                    if (selectedIds.size === paginatedTeachers.length) {
+                                                        setSelectedIds(new Set());
+                                                    } else {
+                                                        setSelectedIds(new Set(paginatedTeachers.map(item => item._id)));
+                                                    }
+                                                }}
+                                                className="w-4 h-4 rounded text-indigo-650 focus:ring-indigo-500 cursor-pointer accent-indigo-650"
+                                            />
+                                        </th>
+                                        <th className="p-4 w-[22%] text-left">Teacher Name</th>
                                         <th className="p-4 w-[10%] text-center">ID</th>
-                                        <th className="p-4 w-[22%] text-left">Institute</th>
-                                        <th className="p-4 w-[16%] text-center">Attendance Status</th>
-                                        <th className="p-4 w-[16%] text-center">Check-In / Out</th>
-                                        <th className="p-4 w-[8%] text-center">Time</th>
-                                        <th className="p-4 w-[8%] text-right">Actions</th>
+                                        <th className="p-4 w-[20%] text-left">Institute</th>
+                                        <th className="p-4 w-[15%] text-center">Attendance Status</th>
+                                        <th className="p-4 w-[15%] text-center">Check-In / Out</th>
+                                        <th className="p-4 w-[7%] text-center">Time</th>
+                                        <th className="p-4 w-[6%] text-right">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100">
@@ -935,6 +1073,24 @@ const TeachersList = () => {
                                             const record = attendanceRecords[teacher._id] || { status: '', checkInTime: '', checkOutTime: '' };
                                             return (
                                                 <tr key={teacher._id} className="hover:bg-slate-50/50 transition-colors group">
+                                                    <td className="p-4 w-[5%]">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={selectedIds.has(teacher._id)}
+                                                            onChange={() => {
+                                                                setSelectedIds(prev => {
+                                                                    const next = new Set(prev);
+                                                                    if (next.has(teacher._id)) {
+                                                                        next.delete(teacher._id);
+                                                                    } else {
+                                                                        next.add(teacher._id);
+                                                                    }
+                                                                    return next;
+                                                                });
+                                                            }}
+                                                            className="w-4 h-4 rounded text-indigo-655 focus:ring-indigo-500 cursor-pointer accent-indigo-650"
+                                                        />
+                                                    </td>
                                                     <td className="p-4">
                                                         <div className="flex items-center gap-3">
                                                             <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-xs shrink-0">
@@ -985,7 +1141,7 @@ const TeachersList = () => {
                                         })
                                     ) : (
                                         <tr>
-                                            <td colSpan="7" className="p-8 text-center text-slate-500 font-bold">
+                                            <td colSpan="9" className="p-8 text-center text-slate-500 font-bold">
                                                 No teachers found.
                                             </td>
                                         </tr>
@@ -1092,6 +1248,13 @@ const TeachersList = () => {
                     onClose={() => setSelectedTeacherId(null)}
                 />
             )}
+            <BulkEditModal
+                isOpen={isBulkEditOpen}
+                onClose={() => setIsBulkEditOpen(false)}
+                type="teacher"
+                selectedIds={Array.from(selectedIds)}
+                onSuccess={fetchData}
+            />
         </DashboardLayout>
     );
 };

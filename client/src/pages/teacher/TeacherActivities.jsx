@@ -190,6 +190,7 @@ const TeacherActivities = () => {
     const [activeDropdownInboxId, setActiveDropdownInboxId] = useState(null);
     const [activeDropdownTestId, setActiveDropdownTestId] = useState(null);
     const [renameInboxId, setRenameInboxId] = useState(null);
+    const [renameSubject, setRenameSubject] = useState('');
 
     // States for feedback/report chat modal
     const [feedbackChatModalOpen, setFeedbackChatModalOpen] = useState(false);
@@ -635,8 +636,8 @@ const TeacherActivities = () => {
     };
 
     // Open bulk inbox config modal
-    const openBulkInboxConfigModal = (inboxId, newVisible, newDisabled, currentDisplayName, actionType) => {
-        setBulkInboxConfigModal({ inboxId, visible: newVisible, disabled: newDisabled, currentDisplayName, actionType });
+    const openBulkInboxConfigModal = (inboxId, newVisible, newDisabled, currentDisplayName, actionType, subject) => {
+        setBulkInboxConfigModal({ inboxId, visible: newVisible, disabled: newDisabled, currentDisplayName, actionType, subject });
         setBulkSelectedStudents(selectedStudent ? [selectedStudent._id] : []);
         setActiveDropdownInboxId(null);
     };
@@ -653,7 +654,8 @@ const TeacherActivities = () => {
                         inboxId: bulkInboxConfigModal.inboxId,
                         displayName: bulkInboxConfigModal.currentDisplayName,
                         visible: bulkInboxConfigModal.visible,
-                        disabled: bulkInboxConfigModal.disabled
+                        disabled: bulkInboxConfigModal.disabled,
+                        subject: bulkInboxConfigModal.subject
                     })
                 )
             );
@@ -671,14 +673,15 @@ const TeacherActivities = () => {
         }
     };
 
-    const handleUpdateInboxConfig = async (inboxId, displayName, visible) => {
+    const handleUpdateInboxConfig = async (inboxId, displayName, visible, subject) => {
         if (!selectedStudent) return;
         try {
             const { data } = await axios.post('/api/users/inbox-configs', {
                 studentId: selectedStudent._id,
                 inboxId,
                 displayName,
-                visible
+                visible,
+                subject
             });
             setInboxConfigs(prev => {
                 const copy = [...prev];
@@ -928,89 +931,6 @@ const TeacherActivities = () => {
         return Math.max(maxIndex, 5); // Default to at least 5 inboxes
     }, [selectedStudent, selectedStudentActiveCourseObj, assignedTests]);
 
-    // Group assigned tests by index for the student
-    const dynamicInboxItems = useMemo(() => {
-        if (!selectedStudent) return [];
-
-        // Group tests by normalized index
-        const testsGrouped = assignedTests.reduce((acc, test) => {
-            const indexStr = test.index || 'No Index';
-            const normalized = indexStr.trim().toLowerCase();
-            if (!acc[normalized]) acc[normalized] = [];
-            acc[normalized].push(test);
-            return acc;
-        }, {});
-
-        // Group study materials by normalized index
-        const materialsGrouped = allStudyMaterials.reduce((acc, mat) => {
-            const indexStr = mat.inboxId || 'No Index';
-            const normalized = indexStr.trim().toLowerCase();
-            if (!acc[normalized]) acc[normalized] = [];
-            acc[normalized].push(mat);
-            return acc;
-        }, {});
-
-        // Generate standard keys from 1 to courseDuration
-        const standardKeys = [];
-        for (let i = 1; i <= courseDuration; i++) {
-            standardKeys.push(`Index ${i}`);
-        }
-
-        // Add any other keys present in testsGrouped or materialsGrouped that are not standard
-        const allKeys = [...standardKeys];
-        const addKeyIfNew = (key) => {
-            const norm = key.trim().toLowerCase();
-            const exists = standardKeys.some(sk => sk.trim().toLowerCase() === norm);
-            if (!exists) {
-                const pretty = key.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-                allKeys.push(pretty);
-            }
-        };
-
-        Object.keys(testsGrouped).forEach(addKeyIfNew);
-        Object.keys(materialsGrouped).forEach(addKeyIfNew);
-
-        const enrollmentDate = selectedStudent?.studentProfile?.enrollmentDate || selectedStudent?.createdAt || new Date();
-
-        return allKeys.map(keyName => {
-            const normalized = keyName.trim().toLowerCase();
-            const testsInInbox = testsGrouped[normalized] || [];
-            const materialsInInbox = materialsGrouped[normalized] || [];
-
-            const config = inboxConfigs.find(c => c.inboxId?.trim().toLowerCase() === normalized);
-            const isVisible = config ? config.visible : true;
-            
-            const match = keyName.match(/\d+/);
-            const idxNum = match ? parseInt(match[0], 10) : 1;
-            const week = Math.ceil(idxNum / 7);
-            const offsetDays = (week - 1) * 7;
-            const inboxUnlockDateMs = new Date(enrollmentDate).getTime() + offsetDays * 24 * 60 * 60 * 1000;
-            const isInboxDisabledByDefault = Date.now() < inboxUnlockDateMs;
-
-            const isInboxDisabled = config && config.disabled !== undefined ? config.disabled : isInboxDisabledByDefault;
-            
-            const customTitle = config && config.displayName ? config.displayName : keyName;
-
-            return {
-                id: keyName,
-                title: customTitle,
-                completed: testsInInbox.filter(t => {
-                    const sub = submissionMap.get(t._id);
-                    return sub && sub.status === 'evaluated';
-                }).length,
-                pending: testsInInbox.filter(t => {
-                    const sub = submissionMap.get(t._id);
-                    return !sub || sub.status !== 'evaluated';
-                }).length,
-                tests: testsInInbox,
-                visible: isVisible,
-                disabled: isInboxDisabled,
-                materials: materialsInInbox,
-                hasContent: testsInInbox.length > 0 || materialsInInbox.length > 0
-            };
-        });
-    }, [selectedStudent, assignedTests, allStudyMaterials, submissionMap, inboxConfigs, courseDuration]);
-
     const subjectDaysMapping = useMemo(() => {
         if (!selectedStudent || !selectedStudentActiveCourseObj) return [];
         const course = selectedStudentActiveCourseObj;
@@ -1118,11 +1038,100 @@ const TeacherActivities = () => {
         return mapping;
     }, [selectedStudent, selectedStudentActiveCourseObj, selectedStudentAssignedSubjects]);
 
+    // Group assigned tests by index for the student
+    const dynamicInboxItems = useMemo(() => {
+        if (!selectedStudent) return [];
+
+        // Group tests by normalized index
+        const testsGrouped = assignedTests.reduce((acc, test) => {
+            const indexStr = test.index || 'No Index';
+            const normalized = indexStr.trim().toLowerCase();
+            if (!acc[normalized]) acc[normalized] = [];
+            acc[normalized].push(test);
+            return acc;
+        }, {});
+
+        // Group study materials by normalized index
+        const materialsGrouped = allStudyMaterials.reduce((acc, mat) => {
+            const indexStr = mat.inboxId || 'No Index';
+            const normalized = indexStr.trim().toLowerCase();
+            if (!acc[normalized]) acc[normalized] = [];
+            acc[normalized].push(mat);
+            return acc;
+        }, {});
+
+        // Generate standard keys from 1 to courseDuration
+        const standardKeys = [];
+        for (let i = 1; i <= courseDuration; i++) {
+            standardKeys.push(`Index ${i}`);
+        }
+
+        // Add any other keys present in testsGrouped or materialsGrouped that are not standard
+        const allKeys = [...standardKeys];
+        const addKeyIfNew = (key) => {
+            const norm = key.trim().toLowerCase();
+            const exists = standardKeys.some(sk => sk.trim().toLowerCase() === norm);
+            if (!exists) {
+                const pretty = key.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+                allKeys.push(pretty);
+            }
+        };
+
+        Object.keys(testsGrouped).forEach(addKeyIfNew);
+        Object.keys(materialsGrouped).forEach(addKeyIfNew);
+
+        const enrollmentDate = selectedStudent?.studentProfile?.enrollmentDate || selectedStudent?.createdAt || new Date();
+
+        return allKeys.map(keyName => {
+            const normalized = keyName.trim().toLowerCase();
+            const testsInInbox = testsGrouped[normalized] || [];
+            const materialsInInbox = materialsGrouped[normalized] || [];
+
+            const subjectName = (() => {
+                for (const group of subjectDaysMapping) {
+                    if (group.days.some(d => d.id.trim().toLowerCase() === normalized)) {
+                        return group.subjectName;
+                    }
+                }
+                return '';
+            })();
+            const config = inboxConfigs.find(c => 
+                c.inboxId?.trim().toLowerCase() === normalized &&
+                (!c.subject || c.subject.trim().toLowerCase() === subjectName.trim().toLowerCase())
+            );
+            const isVisible = config ? config.visible : true;
+            
+            const isInboxDisabledByDefault = false;
+
+            const isInboxDisabled = config && config.disabled !== undefined ? config.disabled : isInboxDisabledByDefault;
+            
+            const customTitle = config && config.displayName ? config.displayName : keyName;
+
+            return {
+                id: keyName,
+                title: customTitle,
+                completed: testsInInbox.filter(t => {
+                    const sub = submissionMap.get(t._id);
+                    return sub && sub.status === 'evaluated';
+                }).length,
+                pending: testsInInbox.filter(t => {
+                    const sub = submissionMap.get(t._id);
+                    return !sub || sub.status !== 'evaluated';
+                }).length,
+                tests: testsInInbox,
+                visible: isVisible,
+                disabled: isInboxDisabled,
+                materials: materialsInInbox,
+                hasContent: testsInInbox.length > 0 || materialsInInbox.length > 0
+            };
+        });
+    }, [selectedStudent, assignedTests, allStudyMaterials, submissionMap, inboxConfigs, courseDuration, subjectDaysMapping]);
+
     useEffect(() => {
         if (subjectDaysMapping.length > 0) {
             const initial = {};
             subjectDaysMapping.forEach(g => {
-                initial[g.subjectName] = true;
+                initial[g.subjectName] = false;
             });
             setExpandedSubjects(initial);
         }
@@ -1141,7 +1150,10 @@ const TeacherActivities = () => {
                 const matchesSearch = getDisplayTitle(inboxItem.title).toLowerCase().includes(inboxSearchQuery.toLowerCase());
                 if (!matchesSearch) return null;
 
-                const config = inboxConfigs.find(c => c.inboxId?.trim().toLowerCase() === day.id?.trim().toLowerCase());
+                const config = inboxConfigs.find(c => 
+                    c.inboxId?.trim().toLowerCase() === day.id?.trim().toLowerCase() &&
+                    (!c.subject || c.subject.trim().toLowerCase() === group.subjectName.trim().toLowerCase())
+                );
                 const cleanDisplayName = config && config.displayName ? config.displayName : `Inbox ${day.dayNum}`;
                 const titleWithIndex = cleanDisplayName;
 
@@ -1195,7 +1207,11 @@ const TeacherActivities = () => {
 
     const headerTitle = useMemo(() => {
         if (!selectedInboxId) return 'Select an Inbox';
-        const config = inboxConfigs.find(c => c.inboxId?.trim().toLowerCase() === selectedInboxId.trim().toLowerCase());
+        const subj = activeDayDetails?.subjectName;
+        const config = inboxConfigs.find(c => 
+            c.inboxId?.trim().toLowerCase() === selectedInboxId.trim().toLowerCase() &&
+            (!c.subject || c.subject.trim().toLowerCase() === subj?.trim().toLowerCase())
+        );
         if (config && config.displayName) return config.displayName;
         if (activeDayDetails) return `Inbox ${activeDayDetails.dayNum}`;
         return selectedGroup ? getDisplayTitle(selectedGroup.title) : 'Inbox';
@@ -1711,7 +1727,7 @@ const TeacherActivities = () => {
                                         </div>
                                     ) : groupedInboxItems.length > 0 ? (
                                         groupedInboxItems.map(group => {
-                                            const isExpanded = expandedSubjects[group.subjectName] !== false;
+                                            const isExpanded = expandedSubjects[group.subjectName] === true;
                                             return (
                                                 <div key={group.subjectName} className="space-y-1.5 animate-fade-in mb-3">
                                                     <div
@@ -1825,9 +1841,9 @@ const TeacherActivities = () => {
                                                                                     >
                                                                                         <button
                                                                                             onClick={() => {
-                                                                                                const config = inboxConfigs.find(c => c.inboxId?.trim().toLowerCase() === item.id?.trim().toLowerCase());
+                                                                                                const config = inboxConfigs.find(c => c.inboxId?.trim().toLowerCase() === item.id?.trim().toLowerCase() && (!c.subject || c.subject.trim().toLowerCase() === group.subjectName.trim().toLowerCase()));
                                                                                                 const currentDisplayName = config ? config.displayName : '';
-                                                                                                openBulkInboxConfigModal(item.id, !item.visible, item.disabled, currentDisplayName, 'hide');
+                                                                                                openBulkInboxConfigModal(item.id, !item.visible, item.disabled, currentDisplayName, 'hide', group.subjectName);
                                                                                             }}
                                                                                             className="w-full px-3 py-1.5 hover:bg-slate-50 flex items-center justify-between text-[10px] font-extrabold transition-colors"
                                                                                         >
@@ -1838,9 +1854,9 @@ const TeacherActivities = () => {
                                                                                         </button>
                                                                                         <button
                                                                                             onClick={() => {
-                                                                                                const config = inboxConfigs.find(c => c.inboxId?.trim().toLowerCase() === item.id?.trim().toLowerCase());
+                                                                                                const config = inboxConfigs.find(c => c.inboxId?.trim().toLowerCase() === item.id?.trim().toLowerCase() && (!c.subject || c.subject.trim().toLowerCase() === group.subjectName.trim().toLowerCase()));
                                                                                                 const currentDisplayName = config ? config.displayName : '';
-                                                                                                openBulkInboxConfigModal(item.id, item.visible, !item.disabled, currentDisplayName, 'disable');
+                                                                                                openBulkInboxConfigModal(item.id, item.visible, !item.disabled, currentDisplayName, 'disable', group.subjectName);
                                                                                             }}
                                                                                             className="w-full px-3 py-1.5 hover:bg-slate-50 flex items-center justify-between text-[10px] font-extrabold transition-colors border-t border-slate-100"
                                                                                         >
@@ -1852,7 +1868,8 @@ const TeacherActivities = () => {
                                                                                         <button
                                                                                             onClick={() => {
                                                                                                 setRenameInboxId(item.id);
-                                                                                                const config = inboxConfigs.find(c => c.inboxId?.trim().toLowerCase() === item.id?.trim().toLowerCase());
+                                                                                                setRenameSubject(group.subjectName);
+                                                                                                const config = inboxConfigs.find(c => c.inboxId?.trim().toLowerCase() === item.id?.trim().toLowerCase() && (!c.subject || c.subject.trim().toLowerCase() === group.subjectName.trim().toLowerCase()));
                                                                                                 setRenameValue(config && config.displayName ? config.displayName : item.id);
                                                                                                 setActiveDropdownInboxId(null);
                                                                                             }}
@@ -3575,11 +3592,12 @@ const TeacherActivities = () => {
                             </button>
                             <button
                                 onClick={async () => {
-                                    const config = inboxConfigs.find(c => c.inboxId === renameInboxId);
+                                    const config = inboxConfigs.find(c => c.inboxId === renameInboxId && (!c.subject || c.subject.trim().toLowerCase() === renameSubject.trim().toLowerCase()));
                                     const isVisible = config ? config.visible : true;
-                                    await handleUpdateInboxConfig(renameInboxId, renameValue.trim(), isVisible);
+                                    await handleUpdateInboxConfig(renameInboxId, renameValue.trim(), isVisible, renameSubject);
                                     setRenameInboxId(null);
                                     setRenameValue('');
+                                    setRenameSubject('');
                                 }}
                                 className="flex-1 py-3.5 bg-[#3E3ADD] hover:bg-[#322ebd] text-white font-bold rounded-2xl text-xs transition-colors shadow-lg shadow-indigo-100"
                             >

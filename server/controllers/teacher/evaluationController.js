@@ -19,12 +19,18 @@ const getSubmissions = asyncHandler(async (req, res) => {
         const assignedSubjects = teacher.teacherProfile?.subjects || [];
 
         // Find tests matching teacher's assignments
-        const matchingTests = await Test.find({
-            $or: [
-                { course: { $in: assignedCourseNames } },
-                { subject: { $in: assignedSubjects } }
-            ]
-        }).select('_id');
+        const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const testOrQueries = [];
+        assignedCourseNames.forEach(cName => {
+            testOrQueries.push({ course: { $regex: new RegExp(`(^|,)\\s*${escapeRegex(cName)}\\s*(,|$)`, 'i') } });
+        });
+        assignedSubjects.forEach(sub => {
+            testOrQueries.push({ subject: { $regex: new RegExp(`(^|,)\\s*${escapeRegex(sub)}\\s*(,|$)`, 'i') } });
+        });
+
+        const matchingTests = await Test.find(
+            testOrQueries.length > 0 ? { $or: testOrQueries } : { _id: null }
+        ).select('_id');
 
         const testIds = matchingTests.map(t => t._id);
 

@@ -346,10 +346,31 @@ const getCourses = asyncHandler(async (req, res) => {
         query.institute = req.user.institute;
     }
 
+    // If teacher role, limit to assigned courses
+    if (req.user && req.user.role === 'Teacher') {
+        const teacher = await User.findById(req.user._id);
+        const assignedCourses = teacher?.teacherProfile?.assignedCourses || [];
+        query._id = { $in: assignedCourses };
+    }
+
     // Populate institute and createdBy details
     const courses = await Course.find(query)
         .populate('institute')
         .populate('createdBy', 'name email role');
+
+    // Filter subjects and durations for teachers
+    if (req.user && req.user.role === 'Teacher') {
+        const teacher = await User.findById(req.user._id);
+        const teacherSubjects = teacher?.teacherProfile?.subjects || [];
+        const filteredCourses = courses.map(course => {
+            const courseObj = course.toObject();
+            courseObj.subjects = (courseObj.subjects || []).filter(subject => teacherSubjects.includes(subject));
+            courseObj.subjectDurations = (courseObj.subjectDurations || []).filter(sd => teacherSubjects.includes(sd.subjectName));
+            return courseObj;
+        });
+        return res.json(filteredCourses);
+    }
+
     res.json(courses);
 });
 
@@ -1523,6 +1544,61 @@ const updateSubjectDetails = asyncHandler(async (req, res) => {
     });
 });
 
+// @desc    Delete a subject from a course (or all courses)
+// @route   DELETE /api/setup/subjects
+// @access  Private/Admin
+const deleteSubject = asyncHandler(async (req, res) => {
+    const { courseId, subjectName } = req.body;
+
+    if (!subjectName) {
+        res.status(400);
+        throw new Error('Subject name is required');
+    }
+
+    const query = {};
+    if (courseId) {
+        query._id = courseId;
+    }
+    if (req.user && (req.user.role === 'Institute' || req.user.role === 'Editor')) {
+        query.institute = req.user.institute;
+    }
+
+    const courses = await Course.find(query);
+
+    for (const course of courses) {
+        course.subjects = course.subjects.filter(s => s.toLowerCase() !== subjectName.toLowerCase());
+        if (course.subjectDurations) {
+            course.subjectDurations = course.subjectDurations.filter(sd => sd.subjectName?.toLowerCase() !== subjectName.toLowerCase());
+        }
+        await course.save();
+
+        // Also remove from students in that course
+        const students = await User.find({ role: 'Student', 'studentProfile.course': course._id });
+        for (const student of students) {
+            if (student.studentProfile?.subject) {
+                let studentSubjects = student.studentProfile.subject.split(',').map(s => s.trim());
+                studentSubjects = studentSubjects.filter(s => s.toLowerCase() !== subjectName.toLowerCase());
+                student.studentProfile.subject = studentSubjects.join(', ');
+                await student.save();
+            }
+        }
+        
+        // Also remove from teachers teaching this course
+        const teachers = await User.find({ role: 'Teacher', 'teacherProfile.assignedCourses': course._id });
+        for (const teacher of teachers) {
+            if (teacher.teacherProfile?.subjects) {
+                const originalSubjects = teacher.teacherProfile.subjects;
+                teacher.teacherProfile.subjects = originalSubjects.filter(s => s.toLowerCase() !== subjectName.toLowerCase());
+                if (teacher.teacherProfile.subjects.length !== originalSubjects.length) {
+                    await teacher.save();
+                }
+            }
+        }
+    }
+
+    res.json({ message: 'Subject deleted successfully' });
+});
+
 const importInstitutes = asyncHandler(async (req, res) => {
     const { institutes } = req.body;
     if (!Array.isArray(institutes)) {
@@ -1650,5 +1726,6 @@ module.exports = {
     restoreApplication,
     permanentlyDeleteApplication,
     importApplications,
-    toggleCourseFlag
+    toggleCourseFlag,
+    deleteSubject
 };

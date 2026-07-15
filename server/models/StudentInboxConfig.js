@@ -10,6 +10,14 @@ const studentInboxConfigSchema = new mongoose.Schema({
         type: String,
         required: true
     },
+    subject: {
+        type: String,
+        default: ''
+    },
+    course: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Course'
+    },
     displayName: {
         type: String,
         default: ''
@@ -26,8 +34,18 @@ const studentInboxConfigSchema = new mongoose.Schema({
     timestamps: true
 });
 
-// Composite index to ensure unique configurations per student and inbox
-studentInboxConfigSchema.index({ student: 1, inboxId: 1 }, { unique: true });
+// Drop old composite index if it exists, to avoid unique conflicts without subject
+mongoose.connection.on('open', async () => {
+    try {
+        const collection = mongoose.connection.collection('studentinboxconfigs');
+        await collection.dropIndex('student_1_inboxId_1');
+    } catch (e) {
+        // Index might not exist, ignore
+    }
+});
+
+// New unique index per student, inboxId, and subject
+studentInboxConfigSchema.index({ student: 1, inboxId: 1, subject: 1 }, { unique: true });
 
 const StudentInboxConfig = mongoose.model('StudentInboxConfig', studentInboxConfigSchema);
 module.exports = StudentInboxConfig;

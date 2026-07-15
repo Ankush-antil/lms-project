@@ -9,6 +9,7 @@ const {
     deletePhysicalAttendance,
     updateFeeStatus,
     markBulkPhysicalAttendance,
+    getInboxConfigsByCourseSubject,
     getInboxConfigs,
     saveInboxConfig,
     getActivityConfigs,
@@ -35,6 +36,7 @@ const { protect, adminOrEditor } = require('../../middleware/authMiddleware');
 router.get('/view/:id', protect, getUserById);
 
 // Student Inbox Configs
+router.get('/inbox-configs/course-subject', protect, getInboxConfigsByCourseSubject);
 router.get('/inbox-configs', protect, getInboxConfigs);
 router.get('/inbox-configs/:studentId', protect, getInboxConfigs);
 router.post('/inbox-configs', protect, saveInboxConfig);

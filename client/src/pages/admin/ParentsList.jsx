@@ -8,6 +8,7 @@ import DashboardLayout from '../../components/layout/DashboardLayout';
 import { Download,  Upload,  Search, Plus, Trash2, Edit, Filter, ChevronDown } from 'lucide-react';
 import AddUserModal from '../../components/AddUserModal';
 import EditUserModal from '../../components/EditUserModal';
+import BulkEditModal from '../../components/common/BulkEditModal';
 import { useUserProfile } from '../../components/common/UserProfileContext';
 
 const ParentsList = () => {
@@ -26,6 +27,16 @@ const ParentsList = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [selectedUser, setSelectedUser] = useState(null);
+
+    // Bulk actions
+    const [selectedIds, setSelectedIds] = useState(new Set());
+    const [bulkAction, setBulkAction] = useState('');
+    const [isBulkEditOpen, setIsBulkEditOpen] = useState(false);
+
+    useEffect(() => {
+        setSelectedIds(new Set());
+        setBulkAction('');
+    }, []);
 
     useEffect(() => {
         setCurrentPage(1);
@@ -58,6 +69,30 @@ const ParentsList = () => {
                 toast.success('Parent deleted successfully');
             } catch (error) {
                 toast.error('Error deleting parent');
+            }
+        }
+    };
+
+    const handleApplyBulkAction = async () => {
+        if (selectedIds.size === 0 || !bulkAction) return;
+
+        if (bulkAction === 'edit') {
+            setIsBulkEditOpen(true);
+            return;
+        }
+
+        if (bulkAction === 'delete') {
+            if (window.confirm(`Are you sure you want to delete the ${selectedIds.size} selected parents?`)) {
+                try {
+                    await Promise.all(Array.from(selectedIds).map(id => axios.delete(`/api/users/${id}`)));
+                    toast.success('Successfully deleted selected parents');
+                    setSelectedIds(new Set());
+                    setBulkAction('');
+                    fetchData();
+                } catch (err) {
+                    console.error("Bulk delete error:", err);
+                    toast.error('Failed to delete some parents');
+                }
             }
         }
     };
@@ -427,15 +462,36 @@ const ParentsList = () => {
 
             <div className="bg-white border border-slate-150 rounded-3xl p-4 mb-6 shadow-sm flex flex-col md:flex-row gap-4 items-center justify-between">
                 <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
-                    <div className="relative w-full md:max-w-xs">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                        <input
-                            type="text"
-                            placeholder="Search by name, email, student..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-semibold"
-                        />
+                    <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-[480px]">
+                        <div className="relative w-full sm:flex-1">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                            <input
+                                type="text"
+                                placeholder="Search by name, email, student..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-semibold"
+                            />
+                        </div>
+                        <div className="flex items-center gap-2 w-full sm:w-auto">
+                            <select
+                                value={bulkAction}
+                                onChange={(e) => setBulkAction(e.target.value)}
+                                className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 outline-none cursor-pointer h-[38px] min-w-[120px]"
+                            >
+                                <option value="">Bulk Action</option>
+                                <option value="edit">Edit Selected</option>
+                                <option value="delete">Delete Selected</option>
+                            </select>
+                            <button
+                                type="button"
+                                onClick={handleApplyBulkAction}
+                                disabled={selectedIds.size === 0 || !bulkAction}
+                                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-100 disabled:text-slate-400 text-white rounded-xl text-xs font-bold transition-all disabled:cursor-not-allowed cursor-pointer whitespace-nowrap h-[38px] active:scale-95 flex items-center justify-center border border-transparent disabled:border-slate-100"
+                            >
+                                Apply to All ({selectedIds.size})
+                            </button>
+                        </div>
                     </div>
                     {user?.role === 'Admin' && (
                         <div className="relative w-full md:w-[220px]">
@@ -465,6 +521,20 @@ const ParentsList = () => {
                     <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className="bg-slate-50/50 border-b border-slate-150 text-[11px] font-black text-slate-450 uppercase tracking-wider">
+                                <th className="px-6 py-4 w-10">
+                                    <input
+                                        type="checkbox"
+                                        checked={paginatedParents.length > 0 && selectedIds.size === paginatedParents.length}
+                                        onChange={() => {
+                                            if (selectedIds.size === paginatedParents.length) {
+                                                setSelectedIds(new Set());
+                                            } else {
+                                                setSelectedIds(new Set(paginatedParents.map(item => item._id)));
+                                            }
+                                        }}
+                                        className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer accent-indigo-650"
+                                    />
+                                </th>
                                 <th className="px-6 py-4">Name</th>
                                 <th className="px-6 py-4">Phone</th>
                                 <th className="px-6 py-4">Linked Student</th>
@@ -475,13 +545,31 @@ const ParentsList = () => {
                         <tbody className="divide-y divide-slate-100 text-sm font-medium text-slate-700">
                             {loading ? (
                                 <tr>
-                                    <td colSpan="5" className="text-center py-8 text-slate-400 font-bold">
+                                    <td colSpan="6" className="text-center py-8 text-slate-400 font-bold">
                                         Loading Parents...
                                     </td>
                                 </tr>
                             ) : paginatedParents.length > 0 ? (
                                 paginatedParents.map((parent) => (
                                     <tr key={parent._id} className="hover:bg-slate-50/50 transition-colors">
+                                        <td className="px-6 py-4 w-10">
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedIds.has(parent._id)}
+                                                onChange={() => {
+                                                    setSelectedIds(prev => {
+                                                        const next = new Set(prev);
+                                                        if (next.has(parent._id)) {
+                                                            next.delete(parent._id);
+                                                        } else {
+                                                            next.add(parent._id);
+                                                        }
+                                                        return next;
+                                                    });
+                                                }}
+                                                className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer accent-indigo-650"
+                                            />
+                                        </td>
                                         <td className="px-6 py-4">
                                             <div className="flex flex-col">
                                                 <span className="font-bold text-slate-800">{parent.name}</span>
@@ -539,7 +627,7 @@ const ParentsList = () => {
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan="5" className="text-center py-8 text-slate-400 font-bold">
+                                    <td colSpan="6" className="text-center py-8 text-slate-400 font-bold">
                                         No parents found.
                                     </td>
                                 </tr>
@@ -593,6 +681,13 @@ const ParentsList = () => {
                     onSuccess={fetchData}
                 />
             )}
+            <BulkEditModal
+                isOpen={isBulkEditOpen}
+                onClose={() => setIsBulkEditOpen(false)}
+                type="parent"
+                selectedIds={Array.from(selectedIds)}
+                onSuccess={fetchData}
+            />
         </DashboardLayout>
     );
 };

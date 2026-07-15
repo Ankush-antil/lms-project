@@ -141,14 +141,17 @@ const TeacherAttendance = () => {
         : courses;
 
     const availableSubjects = (() => {
+        if (selectedCourse) {
+            const courseObj = teacherCourses.find(c => c._id === selectedCourse) || courses.find(c => c._id === selectedCourse);
+            if (courseObj && courseObj.subjects) {
+                if (user?.teacherProfile?.subjects && user.teacherProfile.subjects.length > 0) {
+                    return courseObj.subjects.filter(s => user.teacherProfile.subjects.includes(s));
+                }
+                return courseObj.subjects;
+            }
+        }
         if (user?.teacherProfile?.subjects && user.teacherProfile.subjects.length > 0) {
             return user.teacherProfile.subjects;
-        }
-        if (selectedCourse) {
-            const course = courses.find(c => c._id === selectedCourse);
-            if (course && course.subjects) {
-                return course.subjects;
-            }
         }
         return [];
     })();
@@ -430,6 +433,38 @@ const TeacherAttendance = () => {
                                 >
                                     <option value="in">Mark In (Check-in)</option>
                                     <option value="out">Mark Out (Check-out)</option>
+                                </select>
+                            </div>
+
+                            {/* Course selection */}
+                            <div>
+                                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Course</label>
+                                <select
+                                    value={selectedCourse}
+                                    onChange={(e) => setSelectedCourse(e.target.value)}
+                                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-750 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition cursor-pointer"
+                                    required
+                                >
+                                    <option value="">Select Course</option>
+                                    {teacherCourses.map(c => (
+                                        <option key={c._id} value={c._id}>{c.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            {/* Subject selection */}
+                            <div>
+                                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Subject</label>
+                                <select
+                                    value={selectedSubject}
+                                    onChange={(e) => setSelectedSubject(e.target.value)}
+                                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-750 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition cursor-pointer"
+                                    required
+                                >
+                                    <option value="">Select Subject</option>
+                                    {availableSubjects.map((sub, idx) => (
+                                        <option key={idx} value={sub}>{sub}</option>
+                                    ))}
                                 </select>
                             </div>
                         </div>

@@ -8,6 +8,7 @@ import DashboardLayout from '../../components/layout/DashboardLayout';
 import { Download,  Upload,  Search, Plus, Trash2, Edit, Filter, ChevronDown } from 'lucide-react';
 import AddUserModal from '../../components/AddUserModal';
 import EditUserModal from '../../components/EditUserModal';
+import BulkEditModal from '../../components/common/BulkEditModal';
 import { useUserProfile } from '../../components/common/UserProfileContext';
 import TruncatedCell from '../../components/common/TruncatedCell';
 import RecycleBinModal from '../../components/common/RecycleBinModal';
@@ -33,6 +34,11 @@ const EditorsList = () => {
     const [selectedUser, setSelectedUser] = useState(null);
     const [instituteDetails, setInstituteDetails] = useState(null);
     const [isTrashOpen, setIsTrashOpen] = useState(false);
+
+    // Bulk actions
+    const [selectedIds, setSelectedIds] = useState(new Set());
+    const [bulkAction, setBulkAction] = useState('');
+    const [isBulkEditOpen, setIsBulkEditOpen] = useState(false);
 
     useEffect(() => {
         setCurrentPage(1);
@@ -103,6 +109,30 @@ const EditorsList = () => {
                 toast.success('Editor deleted successfully');
             } catch (error) {
                 toast.error('Error deleting editor');
+            }
+        }
+    };
+
+    const handleApplyBulkAction = async () => {
+        if (selectedIds.size === 0 || !bulkAction) return;
+
+        if (bulkAction === 'edit') {
+            setIsBulkEditOpen(true);
+            return;
+        }
+
+        if (bulkAction === 'delete') {
+            if (window.confirm(`Are you sure you want to delete the ${selectedIds.size} selected editors?`)) {
+                try {
+                    await Promise.all(Array.from(selectedIds).map(id => axios.delete(`/api/users/${id}`)));
+                    toast.success('Successfully deleted selected editors');
+                    setSelectedIds(new Set());
+                    setBulkAction('');
+                    fetchData();
+                } catch (err) {
+                    console.error("Bulk delete error:", err);
+                    toast.error('Failed to delete some editors');
+                }
             }
         }
     };
@@ -489,15 +519,36 @@ const EditorsList = () => {
 
             {/* Filters */}
             <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex flex-col md:flex-row gap-4 justify-between items-center mt-6">
-                <div className="relative w-full md:w-96">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-                    <input
-                        type="text"
-                        placeholder="Search by Name, Email or ID..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-10 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
-                    />
+                <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-[480px]">
+                    <div className="relative w-full sm:flex-1">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+                        <input
+                            type="text"
+                            placeholder="Search by Name, Email or ID..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-2.5 px-10 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
+                        />
+                    </div>
+                    <div className="flex items-center gap-2 w-full sm:w-auto">
+                        <select
+                            value={bulkAction}
+                            onChange={(e) => setBulkAction(e.target.value)}
+                            className="bg-slate-50 border border-slate-100 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 outline-none cursor-pointer h-[38px] min-w-[120px]"
+                        >
+                            <option value="">Bulk Action</option>
+                            <option value="edit">Edit Selected</option>
+                            <option value="delete">Delete Selected</option>
+                        </select>
+                        <button
+                            type="button"
+                            onClick={handleApplyBulkAction}
+                            disabled={selectedIds.size === 0 || !bulkAction}
+                            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-100 disabled:text-slate-400 text-white rounded-xl text-xs font-bold transition-all disabled:cursor-not-allowed cursor-pointer whitespace-nowrap h-[38px] active:scale-95 flex items-center justify-center border border-transparent disabled:border-slate-100"
+                        >
+                            Apply to All ({selectedIds.size})
+                        </button>
+                    </div>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-4 w-full md:w-auto justify-between md:justify-end">
@@ -584,6 +635,20 @@ const EditorsList = () => {
                     <table className="min-w-full text-left border-collapse">
                         <thead>
                             <tr className="bg-slate-50 border border-slate-200 text-slate-500 text-sm uppercase tracking-wider">
+                                <th className="p-4 w-10">
+                                    <input
+                                        type="checkbox"
+                                        checked={paginatedEditors.length > 0 && selectedIds.size === paginatedEditors.length}
+                                        onChange={() => {
+                                            if (selectedIds.size === paginatedEditors.length) {
+                                                setSelectedIds(new Set());
+                                            } else {
+                                                setSelectedIds(new Set(paginatedEditors.map(item => item._id)));
+                                            }
+                                        }}
+                                        className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer accent-indigo-650"
+                                    />
+                                </th>
                                 <th className="p-4 font-semibold whitespace-nowrap">Editor Name</th>
                                 <th className="p-4 font-semibold whitespace-nowrap">ID</th>
                                 <th className="p-4 font-semibold whitespace-nowrap">Institute</th>
@@ -597,7 +662,7 @@ const EditorsList = () => {
                         <tbody className="divide-y divide-slate-100">
                             {loading ? (
                                 <tr>
-                                    <td colSpan="8" className="p-8 text-center text-slate-500">
+                                    <td colSpan="9" className="p-8 text-center text-slate-500">
                                         <div className="flex justify-center items-center gap-2">
                                             <div className="w-5 h-5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
                                             Loading editors...
@@ -607,6 +672,24 @@ const EditorsList = () => {
                             ) : paginatedEditors.length > 0 ? (
                                 paginatedEditors.map((editor) => (
                                     <tr key={editor._id} className="hover:bg-slate-50 transition-colors group">
+                                        <td className="p-4 w-10">
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedIds.has(editor._id)}
+                                                onChange={() => {
+                                                    setSelectedIds(prev => {
+                                                        const next = new Set(prev);
+                                                        if (next.has(editor._id)) {
+                                                            next.delete(editor._id);
+                                                        } else {
+                                                            next.add(editor._id);
+                                                        }
+                                                        return next;
+                                                    });
+                                                }}
+                                                className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer accent-indigo-650"
+                                            />
+                                        </td>
                                         <td className="p-4 whitespace-nowrap">
                                             <div className="flex items-center gap-3">
                                                 <div
@@ -683,7 +766,7 @@ const EditorsList = () => {
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan="8" className="p-8 text-center text-slate-500 font-semibold">
+                                    <td colSpan="9" className="p-8 text-center text-slate-500 font-semibold">
                                         No editors found.
                                     </td>
                                 </tr>
@@ -784,6 +867,13 @@ const EditorsList = () => {
                 restoreUrlPattern={(id) => `/api/users/${id}/restore`}
                 permanentDeleteUrlPattern={(id) => `/api/users/${id}/permanent`}
                 renderItemDetail={(item) => `Email: ${item.email}`}
+            />
+            <BulkEditModal
+                isOpen={isBulkEditOpen}
+                onClose={() => setIsBulkEditOpen(false)}
+                type="editor"
+                selectedIds={Array.from(selectedIds)}
+                onSuccess={fetchData}
             />
         </DashboardLayout>
     );

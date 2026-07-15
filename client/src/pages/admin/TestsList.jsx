@@ -16,6 +16,7 @@ import {
 import TeacherVideoReview from '../../components/teacher/TeacherVideoReview';
 import TestFolderStructure from './TestFolderStructure';
 import TruncatedCell from '../../components/common/TruncatedCell';
+import BulkEditModal from '../../components/common/BulkEditModal';
 const TestsList = () => {
     const { user } = useAuth();
     const userInfo = user;
@@ -35,6 +36,16 @@ const TestsList = () => {
     const [activeTab, setActiveTab] = useState('lms'); // 'lms' | 'public'
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(10);
+
+    // Bulk actions
+    const [selectedIds, setSelectedIds] = useState(new Set());
+    const [bulkAction, setBulkAction] = useState('');
+    const [isBulkEditOpen, setIsBulkEditOpen] = useState(false);
+
+    useEffect(() => {
+        setSelectedIds(new Set());
+        setBulkAction('');
+    }, [activeTab]);
 
     useEffect(() => {
         setCurrentPage(1);
@@ -320,6 +331,34 @@ const TestsList = () => {
         } catch (error) {
             console.error("Error deleting test:", error);
             toast.error('Error deleting test');
+        }
+    };
+
+    const handleApplyBulkAction = async () => {
+        if (selectedIds.size === 0 || !bulkAction) return;
+
+        if (bulkAction === 'edit') {
+            setIsBulkEditOpen(true);
+            return;
+        }
+
+        if (bulkAction === 'delete') {
+            if (window.confirm(`Are you sure you want to delete the ${selectedIds.size} selected tests?`)) {
+                try {
+                    await Promise.all(Array.from(selectedIds).map(id => axios.delete(`/api/tests/${id}`)));
+                    toast.success('Successfully deleted selected tests');
+                    setSelectedIds(new Set());
+                    setBulkAction('');
+                    if (activeTab === 'lms' || activeTab === 'draft') {
+                        fetchLmsTests();
+                    } else {
+                        fetchPublicTests();
+                    }
+                } catch (err) {
+                    console.error("Bulk delete error:", err);
+                    toast.error('Failed to delete some tests');
+                }
+            }
         }
     };
 
@@ -2255,53 +2294,79 @@ const TestsList = () => {
             </div>
 
             {/* Filters (Search Box & Subject Select) */}
-            <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex flex-col md:flex-row gap-4 justify-between items-center mb-6">
-                <div className="relative w-full md:w-80">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+            <div className="bg-white p-2.5 rounded-xl shadow-sm border border-slate-100 flex flex-row flex-wrap items-center gap-2.5 mb-6 w-full text-xs">
+                {/* Search input */}
+                <div className="relative w-[180px]">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
                     <input
                         type="text"
-                        placeholder="Search by test name..."
+                        placeholder="Search..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:bg-white focus:border-slate-500 focus:ring-2 focus:ring-slate-500/10 transition-all font-medium"
+                        className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none focus:bg-white focus:border-slate-500 focus:ring-2 focus:ring-slate-500/10 transition-all font-medium h-[32px]"
                     />
                 </div>
 
-                {(activeTab === 'lms' || activeTab === 'public' || activeTab === 'draft') && (
-                    <div className="flex flex-wrap gap-3 w-full md:w-auto">
-                        {/* Entries selector */}
-                        <div className="flex items-center gap-2 mr-2">
-                            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider select-none">Show</span>
-                            <input
-                                type="number"
-                                min={5}
-                                max={activeTab === 'public' ? filteredPublicTests.length : filteredTests.length}
-                                value={itemsPerPage}
-                                onChange={(e) => {
-                                    const val = parseInt(e.target.value);
-                                    const maxLen = activeTab === 'public' ? filteredPublicTests.length : filteredTests.length;
-                                    if (isNaN(val)) {
-                                        setItemsPerPage('');
-                                    } else {
-                                        const maxVal = maxLen > 5 ? maxLen : 5;
-                                        setItemsPerPage(Math.min(val, maxVal));
-                                    }
-                                }}
-                                onBlur={(e) => {
-                                    const val = parseInt(e.target.value);
-                                    if (isNaN(val) || val < 5) {
-                                        setItemsPerPage(10);
-                                    }
-                                }}
-                                className="w-16 bg-slate-55 border border-slate-200 rounded-xl py-1.5 px-3 text-center text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-slate-350 transition-all"
-                            />
-                            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider select-none">entries</span>
-                        </div>
+                {/* Bulk Action */}
+                <select
+                    value={bulkAction}
+                    onChange={(e) => setBulkAction(e.target.value)}
+                    className="bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-xs font-bold text-slate-700 outline-none cursor-pointer h-[32px] w-[110px]"
+                >
+                    <option value="">Bulk Action</option>
+                    <option value="edit">Edit Selected</option>
+                    <option value="delete">Delete Selected</option>
+                </select>
 
+                {/* Apply button */}
+                <button
+                    type="button"
+                    onClick={handleApplyBulkAction}
+                    disabled={selectedIds.size === 0 || !bulkAction}
+                    className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-100 disabled:text-slate-400 text-white rounded-lg text-xs font-bold transition-all disabled:cursor-not-allowed cursor-pointer h-[32px] active:scale-95 flex items-center justify-center border border-transparent disabled:border-slate-100"
+                >
+                    Apply ({selectedIds.size})
+                </button>
+
+                {/* Vertical Divider */}
+                <div className="w-[1px] h-6 bg-slate-200 mx-1 hidden sm:block"></div>
+
+                {/* Entries selector */}
+                <div className="flex items-center gap-1 h-[32px]">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider select-none">Show</span>
+                    <input
+                        type="number"
+                        min={5}
+                        max={activeTab === 'public' ? filteredPublicTests.length : filteredTests.length}
+                        value={itemsPerPage}
+                        onChange={(e) => {
+                            const val = parseInt(e.target.value);
+                            const maxLen = activeTab === 'public' ? filteredPublicTests.length : filteredTests.length;
+                            if (isNaN(val)) {
+                                setItemsPerPage('');
+                            } else {
+                                const maxVal = maxLen > 5 ? maxLen : 5;
+                                setItemsPerPage(Math.min(val, maxVal));
+                            }
+                        }}
+                        onBlur={(e) => {
+                            const val = parseInt(e.target.value);
+                            if (isNaN(val) || val < 5) {
+                                setItemsPerPage(10);
+                            }
+                        }}
+                        className="w-10 bg-slate-55 border border-slate-200 rounded-lg py-1 px-1.5 text-center text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-slate-350 transition-all h-[26px]"
+                    />
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider select-none">entries</span>
+                </div>
+
+                {/* Filters */}
+                {(activeTab === 'lms' || activeTab === 'public' || activeTab === 'draft') && (
+                    <>
                         {/* Institute Filter */}
                         {(userInfo?.role === 'Admin' || uniqueInstitutes.length > 2) && (
-                            <div className="relative min-w-[130px] flex-1 sm:flex-initial">
-                                <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                            <div className="relative w-[130px] h-[32px]">
+                                <Filter className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={11} />
                                 <select
                                     value={filterInstitute}
                                     onChange={(e) => {
@@ -2309,7 +2374,7 @@ const TestsList = () => {
                                         setFilterCourse('All');
                                         setFilterSubject('All');
                                     }}
-                                    className="w-full pl-9 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none appearance-none cursor-pointer font-semibold text-slate-700 focus:bg-white focus:border-indigo-500 transition-all"
+                                    className="w-full pl-7 pr-6 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none appearance-none cursor-pointer font-semibold text-slate-700 focus:bg-white focus:border-indigo-500 transition-all h-full truncate"
                                 >
                                     {uniqueInstitutes.map(inst => (
                                         <option key={inst} value={inst}>{inst === 'All' ? 'All Institutes' : inst}</option>
@@ -2319,15 +2384,15 @@ const TestsList = () => {
                         )}
 
                         {/* Course Filter */}
-                        <div className="relative min-w-[120px] flex-1 sm:flex-initial">
-                            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                        <div className="relative w-[130px] h-[32px]">
+                            <Filter className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={11} />
                             <select
                                 value={filterCourse}
                                 onChange={(e) => {
                                     setFilterCourse(e.target.value);
                                     setFilterSubject('All');
                                 }}
-                                className="w-[150px] pl-9 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none appearance-none cursor-pointer font-semibold text-slate-700 focus:bg-white focus:border-indigo-500 transition-all"
+                                className="w-full pl-7 pr-6 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none appearance-none cursor-pointer font-semibold text-slate-700 focus:bg-white focus:border-indigo-500 transition-all h-full truncate"
                             >
                                 {uniqueCourses.map(course => (
                                     <option key={course} value={course}>{course === 'All' ? 'All Courses' : course}</option>
@@ -2336,19 +2401,19 @@ const TestsList = () => {
                         </div>
 
                         {/* Subject Filter */}
-                        <div className="relative min-w-[130px] flex-1 sm:flex-initial">
-                            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                        <div className="relative w-[130px] h-[32px]">
+                            <Filter className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={11} />
                             <select
                                 value={filterSubject}
                                 onChange={(e) => setFilterSubject(e.target.value)}
-                                className="w-full pl-9 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none appearance-none cursor-pointer font-semibold text-slate-700 focus:bg-white focus:border-indigo-500 transition-all"
+                                className="w-full pl-7 pr-6 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none appearance-none cursor-pointer font-semibold text-slate-700 focus:bg-white focus:border-indigo-500 transition-all h-full truncate"
                             >
                                 {uniqueSubjects.map(subject => (
                                     <option key={subject} value={subject}>{subject === 'All' ? 'All Subjects' : subject}</option>
                                 ))}
                             </select>
                         </div>
-                    </div>
+                    </>
                 )}
             </div>
 
@@ -2371,6 +2436,20 @@ const TestsList = () => {
                             <table className="min-w-full text-left border-collapse">
                                 <thead>
                                     <tr className="bg-slate-50 border-b border-slate-200 text-slate-550 text-xs uppercase tracking-wider">
+                                        <th className="p-4 w-10">
+                                            <input
+                                                type="checkbox"
+                                                checked={paginatedTests.length > 0 && selectedIds.size === paginatedTests.length}
+                                                onChange={() => {
+                                                    if (selectedIds.size === paginatedTests.length) {
+                                                        setSelectedIds(new Set());
+                                                    } else {
+                                                        setSelectedIds(new Set(paginatedTests.map(item => item._id)));
+                                                    }
+                                                }}
+                                                className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer accent-indigo-650"
+                                            />
+                                        </th>
                                         <th className="p-4 font-extrabold whitespace-nowrap">Test Title</th>
                                         <th className="p-4 font-extrabold whitespace-nowrap">Course</th>
                                         <th className="p-4 font-extrabold whitespace-nowrap text-center">RI</th>
@@ -2386,6 +2465,24 @@ const TestsList = () => {
                                 <tbody className="divide-y divide-slate-100">
                                     {paginatedTests.map((test) => (
                                         <tr key={test._id} className="hover:bg-slate-50 transition-colors group">
+                                            <td className="p-4 w-10">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selectedIds.has(test._id)}
+                                                    onChange={() => {
+                                                        setSelectedIds(prev => {
+                                                            const next = new Set(prev);
+                                                            if (next.has(test._id)) {
+                                                                next.delete(test._id);
+                                                            } else {
+                                                                next.add(test._id);
+                                                            }
+                                                            return next;
+                                                        });
+                                                    }}
+                                                    className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500/30 cursor-pointer accent-indigo-650"
+                                                />
+                                            </td>
                                             <td className="p-4 whitespace-nowrap">
                                                 <div className="flex items-center gap-3 font-semibold text-slate-800">
                                                     <div className="p-2 bg-slate-100 text-[#0b1329] rounded-lg flex-shrink-0">
@@ -2573,6 +2670,20 @@ const TestsList = () => {
                             <table className="min-w-full text-left border-collapse">
                                 <thead>
                                     <tr className="bg-slate-50 border-b border-slate-200 text-slate-550 text-xs uppercase tracking-wider">
+                                        <th className="p-4 w-10">
+                                            <input
+                                                type="checkbox"
+                                                checked={paginatedTests.length > 0 && selectedIds.size === paginatedTests.length}
+                                                onChange={() => {
+                                                    if (selectedIds.size === paginatedTests.length) {
+                                                        setSelectedIds(new Set());
+                                                    } else {
+                                                        setSelectedIds(new Set(paginatedTests.map(item => item._id)));
+                                                    }
+                                                }}
+                                                className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer accent-indigo-650"
+                                            />
+                                        </th>
                                         <th className="p-4 font-extrabold whitespace-nowrap">Draft Title</th>
                                         <th className="p-4 font-extrabold whitespace-nowrap">Course</th>
                                         <th className="p-4 font-extrabold whitespace-nowrap">Subject</th>
@@ -2584,6 +2695,24 @@ const TestsList = () => {
                                 <tbody className="divide-y divide-slate-100">
                                     {paginatedTests.map((test) => (
                                         <tr key={test._id} className="hover:bg-slate-50 transition-colors group">
+                                            <td className="p-4 w-10">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selectedIds.has(test._id)}
+                                                    onChange={() => {
+                                                        setSelectedIds(prev => {
+                                                            const next = new Set(prev);
+                                                            if (next.has(test._id)) {
+                                                                next.delete(test._id);
+                                                            } else {
+                                                                next.add(test._id);
+                                                            }
+                                                            return next;
+                                                        });
+                                                    }}
+                                                    className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500/30 cursor-pointer accent-indigo-650"
+                                                />
+                                            </td>
                                             <td className="p-4 whitespace-nowrap">
                                                 <div className="flex items-center gap-3">
                                                     <div className="p-2 bg-slate-100 text-slate-500 rounded-lg flex-shrink-0">
@@ -2710,6 +2839,20 @@ const TestsList = () => {
                             <table className="min-w-full text-left border-collapse">
                                 <thead>
                                     <tr className="bg-slate-50 border-b border-slate-200 text-slate-555 text-xs uppercase tracking-wider">
+                                        <th className="p-4 w-10">
+                                            <input
+                                                type="checkbox"
+                                                checked={paginatedPublicTests.length > 0 && selectedIds.size === paginatedPublicTests.length}
+                                                onChange={() => {
+                                                    if (selectedIds.size === paginatedPublicTests.length) {
+                                                        setSelectedIds(new Set());
+                                                    } else {
+                                                        setSelectedIds(new Set(paginatedPublicTests.map(item => item._id)));
+                                                    }
+                                                }}
+                                                className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer accent-indigo-650"
+                                            />
+                                        </th>
                                         <th className="p-4 font-extrabold whitespace-nowrap">Test Name</th>
                                         <th className="p-4 font-extrabold whitespace-nowrap text-center">Public Link</th>
                                         <th className="p-4 font-extrabold whitespace-nowrap text-center">Total Views</th>
@@ -2725,6 +2868,24 @@ const TestsList = () => {
                                         const isEnabled = test.status === 'active';
                                         return (
                                             <tr key={test._id} className="hover:bg-slate-50/50 transition-colors group">
+                                                <td className="p-4 w-10">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={selectedIds.has(test._id)}
+                                                        onChange={() => {
+                                                            setSelectedIds(prev => {
+                                                                const next = new Set(prev);
+                                                                if (next.has(test._id)) {
+                                                                    next.delete(test._id);
+                                                                } else {
+                                                                    next.add(test._id);
+                                                                }
+                                                                return next;
+                                                            });
+                                                        }}
+                                                        className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500/30 cursor-pointer accent-indigo-650"
+                                                    />
+                                                </td>
                                                 <td className="p-4 whitespace-nowrap">
                                                     <div className="flex items-center gap-3">
                                                         <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg flex-shrink-0">
@@ -3430,6 +3591,19 @@ const TestsList = () => {
                 .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
             `}</style>
 
+            <BulkEditModal
+                isOpen={isBulkEditOpen}
+                onClose={() => setIsBulkEditOpen(false)}
+                type="test"
+                selectedIds={Array.from(selectedIds)}
+                onSuccess={() => {
+                    if (activeTab === 'lms' || activeTab === 'draft') {
+                        fetchLmsTests();
+                    } else {
+                        fetchPublicTests();
+                    }
+                }}
+            />
         </DashboardLayout>
     );
 };

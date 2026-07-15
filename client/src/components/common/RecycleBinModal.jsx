@@ -19,6 +19,8 @@ const RecycleBinModal = ({
     const [actionId, setActionId] = useState(null); // tracking loading state for restore/delete
     const [searchTerm, setSearchTerm] = useState('');
     const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+    const [selectedIds, setSelectedIds] = useState(new Set());
+    const [bulkConfirmDelete, setBulkConfirmDelete] = useState(false);
 
     const fetchTrashItems = async () => {
         if (!trashUrl) return;
@@ -39,8 +41,31 @@ const RecycleBinModal = ({
             fetchTrashItems();
             setSearchTerm('');
             setConfirmDeleteId(null);
+            setSelectedIds(new Set());
+            setBulkConfirmDelete(false);
         }
     }, [isOpen, trashUrl]);
+
+    const handleBulkDelete = async () => {
+        try {
+            setLoading(true);
+            const urls = Array.from(selectedIds).map(id => {
+                return typeof permanentDeleteUrlPattern === 'function' 
+                    ? permanentDeleteUrlPattern(id) 
+                    : permanentDeleteUrlPattern.replace(':id', id);
+            });
+            await Promise.all(urls.map(url => axios.delete(url)));
+            toast.success('Selected items permanently deleted');
+            setItems(prev => prev.filter(item => !selectedIds.has(item._id)));
+            setSelectedIds(new Set());
+            setBulkConfirmDelete(false);
+        } catch (error) {
+            console.error('Error bulk deleting items:', error);
+            toast.error('Failed to permanently delete some items');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     if (!isOpen) return null;
 
@@ -102,19 +127,70 @@ const RecycleBinModal = ({
                     </button>
                 </div>
 
-                {/* Search Bar */}
+                {/* Search Bar & Bulk Actions */}
                 {items.length > 0 && (
-                    <div className="p-4 border-b border-slate-100 bg-slate-50/50">
-                        <div className="relative">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                            <input
-                                type="text"
-                                placeholder="Search in Recycle Bin..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-full bg-white border border-slate-200 rounded-xl py-2 pl-9 pr-4 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-red-500/10 focus:border-red-500/50 transition-all"
-                            />
+                    <div className="p-4 border-b border-slate-100 bg-slate-50/50 space-y-3">
+                        <div className="flex flex-col sm:flex-row items-center gap-3">
+                            <div className="relative flex-1 w-full">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                                <input
+                                    type="text"
+                                    placeholder="Search in Recycle Bin..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    className="w-full bg-white border border-slate-200 rounded-xl py-2 pl-9 pr-4 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-red-500/10 focus:border-red-500/50 transition-all"
+                                />
+                            </div>
+                            
+                            <div className="flex items-center gap-2 shrink-0 self-start sm:self-auto">
+                                <label className="flex items-center gap-1.5 px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-600 cursor-pointer select-none">
+                                    <input
+                                        type="checkbox"
+                                        checked={filteredItems.length > 0 && selectedIds.size === filteredItems.length}
+                                        onChange={() => {
+                                            if (selectedIds.size === filteredItems.length) {
+                                                setSelectedIds(new Set());
+                                            } else {
+                                                setSelectedIds(new Set(filteredItems.map(item => item._id)));
+                                            }
+                                        }}
+                                        className="w-3.5 h-3.5 accent-red-650 rounded cursor-pointer"
+                                    />
+                                    Select All
+                                </label>
+
+                                <button
+                                    disabled={selectedIds.size === 0}
+                                    onClick={() => setBulkConfirmDelete(true)}
+                                    className="flex items-center gap-1 px-3 py-2 bg-red-650 hover:bg-red-700 text-white rounded-xl text-xs font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm cursor-pointer border border-red-750"
+                                >
+                                    <Trash2 size={13} />
+                                    Delete Selected ({selectedIds.size})
+                                </button>
+                            </div>
                         </div>
+
+                        {bulkConfirmDelete && (
+                            <div className="p-3 bg-red-50/50 border border-red-200/50 rounded-xl flex items-center justify-between gap-3 animate-fade-in">
+                                <span className="text-[11px] font-black text-red-750 flex items-center gap-1">
+                                    <AlertTriangle size={14} /> Permanently delete {selectedIds.size} items?
+                                </span>
+                                <div className="flex items-center gap-1.5">
+                                    <button
+                                        onClick={handleBulkDelete}
+                                        className="px-2.5 py-1 bg-red-650 hover:bg-red-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm cursor-pointer"
+                                    >
+                                        Yes, Delete
+                                    </button>
+                                    <button
+                                        onClick={() => setBulkConfirmDelete(false)}
+                                        className="px-2.5 py-1 bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 rounded-lg text-xs font-bold transition-all cursor-pointer"
+                                    >
+                                        Cancel
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 )}
 
@@ -150,13 +226,31 @@ const RecycleBinModal = ({
                                                 : 'bg-white hover:bg-slate-50/50 border-slate-150'
                                         }`}
                                     >
-                                        <div className="flex-1 min-w-0">
-                                            <h4 className="text-sm font-bold text-slate-800 truncate">
-                                                {getItemName(item)}
-                                            </h4>
-                                            <p className="text-xs text-slate-450 truncate mt-0.5">
-                                                {renderItemDetail(item)}
-                                            </p>
+                                        <div className="flex items-start gap-3 flex-1 min-w-0">
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedIds.has(item._id)}
+                                                onChange={() => {
+                                                    setSelectedIds(prev => {
+                                                        const next = new Set(prev);
+                                                        if (next.has(item._id)) {
+                                                            next.delete(item._id);
+                                                        } else {
+                                                            next.add(item._id);
+                                                        }
+                                                        return next;
+                                                    });
+                                                }}
+                                                className="w-4 h-4 rounded text-red-650 focus:ring-red-500 cursor-pointer mt-1 shrink-0 accent-red-650"
+                                            />
+                                            <div className="flex-1 min-w-0">
+                                                <h4 className="text-sm font-bold text-slate-800 truncate">
+                                                    {getItemName(item)}
+                                                </h4>
+                                                <p className="text-xs text-slate-450 truncate mt-0.5">
+                                                    {renderItemDetail(item)}
+                                                </p>
+                                            </div>
                                         </div>
 
                                         <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto flex-wrap">

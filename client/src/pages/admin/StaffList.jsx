@@ -12,6 +12,7 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import AddUserModal from '../../components/AddUserModal';
 import EditUserModal from '../../components/EditUserModal';
+import BulkEditModal from '../../components/common/BulkEditModal';
 import { useUserProfile } from '../../components/common/UserProfileContext';
 
 const calculateSpendingTime = (checkIn, checkOut) => {
@@ -71,6 +72,16 @@ const StaffList = () => {
     const [institutes, setInstitutes] = useState([]);
     const [filterInstitute, setFilterInstitute] = useState('All');
 
+    // Bulk actions
+    const [selectedIds, setSelectedIds] = useState(new Set());
+    const [bulkAction, setBulkAction] = useState('');
+    const [isBulkEditOpen, setIsBulkEditOpen] = useState(false);
+
+    useEffect(() => {
+        setSelectedIds(new Set());
+        setBulkAction('');
+    }, [activeTab]);
+
     // Points / Valuation Management states (Read-only on Admin side)
     const [pointsLogs, setPointsLogs] = useState(() => {
         const stored = localStorage.getItem('staff_points') || localStorage.getItem('staff_minus_points');
@@ -87,15 +98,12 @@ const StaffList = () => {
         { id: 1, staffName: 'Ravi Kumar', title: 'Compile Fee Report', due: '2026-07-12', priority: 'High', status: 'pending', createdAt: '2026-07-10', verificationStatus: 'under_verification' },
         { id: 2, staffName: 'Sunita Sharma', title: 'Setup IT Lab computers', due: '2026-07-15', priority: 'Medium', status: 'inprogress', createdAt: '2026-07-11', verificationStatus: '' },
         { id: 3, staffName: 'Mohit Verma', title: 'Clean general lobby area', due: '2026-07-13', priority: 'Low', status: 'done', createdAt: '2026-07-12', verificationStatus: 'approved' },
-        { id: 4, staffName: 'Priya Singh', title: 'Update visitor log book', due: '2026-07-14', priority: 'Medium', status: 'done', createdAt: '2026-07-12', verificationStatus: 'needs_revision' },
-        { id: 5, staffName: 'Ravi Kumar', title: 'Audit desk registers', due: '2026-07-18', priority: 'High', status: 'inprogress', createdAt: '2026-07-13', verificationStatus: '' },
-        { id: 6, staffName: 'Sunita Sharma', title: 'Update system software', due: '2026-07-20', priority: 'Low', status: 'done', createdAt: '2026-07-12', verificationStatus: 'approved', isSelfCreated: true }
+        { id: 4, staffName: 'Priya Singh', title: 'File all hardcopy admissions', due: '2026-07-18', priority: 'High', status: 'pending', createdAt: '2026-07-12', verificationStatus: '' }
     ]);
-    const [taskDateFilter, setTaskDateFilter] = useState('year');
-    const [filterStartDate, setFilterStartDate] = useState('');
-    const [filterEndDate, setFilterEndDate] = useState('');
-    const [filterParticularDate, setFilterParticularDate] = useState('');
-    const [taskVerificationFilter, setTaskVerificationFilter] = useState('');
+    const [newTask, setNewTask] = useState({ staffName: '', title: '', due: '', priority: 'Medium' });
+
+    // Filter states for tasks
+    const [taskPriorityFilter, setTaskPriorityFilter] = useState('');
     const [taskStatusFilter, setTaskStatusFilter] = useState('');
     const [selectedStaffForTasks, setSelectedStaffForTasks] = useState(null);
 
@@ -140,6 +148,46 @@ const StaffList = () => {
         } catch (error) {
             console.error('Error toggling status:', error);
             toast.error(error.response?.data?.message || 'Error updating status');
+        }
+    };
+
+    const handleApplyBulkAction = async () => {
+        if (selectedIds.size === 0 || !bulkAction) return;
+
+        if (bulkAction === 'edit') {
+            setIsBulkEditOpen(true);
+            return;
+        }
+
+        if (bulkAction === 'delete') {
+            const confirmMsg = activeTab === 'attendance'
+                ? `Are you sure you want to delete attendance logs for the ${selectedIds.size} selected staff members on ${attendanceDate}?`
+                : `Are you sure you want to delete the ${selectedIds.size} selected staff members?`;
+
+            if (window.confirm(confirmMsg)) {
+                try {
+                    const promises = Array.from(selectedIds).map(id => {
+                        if (activeTab === 'directory') {
+                            return axios.delete(`/api/users/${id}`);
+                        } else if (activeTab === 'attendance') {
+                            return axios.delete(`/api/users/${id}/physical-attendance/${attendanceDate}`);
+                        }
+                        return Promise.resolve();
+                    });
+
+                    await Promise.all(promises);
+                    toast.success('Successfully completed bulk deletion');
+                    setSelectedIds(new Set());
+                    setBulkAction('');
+                    // refresh staff list
+                    const token = localStorage.getItem('authToken');
+                    const staffRes = await axios.get('/api/users?role=Staff', { headers: { Authorization: `Bearer ${token}` } });
+                    setStaffList(Array.isArray(staffRes.data) ? staffRes.data : staffRes.data.users || []);
+                } catch (err) {
+                    console.error("Bulk delete error:", err);
+                    toast.error('Failed to complete some actions');
+                }
+            }
         }
     };
 
@@ -619,19 +667,49 @@ const StaffList = () => {
                     <>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', flex: '1 1 auto' }}>
-                                <div style={{ position: 'relative', flex: '1 1 220px', maxWidth: '320px' }}>
-                                    <Search size={15} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
-                                    <input
-                                        value={search}
-                                        onChange={e => setSearch(e.target.value)}
-                                        placeholder="Search staff directory..."
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: '1 1 auto', flexWrap: 'wrap' }}>
+                                    <div style={{ position: 'relative', flex: '1 1 200px', maxWidth: '300px' }}>
+                                        <Search size={15} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                                        <input
+                                            value={search}
+                                            onChange={e => setSearch(e.target.value)}
+                                            placeholder="Search staff directory..."
+                                            style={{
+                                                width: '100%', paddingLeft: 36, paddingRight: 16, paddingTop: 10, paddingBottom: 10,
+                                                border: '1.5px solid #e2e8f0', borderRadius: '12px', fontSize: '0.82rem',
+                                                fontWeight: 600, color: '#374151', background: '#fff', outline: 'none',
+                                                fontFamily: 'inherit', boxSizing: 'border-box'
+                                            }}
+                                        />
+                                    </div>
+                                    <select
+                                        value={bulkAction}
+                                        onChange={(e) => setBulkAction(e.target.value)}
                                         style={{
-                                            width: '100%', paddingLeft: 36, paddingRight: 16, paddingTop: 10, paddingBottom: 10,
+                                            paddingLeft: 12, paddingRight: 24, paddingTop: 10, paddingBottom: 10,
                                             border: '1.5px solid #e2e8f0', borderRadius: '12px', fontSize: '0.82rem',
                                             fontWeight: 600, color: '#374151', background: '#fff', outline: 'none',
-                                            fontFamily: 'inherit', boxSizing: 'border-box'
+                                            fontFamily: 'inherit', cursor: 'pointer'
                                         }}
-                                    />
+                                    >
+                                        <option value="">Bulk Action</option>
+                                        <option value="edit">Edit Selected</option>
+                                        <option value="delete">Delete Selected</option>
+                                    </select>
+                                    <button
+                                        type="button"
+                                        onClick={handleApplyBulkAction}
+                                        disabled={selectedIds.size === 0 || !bulkAction}
+                                        style={{
+                                            paddingLeft: 16, paddingRight: 16, paddingTop: 10, paddingBottom: 10,
+                                            border: 'none', borderRadius: '12px', fontSize: '0.82rem',
+                                            fontWeight: 700, color: '#fff', backgroundColor: selectedIds.size > 0 && bulkAction ? '#4f46e5' : '#cbd5e1',
+                                            cursor: selectedIds.size > 0 && bulkAction ? 'pointer' : 'not-allowed',
+                                            transition: 'all 0.2s', height: '38px', whiteSpace: 'nowrap'
+                                        }}
+                                    >
+                                        Apply to All ({selectedIds.size})
+                                    </button>
                                 </div>
                                 {user?.role === 'Admin' && (
                                     <div style={{ position: 'relative', width: 220 }}>
@@ -729,6 +807,20 @@ const StaffList = () => {
                                 <table style={{ width: '100%', minWidth: '700px', borderCollapse: 'collapse' }}>
                                     <thead>
                                         <tr style={{ background: '#f8fafc', borderBottom: '1px solid #f1f5f9' }}>
+                                            <th style={{ padding: '13px 16px', width: '40px' }}>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={displayList.length > 0 && selectedIds.size === displayList.length}
+                                                    onChange={() => {
+                                                        if (selectedIds.size === displayList.length) {
+                                                            setSelectedIds(new Set());
+                                                        } else {
+                                                            setSelectedIds(new Set(displayList.map(item => item._id)));
+                                                        }
+                                                    }}
+                                                    className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer accent-indigo-650"
+                                                />
+                                            </th>
                                             {['#', 'Name', 'Designation', 'Department', 'Institute', 'Minus Valuation', 'Status', 'Actions'].map(h => (
                                                 <th key={h} style={{ padding: '13px 16px', textAlign: h === 'Actions' ? 'right' : 'left', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                                                     {h}
@@ -739,7 +831,7 @@ const StaffList = () => {
                                     <tbody>
                                         {displayList.length === 0 ? (
                                             <tr>
-                                                <td colSpan={8} style={{ padding: '48px', textAlign: 'center', color: '#94a3b8', fontWeight: 700 }}>
+                                                <td colSpan={9} style={{ padding: '48px', textAlign: 'center', color: '#94a3b8', fontWeight: 700 }}>
                                                     No staff found
                                                 </td>
                                             </tr>
@@ -748,6 +840,24 @@ const StaffList = () => {
                                                 onMouseEnter={e => e.currentTarget.style.background = '#fafafa'}
                                                 onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                                             >
+                                                <td style={{ padding: '13px 16px', width: '40px' }}>
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={selectedIds.has(s._id)}
+                                                        onChange={() => {
+                                                            setSelectedIds(prev => {
+                                                                const next = new Set(prev);
+                                                                if (next.has(s._id)) {
+                                                                    next.delete(s._id);
+                                                                } else {
+                                                                    next.add(s._id);
+                                                                }
+                                                                return next;
+                                                            });
+                                                        }}
+                                                        className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer accent-indigo-650"
+                                                    />
+                                                </td>
                                                 <td style={{ padding: '13px 16px', fontSize: '0.78rem', fontWeight: 700, color: '#94a3b8' }}>{i + 1}</td>
                                                 <td style={{ padding: '13px 16px' }}>
                                                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -1697,6 +1807,17 @@ const StaffList = () => {
                 statusFilter={taskStatusFilter}
             />
         )}
+        <BulkEditModal
+            isOpen={isBulkEditOpen}
+            onClose={() => setIsBulkEditOpen(false)}
+            type="staff"
+            selectedIds={Array.from(selectedIds)}
+            onSuccess={async () => {
+                const token = localStorage.getItem('authToken');
+                const staffRes = await axios.get('/api/users?role=Staff', { headers: { Authorization: `Bearer ${token}` } });
+                setStaffList(Array.isArray(staffRes.data) ? staffRes.data : staffRes.data.users || []);
+            }}
+        />
         </>
     );
 };

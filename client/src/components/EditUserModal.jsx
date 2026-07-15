@@ -1200,7 +1200,8 @@ const handleSubmit = async (e) => {
                 toast.error("Please select an assigned course");
                 return;
             }
-            if (!formData.subjects || !formData.subjects.trim()) {
+            const hasSubjectsSelected = selectedCoursesList.some(c => c.subjects && c.subjects.length > 0);
+            if (!hasSubjectsSelected) {
                 toast.error("Please select at least one teaching subject");
                 return;
             }

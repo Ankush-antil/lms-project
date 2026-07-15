@@ -13,6 +13,7 @@ import PublicResponseModal from '../../components/common/PublicResponseModal';
 import CandidateTestsModal from '../../components/common/CandidateTestsModal';
 import AddUserModal from '../../components/AddUserModal';
 import EditUserModal from '../../components/EditUserModal';
+import BulkEditModal from '../../components/common/BulkEditModal';
 
 const UsersList = () => {
     const { user: currentUser } = useAuth();
@@ -21,6 +22,17 @@ const UsersList = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [filterRole, setFilterRole] = useState('All');
     const [viewTab, setViewTab] = useState('registered'); // 'registered' | 'guest' | 'limited'
+    
+    // Bulk action states
+    const [selectedIds, setSelectedIds] = useState(new Set());
+    const [bulkAction, setBulkAction] = useState('');
+    const [isBulkEditOpen, setIsBulkEditOpen] = useState(false);
+
+    // Reset selection on tab change
+    useEffect(() => {
+        setSelectedIds(new Set());
+        setBulkAction('');
+    }, [viewTab]);
 
     // Synchronize viewTab with URL query parameter
     useEffect(() => {
@@ -109,6 +121,57 @@ const UsersList = () => {
                 toast.success('User deleted successfully');
             } catch (error) {
                 toast.error(error.response?.data?.message || 'Error deleting user');
+            }
+        }
+    };
+
+    const handleApplyBulkAction = async () => {
+        if (selectedIds.size === 0 || !bulkAction) return;
+
+        if (bulkAction === 'edit') {
+            if (viewTab === 'guest') {
+                setIsBulkEditOpen(true);
+            }
+            return;
+        }
+
+        if (bulkAction === 'delete') {
+            const confirmMsg = `Are you sure you want to delete the ${selectedIds.size} selected items?`;
+            if (window.confirm(confirmMsg)) {
+                try {
+                    const promises = Array.from(selectedIds).map(id => {
+                        if (viewTab === 'registered') {
+                            return axios.delete(`/api/users/${id}`);
+                        } else if (viewTab === 'role-requests') {
+                            return axios.delete(`/api/users/role-requests/${id}`);
+                        } else if (viewTab === 'limited') {
+                            const group = groupedLimitedUsers.find(g => g._id === id);
+                            if (group) {
+                                return Promise.all(group.submissions.map(sub =>
+                                    axios.delete(`/api/public-tests/admin/submissions/${sub._id}`)
+                                ));
+                            }
+                            return Promise.resolve();
+                        } else if (viewTab === 'guest') {
+                            const guestItem = combinedGuests.find(g => g._id === id);
+                            if (guestItem?.isUserAccount) {
+                                return axios.delete(`/api/users/${id}`);
+                            } else {
+                                return axios.delete(`/api/setup/applications/${id}`);
+                            }
+                        }
+                        return Promise.resolve();
+                    });
+
+                    await Promise.all(promises);
+                    toast.success('Successfully deleted selected items');
+                    setSelectedIds(new Set());
+                    setBulkAction('');
+                    fetchData();
+                } catch (err) {
+                    console.error("Bulk delete error:", err);
+                    toast.error('Failed to delete some selected items');
+                }
             }
         }
     };
@@ -1131,15 +1194,36 @@ const UsersList = () => {
 
             {/* Filters */}
             <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex flex-col md:flex-row gap-4 justify-between items-center mb-6">
-                <div className="relative w-full md:w-96">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-                    <input
-                        type="text"
-                        placeholder={viewTab === 'registered' ? "Search by Name, Email, ID or Role..." : viewTab === 'guest' ? "Search by Guest Name, Email or Phone..." : "Search by Test Taker, Email or Phone..."}
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-10 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
-                    />
+                <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto flex-1">
+                    <div className="relative w-full md:w-80">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                        <input
+                            type="text"
+                            placeholder={viewTab === 'registered' ? "Search by Name, Email, ID or Role..." : viewTab === 'guest' ? "Search by Guest Name, Email or Phone..." : "Search by Test Taker, Email or Phone..."}
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-2.5 px-9 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all animate-fade-in"
+                        />
+                    </div>
+                    <div className="flex items-center gap-2 w-full sm:w-auto">
+                        <select
+                            value={bulkAction}
+                            onChange={(e) => setBulkAction(e.target.value)}
+                            className="bg-slate-50 border border-slate-100 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 outline-none cursor-pointer h-[38px] min-w-[120px]"
+                        >
+                            <option value="">Bulk Action</option>
+                            {viewTab === 'guest' && <option value="edit">Edit Selected</option>}
+                            <option value="delete">Delete Selected</option>
+                        </select>
+                        <button
+                            type="button"
+                            onClick={handleApplyBulkAction}
+                            disabled={selectedIds.size === 0 || !bulkAction}
+                            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-100 disabled:text-slate-400 text-white rounded-xl text-xs font-bold transition-all disabled:cursor-not-allowed cursor-pointer whitespace-nowrap h-[38px] active:scale-95 flex items-center justify-center border border-transparent disabled:border-slate-100"
+                        >
+                            Apply to All ({selectedIds.size})
+                        </button>
+                    </div>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-4 w-full md:w-auto justify-between md:justify-end">
@@ -1225,6 +1309,20 @@ const UsersList = () => {
                     <table className="min-w-full text-left border-collapse">
                         <thead>
                             <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 text-sm uppercase tracking-wider">
+                                <th className="p-4 w-10">
+                                    <input
+                                        type="checkbox"
+                                        checked={paginatedItems.length > 0 && selectedIds.size === paginatedItems.length}
+                                        onChange={() => {
+                                            if (selectedIds.size === paginatedItems.length) {
+                                                setSelectedIds(new Set());
+                                            } else {
+                                                setSelectedIds(new Set(paginatedItems.map(item => item._id)));
+                                            }
+                                        }}
+                                        className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer accent-indigo-650"
+                                    />
+                                </th>
                                 <th className="p-4 font-semibold whitespace-nowrap">
                                     {viewTab === 'registered' ? 'User Details' : viewTab === 'guest' ? 'Guest Name & Email' : viewTab === 'role-requests' ? 'User Details' : 'Test Taker Details'}
                                 </th>
@@ -1246,7 +1344,7 @@ const UsersList = () => {
                         <tbody className="divide-y divide-slate-100">
                             {loading ? (
                                 <tr>
-                                    <td colSpan="8" className="p-8 text-center text-slate-500">
+                                    <td colSpan="9" className="p-8 text-center text-slate-500">
                                         <div className="flex justify-center items-center gap-2">
                                             <div className="w-5 h-5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
                                             Loading directory items...
@@ -1256,6 +1354,24 @@ const UsersList = () => {
                             ) : paginatedItems.length > 0 ? (
                                 paginatedItems.map((u) => (
                                     <tr key={u._id} className="hover:bg-slate-50 transition-colors group">
+                                        <td className="p-4 w-10">
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedIds.has(u._id)}
+                                                onChange={() => {
+                                                    setSelectedIds(prev => {
+                                                        const next = new Set(prev);
+                                                        if (next.has(u._id)) {
+                                                            next.delete(u._id);
+                                                        } else {
+                                                            next.add(u._id);
+                                                        }
+                                                        return next;
+                                                    });
+                                                }}
+                                                className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer accent-indigo-650"
+                                            />
+                                        </td>
                                         {/* Details column */}
                                         <td className="p-4 whitespace-nowrap">
                                             <div className="flex items-center gap-3">
@@ -1513,7 +1629,7 @@ const UsersList = () => {
                                         {/* Actions column */}
                                         <td className="p-4 text-right whitespace-nowrap sticky right-0 bg-white group-hover:bg-slate-50 transition-colors border-l border-slate-100 shadow-[-8px_0_16px_-4px_rgba(0,0,0,0.06)]">
                                             {viewTab === 'registered' ? (
-                                                currentUser?._id !== u._id ? (
+                                                (currentUser?._id !== u._id && u.role !== 'Admin') ? (
                                                     <button
                                                         onClick={() => handleDelete(u._id)}
                                                         className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors ml-2"
@@ -1522,7 +1638,9 @@ const UsersList = () => {
                                                         <Trash2 size={18} />
                                                     </button>
                                                 ) : (
-                                                    <span className="text-xs text-slate-400 italic px-2">You (Current Admin)</span>
+                                                    <span className="text-xs text-slate-400 font-semibold italic px-2">
+                                                        {u.role === 'Admin' ? 'Admin' : 'You'}
+                                                    </span>
                                                 )
                                             ) : viewTab === 'role-requests' ? (
                                                 <div className="flex items-center justify-end gap-1.5">
@@ -1765,6 +1883,13 @@ const UsersList = () => {
                     setSelectedGuestUser(null);
                 }}
                 user={selectedGuestUser}
+                onSuccess={fetchData}
+            />
+            <BulkEditModal
+                isOpen={isBulkEditOpen}
+                onClose={() => setIsBulkEditOpen(false)}
+                type="guest"
+                selectedIds={Array.from(selectedIds)}
                 onSuccess={fetchData}
             />
         </DashboardLayout>

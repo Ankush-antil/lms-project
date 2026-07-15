@@ -66,8 +66,8 @@ const getUsers = asyncHandler(async (req, res) => {
     const users = await User.find(query)
         .select('-password')
         .populate('institute', 'name')
-        .populate('studentProfile.course', 'name subjects')
-        .populate('studentProfile.coursesList.course', 'name subjects')
+        .populate('studentProfile.course', 'name subjects duration subjectDurations')
+        .populate('studentProfile.coursesList.course', 'name subjects duration subjectDurations')
         .populate('parentProfile.student', 'name email studentProfile')
         .populate('teacherProfile.assignedCourses', 'name')
         .populate('teacherProfile.assignedStudents', 'name email studentProfile')
@@ -289,6 +289,11 @@ const createUser = asyncHandler(async (req, res) => {
 const deleteUser = asyncHandler(async (req, res) => {
     const user = await User.findById(req.params.id);
     if (user) {
+        if (user.role === 'Admin') {
+            res.status(400);
+            throw new Error('Admin users cannot be deleted');
+        }
+
         // Enforce institute isolation for Institute and Editor roles
         if (req.user && (req.user.role === 'Institute' || req.user.role === 'Editor') && user.institute?.toString() !== req.user.institute?.toString()) {
             res.status(403);
@@ -910,6 +915,87 @@ const markBulkPhysicalAttendance = asyncHandler(async (req, res) => {
     }
 });
 
+const getInboxConfigsByCourseSubject = asyncHandler(async (req, res) => {
+    const { courseId, subject } = req.query;
+    if (!courseId && !subject) {
+        res.status(400);
+        throw new Error('courseId or subject is required');
+    }
+
+    let studentQuery = {};
+
+    if (subject) {
+        // When subject is provided, find ALL courses that include this subject
+        // then get all students from all those courses
+        const Course = require('../../models/Course');
+        const subjectsArr = subject.split(',').map(s => s.trim()).filter(Boolean);
+        const subjectRegexArr = subjectsArr.map(s => new RegExp(`^\\s*${s.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}\\s*$`, 'i'));
+
+        // Find all courses containing this subject
+        const coursesWithSubject = await Course.find({
+            subjects: { $in: subjectRegexArr }
+        }).select('_id');
+        const courseIds = coursesWithSubject.map(c => c._id);
+
+        // Also include the explicitly provided courseId if given
+        if (courseId) {
+            const mongoose = require('mongoose');
+            const cid = new mongoose.Types.ObjectId(courseId);
+            if (!courseIds.some(id => id.equals(cid))) {
+                courseIds.push(cid);
+            }
+        }
+
+        if (courseIds.length === 0) {
+            return res.json([]);
+        }
+
+        studentQuery = {
+            $or: [
+                { 'studentProfile.course': { $in: courseIds } },
+                { 'studentProfile.coursesList.course': { $in: courseIds } }
+            ]
+        };
+    } else {
+        studentQuery = {
+            $or: [
+                { 'studentProfile.course': courseId },
+                { 'studentProfile.coursesList.course': courseId }
+            ]
+        };
+    }
+
+    const students = await User.find(studentQuery).select('_id');
+
+    if (!students || students.length === 0) {
+        return res.json([]);
+    }
+
+    const studentIds = students.map(s => s._id);
+
+    const configsQuery = {
+        student: { $in: studentIds },
+        displayName: { $ne: '' }
+    };
+    if (subject) {
+        const subjectsArr = subject.split(',').map(s => s.trim()).filter(Boolean);
+        const subjectRegexArr = subjectsArr.map(s => new RegExp(`^\\s*${s.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}\\s*$`, 'i'));
+        configsQuery.subject = { $in: subjectRegexArr };
+    }
+
+    const configs = await StudentInboxConfig.find(configsQuery).sort({ updatedAt: -1 });
+
+    const uniqueConfigsMap = {};
+    for (const config of configs) {
+        const key = `${config.inboxId}_${config.subject || ''}`;
+        if (!uniqueConfigsMap[key]) {
+            uniqueConfigsMap[key] = config;
+        }
+    }
+
+    res.json(Object.values(uniqueConfigsMap));
+});
+
 const getInboxConfigs = asyncHandler(async (req, res) => {
     let targetStudentId = req.params.studentId;
     if (!targetStudentId) {
@@ -925,29 +1011,467 @@ const getInboxConfigs = asyncHandler(async (req, res) => {
     res.json(configs);
 });
 
-const saveInboxConfig = asyncHandler(async (req, res) => {
-    const { studentId, inboxId, displayName, visible, disabled } = req.body;
+const getStudentSubjectDaysMapping = async (studentId, targetCourseId) => {
+    const student = await User.findById(studentId).populate([
+        { path: 'studentProfile.course' },
+        { path: 'studentProfile.coursesList.course' }
+    ]);
+    if (!student || !student.studentProfile) return [];
 
-    if (!studentId || !inboxId) {
-        res.status(400);
-        throw new Error('studentId and inboxId are required');
+    // Find the active course object
+    let activeCourseObj = null;
+    const list = student.studentProfile.coursesList || [];
+    const foundInList = list.find(item => {
+        const cId = item.course?._id || item.course;
+        return String(cId) === String(targetCourseId);
+    });
+    if (foundInList && foundInList.course) {
+        if (typeof foundInList.course === 'object' && foundInList.course !== null) {
+            activeCourseObj = foundInList.course;
+        } else {
+            activeCourseObj = await Course.findById(foundInList.course);
+        }
+    } else {
+        const primCourse = student.studentProfile.course;
+        if (primCourse && String(primCourse._id || primCourse) === String(targetCourseId)) {
+            if (typeof primCourse === 'object' && primCourse !== null) {
+                activeCourseObj = primCourse;
+            } else {
+                activeCourseObj = await Course.findById(primCourse);
+            }
+        }
     }
 
-    let config = await StudentInboxConfig.findOne({ student: studentId, inboxId });
+    if (!activeCourseObj) return [];
+
+    // Get assigned subjects
+    let assignedSubjects = [];
+    if (foundInList) {
+        assignedSubjects = foundInList.subjects || [];
+    } else {
+        const assignedSubjectsString = student.studentProfile.subject;
+        if (assignedSubjectsString) {
+            assignedSubjects = assignedSubjectsString.split(',').map(s => s.trim()).filter(Boolean);
+        }
+    }
+
+    // Merge in subjects from course subjectDurations/subjects
+    const courseSubDurations = activeCourseObj.subjectDurations || [];
+    courseSubDurations.forEach(d => {
+        if (d.subjectName && !assignedSubjects.some(s => s.toLowerCase() === d.subjectName.toLowerCase())) {
+            assignedSubjects.push(d.subjectName);
+        }
+    });
+    const courseSubjects = activeCourseObj.subjects || [];
+    courseSubjects.forEach(sub => {
+        if (sub && !assignedSubjects.some(s => s.toLowerCase() === sub.toLowerCase())) {
+            assignedSubjects.push(sub);
+        }
+    });
+
+    const course = activeCourseObj;
+    const subjects = course.subjects || [];
+    const durations = course.subjectDurations || [];
+    const totalDuration = course.duration || 5;
+
+    let currentDayIndex = 1;
+    const mapping = [];
+
+    if (durations && durations.length > 0) {
+        durations.forEach(d => {
+            const subName = d.subjectName;
+            const subDur = Number(d.duration) || 0;
+            const daysList = [];
+            for (let i = 1; i <= subDur; i++) {
+                daysList.push({
+                    dayNum: i,
+                    indexNum: currentDayIndex,
+                    id: `Index ${currentDayIndex}`
+                });
+                currentDayIndex++;
+            }
+            if (daysList.length > 0) {
+                mapping.push({
+                    subjectName: subName,
+                    days: daysList
+                });
+            }
+        });
+    }
+
+    const mappedSubjectNames = mapping.map(m => m.subjectName.toLowerCase());
+    const remainingSubjects = subjects.filter(s => !mappedSubjectNames.includes(s.toLowerCase()));
+
+    if (remainingSubjects.length > 0) {
+        const remainingDays = Math.max(totalDuration - currentDayIndex + 1, 0);
+        const daysPerSubject = remainingDays > 0 ? Math.floor(remainingDays / remainingSubjects.length) : 0;
+        const extraDays = remainingDays > 0 ? remainingDays % remainingSubjects.length : 0;
+
+        remainingSubjects.forEach((subName, idx) => {
+            let subDur = daysPerSubject + (idx < extraDays ? 1 : 0);
+            if (subDur <= 0) subDur = 5; // default to 5 if course duration is already exceeded
+            const daysList = [];
+            for (let i = 1; i <= subDur; i++) {
+                daysList.push({
+                    dayNum: i,
+                    indexNum: currentDayIndex,
+                    id: `Index ${currentDayIndex}`
+                });
+                currentDayIndex++;
+            }
+            if (daysList.length > 0) {
+                mapping.push({
+                    subjectName: subName,
+                    days: daysList
+                });
+            }
+        });
+    } else if (currentDayIndex <= totalDuration) {
+        const daysList = [];
+        let dayCounter = 1;
+        while (currentDayIndex <= totalDuration) {
+            daysList.push({
+                dayNum: dayCounter,
+                indexNum: currentDayIndex,
+                id: `Index ${currentDayIndex}`
+            });
+            currentDayIndex++;
+            dayCounter++;
+        }
+        if (daysList.length > 0) {
+            mapping.push({
+                subjectName: 'Other Subjects',
+                days: daysList
+            });
+        }
+    }
+
+    if (mapping.length === 0) {
+        const daysList = [];
+        for (let i = 1; i <= totalDuration; i++) {
+            daysList.push({
+                dayNum: i,
+                indexNum: i,
+                id: `Index ${i}`
+            });
+        }
+        mapping.push({
+            subjectName: 'General',
+            days: daysList
+        });
+    }
+
+    // Cross-course subjects (from all student courses)
+    if (assignedSubjects && assignedSubjects.length > 0) {
+        const mappedLower = new Set(mapping.map(m => m.subjectName.toLowerCase()));
+        const allEnrolledCourses = [];
+        const enrolledList = student.studentProfile.coursesList || [];
+        for (const item of enrolledList) {
+            if (item.course) {
+                if (typeof item.course === 'object' && item.course !== null) {
+                    allEnrolledCourses.push(item.course);
+                } else {
+                    const c = await Course.findById(item.course);
+                    if (c) allEnrolledCourses.push(c);
+                }
+            }
+        }
+        const primCourse = student.studentProfile.course;
+        if (primCourse) {
+            if (typeof primCourse === 'object' && primCourse !== null) {
+                allEnrolledCourses.push(primCourse);
+            } else {
+                const c = await Course.findById(primCourse);
+                if (c) allEnrolledCourses.push(c);
+            }
+        }
+
+        assignedSubjects.forEach(subName => {
+            const subNameL = subName.toLowerCase();
+            if (mappedLower.has(subNameL)) return;
+
+            let foundDur = 0;
+            for (const ec of allEnrolledCourses) {
+                const entry = (ec.subjectDurations || []).find(
+                    d => (d.subjectName || '').toLowerCase() === subNameL
+                );
+                if (entry && Number(entry.duration) > 0) {
+                    foundDur = Number(entry.duration);
+                    break;
+                }
+            }
+
+            if (foundDur === 0) foundDur = 1;
+
+            const daysList = [];
+            for (let i = 1; i <= foundDur; i++) {
+                daysList.push({
+                    dayNum: i,
+                    indexNum: currentDayIndex,
+                    id: `Index ${currentDayIndex}`
+                });
+                currentDayIndex++;
+            }
+            mapping.push({ subjectName: subName, days: daysList });
+            mappedLower.add(subNameL);
+        });
+    }
+
+    // Filter by assigned subjects
+    if (assignedSubjects && assignedSubjects.length > 0) {
+        const lowerAssigned = assignedSubjects.map(s => s.toLowerCase());
+        return mapping.filter(m => lowerAssigned.includes(m.subjectName.toLowerCase()));
+    }
+
+    return mapping;
+};
+
+const saveInboxConfig = asyncHandler(async (req, res) => {
+    const { studentId, inboxId, displayName, visible, disabled, courseId, subject } = req.body;
+
+    let targetStudentId = studentId;
+    if (!targetStudentId && courseId) {
+        const student = await User.findOne({
+            $or: [
+                { 'studentProfile.course': courseId },
+                { 'studentProfile.coursesList.course': courseId }
+            ]
+        });
+        if (student) {
+            targetStudentId = student._id;
+        }
+    }
+
+    if (!targetStudentId || !inboxId) {
+        res.status(400);
+        throw new Error('studentId (or courseId with enrolled students) and inboxId are required');
+    }
+
+    let resolvedCourseId = courseId;
+    let resolvedSubject = subject;
+
+    // Auto-resolve courseId and subject from student profile if missing
+    if (targetStudentId) {
+        const studentObj = await User.findById(targetStudentId);
+        if (studentObj && studentObj.studentProfile) {
+            if (!resolvedCourseId) {
+                resolvedCourseId = studentObj.studentProfile.course;
+                if (!resolvedCourseId && studentObj.studentProfile.coursesList && studentObj.studentProfile.coursesList.length > 0) {
+                    resolvedCourseId = studentObj.studentProfile.coursesList[0].course;
+                }
+            }
+            if (!resolvedSubject) {
+                resolvedSubject = studentObj.studentProfile.subject;
+                if (!resolvedSubject && studentObj.studentProfile.coursesList && studentObj.studentProfile.coursesList.length > 0) {
+                    resolvedSubject = (studentObj.studentProfile.coursesList[0].subjects || []).join(', ');
+                }
+            }
+        }
+    }
+
+    let oldDisplayName = '';
+    const oldConfig = await StudentInboxConfig.findOne({ student: targetStudentId, inboxId, subject: resolvedSubject });
+    if (oldConfig) {
+        oldDisplayName = oldConfig.displayName || '';
+    }
+
+    let config = await StudentInboxConfig.findOne({ student: targetStudentId, inboxId, subject: resolvedSubject });
 
     if (config) {
         if (displayName !== undefined) config.displayName = displayName;
         if (visible !== undefined) config.visible = visible;
         if (disabled !== undefined) config.disabled = disabled;
+        if (resolvedCourseId) config.course = resolvedCourseId;
         await config.save();
     } else {
         config = await StudentInboxConfig.create({
-            student: studentId,
+            student: targetStudentId,
             inboxId,
+            subject: resolvedSubject || '',
+            course: resolvedCourseId,
             displayName: displayName || '',
             visible: visible !== undefined ? visible : true,
             disabled: disabled !== undefined ? disabled : false
         });
+    }
+
+    // Propagate changes if displayName was updated
+    if (displayName !== undefined) {
+        const Course = require('../../models/Course');
+        const Test = require('../../models/Test');
+
+        // ------------------------------------------------------------------
+        // 1. Find ALL courses that share the same subject so we can propagate
+        //    the rename across every course, not just one.
+        // ------------------------------------------------------------------
+        let allCourseIdsForSubject = [];
+        let allCourseNamesForSubject = [];
+
+        if (resolvedSubject) {
+            const subjectsArr = resolvedSubject.split(',').map(s => s.trim()).filter(Boolean);
+            const subjectRegexArr = subjectsArr.map(s =>
+                new RegExp(`^\\s*${s.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}\\s*$`, 'i')
+            );
+            const coursesWithSubject = await Course.find({
+                subjects: { $in: subjectRegexArr }
+            }).select('_id name');
+            allCourseIdsForSubject = coursesWithSubject.map(c => c._id);
+            allCourseNamesForSubject = coursesWithSubject.map(c => c.name);
+        }
+
+        // Also include the explicitly provided courseId / name if not already in list
+        if (resolvedCourseId) {
+            const providedCourse = await Course.findById(resolvedCourseId).select('_id name');
+            if (providedCourse) {
+                const alreadyIn = allCourseIdsForSubject.some(id => id.equals(providedCourse._id));
+                if (!alreadyIn) {
+                    allCourseIdsForSubject.push(providedCourse._id);
+                    allCourseNamesForSubject.push(providedCourse.name);
+                }
+            }
+        }
+
+        // ------------------------------------------------------------------
+        // 2. Find ALL students enrolled in any of those courses and propagate
+        //    the displayName rename to their inbox configs.
+        // ------------------------------------------------------------------
+        // Resolve the dayNum from the source student's mapping
+        let dayNum = null;
+        if (targetStudentId && resolvedSubject && resolvedCourseId) {
+            try {
+                const sourceMapping = await getStudentSubjectDaysMapping(targetStudentId, resolvedCourseId);
+                const subGroup = sourceMapping.find(m => m.subjectName.toLowerCase() === resolvedSubject.toLowerCase());
+                if (subGroup) {
+                    const dayEntry = subGroup.days.find(d => d.id.toLowerCase() === inboxId.toLowerCase());
+                    if (dayEntry) {
+                        dayNum = dayEntry.dayNum;
+                    }
+                }
+            } catch (err) {
+                console.error("Error resolving dayNum in saveInboxConfig:", err);
+            }
+        }
+
+        let allStudentIds = [];
+        if (allCourseIdsForSubject.length > 0) {
+            const studentsAcrossCourses = await User.find({
+                $or: [
+                    { 'studentProfile.course': { $in: allCourseIdsForSubject } },
+                    { 'studentProfile.coursesList.course': { $in: allCourseIdsForSubject } }
+                ]
+            }).select('_id');
+            allStudentIds = studentsAcrossCourses.map(s => s._id);
+        } else if (resolvedCourseId) {
+            const studentsInCourse = await User.find({
+                $or: [
+                    { 'studentProfile.course': resolvedCourseId },
+                    { 'studentProfile.coursesList.course': resolvedCourseId }
+                ]
+            }).select('_id');
+            allStudentIds = studentsInCourse.map(s => s._id);
+        }
+
+        if (allStudentIds.length > 0) {
+            await Promise.all(
+                allStudentIds.map(async (sId) => {
+                    const sIdStr = String(sId);
+                    
+                    // Resolve all targetInboxIds for this student
+                    let targetInboxIds = [];
+                    if (dayNum !== null && resolvedSubject) {
+                        try {
+                            const targetStudentObj = await User.findById(sId).select('studentProfile');
+                            if (targetStudentObj && targetStudentObj.studentProfile) {
+                                // Collect all course IDs for the target student
+                                const coursesToCheck = [];
+                                if (targetStudentObj.studentProfile.course) {
+                                    coursesToCheck.push(String(targetStudentObj.studentProfile.course));
+                                }
+                                if (targetStudentObj.studentProfile.coursesList) {
+                                    targetStudentObj.studentProfile.coursesList.forEach(item => {
+                                        if (item.course) coursesToCheck.push(String(item.course._id || item.course));
+                                    });
+                                }
+                                
+                                // For each course, find the day ID corresponding to this subject and dayNum
+                                for (const cId of coursesToCheck) {
+                                    const targetMapping = await getStudentSubjectDaysMapping(sId, cId);
+                                    const subGroup = targetMapping.find(m => m.subjectName.toLowerCase() === resolvedSubject.toLowerCase());
+                                    if (subGroup) {
+                                        const dayEntry = subGroup.days.find(d => d.dayNum === dayNum);
+                                        if (dayEntry && dayEntry.id) {
+                                            targetInboxIds.push(dayEntry.id);
+                                        }
+                                    }
+                                }
+                            }
+                        } catch (err) {
+                            console.error(`Error resolving targetInboxIds for student ${sId}:`, err);
+                        }
+                    }
+
+                    // Fallback to the original inboxId if no specific target ID was resolved
+                    if (targetInboxIds.length === 0) {
+                        targetInboxIds.push(inboxId);
+                    }
+
+                    // Deduplicate
+                    targetInboxIds = [...new Set(targetInboxIds)];
+
+                    // Update configs for resolved day IDs
+                    for (const tInboxId of targetInboxIds) {
+                        const existing = await StudentInboxConfig.findOne({ student: sId, inboxId: tInboxId }).select('displayName');
+                        const existingName = existing ? (existing.displayName || '') : '';
+                        
+                        const defaultLike = (name) => {
+                            if (!name) return true;
+                            return name === '' || /^index\s+\d+$/i.test(name) || name === oldDisplayName;
+                        };
+
+                        if (defaultLike(existingName)) {
+                            await StudentInboxConfig.findOneAndUpdate(
+                                { student: sId, inboxId: tInboxId },
+                                { $set: { displayName } },
+                                { upsert: true, new: true }
+                            );
+                        }
+                    }
+                })
+            );
+        }
+
+        // ------------------------------------------------------------------
+        // 3. Update test indices across ALL courses that share this subject.
+        // ------------------------------------------------------------------
+        const searchIndexNames = [inboxId];
+        if (oldDisplayName) {
+            searchIndexNames.push(oldDisplayName);
+        }
+
+        if (allCourseNamesForSubject.length > 0 && resolvedSubject) {
+            const subjectsArr = resolvedSubject.split(',').map(s => s.trim()).filter(Boolean);
+            const subjectRegexArr = subjectsArr.map(s =>
+                new RegExp(`^\\s*${s.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}\\s*$`, 'i')
+            );
+            // Update tests in ALL matching courses + subject
+            await Test.updateMany(
+                {
+                    course: { $in: allCourseNamesForSubject },
+                    subject: { $in: subjectRegexArr },
+                    index: { $in: searchIndexNames }
+                },
+                { $set: { index: displayName } }
+            );
+        } else if (allCourseNamesForSubject.length > 0) {
+            // No subject filter — update in all matching courses
+            await Test.updateMany(
+                {
+                    course: { $in: allCourseNamesForSubject },
+                    index: { $in: searchIndexNames }
+                },
+                { $set: { index: displayName } }
+            );
+        }
     }
 
     res.json(config);
@@ -1009,8 +1533,8 @@ const getDeletedUsers = asyncHandler(async (req, res) => {
     const users = await User.find(query)
         .select('-password')
         .populate('institute', 'name')
-        .populate('studentProfile.course', 'name subjects')
-        .populate('studentProfile.coursesList.course', 'name subjects')
+        .populate('studentProfile.course', 'name subjects duration subjectDurations')
+        .populate('studentProfile.coursesList.course', 'name subjects duration subjectDurations')
         .populate('teacherProfile.assignedCourses', 'name');
 
     res.json(users);
@@ -1044,6 +1568,11 @@ const permanentlyDeleteUser = asyncHandler(async (req, res) => {
     if (!user) {
         res.status(404);
         throw new Error('User not found');
+    }
+
+    if (user.role === 'Admin') {
+        res.status(400);
+        throw new Error('Admin users cannot be deleted');
     }
 
     if (req.user && (req.user.role === 'Institute' || req.user.role === 'Editor') && user.institute?.toString() !== req.user.institute?.toString()) {
@@ -1592,6 +2121,7 @@ module.exports = {
     deletePhysicalAttendance,
     updateFeeStatus,
     markBulkPhysicalAttendance,
+    getInboxConfigsByCourseSubject,
     getInboxConfigs,
     saveInboxConfig,
     getActivityConfigs,

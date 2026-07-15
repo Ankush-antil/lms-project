@@ -783,7 +783,7 @@ const SubjectsList = () => {
  
                                         {/* Days Duration */}
                                         <td className="p-4 whitespace-nowrap text-center font-bold text-slate-800 text-sm">
-                                            {s.courses?.map(c => c.duration).join(', ')}
+                                            {[...new Set(s.courses?.map(c => c.duration))].join(', ')}
                                         </td>
  
                                         {/* Actions */}

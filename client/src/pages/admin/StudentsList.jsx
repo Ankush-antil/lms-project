@@ -578,6 +578,7 @@ const StudentsList = () => {
                 Institute: u.institute?.name || '',
                 Courses: courseNames,
                 Subjects: subjectNames,
+                Roles: u.allowedRoles && u.allowedRoles.length > 0 ? u.allowedRoles.join(', ') : (u.role || 'Student'),
                 Batch: u.studentProfile?.batch || '',
                 Section: u.studentProfile?.section || '',
                 'Page Access Permissions': getUserPageAccess(u)
@@ -601,6 +602,8 @@ const StudentsList = () => {
                 courses: r.Courses,
 
                 subjects: r.Subjects,
+
+                roles: r.Roles,
 
                 batch: r.Batch,
 

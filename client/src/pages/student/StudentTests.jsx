@@ -1079,6 +1079,15 @@ const StudentTests = () => {
                 };
             }).filter(Boolean);
 
+            // Sort days under this subject numerically based on the leading digits of displayTitle
+            matchedDays.sort((a, b) => {
+                const getNum = (title) => {
+                    const match = String(title).match(/^(\d+)/);
+                    return match ? parseInt(match[1], 10) : 999999;
+                };
+                return getNum(a.displayTitle) - getNum(b.displayTitle);
+            });
+
             return {
                 subjectName: group.subjectName,
                 days: matchedDays

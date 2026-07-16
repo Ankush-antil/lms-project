@@ -49,8 +49,8 @@ const getTeacherStudents = asyncHandler(async (req, res) => {
             try {
                 const studentObj = student.toObject();
 
-                // Filter subjects of student courses to only include teacher subjects
-                if (studentObj.studentProfile) {
+                // Filter subjects of student courses to only include teacher subjects (only if teacher has assigned subjects)
+                if (studentObj.studentProfile && teacherSubjects.length > 0) {
                     const teacherSubjectsLower = teacherSubjects.map(s => s.toLowerCase());
                     if (studentObj.studentProfile.subject) {
                         const studentSubs = studentObj.studentProfile.subject.split(',').map(s => s.trim()).filter(Boolean);

@@ -133,17 +133,22 @@ const UserProfileModal = ({ userId, isOpen, onClose }) => {
                 {/* Profile Content */}
                 <div className="px-6 pb-8 -mt-14 text-center overflow-y-auto flex-1 custom-scrollbar">
                     <div className="relative inline-block">
-                        <div className="w-28 h-28 rounded-full border-4 border-white bg-slate-100 shadow-xl mx-auto overflow-hidden bg-gradient-to-tr from-slate-100 to-slate-200 flex items-center justify-center font-bold text-slate-400 text-3xl">
+                        <div className="w-28 h-28 rounded-full border-4 border-white shadow-xl mx-auto bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center font-black text-white text-3xl relative">
                             {loading ? (
-                                <div className="animate-pulse w-full h-full bg-slate-200"></div>
-                            ) : user?.role === 'Institute' && user?.institute?.imageUrl ? (
-                                <img src={user.institute.imageUrl} alt={user.name} className="w-full h-full object-cover" />
-                            ) : user?.avatar ? (
-                                <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
-                            ) : user?.institute?.imageUrl ? (
-                                <img src={user.institute.imageUrl} alt={user.name} className="w-full h-full object-cover" />
+                                <div className="absolute inset-0 rounded-full animate-pulse bg-slate-200"></div>
                             ) : (
-                                user?.name?.charAt(0) || '?'
+                                <>
+                                    <span className="select-none">
+                                        {user?.name?.charAt(0)?.toUpperCase() || '?'}
+                                    </span>
+                                    {(user?.role === 'Institute' && user?.institute?.imageUrl) ? (
+                                        <img src={user.institute.imageUrl} alt={user.name} className="absolute inset-0 w-full h-full object-cover rounded-full" onError={e => { e.target.style.display='none'; }} />
+                                    ) : user?.avatar ? (
+                                        <img src={user.avatar} alt={user.name} className="absolute inset-0 w-full h-full object-cover rounded-full" onError={e => { e.target.style.display='none'; }} />
+                                    ) : user?.institute?.imageUrl ? (
+                                        <img src={user.institute.imageUrl} alt={user.name} className="absolute inset-0 w-full h-full object-cover rounded-full" onError={e => { e.target.style.display='none'; }} />
+                                    ) : null}
+                                </>
                             )}
                         </div>
                         {!loading && user?.role === 'Admin' && (
@@ -179,7 +184,9 @@ const UserProfileModal = ({ userId, isOpen, onClose }) => {
                                     {user?.role}
                                 </span>
                                 <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
-                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">ID: {user?._id?.slice(-6)}</span>
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">
+                                    {user?.admissionNo ? `Adm: ${user.admissionNo}` : `ID: ${user?._id?.slice(-6)?.toUpperCase()}`}
+                                </span>
                             </div>
 
                             <div className="mt-6 grid grid-cols-2 gap-3 text-left">

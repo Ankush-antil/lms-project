@@ -512,11 +512,12 @@ const TeacherActivities = () => {
     const [showMatModal, setShowMatModal] = useState(false);
 
     useEffect(() => {
-        if (viewMode === 'study-material' && selectedInboxId) {
+        if ((viewMode === 'study-material' || viewMode === 'pending' || viewMode === 'assign') && selectedInboxId) {
             const fetchMaterials = async () => {
                 try {
                     setLoadingMaterials(true);
-                    const { data } = await axios.get(`/api/study-materials?inboxId=${selectedInboxId}`);
+                    const statusParam = viewMode === 'pending' ? 'upcoming' : viewMode === 'assign' ? 'assign' : 'study-material';
+                    const { data } = await axios.get(`/api/study-materials?inboxId=${selectedInboxId}&status=${statusParam}`);
                     setStudyMaterials(data);
                 } catch (err) {
                     console.error("Error fetching study materials:", err);
@@ -785,6 +786,9 @@ const TeacherActivities = () => {
             const formData = new FormData();
             formData.append('title', matTitle.trim());
             formData.append('inboxId', selectedInboxId);
+            // Send status based on current tab
+            const matStatus = viewMode === 'pending' ? 'upcoming' : (viewMode === 'assign' ? 'assign' : 'study-material');
+            formData.append('status', matStatus);
             
             if (uploadType === 'file') {
                 formData.append('file', matFile);
@@ -2623,7 +2627,7 @@ const TeacherActivities = () => {
                                 ) : (
                                     /* --- DIRECT TESTS GRID --- */
                                     <div className="animate-fade-in space-y-4">
-                                        {!activeTests.length ? (
+                                        {!activeTests.length && !(viewMode === 'pending' && studyMaterials.length > 0) && !(viewMode === 'assign' && studyMaterials.length > 0) ? (
                                             <div className="py-12 text-center bg-white rounded-2xl border border-slate-100 shadow-sm max-w-md mx-auto">
                                                 <div className="text-4xl mb-2">🎉</div>
                                                 <p className="font-bold text-slate-700 text-sm">All caught up!</p>
@@ -2845,6 +2849,134 @@ const TeacherActivities = () => {
                                                         </div>
                                                     );
                                                 })}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* Upcoming Materials Section (only on pending tab) */}
+                                {viewMode === 'pending' && (
+                                    <div className="animate-fade-in mt-6 space-y-3">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-6 h-6 rounded-lg bg-red-50 flex items-center justify-center">
+                                                <FileText size={12} className="text-red-500" />
+                                            </div>
+                                            <h3 className="font-extrabold text-slate-700 text-xs uppercase tracking-widest">Upcoming Materials</h3>
+                                            {studyMaterials.length > 0 && (
+                                                <span className="bg-red-50 text-red-500 border border-red-100 px-2 py-0.5 rounded-full text-[10px] font-black">{studyMaterials.length}</span>
+                                            )}
+                                        </div>
+                                        {loadingMaterials ? (
+                                            <div className="flex items-center gap-2 text-xs text-slate-400 font-semibold py-4">
+                                                <div className="animate-spin rounded-full h-4 w-4 border-2 border-slate-200 border-t-indigo-500"></div>
+                                                Loading materials...
+                                            </div>
+                                        ) : studyMaterials.length === 0 ? (
+                                            <p className="text-xs text-slate-400 font-semibold py-1">No materials added to upcoming yet.</p>
+                                        ) : (
+                                            <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
+                                                {studyMaterials.map((mat) => (
+                                                    <div key={mat._id} className="bg-white p-4 rounded-2xl border border-slate-200 hover:shadow-md transition-all flex flex-col justify-between">
+                                                        <div className="space-y-1.5">
+                                                            <h4 className="font-extrabold text-slate-800 text-xs leading-snug line-clamp-1">{mat.title}</h4>
+                                                            <p className="text-[10px] text-slate-400 truncate">
+                                                                {mat.filename === 'Web Link' ? (
+                                                                    <span className="text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded text-[10px]">🔗 Web Link</span>
+                                                                ) : mat.filename}
+                                                            </p>
+                                                            <p className="text-[10px] text-slate-400">{new Date(mat.createdAt).toLocaleDateString()}</p>
+                                                        </div>
+                                                        <div className="mt-3 pt-2.5 border-t border-slate-100 flex justify-between items-center">
+                                                            <button
+                                                                onClick={() => handleDeleteStudyMaterial(mat._id)}
+                                                                className="text-red-400 hover:text-red-600 text-[10px] font-bold transition-colors"
+                                                            >
+                                                                Delete
+                                                            </button>
+                                                            <a
+                                                                href={mat.fileUrl}
+                                                                target="_blank"
+                                                                rel="noreferrer"
+                                                                className="px-3 py-1.5 bg-[#EF4444] hover:bg-red-600 text-white rounded-xl text-[10px] font-black uppercase tracking-wider shadow-sm transition-all"
+                                                            >
+                                                                {mat.filename === 'Web Link' ? 'Open Link' : 'View File'}
+                                                            </a>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* Assign Materials Section (only on assign tab) */}
+                                {viewMode === 'assign' && (
+                                    <div className="animate-fade-in mt-6 space-y-3">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-6 h-6 rounded-lg bg-indigo-50 flex items-center justify-center">
+                                                <FileText size={12} className="text-indigo-600" />
+                                            </div>
+                                            <h3 className="font-extrabold text-slate-700 text-xs uppercase tracking-widest">Assigned Materials</h3>
+                                            {studyMaterials.length > 0 && (
+                                                <span className="bg-indigo-50 text-indigo-600 border border-indigo-100 px-2 py-0.5 rounded-full text-[10px] font-black">{studyMaterials.length}</span>
+                                            )}
+                                        </div>
+                                        {loadingMaterials ? (
+                                            <div className="flex items-center gap-2 text-xs text-slate-400 font-semibold py-4">
+                                                <div className="animate-spin rounded-full h-4 w-4 border-2 border-slate-200 border-t-indigo-500"></div>
+                                                Loading materials...
+                                            </div>
+                                        ) : studyMaterials.length === 0 ? (
+                                            <p className="text-xs text-slate-400 font-semibold py-1">No materials added to assign yet.</p>
+                                        ) : (
+                                            <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
+                                                {studyMaterials.map((mat) => (
+                                                    <div key={mat._id} className="bg-white p-4 rounded-2xl border border-slate-200 hover:shadow-md transition-all flex flex-col justify-between">
+                                                        <div className="space-y-1.5">
+                                                            <h4 className="font-extrabold text-slate-800 text-xs leading-snug line-clamp-1">{mat.title}</h4>
+                                                            <p className="text-[10px] text-slate-400 truncate">
+                                                                {mat.filename === 'Web Link' ? (
+                                                                    <span className="text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded text-[10px]">🔗 Web Link</span>
+                                                                ) : mat.filename}
+                                                            </p>
+                                                            <p className="text-[10px] text-slate-400">{new Date(mat.createdAt).toLocaleDateString()}</p>
+                                                        </div>
+                                                        <div className="mt-3 pt-2.5 border-t border-slate-100 flex flex-col gap-2">
+                                                            {/* Move to Upcoming */}
+                                                            <button
+                                                                onClick={async () => {
+                                                                    try {
+                                                                        await axios.patch(`/api/study-materials/${mat._id}`, { status: 'upcoming' });
+                                                                        setStudyMaterials(prev => prev.filter(m => m._id !== mat._id));
+                                                                        toast.success('Moved to Upcoming!');
+                                                                    } catch (err) {
+                                                                        toast.error('Failed to move material');
+                                                                    }
+                                                                }}
+                                                                className="w-full py-1.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-100 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5"
+                                                            >
+                                                                <Hourglass size={10} strokeWidth={3} />
+                                                                Move to Upcoming
+                                                            </button>
+                                                            <div className="flex justify-between items-center">
+                                                                <button
+                                                                    onClick={() => handleDeleteStudyMaterial(mat._id)}
+                                                                    className="text-red-400 hover:text-red-600 text-[10px] font-bold transition-colors"
+                                                                >
+                                                                    Delete
+                                                                </button>
+                                                                <a
+                                                                    href={mat.fileUrl}
+                                                                    target="_blank"
+                                                                    rel="noreferrer"
+                                                                    className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider shadow-sm transition-all"
+                                                                >
+                                                                    {mat.filename === 'Web Link' ? 'Open Link' : 'View File'}
+                                                                </a>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
                                             </div>
                                         )}
                                     </div>

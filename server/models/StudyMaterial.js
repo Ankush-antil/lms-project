@@ -29,6 +29,11 @@ const studyMaterialSchema = new mongoose.Schema({
     isPrivate: {
         type: Boolean,
         default: false
+    },
+    status: {
+        type: String,
+        default: 'study-material',
+        enum: ['study-material', 'upcoming', 'assign']
     }
 }, {
     timestamps: true

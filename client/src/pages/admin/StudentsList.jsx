@@ -362,15 +362,33 @@ const StudentsList = () => {
 
                 const keys = Object.keys(row);
 
-                const nameKey = keys.find(k => k.toLowerCase() === 'name');
+                const nameKey = keys.find(k => {
+                    const l = k.toLowerCase().trim();
+                    return l === 'name' || l.includes('name') || l.startsWith('stud') || l.startsWith('name') || l === 'student n';
+                });
 
-                const emailKey = keys.find(k => k.toLowerCase() === 'email');
+                const emailKey = keys.find(k => {
+                    const l = k.toLowerCase().trim();
+                    return l === 'email' || l.includes('email') || l.includes('mail');
+                });
 
-                const passwordKey = keys.find(k => k.toLowerCase() === 'password');
+                const passwordKey = keys.find(k => k.toLowerCase().includes('pass'));
 
-                const courseKey = keys.find(k => ['course name', 'coursename', 'course'].includes(k.toLowerCase()));
+                const courseKey = keys.find(k => k.toLowerCase().includes('course') || k.toLowerCase().includes('class'));
 
-                const mobileKey = keys.find(k => ['mobile number', 'mobilenumber', 'mobile', 'phone'].includes(k.toLowerCase()));
+                const mobileKey = keys.find(k => k.toLowerCase().includes('phone') || k.toLowerCase().includes('mobile') || k.toLowerCase().includes('contact') || k.toLowerCase().includes('tel'));
+
+                const admissionNoKey = keys.find(k => k.toLowerCase().includes('adm') || k.toLowerCase().includes('enroll'));
+
+                const instituteKey = keys.find(k => k.toLowerCase().includes('inst'));
+
+                const subjectKey = keys.find(k => k.toLowerCase().includes('sub'));
+
+                const batchKey = keys.find(k => k.toLowerCase().includes('batch') || k.toLowerCase().includes('sess') || k.toLowerCase().includes('year'));
+
+                const sectionKey = keys.find(k => k.toLowerCase().includes('sec'));
+
+                const roleKey = keys.find(k => k.toLowerCase() === 'role' || k.toLowerCase() === 'roles' || k.toLowerCase().includes('role'));
 
                 return {
 
@@ -380,15 +398,25 @@ const StudentsList = () => {
 
                     password: passwordKey ? String(row[passwordKey]).trim() : '',
 
-                    role: 'Student',
+                    role: roleKey ? String(row[roleKey]).trim() : 'Student',
 
                     courseName: courseKey ? String(row[courseKey]).trim() : '',
 
-                    mobileNumber: mobileKey ? String(row[mobileKey]).trim() : ''
+                    mobileNumber: mobileKey ? String(row[mobileKey]).trim() : '',
+
+                    admissionNo: admissionNoKey ? String(row[admissionNoKey]).trim() : '',
+
+                    instituteName: instituteKey ? String(row[instituteKey]).trim() : '',
+
+                    subject: subjectKey ? String(row[subjectKey]).trim() : '',
+
+                    batch: batchKey ? String(row[batchKey]).trim() : '',
+
+                    section: sectionKey ? String(row[sectionKey]).trim() : ''
 
                 };
 
-            }).filter(item => item.name && item.email && item.role);
+            }).filter(item => item.name && item.email);
 
             if (parsedMapped.length === 0) {
 
@@ -961,7 +989,7 @@ const StudentsList = () => {
                                             />
                                         </th>
                                         <th className="p-4 font-semibold whitespace-nowrap">Student Name</th>
-                                        <th className="p-4 font-semibold whitespace-nowrap">ID</th>
+                                        <th className="p-4 font-semibold whitespace-nowrap">Adm. No.</th>
                                         <th className="p-4 font-semibold whitespace-nowrap">Institute</th>
                                         <th className="p-4 font-semibold whitespace-nowrap">Course</th>
                                         <th className="p-4 font-semibold whitespace-nowrap">Section</th>
@@ -996,13 +1024,19 @@ const StudentsList = () => {
                                                 <td className="p-4 whitespace-nowrap">
                                                     <div className="flex items-center gap-3">
                                                         <div
-                                                            className="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 text-white flex items-center justify-center font-bold overflow-hidden shadow-sm cursor-pointer hover:scale-110 transition-transform"
+                                                            className="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 text-white flex items-center justify-center font-black shadow-sm cursor-pointer hover:scale-110 transition-transform relative"
                                                             onClick={() => openProfile(student._id)}
                                                         >
-                                                            {student.avatar ? (
-                                                                <img src={student.avatar} alt={student.name} className="w-full h-full object-cover" />
-                                                            ) : (
-                                                                student.name[0]
+                                                            <span className="text-sm select-none">
+                                                                {student.name?.[0]?.toUpperCase() || '?'}
+                                                            </span>
+                                                            {student.avatar && (
+                                                                <img
+                                                                    src={student.avatar}
+                                                                    alt={student.name}
+                                                                    className="absolute inset-0 w-full h-full object-cover rounded-full"
+                                                                    onError={e => { e.target.style.display = 'none'; }}
+                                                                />
                                                             )}
                                                         </div>
                                                         <div className="flex flex-col">
@@ -1016,7 +1050,15 @@ const StudentsList = () => {
                                                         </div>
                                                     </div>
                                                 </td>
-                                                <td className="p-4 whitespace-nowrap text-slate-500 text-xs font-bold font-mono">{student._id ? `#${student._id.slice(-6)}` : 'N/A'}</td>
+                                                <td className="p-4 whitespace-nowrap">
+                                                    <span className={`inline-flex items-center px-2.5 py-1 rounded-xl text-xs font-bold font-mono ${
+                                                        student.admissionNo
+                                                            ? 'bg-indigo-50 text-indigo-700 border border-indigo-100'
+                                                            : 'bg-slate-100 text-slate-400'
+                                                    }`}>
+                                                        {student.admissionNo || (student._id ? `#${student._id.slice(-6)}` : 'N/A')}
+                                                    </span>
+                                                </td>
                                                 <td className="p-4 whitespace-nowrap text-slate-650 text-xs font-bold truncate max-w-[120px]">{student.institute?.name || 'N/A'}</td>
                                                 <td className="p-4 whitespace-nowrap text-slate-650 text-xs font-bold relative">
                                                     {(() => {

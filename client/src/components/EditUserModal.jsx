@@ -182,6 +182,7 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
             name: user?.name || '',
             email: user?.email || '',
             password: '', // Keep empty unless changing
+            admissionNo: user?.admissionNo || '',
             course: role === 'Student'
                 ? (user?.studentProfile?.course?._id || user?.studentProfile?.course || '')
                 : (role === 'Teacher'
@@ -1097,6 +1098,7 @@ const handleSubmit = async (e) => {
             const payload = {
                 name: formData.name,
                 email: formData.email,
+                admissionNo: formData.admissionNo,
                 institute: formData.institute,
                 course: formData.course,
                 subject: formData.subject,
@@ -1422,6 +1424,19 @@ const handleSubmit = async (e) => {
                                         />
                                     </div>
                                 </div>
+
+                                {selectedRoleToEdit === 'Student' && (
+                                    <div>
+                                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Admission No.</label>
+                                        <input
+                                            type="text"
+                                            className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
+                                            value={formData.admissionNo}
+                                            onChange={e => setFormData({ ...formData, admissionNo: e.target.value })}
+                                            placeholder="e.g. UQ-22354"
+                                        />
+                                    </div>
+                                )}
 
                                 {selectedRoleToEdit === 'Parent' && (
                                     <div className="grid grid-cols-1 gap-4">

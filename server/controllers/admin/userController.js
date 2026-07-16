@@ -2036,24 +2036,33 @@ const importUsers = asyncHandler(async (req, res) => {
     };
 
     for (const uItem of users) {
-        const { name, email, password, role, courseName, mobileNumber } = uItem;
+        const { name, email, password, role, courseName, mobileNumber, admissionNo, instituteName, subject, batch, section } = uItem;
         if (!name || !email || !role) {
             results.errors.push({ row: uItem, error: 'Name, email, and role are required' });
             continue;
         }
 
         try {
-            const userExists = await User.findOne({ email });
-            if (userExists) {
-                results.errors.push({ row: uItem, error: `User with email ${email} already exists` });
-                continue;
+            // Resolve Institute if provided by name
+            let userInstitute = creatorInstitute;
+            if (instituteName && instituteName.trim()) {
+                const InstituteModel = require('../../models/Institute');
+                const instObj = await InstituteModel.findOne({
+                    name: { $regex: new RegExp(`^\\s*${escapeRegex(instituteName.trim())}`, 'i') },
+                    isDeleted: { $ne: true }
+                });
+                if (instObj) {
+                    userInstitute = instObj._id;
+                }
             }
 
             let courseId = null;
             if (courseName && ['Student', 'Teacher', 'Editor'].includes(role)) {
+                // Remove any trailing ellipsis from truncation
+                const cleanCourseQuery = courseName.trim().replace(/\.\.\./g, '').trim();
                 const courseObj = await Course.findOne({ 
-                    name: { $regex: new RegExp(`^${courseName.trim()}$`, 'i') },
-                    institute: creatorInstitute
+                    name: { $regex: new RegExp(`^${escapeRegex(cleanCourseQuery)}`, 'i') },
+                    institute: userInstitute
                 });
                 if (courseObj) {
                     courseId = courseObj._id;
@@ -2063,28 +2072,89 @@ const importUsers = asyncHandler(async (req, res) => {
                 }
             }
 
+            const userExists = await User.findOne({ email });
+            if (userExists) {
+                // Update existing user instead of failing
+                userExists.name = name || userExists.name;
+                userExists.mobileNumber = mobileNumber || userExists.mobileNumber;
+                userExists.institute = userInstitute || userExists.institute;
+                if (admissionNo && admissionNo.trim()) {
+                    userExists.admissionNo = admissionNo.trim();
+                }
+
+                if (role === 'Student') {
+                    if (!userExists.studentProfile) userExists.studentProfile = {};
+                    if (courseId) userExists.studentProfile.course = courseId;
+                    if (section && section.trim()) userExists.studentProfile.section = section.trim();
+                    if (batch && batch.trim()) userExists.studentProfile.batch = batch.trim();
+                    if (subject && subject.trim()) userExists.studentProfile.subject = subject.trim();
+                } else if (role === 'Teacher') {
+                    if (!userExists.teacherProfile) userExists.teacherProfile = {};
+                    if (courseId && !userExists.teacherProfile.assignedCourses.includes(courseId)) {
+                        userExists.teacherProfile.assignedCourses.push(courseId);
+                    }
+                    if (subject && !userExists.teacherProfile.subjects.includes(subject)) {
+                        userExists.teacherProfile.subjects.push(subject);
+                    }
+                } else if (role === 'Editor') {
+                    if (!userExists.editorProfile) userExists.editorProfile = {};
+                    if (courseId && !userExists.editorProfile.assignedCourses.includes(courseId)) {
+                        userExists.editorProfile.assignedCourses.push(courseId);
+                    }
+                    if (subject && !userExists.editorProfile.subjects.includes(subject)) {
+                        userExists.editorProfile.subjects.push(subject);
+                    }
+                }
+
+                await userExists.save();
+                results.successCount++;
+                continue;
+            }
+
+            // Resolve / Auto-generate Unique Admission No.
+            let finalAdmissionNo = '';
+            if (admissionNo && admissionNo.trim()) {
+                finalAdmissionNo = admissionNo.trim();
+            } else if (role === 'Student') {
+                let isUnique = false;
+                let attempts = 0;
+                while (!isUnique && attempts < 20) {
+                    const randVal = Math.floor(10000 + Math.random() * 90000);
+                    const candidate = `UQ-${randVal}`;
+                    const dup = await User.findOne({ admissionNo: candidate });
+                    if (!dup) {
+                        finalAdmissionNo = candidate;
+                        isUnique = true;
+                    }
+                    attempts++;
+                }
+            }
+
             const userFields = {
                 name,
                 email,
                 password: password || 'Welcome123',
                 role,
-                institute: creatorInstitute,
+                institute: userInstitute,
                 mobileNumber: mobileNumber || '',
+                admissionNo: finalAdmissionNo,
                 callEnabled: true
             };
 
             if (role === 'Student') {
-                const assignedSection = await computeSection(courseId);
+                const assignedSection = section && section.trim() ? section.trim() : await computeSection(courseId);
                 userFields.studentProfile = {
                     course: courseId,
                     section: assignedSection,
+                    batch: batch && batch.trim() ? batch.trim() : '',
+                    subject: subject && subject.trim() ? subject.trim() : '',
                     enrollmentDate: new Date(),
                     controls: {}
                 };
             } else if (role === 'Teacher') {
                 userFields.teacherProfile = {
                     assignedCourses: courseId ? [courseId] : [],
-                    subjects: [],
+                    subjects: subject ? [subject] : [],
                     studentAssignmentMode: 'all',
                     assignedSections: [],
                     assignedStudents: [],
@@ -2093,7 +2163,7 @@ const importUsers = asyncHandler(async (req, res) => {
             } else if (role === 'Editor') {
                 userFields.editorProfile = {
                     assignedCourses: courseId ? [courseId] : [],
-                    subjects: [],
+                    subjects: subject ? [subject] : [],
                     controls: {}
                 };
             } else if (role === 'Accountant') {

@@ -3,7 +3,8 @@ const router = express.Router();
 const { 
     uploadStudyMaterial, 
     getStudyMaterials, 
-    deleteStudyMaterial 
+    deleteStudyMaterial,
+    updateStudyMaterialStatus
 } = require('../controllers/studyMaterialController');
 const { protect } = require('../middleware/authMiddleware');
 const uploadAttachment = require('../middleware/uploadAttachment');
@@ -13,6 +14,7 @@ router.route('/')
     .get(protect, getStudyMaterials);
 
 router.route('/:id')
-    .delete(protect, deleteStudyMaterial);
+    .delete(protect, deleteStudyMaterial)
+    .patch(protect, updateStudyMaterialStatus);
 
 module.exports = router;

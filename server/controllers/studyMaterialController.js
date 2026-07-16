@@ -20,7 +20,7 @@ const uploadStudyMaterial = asyncHandler(async (req, res) => {
         throw new Error('Not authorized to upload study material');
     }
 
-    const { title, inboxId, fileUrl, isPrivate } = req.body;
+    const { title, inboxId, fileUrl, isPrivate, status } = req.body;
 
     if (!req.file && !fileUrl) {
         res.status(400);
@@ -61,7 +61,8 @@ const uploadStudyMaterial = asyncHandler(async (req, res) => {
         inboxId,
         institute: instituteName,
         uploadedBy: req.user._id,
-        isPrivate: isPrivate === 'true' || isPrivate === true
+        isPrivate: isPrivate === 'true' || isPrivate === true,
+        status: status || 'study-material'
     });
 
     res.status(201).json(material);
@@ -71,7 +72,7 @@ const uploadStudyMaterial = asyncHandler(async (req, res) => {
 // @route   GET /api/study-materials
 // @access  Private
 const getStudyMaterials = asyncHandler(async (req, res) => {
-    const { inboxId, isPrivate } = req.query;
+    const { inboxId, isPrivate, status } = req.query;
 
     const user = await User.findById(req.user._id).populate('institute');
     const instituteName = user.institute?.name || '';
@@ -86,6 +87,10 @@ const getStudyMaterials = asyncHandler(async (req, res) => {
 
     if (inboxId) {
         query.inboxId = inboxId;
+    }
+
+    if (status) {
+        query.status = status;
     }
 
     // Role-based privacy filtering
@@ -138,8 +143,37 @@ const deleteStudyMaterial = asyncHandler(async (req, res) => {
     res.json({ message: 'Study material deleted successfully' });
 });
 
+// @desc    Update study material status (e.g. move to upcoming)
+// @route   PATCH /api/study-materials/:id
+// @access  Private (Teacher/Admin)
+const updateStudyMaterialStatus = asyncHandler(async (req, res) => {
+    const material = await StudyMaterial.findById(req.params.id);
+
+    if (!material) {
+        res.status(404);
+        throw new Error('Study material not found');
+    }
+
+    if (material.uploadedBy.toString() !== req.user._id.toString() && req.user.role !== 'Admin') {
+        res.status(403);
+        throw new Error('Not authorized to update this study material');
+    }
+
+    const { status } = req.body;
+    const allowed = ['study-material', 'upcoming', 'assign'];
+    if (!status || !allowed.includes(status)) {
+        res.status(400);
+        throw new Error(`Invalid status. Must be one of: ${allowed.join(', ')}`);
+    }
+
+    material.status = status;
+    await material.save();
+    res.json(material);
+});
+
 module.exports = {
     uploadStudyMaterial,
     getStudyMaterials,
-    deleteStudyMaterial
+    deleteStudyMaterial,
+    updateStudyMaterialStatus
 };

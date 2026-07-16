@@ -190,6 +190,33 @@ userSchema.pre('save', function (next) {
     next();
 });
 
+// Auto-generate unique admission number for Student if not provided
+userSchema.pre('save', async function (next) {
+    if (this.role === 'Student' && !this.admissionNo) {
+        let uniqueFound = false;
+        let generatedNo = '';
+        let attempts = 0;
+        
+        while (!uniqueFound && attempts < 10) {
+            const randNum = Math.floor(10000 + Math.random() * 90000); // 5 digits
+            generatedNo = `UQ-${randNum}`;
+            const exists = await mongoose.models.User.findOne({ admissionNo: generatedNo });
+            if (!exists) {
+                uniqueFound = true;
+            }
+            attempts++;
+        }
+        
+        // Fallback to timestamp if random number collisions occur repeatedly (very rare)
+        if (!uniqueFound) {
+            generatedNo = `UQ-${Date.now().toString().slice(-5)}`;
+        }
+        
+        this.admissionNo = generatedNo;
+    }
+    next();
+});
+
 // Encrypt password using bcrypt
 userSchema.pre('save', async function (next) {
     if (!this.isModified('password')) {

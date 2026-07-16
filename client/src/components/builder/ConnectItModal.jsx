@@ -638,9 +638,9 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
                         </div>
 
 
-                        {/* Status (Assign / Upcoming) */}
+                        {/* Visibility Mode (Assign / Upcoming) */}
                         <div className="space-y-3 pt-2">
-                            <label className="text-sm font-bold text-slate-700 block">Status</label>
+                            <label className="text-sm font-bold text-slate-700 block">Visibility Mode</label>
                             <div className="flex gap-4">
                                 <label className="flex-1 flex items-center gap-3 p-3.5 bg-slate-50 border border-slate-200 rounded-2xl cursor-pointer hover:bg-slate-100/50 transition-all select-none">
                                     <input

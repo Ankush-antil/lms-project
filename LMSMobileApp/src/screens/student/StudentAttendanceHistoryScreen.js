@@ -135,9 +135,14 @@ const StudentAttendanceHistoryScreen = ({ navigation, route }) => {
                     <Ionicons name="arrow-back" size={24} color={colors.white} />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Attendance History</Text>
-                <TouchableOpacity onPress={() => setLeaveModalVisible(true)} style={styles.applyLeaveHeaderBtn}>
-                    <Text style={styles.applyLeaveHeaderBtnText}>Apply Leave</Text>
-                </TouchableOpacity>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+                    <TouchableOpacity onPress={() => navigation.navigate('ScanAttendance')} style={styles.headerIconBtn}>
+                        <Ionicons name="qr-code-outline" size={20} color={colors.white} />
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => setLeaveModalVisible(true)} style={styles.applyLeaveHeaderBtn}>
+                        <Text style={styles.applyLeaveHeaderBtnText}>Apply Leave</Text>
+                    </TouchableOpacity>
+                </View>
             </View>
 
             <FlatList
@@ -622,6 +627,16 @@ const styles = StyleSheet.create({
         color: '#1e1b4b',
         fontWeight: '600',
         marginTop: 2,
+    },
+    headerIconBtn: {
+        backgroundColor: 'rgba(255, 255, 255, 0.2)',
+        width: 32,
+        height: 32,
+        borderRadius: borderRadius.sm,
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.3)',
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     applyLeaveHeaderBtn: {
         backgroundColor: 'rgba(255, 255, 255, 0.2)',

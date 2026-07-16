@@ -2958,8 +2958,12 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
         date: new Date().toISOString().split('T')[0],
         index: 'Inbox 1',
         activity: 'Quiz',
-        isAssigned: false
+        isAssigned: false,
+        duration: '',
+        passingMarks: ''
     });
+    const [isDescriptionModalOpen, setIsDescriptionModalOpen] = useState(false);
+    const [tempDescription, setTempDescription] = useState('');
 
     const [publishing, setPublishing] = useState(false);
     const [saving, setSaving] = useState(false);
@@ -3050,7 +3054,10 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                         date: test.date || new Date().toISOString().split('T')[0],
                         index: test.index || 'Inbox 1',
                         activity: test.activity || 'Quiz',
-                        isAssigned: !!test.isAssigned
+                        isAssigned: !!test.isAssigned,
+                        duration: test.settings?.duration || '',
+                        passingMarks: test.settings?.passingMarks || '',
+                        description: test.description || ''
                     });
                     setIsConnected(true);
                     setAllowTeacherEdit(!!test.allowTeacherEdit);
@@ -3660,11 +3667,119 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
         document.addEventListener('mouseup', handleMouseUp);
     };
 
-    const handleConnectSave = (data) => {
+    const handleConnectSave = async (data) => {
         setConnectData(data);
         setIsConnected(true);
         setIsConnectModalOpen(false);
-        toast.success("Form details connected successfully! Make sure to Publish.");
+
+        if (id) {
+            try {
+                setSaving(true);
+                const titleVal = data?.name?.trim() || 'Untitled Draft Test';
+                const currentMode = publishModeSelected || 'connected';
+
+                const testData = {
+                    testDetails: {
+                        title: titleVal,
+                        description: data?.description || '',
+                        institute: data?.institute || user?.institute?.name || (typeof user?.institute === 'string' ? user.institute : 'Default Institute'),
+                        course: data?.course || '',
+                        subject: data?.subject || '',
+                        date: data?.date || new Date().toISOString().split('T')[0],
+                        index: data?.index || 'Inbox 1',
+                        activity: data?.activity || 'Quiz',
+                        publishMode: currentMode,
+                        discussionActivity: discussionActivity,
+                        assignmentType: 'all',
+                        assignedStudents: [],
+                        allowTeacherEdit: allowTeacherEdit,
+                        isAssigned: data?.isAssigned || false
+                    },
+                    questions: formElements.map((el, index) => ({
+                        id: `q${index}`,
+                        text: el.text?.trim() || `${el.label} Question ${index + 1}`,
+                        type: el.label,
+                        marks: el.marks !== undefined ? el.marks : 1,
+                        description: el.description || '',
+                        helperText: el.noteContent || el.helperText || '',
+                        uploadedResource: el.uploadedResource || null,
+                        instructions: el.instructions || '',
+                        required: !!el.required,
+                        enabled: el.enabled !== false,
+                        negativeMarks: el.negativeMarks || 0,
+                        partialMarks: !!el.partialMarks,
+                        evaluationMode: el.evaluationMode || 'auto',
+                        validation: el.validation || {},
+                        assistive: el.assistive || {},
+                        particulars: el.particulars || {},
+                        logicalSettings: el.logicalSettings || {},
+                        validationSettings: el.validationSettings || {},
+                        insertedImages: el.insertedImages || [],
+                        logic: el.logic || {},
+                        textLogic: el.textLogic || {},
+                        advanced: el.advanced || {},
+                        options: el.options || [],
+                        matchingPairs: el.matchingPairs || [],
+                        blankAnswers: el.blankAnswers || [],
+                        uploadedFiles: el.uploadedFiles || [],
+                        tableData: el.tableData || null,
+                        addons: el.addons || [],
+                        appliedToAllAddons: el.appliedToAllAddons || [],
+                        appliedToAllMoreSettings: el.appliedToAllMoreSettings || [],
+                        moreSettings: el.moreSettings || { allowUpload: false, allowChat: false, allowSubmitFinish: false },
+                        mediaUrl: el.mediaUrl || '',
+                        writeMode: !!el.writeMode,
+                        audioUrl: el.audioUrl || '',
+                        imageUrl: el.imageUrl || '',
+                        altText: el.altText || '',
+                        align: el.align || 'center',
+                        pdfUrl: el.pdfUrl || '',
+                        youtubeUrl: el.youtubeUrl || '',
+                        embeddedVideoUrl: el.embeddedVideoUrl || '',
+                        webpageUrl: el.webpageUrl || '',
+                        webpageHeight: el.webpageHeight || 400,
+                        webpageScroll: el.webpageScroll || 'yes',
+                        smPlatform: el.smPlatform || '',
+                        smPostUrl: el.smPostUrl || '',
+                        multiMaxFiles: el.multiMaxFiles || 5,
+                        multiMaxSizeMB: el.multiMaxSizeMB || 10,
+                        multiFileType: el.multiFileType || 'all',
+                        videoCallDuration: el.videoCallDuration || 5,
+                        videoCallRole: el.videoCallRole || 'interviewer',
+                        videoCallScenario: el.videoCallScenario || '',
+                        videoUrl: el.videoUrl || '',
+                        videoWidth: el.videoWidth || 500,
+                        htmlContent: el.htmlContent || '',
+                        autoplay: !!el.autoplay,
+                        loop: !!el.loop,
+                        quality: el.quality || '1080p',
+                        includeMic: !!el.includeMic,
+                        screenshotScope: el.screenshotScope || 'Entire Screen',
+                        agentName: el.agentName || '',
+                        greetingMessage: el.greetingMessage || '',
+                        systemPersona: el.systemPersona || '',
+                        voicePersona: el.voicePersona || 'alloy',
+                        scriptScenario: el.scriptScenario || '',
+                        activityType: el.activityType || 'AI Lab',
+                        activityRules: el.activityRules || ''
+                    })),
+                    settings: {
+                        duration: Number(data?.duration) || 60,
+                        passingMarks: Number(data?.passingMarks) || 40
+                    }
+                };
+
+                await axios.put(`/api/tests/${id}`, testData);
+                toast.success("Information saved and synced to database! ✓");
+            } catch (error) {
+                console.error("Error auto-saving connected details:", error);
+                toast.error(error.response?.data?.message || "Failed to save changes to database.");
+            } finally {
+                setSaving(false);
+            }
+        } else {
+            toast.success("Form details connected successfully! Make sure to Save or Publish.");
+        }
     };
 
     // AI Form Generation Mock
@@ -3701,6 +3816,7 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
             const testData = {
                 testDetails: {
                     title: titleVal,
+                    description: (mode === 'connected' || mode === 'draft') ? (connectData?.description || '') : (settingsObj?.description || ''),
                     institute: (mode === 'connected' || mode === 'draft')
                         ? (connectData?.institute || user?.institute?.name || (typeof user?.institute === 'string' ? user.institute : 'Default Institute'))
                         : (settingsObj?.selectedFolder ? (settingsObj.selectedFolder.institute || 'Public Web') : 'Public Web'),
@@ -3790,8 +3906,8 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                     activityRules: el.activityRules || ''
                 })),
                 settings: {
-                    duration: mode === 'public' ? (Number((settingsObj || publicSettings).timeLimit) || 60) : 60,
-                    passingMarks: 40
+                    duration: mode === 'public' ? (Number((settingsObj || publicSettings).timeLimit) || 60) : (Number(connectData?.duration) || 60),
+                    passingMarks: Number(connectData?.passingMarks) || 40
                 }
             };
 
@@ -3956,8 +4072,8 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                     activityRules: el.activityRules || ''
                 })),
                 settings: {
-                    duration: 60,
-                    passingMarks: 40
+                    duration: Number(connectData?.duration) || 60,
+                    passingMarks: Number(connectData?.passingMarks) || 40
                 }
             };
 
@@ -4098,12 +4214,13 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                                         <button
                                             onClick={() => {
                                                 setIsHeaderMenuOpen(false);
-                                                toast("Add internal note feature coming soon!", { icon: '📝' });
+                                                setTempDescription(connectData.description || '');
+                                                setIsDescriptionModalOpen(true);
                                             }}
                                             className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-bold hover:bg-slate-50 transition-colors text-left text-slate-700"
                                         >
                                             <FileText size={13} className="text-slate-400" />
-                                            <span>Add internal note</span>
+                                            <span>Description</span>
                                         </button>
                                         <button
                                             onClick={() => {
@@ -5779,6 +5896,170 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                     onSave={handleConnectSave}
                     initialData={connectData}
                 />
+
+                {isDescriptionModalOpen && (
+                    <div className="fixed inset-0 z-[160] bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 font-sans animate-fade-in">
+                        <div className="bg-white w-full max-w-lg rounded-[30px] shadow-2xl border border-slate-100 overflow-hidden relative flex flex-col">
+                            {/* Header */}
+                            <div className="flex items-center justify-between p-6 border-b border-slate-100 bg-white">
+                                <h3 className="text-md font-bold text-slate-800 flex items-center gap-2">
+                                    <FileText size={18} className="text-[#0b1329]" />
+                                    <span>Test Description</span>
+                                </h3>
+                                <button
+                                    onClick={() => setIsDescriptionModalOpen(false)}
+                                    className="p-1.5 hover:bg-slate-150 rounded-full text-slate-400 hover:text-slate-650 transition-colors"
+                                >
+                                    <X size={18} />
+                                </button>
+                            </div>
+
+                            {/* Content */}
+                            <div className="p-6 space-y-4">
+                                <p className="text-xs font-semibold text-slate-500">
+                                    Provide a description for this test. This will be shown to students before they start and will be visible in the Relevant Information popup.
+                                </p>
+                                <textarea
+                                    value={tempDescription}
+                                    onChange={(e) => setTempDescription(e.target.value)}
+                                    placeholder="Enter a description for this test..."
+                                    rows={6}
+                                    className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-slate-700 outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 transition-all font-sans font-bold resize-none"
+                                />
+                            </div>
+
+                            {/* Footer */}
+                            <div className="p-6 border-t border-slate-100 flex justify-end gap-3 bg-slate-50/50">
+                                <button
+                                    onClick={() => setIsDescriptionModalOpen(false)}
+                                    className="px-5 py-2.5 text-slate-600 font-bold border border-slate-200 rounded-xl hover:bg-white transition-all text-xs active:scale-95"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={async () => {
+                                        setIsDescriptionModalOpen(false);
+                                        const updatedData = {
+                                            ...connectData,
+                                            description: tempDescription
+                                        };
+                                        setConnectData(updatedData);
+
+                                        // If this test is already saved, sync it to the backend immediately
+                                        if (id) {
+                                            try {
+                                                setSaving(true);
+                                                const currentMode = publishModeSelected || 'connected';
+                                                const payload = {
+                                                    testDetails: {
+                                                        title: connectData.name,
+                                                        description: tempDescription,
+                                                        institute: connectData.institute || user?.institute?.name || (typeof user?.institute === 'string' ? user.institute : 'Default Institute'),
+                                                        course: connectData.course || '',
+                                                        subject: connectData.subject || '',
+                                                        date: connectData.date || new Date().toISOString().split('T')[0],
+                                                        index: connectData.index || 'Inbox 1',
+                                                        activity: connectData.activity || 'Quiz',
+                                                        publishMode: currentMode,
+                                                        discussionActivity: discussionActivity,
+                                                        assignmentType: 'all',
+                                                        assignedStudents: [],
+                                                        allowTeacherEdit: allowTeacherEdit,
+                                                        isAssigned: connectData.isAssigned || false
+                                                    },
+                                                    questions: formElements.map((el, index) => ({
+                                                        id: `q${index}`,
+                                                        text: el.text?.trim() || `${el.label} Question ${index + 1}`,
+                                                        type: el.label,
+                                                        marks: el.marks !== undefined ? el.marks : 1,
+                                                        description: el.description || '',
+                                                        helperText: el.noteContent || el.helperText || '',
+                                                        uploadedResource: el.uploadedResource || null,
+                                                        instructions: el.instructions || '',
+                                                        required: !!el.required,
+                                                        enabled: el.enabled !== false,
+                                                        negativeMarks: el.negativeMarks || 0,
+                                                        partialMarks: !!el.partialMarks,
+                                                        evaluationMode: el.evaluationMode || 'auto',
+                                                        validation: el.validation || {},
+                                                        assistive: el.assistive || {},
+                                                        particulars: el.particulars || {},
+                                                        logicalSettings: el.logicalSettings || {},
+                                                        validationSettings: el.validationSettings || {},
+                                                        insertedImages: el.insertedImages || [],
+                                                        logic: el.logic || {},
+                                                        textLogic: el.textLogic || {},
+                                                        advanced: el.advanced || {},
+                                                        options: el.options || [],
+                                                        matchingPairs: el.matchingPairs || [],
+                                                        blankAnswers: el.blankAnswers || [],
+                                                        uploadedFiles: el.uploadedFiles || [],
+                                                        tableData: el.tableData || null,
+                                                        addons: el.addons || [],
+                                                        appliedToAllAddons: el.appliedToAllAddons || [],
+                                                        appliedToAllMoreSettings: el.appliedToAllMoreSettings || [],
+                                                        moreSettings: el.moreSettings || { allowUpload: false, allowChat: false, allowSubmitFinish: false },
+                                                        mediaUrl: el.mediaUrl || '',
+                                                        writeMode: !!el.writeMode,
+                                                        audioUrl: el.audioUrl || '',
+                                                        imageUrl: el.imageUrl || '',
+                                                        altText: el.altText || '',
+                                                        align: el.align || 'center',
+                                                        pdfUrl: el.pdfUrl || '',
+                                                        youtubeUrl: el.youtubeUrl || '',
+                                                        embeddedVideoUrl: el.embeddedVideoUrl || '',
+                                                        webpageUrl: el.webpageUrl || '',
+                                                        webpageHeight: el.webpageHeight || 400,
+                                                        webpageScroll: el.webpageScroll || 'yes',
+                                                        smPlatform: el.smPlatform || '',
+                                                        smPostUrl: el.smPostUrl || '',
+                                                        multiMaxFiles: el.multiMaxFiles || 5,
+                                                        multiMaxSizeMB: el.multiMaxSizeMB || 10,
+                                                        multiFileType: el.multiFileType || 'all',
+                                                        videoCallDuration: el.videoCallDuration || 5,
+                                                        videoCallRole: el.videoCallRole || 'interviewer',
+                                                        videoCallScenario: el.videoCallScenario || '',
+                                                        videoUrl: el.videoUrl || '',
+                                                        videoWidth: el.videoWidth || 500,
+                                                        htmlContent: el.htmlContent || '',
+                                                        autoplay: !!el.autoplay,
+                                                        loop: !!el.loop,
+                                                        quality: el.quality || '1080p',
+                                                        includeMic: !!el.includeMic,
+                                                        screenshotScope: el.screenshotScope || 'Entire Screen',
+                                                        agentName: el.agentName || '',
+                                                        greetingMessage: el.greetingMessage || '',
+                                                        systemPersona: el.systemPersona || '',
+                                                        voicePersona: el.voicePersona || 'alloy',
+                                                        scriptScenario: el.scriptScenario || '',
+                                                        activityType: el.activityType || 'AI Lab',
+                                                        activityRules: el.activityRules || ''
+                                                    })),
+                                                    settings: {
+                                                        duration: Number(connectData.duration) || 60,
+                                                        passingMarks: Number(connectData.passingMarks) || 40
+                                                    }
+                                                };
+                                                await axios.put(`/api/tests/${id}`, payload);
+                                                toast.success("Description updated and synced to database! ✓");
+                                            } catch (error) {
+                                                console.error("Error auto-saving description:", error);
+                                                toast.error("Failed to sync description to database.");
+                                            } finally {
+                                                setSaving(false);
+                                            }
+                                        } else {
+                                            toast.success("Description saved successfully! Make sure to Save or Publish.");
+                                        }
+                                    }}
+                                    className="px-6 py-2.5 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-all text-xs active:scale-95"
+                                >
+                                    Save Description
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 <PublishOptionsModal
                     isOpen={isPublishOptionsModalOpen}

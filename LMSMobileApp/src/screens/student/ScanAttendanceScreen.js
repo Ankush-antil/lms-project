@@ -120,7 +120,15 @@ const ScanAttendanceScreen = ({ navigation }) => {
                 console.warn('Location services disabled');
                 return null;
             }
-            const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+            
+            // Try last known position first (instantly retrieves cached coordinates)
+            const lastKnown = await Location.getLastKnownPositionAsync();
+            if (lastKnown && (Date.now() - lastKnown.timestamp < 60000)) { // within last 1 minute
+                return { latitude: lastKnown.coords.latitude, longitude: lastKnown.coords.longitude };
+            }
+
+            // Fallback to low-accuracy cell tower/Wi-Fi lookup (resolves in milliseconds)
+            const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Low });
             return pos ? { latitude: pos.coords.latitude, longitude: pos.coords.longitude } : null;
         } catch (e) {
             console.error("Error reading geolocation:", e);
@@ -134,10 +142,36 @@ const ScanAttendanceScreen = ({ navigation }) => {
         setScanned(true);
         setLoading(true);
         
+        // 1. Detect if the scanned data is a website URL
+        const isUrl = data.trim().startsWith('http://') || data.trim().startsWith('https://');
+        if (isUrl) {
+            setLoading(false);
+            Alert.alert(
+                "Open Link",
+                `The scanned QR code contains a link:\n\n${data.trim()}\n\nDo you want to open it?`,
+                [
+                    { text: "Cancel", onPress: () => resetScanner(), style: "cancel" },
+                    { 
+                        text: "Open Link", 
+                        onPress: () => {
+                            Linking.openURL(data.trim()).catch((err) => {
+                                Alert.alert("Error", "Could not open link.");
+                            });
+                            resetScanner();
+                        } 
+                    }
+                ]
+            );
+            return;
+        }
+
+        // 2. Otherwise, treat it as an Attendance QR code
         try {
-            // Fetch student's current Wi-Fi SSID and Geolocation
-            const studentWifiSSID = await getWifiSSID();
-            const location = await getStudentLocation();
+            // Fetch student's current Wi-Fi SSID and Geolocation in parallel (saves substantial latency)
+            const [studentWifiSSID, location] = await Promise.all([
+                getWifiSSID(),
+                getStudentLocation()
+            ]);
 
             // Fetch session status by QR token
             const res = await axios.get(`/attendance/session/qr/${data}`, {
@@ -204,7 +238,11 @@ const ScanAttendanceScreen = ({ navigation }) => {
                     ]
                 );
             } else {
-                Alert.alert("Scan Failed", errMsg, [{ text: "Try Again", onPress: () => resetScanner() }]);
+                Alert.alert(
+                    "Scanned Content",
+                    `This code is not a valid Attendance QR.\n\nContent:\n${data}`,
+                    [{ text: "OK", onPress: () => resetScanner() }]
+                );
             }
         } finally {
             setLoading(false);
@@ -288,7 +326,9 @@ const ScanAttendanceScreen = ({ navigation }) => {
                     <Ionicons name="arrow-back" size={24} color={colors.white} />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Class Attendance</Text>
-                <View style={{ width: 40 }} />
+                <TouchableOpacity onPress={() => navigation.navigate('StudentAttendanceHistory')} style={styles.historyHeaderBtn}>
+                    <Ionicons name="calendar-outline" size={22} color={colors.white} />
+                </TouchableOpacity>
             </View>
 
             {/* SCAN QR CODE STEP */}
@@ -432,6 +472,7 @@ const styles = StyleSheet.create({
     },
     backButton: { padding: 4 },
     headerTitle: { fontSize: fontSizes.lg, fontWeight: '700', color: colors.white },
+    historyHeaderBtn: { padding: 4 },
     
     loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.bg },
     

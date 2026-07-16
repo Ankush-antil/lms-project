@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
     View, Text, StyleSheet, ScrollView, TouchableOpacity,
-    TextInput, ActivityIndicator, Alert, SafeAreaView, Platform, Modal
+    TextInput, ActivityIndicator, Alert, SafeAreaView, Platform, Modal, StatusBar
 } from 'react-native';
 import axios from 'axios';
 import { colors, spacing, fontSizes, borderRadius } from '../../theme/colors';
@@ -9,6 +9,24 @@ import { Ionicons } from '@expo/vector-icons';
 import { TimePickerModal } from '../../components/common/TimePickerModal';
 
 const TeacherSnapshotsScreen = ({ navigation }) => {
+    const formatDisplayDate = (dateStr) => {
+        if (!dateStr) return '';
+        const parts = dateStr.split('-');
+        if (parts.length === 3) {
+            const year = parseInt(parts[0], 10);
+            const month = parseInt(parts[1], 10) - 1;
+            const day = parseInt(parts[2], 10);
+            const date = new Date(year, month, day);
+            return date.toLocaleDateString('en-US', {
+                weekday: 'short',
+                day: 'numeric',
+                month: 'short',
+                year: 'numeric'
+            });
+        }
+        return dateStr;
+    };
+
     const [students, setStudents] = useState([]);
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
@@ -253,20 +271,25 @@ const TeacherSnapshotsScreen = ({ navigation }) => {
     }
 
     return (
-        <SafeAreaView style={styles.safeArea}>
+        <View style={styles.safeArea}>
             {/* Header */}
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-                    <Ionicons name="arrow-back" size={24} color={colors.text} />
+                    <Ionicons name="arrow-back" size={24} color={colors.white} />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Daily Snapshots</Text>
-                <TouchableOpacity onPress={handleSave} disabled={submitting} style={styles.saveHeaderBtn}>
-                    {submitting ? (
-                        <ActivityIndicator size="small" color={colors.white} />
-                    ) : (
-                        <Text style={styles.saveHeaderBtnText}>Save</Text>
-                    )}
-                </TouchableOpacity>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                    <TouchableOpacity onPress={() => navigation.navigate('TeacherAttendance')} style={styles.qrHeaderBtn}>
+                        <Ionicons name="qr-code-outline" size={22} color={colors.white} />
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={handleSave} disabled={submitting} style={styles.saveHeaderBtn}>
+                        {submitting ? (
+                            <ActivityIndicator size="small" color={colors.white} />
+                        ) : (
+                            <Text style={styles.saveHeaderBtnText}>Save</Text>
+                        )}
+                    </TouchableOpacity>
+                </View>
             </View>
 
             <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
@@ -275,7 +298,7 @@ const TeacherSnapshotsScreen = ({ navigation }) => {
                     <TouchableOpacity onPress={() => changeDate(-1)} style={styles.dateNavBtn}>
                         <Ionicons name="chevron-back" size={20} color={colors.textSecondary} />
                     </TouchableOpacity>
-                    <Text style={styles.dateLabel}>{attendanceDate}</Text>
+                    <Text style={styles.dateLabel}>{formatDisplayDate(attendanceDate)}</Text>
                     <TouchableOpacity onPress={() => changeDate(1)} style={styles.dateNavBtn} disabled={attendanceDate === todayStr}>
                         <Ionicons name="chevron-forward" size={20} color={attendanceDate === todayStr ? colors.textMuted : colors.textSecondary} />
                     </TouchableOpacity>
@@ -688,7 +711,7 @@ const TeacherSnapshotsScreen = ({ navigation }) => {
                     setTimePickerTarget(null);
                 }}
             />
-        </SafeAreaView>
+        </View>
     );
 };
 
@@ -697,23 +720,26 @@ const styles = StyleSheet.create({
     loading: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.bg },
     loadingText: { marginTop: 10, color: colors.textSecondary, fontWeight: 'bold' },
     header: {
-        height: 56,
+        paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 44,
+        height: Platform.OS === 'android' ? 60 + StatusBar.currentHeight : 88,
+        backgroundColor: colors.primary,
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'between',
+        justifyContent: 'space-between',
         paddingHorizontal: spacing.md,
-        backgroundColor: colors.bgCard,
-        borderBottomWidth: 1,
-        borderBottomColor: colors.borderLight,
-        ...Platform.select({
-            ios: { marginTop: 0 },
-            android: { marginTop: 24 }
-        })
     },
-    backBtn: { width: 40, height: 40, justifyContent: 'center' },
-    headerTitle: { flex: 1, fontSize: fontSizes.lg, fontWeight: '900', color: colors.text },
-    saveHeaderBtn: { backgroundColor: colors.teacher, paddingHorizontal: 16, paddingVertical: 8, borderRadius: borderRadius.md },
-    saveHeaderBtnText: { color: colors.white, fontWeight: '800', fontSize: fontSizes.sm },
+    backBtn: { padding: 4 },
+    headerTitle: { fontSize: fontSizes.lg, fontWeight: '700', color: colors.white, flex: 1, marginLeft: 8 },
+    qrHeaderBtn: { padding: 4, marginRight: 4 },
+    saveHeaderBtn: {
+        backgroundColor: 'rgba(255, 255, 255, 0.2)',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: borderRadius.sm,
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.3)',
+    },
+    saveHeaderBtnText: { color: colors.white, fontWeight: '700', fontSize: fontSizes.xs },
     container: { flex: 1, padding: spacing.md },
     dateBar: {
         flexDirection: 'row',

@@ -113,12 +113,15 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
     const [formData, setFormData] = useState({
         institute: '',
         course: [],
-        subject: [],
+        subject: '',
         date: '',
         index: '',
         activity: '',
         name: '',
-        isAssigned: false
+        isAssigned: false,
+        duration: '',
+        passingMarks: '',
+        description: ''
     });
 
     const [allCourses, setAllCourses] = useState([]);
@@ -273,23 +276,29 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
                 setFormData({
                     institute: initialData.institute || defaultInstName,
                     course: parseCommaSeparated(initialData.course),
-                    subject: parseCommaSeparated(initialData.subject),
+                    subject: initialData.subject || '',
                     date: initialData.date || new Date().toISOString().split('T')[0],
                     index: initialData.index || '',
                     activity: initialData.activity || '',
                     name: initialData.name || '',
-                    isAssigned: initialData.isAssigned !== undefined ? initialData.isAssigned : false
+                    isAssigned: initialData.isAssigned !== undefined ? initialData.isAssigned : false,
+                    duration: initialData.duration || '',
+                    passingMarks: initialData.passingMarks || '',
+                    description: initialData.description || ''
                 });
             } else {
                 setFormData({
                     institute: defaultInstName,
                     course: [],
-                    subject: [],
+                    subject: '',
                     date: '',
                     index: '',
                     activity: '',
                     name: '',
-                    isAssigned: false
+                    isAssigned: false,
+                    duration: '',
+                    passingMarks: '',
+                    description: ''
                 });
             }
         }
@@ -297,6 +306,7 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
 
     // Update subjects and load custom index/day names when selected courses change
     useEffect(() => {
+        if (allCourses.length === 0) return;
         if (formData.course && formData.course.length > 0 && allCourses.length > 0) {
             const selectedCourses = allCourses.filter(c => formData.course.includes(c.name));
             
@@ -323,16 +333,16 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
 
             setOptions(prev => ({ ...prev, subject: uniqueSubjects }));
 
-            // Adjust selected subject array to only keep valid subjects
+            // Adjust selected subject to only keep valid subjects
             setFormData(prev => {
-                const currentSelected = prev.subject || [];
-                const validSelected = currentSelected.filter(s => uniqueSubjects.includes(s));
-                return { ...prev, subject: validSelected };
+                const currentSelected = prev.subject || '';
+                const isValid = uniqueSubjects.includes(currentSelected);
+                return { ...prev, subject: isValid ? currentSelected : '' };
             });
 
         } else {
             setOptions(prev => ({ ...prev, subject: [] }));
-            setFormData(prev => ({ ...prev, subject: [] }));
+            setFormData(prev => ({ ...prev, subject: '' }));
         }
     }, [formData.course, allCourses]);
 
@@ -341,7 +351,8 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
         if (formData.course && formData.course.length > 0 && allCourses.length > 0) {
             const selectedCourses = allCourses.filter(c => formData.course.includes(c.name));
             if (selectedCourses[0]) {
-                fetchIndexMappings(selectedCourses[0]._id, formData.subject || []);
+                const subjectList = formData.subject ? [formData.subject] : [];
+                fetchIndexMappings(selectedCourses[0]._id, subjectList);
             }
         } else {
             setIndexMappings({});
@@ -353,10 +364,10 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
         let duration = 50; // fallback
         let daysList = [];
 
-        if (formData.course && formData.course.length > 0 && formData.subject && formData.subject.length > 0 && allCourses.length > 0) {
+        if (formData.course && formData.course.length > 0 && formData.subject && allCourses.length > 0) {
             const selectedCourses = allCourses.filter(c => formData.course.includes(c.name));
             const firstCourse = selectedCourses[0];
-            const firstSub = formData.subject[0];
+            const firstSub = formData.subject;
 
             if (firstCourse) {
                 const subjects = firstCourse.subjects || [];
@@ -456,7 +467,7 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
                 [key]: [...prev[key], newValue]
             }));
             setFormData(prev => {
-                if (key === 'course' || key === 'subject') {
+                if (key === 'course') {
                     return {
                         ...prev,
                         [key]: [...(prev[key] || []), newValue]
@@ -532,7 +543,6 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
                             onChange={(val) => setFormData(prev => ({ ...prev, subject: val }))}
                             onCreateNew={() => handleCreateNew('Subject Name', 'subject')}
                             placeholder="Select Subject"
-                            isMulti={true}
                         />
 
                         <div className="space-y-1.5">
@@ -598,6 +608,31 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
                                 className="w-full p-4 font-bold text-indigo-600 bg-indigo-50/30 border border-indigo-200 rounded-2xl outline-none focus:ring-4 focus:ring-indigo-500/10 placeholder-indigo-300 transition-all"
                             />
                         </div>
+
+                        {/* Duration and Passing Marks Grid */}
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-1.5">
+                                <label className="text-sm font-semibold text-slate-600">Test Duration (mins)</label>
+                                <input
+                                    type="number"
+                                    value={formData.duration}
+                                    onChange={(e) => setFormData(prev => ({ ...prev, duration: e.target.value }))}
+                                    placeholder="e.g. 60"
+                                    className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-slate-700 outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 transition-all font-sans font-bold"
+                                />
+                            </div>
+                            <div className="space-y-1.5">
+                                <label className="text-sm font-semibold text-slate-600">Passing Marks</label>
+                                <input
+                                    type="number"
+                                    value={formData.passingMarks}
+                                    onChange={(e) => setFormData(prev => ({ ...prev, passingMarks: e.target.value }))}
+                                    placeholder="e.g. 40"
+                                    className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-slate-700 outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 transition-all font-sans font-bold"
+                                />
+                            </div>
+                        </div>
+
 
                         {/* Status (Assign / Upcoming) */}
                         <div className="space-y-3 pt-2">

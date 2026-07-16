@@ -107,6 +107,13 @@ const TeacherStack = () => (
         <Stack.Screen name="TestBuilder" component={TestBuilder} />
         <Stack.Screen name="Drive" component={DriveScreen} />
         <Stack.Screen name="Notes" component={NotesScreen} />
+        <Stack.Screen name="StudentPracticeTools" component={StudentPracticeTools} />
+        <Stack.Screen name="VoiceRecorderPage" component={VoiceRecorderPage} />
+        <Stack.Screen name="VideoRecorderPage" component={VideoRecorderPage} />
+        <Stack.Screen name="ScreenRecorderPage" component={ScreenRecorderPage} />
+        <Stack.Screen name="ScreenshotToolPage" component={ScreenshotToolPage} />
+        <Stack.Screen name="WebCallingPage" component={WebCallingPage} />
+        <Stack.Screen name="FileUploadPage" component={FileUploadPage} />
     </Stack.Navigator>
 );
 

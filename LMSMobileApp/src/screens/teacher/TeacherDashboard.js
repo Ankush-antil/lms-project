@@ -163,43 +163,27 @@ const TeacherDashboard = ({ navigation }) => {
             <View style={styles.topTabBar}>
                 <TouchableOpacity
                     style={styles.tabBtn}
+                    onPress={() => scrollRef.current?.scrollTo({ y: 0, animated: true })}
+                    activeOpacity={0.7}
+                >
+                    <Ionicons name="home-outline" size={20} color="#3b82f6" />
+                    <Text style={styles.tabLabel}>Home</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                    style={styles.tabBtn}
+                    onPress={() => navigation.navigate('TeacherSnapshots')}
+                    activeOpacity={0.7}
+                >
+                    <Ionicons name="calendar-outline" size={20} color="#ef4444" />
+                    <Text style={styles.tabLabel}>Attendance</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                    style={styles.tabBtn}
                     onPress={() => navigation.navigate('TeacherActivities')}
                     activeOpacity={0.7}
                 >
-                    <Ionicons name="clipboard" size={20} color={colors.accent} />
+                    <Ionicons name="clipboard-outline" size={20} color="#8b5cf6" />
                     <Text style={styles.tabLabel}>Activities</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                    style={styles.tabBtn}
-                    onPress={() => navigation.navigate('Notes')}
-                    activeOpacity={0.7}
-                >
-                    <Ionicons name="create-outline" size={20} color="#ec4899" />
-                    <Text style={styles.tabLabel}>Notes</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                    style={styles.tabBtn}
-                    onPress={() => navigation.navigate('ContactStudents')}
-                    activeOpacity={0.7}
-                >
-                    <Ionicons name="chatbubbles" size={20} color="#0d9488" />
-                    <Text style={styles.tabLabel}>Contact</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                    style={styles.tabBtn}
-                    onPress={() => navigation.navigate('TeacherAttendance')}
-                    activeOpacity={0.7}
-                >
-                    <Ionicons name="qr-code" size={20} color="#ef4444" />
-                    <Text style={styles.tabLabel}>Class QR</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                    style={styles.tabBtn}
-                    onPress={() => navigation.navigate('Drive')}
-                    activeOpacity={0.7}
-                >
-                    <Ionicons name="cloud-upload-outline" size={20} color="#06b6d4" />
-                    <Text style={styles.tabLabel}>Drive</Text>
                 </TouchableOpacity>
             </View>
 
@@ -427,39 +411,20 @@ const TeacherDashboard = ({ navigation }) => {
             <View style={styles.bottomTabBar}>
                 <TouchableOpacity
                     style={styles.bottomTabBtn}
-                    onPress={() => scrollRef.current?.scrollTo({ y: 0, animated: true })}
+                    onPress={() => navigation.navigate('Drive')}
                     activeOpacity={0.7}
                 >
-                    <Ionicons name="home" size={22} color={colors.accent} />
-                    <Text style={[styles.bottomTabLabel, { color: colors.accent }]}>Home</Text>
+                    <Ionicons name="cloud-outline" size={22} color={colors.textSecondary} />
+                    <Text style={styles.bottomTabLabel}>Drive</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
                     style={styles.bottomTabBtn}
-                    onPress={() => navigation.navigate('TeacherSnapshots')}
+                    onPress={() => navigation.navigate('Notes')}
                     activeOpacity={0.7}
                 >
-                    <Ionicons name="calendar-outline" size={22} color={colors.textSecondary} />
-                    <Text style={styles.bottomTabLabel}>Attendance</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                    style={styles.bottomTabBtn}
-                    onPress={() => navigation.navigate('TestBuilder')}
-                    activeOpacity={0.75}
-                >
-                    <View style={styles.plusBtnCircle}>
-                        <Ionicons name="add" size={28} color={colors.white} />
-                    </View>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                    style={styles.bottomTabBtn}
-                    onPress={() => navigation.navigate('ContactStudents')}
-                    activeOpacity={0.7}
-                >
-                    <Ionicons name="people-outline" size={22} color={colors.textSecondary} />
-                    <Text style={styles.bottomTabLabel}>Students</Text>
+                    <Ionicons name="create-outline" size={22} color={colors.textSecondary} />
+                    <Text style={styles.bottomTabLabel}>Notes</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -469,6 +434,24 @@ const TeacherDashboard = ({ navigation }) => {
                 >
                     <Ionicons name="checkmark-done-outline" size={22} color={colors.textSecondary} />
                     <Text style={styles.bottomTabLabel}>Evaluate</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                    style={styles.bottomTabBtn}
+                    onPress={() => navigation.navigate('StudentPracticeTools')}
+                    activeOpacity={0.7}
+                >
+                    <Ionicons name="construct-outline" size={22} color={colors.textSecondary} />
+                    <Text style={styles.bottomTabLabel}>Tools</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                    style={styles.bottomTabBtn}
+                    onPress={() => navigation.navigate('ContactStudents')}
+                    activeOpacity={0.7}
+                >
+                    <Ionicons name="chatbubbles-outline" size={22} color={colors.textSecondary} />
+                    <Text style={styles.bottomTabLabel}>Chat</Text>
                 </TouchableOpacity>
             </View>
             <ProfileBottomSheet visible={switcherVisible} onClose={() => setSwitcherVisible(false)} />

@@ -163,6 +163,25 @@ const userSchema = new mongoose.Schema({
 userSchema.index({ role: 1 });
 userSchema.index({ role: 1, 'studentProfile.section': 1 });
 
+// Exclude Admin and Institute users when listing other roles
+userSchema.pre(/^find/, function (next) {
+    const query = this.getQuery();
+    
+    if (query.role && ['Student', 'Teacher', 'Editor', 'Accountant'].includes(query.role)) {
+        this.where({ allowedRoles: { $nin: ['Admin', 'Institute'] } });
+    }
+    else if (query.$or && Array.isArray(query.$or)) {
+        const hasSubRoleQuery = query.$or.some(cond => 
+            cond.role && ['Student', 'Teacher', 'Editor', 'Accountant'].includes(cond.role)
+        );
+        if (hasSubRoleQuery) {
+            this.where({ allowedRoles: { $nin: ['Admin', 'Institute'] } });
+        }
+    }
+    
+    next();
+});
+
 // Ensure active role is in allowedRoles list
 userSchema.pre('save', function (next) {
     if (this.role && !this.allowedRoles.includes(this.role)) {

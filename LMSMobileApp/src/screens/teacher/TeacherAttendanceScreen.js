@@ -9,6 +9,7 @@ import NetInfo from '@react-native-community/netinfo';
 import * as Location from 'expo-location';
 import { colors, spacing, fontSizes, borderRadius } from '../../theme/colors';
 import { Ionicons } from '@expo/vector-icons';
+import { TimePickerModal } from '../../components/common/TimePickerModal';
 
 const TeacherAttendanceScreen = ({ navigation }) => {
     // Active session state
@@ -19,6 +20,61 @@ const TeacherAttendanceScreen = ({ navigation }) => {
     const [submitting, setSubmitting] = useState(false);
     const [search, setSearch] = useState('');
     const [timeLeft, setTimeLeft] = useState('');
+
+    // Auto QR Schedule states
+    const [autoModalVisible, setAutoModalVisible] = useState(false);
+    const [autoEnabled, setAutoEnabled] = useState(false);
+    const [autoScheduleTime, setAutoScheduleTime] = useState('--:--');
+    const [autoWifiSSID, setAutoWifiSSID] = useState('');
+    const [autoLocationRequired, setAutoLocationRequired] = useState(false);
+    const [autoTimePickerVisible, setAutoTimePickerVisible] = useState(false);
+
+    const fetchAndOpenAutoQRModal = async () => {
+        try {
+            setLoading(true);
+            const { data } = await axios.get('/attendance/auto-config');
+            setAutoEnabled(data.enabled || false);
+            setAutoScheduleTime(data.scheduleTime || '--:--');
+            setAutoWifiSSID(data.wifiSSID || '');
+            setAutoLocationRequired(!!data.locationRequired);
+            setAutoModalVisible(true);
+        } catch (error) {
+            console.error("Error fetching auto QR config:", error);
+            Alert.alert("Error", "Failed to fetch auto QR schedule configuration.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleSaveAutoQRConfig = async () => {
+        if (autoEnabled && (autoScheduleTime === '--:--' || !autoScheduleTime)) {
+            Alert.alert("Error", "Please select a valid generation time.");
+            return;
+        }
+
+        setSubmitting(true);
+        try {
+            const body = {
+                enabled: autoEnabled,
+                scheduleTime: autoScheduleTime,
+                wifiSSID: autoWifiSSID.trim() || null,
+                locationRequired: autoLocationRequired,
+                course: selectedCourse || null,
+                subject: selectedSubject || 'Daily Attendance',
+                section: section || 'ALL',
+                duration: parseInt(duration, 10) || 60
+            };
+            
+            await axios.post('/attendance/auto-config', body);
+            Alert.alert("Success", "Auto QR Schedule saved successfully.");
+            setAutoModalVisible(false);
+        } catch (error) {
+            console.error("Error saving auto QR config:", error);
+            Alert.alert("Error", error.response?.data?.message || "Failed to save auto QR schedule configuration.");
+        } finally {
+            setSubmitting(false);
+        }
+    };
 
     // Form inputs
     const [courses, setCourses] = useState([]);
@@ -344,7 +400,9 @@ const TeacherAttendanceScreen = ({ navigation }) => {
                     <Ionicons name="arrow-back" size={24} color={colors.white} />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>QR Attendance</Text>
-                <View style={{ width: 40 }} />
+                <TouchableOpacity onPress={() => navigation.navigate('TeacherSnapshots')} style={styles.historyHeaderBtn}>
+                    <Ionicons name="time-outline" size={22} color={colors.white} />
+                </TouchableOpacity>
             </View>
 
             {!activeSession ? (
@@ -485,6 +543,14 @@ const TeacherAttendanceScreen = ({ navigation }) => {
                             </TouchableOpacity>
                         );
                     })()}
+
+                    <TouchableOpacity 
+                        style={[styles.btnStart, { backgroundColor: '#3b82f6', marginTop: 10 }]} 
+                        onPress={fetchAndOpenAutoQRModal}
+                    >
+                        <Ionicons name="time-outline" size={20} color={colors.white} />
+                        <Text style={styles.btnStartText}>Schedule Automatic QRs</Text>
+                    </TouchableOpacity>
                 </ScrollView>
             ) : (
                 /* Live Attendance QR Screen */
@@ -664,11 +730,226 @@ const TeacherAttendanceScreen = ({ navigation }) => {
                     </View>
                 </View>
             </Modal>
+
+            {/* Schedule Automatic QRs Modal */}
+            <Modal
+                visible={autoModalVisible}
+                transparent={true}
+                animationType="slide"
+                onRequestClose={() => setAutoModalVisible(false)}
+            >
+                <View style={styles.autoModalOverlay}>
+                    <View style={styles.autoModalContent}>
+                        <View style={styles.autoModalHeader}>
+                            <Text style={styles.autoModalTitle}>Schedule Automatic QRs</Text>
+                            <Text style={styles.autoModalSub}>QRs will be generated automatically daily</Text>
+                            <TouchableOpacity onPress={() => setAutoModalVisible(false)} style={styles.autoCloseBtn}>
+                                <Ionicons name="close" size={24} color={colors.textSecondary} />
+                            </TouchableOpacity>
+                        </View>
+                        
+                        <ScrollView contentContainerStyle={styles.autoModalBody} keyboardShouldPersistTaps="handled">
+                            {/* Enable Automatic Scheduling Card */}
+                            <TouchableOpacity 
+                                style={styles.checkboxCard} 
+                                activeOpacity={0.8}
+                                onPress={() => setAutoEnabled(!autoEnabled)}
+                            >
+                                <View style={{ flex: 1 }}>
+                                    <Text style={styles.checkboxCardTitle}>Enable Automatic Scheduling</Text>
+                                    <Text style={styles.checkboxCardSub}>Run background cron job daily</Text>
+                                </View>
+                                <Ionicons 
+                                    name={autoEnabled ? "checkbox" : "square-outline"} 
+                                    size={24} 
+                                    color={autoEnabled ? colors.primary : colors.textMuted} 
+                                />
+                            </TouchableOpacity>
+
+                            {/* QR Generation Time Section */}
+                            <Text style={styles.autoFieldLabel}>QR Generation Time</Text>
+                            <TouchableOpacity 
+                                style={styles.timeSelectorField}
+                                activeOpacity={0.7}
+                                onPress={() => setAutoTimePickerVisible(true)}
+                            >
+                                <Text style={[styles.timeSelectorFieldText, autoScheduleTime !== '--:--' && { color: colors.text }]}>
+                                    {autoScheduleTime}
+                                </Text>
+                                <Ionicons name="time-outline" size={20} color={colors.textSecondary} />
+                            </TouchableOpacity>
+
+                            {/* Wi-Fi Enforce Section */}
+                            <Text style={styles.autoFieldLabel}>Wi-Fi Enforce (Optional)</Text>
+                            <TextInput
+                                style={styles.autoTextInput}
+                                value={autoWifiSSID}
+                                onChangeText={setAutoWifiSSID}
+                                placeholder="SSID Name"
+                                placeholderTextColor="#94a3b8"
+                            />
+
+                            {/* Enforce GPS Location Card */}
+                            <TouchableOpacity 
+                                style={styles.checkboxCard} 
+                                activeOpacity={0.8}
+                                onPress={() => setAutoLocationRequired(!autoLocationRequired)}
+                            >
+                                <View style={{ flex: 1 }}>
+                                    <Text style={styles.checkboxCardTitle}>Enforce GPS Location</Text>
+                                </View>
+                                <Ionicons 
+                                    name={autoLocationRequired ? "checkbox" : "square-outline"} 
+                                    size={24} 
+                                    color={autoLocationRequired ? colors.primary : colors.textMuted} 
+                                />
+                            </TouchableOpacity>
+
+                            {/* Save Button */}
+                            <TouchableOpacity 
+                                style={styles.autoSaveBtn} 
+                                onPress={handleSaveAutoQRConfig}
+                                activeOpacity={0.8}
+                            >
+                                <Ionicons name="checkmark-done" size={20} color={colors.white} style={{ marginRight: 6 }} />
+                                <Text style={styles.autoSaveBtnText}>Save Schedule</Text>
+                            </TouchableOpacity>
+                        </ScrollView>
+                    </View>
+                </View>
+            </Modal>
+
+            {/* Time Picker Modal for Auto Schedule */}
+            <TimePickerModal
+                visible={autoTimePickerVisible}
+                value={autoScheduleTime === '--:--' ? '' : autoScheduleTime}
+                onChange={val => {
+                    if (val) setAutoScheduleTime(val);
+                }}
+                onClose={() => setAutoTimePickerVisible(false)}
+            />
         </View>
     );
 };
 
 const styles = StyleSheet.create({
+    autoModalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    autoModalContent: {
+        width: '90%',
+        maxHeight: '85%',
+        backgroundColor: colors.bgCard,
+        borderRadius: borderRadius.lg,
+        padding: spacing.md,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.3,
+        shadowRadius: 10,
+        elevation: 10,
+        position: 'relative',
+    },
+    autoModalHeader: {
+        alignItems: 'center',
+        borderBottomWidth: 1,
+        borderBottomColor: colors.borderLight,
+        paddingBottom: spacing.sm,
+        marginBottom: spacing.md,
+    },
+    autoModalTitle: {
+        fontSize: fontSizes.lg,
+        fontWeight: '900',
+        color: colors.text,
+        textAlign: 'center',
+    },
+    autoModalSub: {
+        fontSize: fontSizes.xs,
+        color: colors.textMuted,
+        marginTop: 4,
+        fontWeight: '600',
+        textAlign: 'center',
+    },
+    autoCloseBtn: {
+        position: 'absolute',
+        top: 0,
+        right: 0,
+        padding: 4,
+    },
+    autoModalBody: {
+        gap: spacing.md,
+    },
+    checkboxCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: colors.bgCard,
+        borderWidth: 1.5,
+        borderColor: colors.border,
+        borderRadius: borderRadius.md,
+        padding: spacing.md,
+    },
+    checkboxCardTitle: {
+        fontSize: fontSizes.md,
+        fontWeight: '800',
+        color: colors.text,
+    },
+    checkboxCardSub: {
+        fontSize: fontSizes.xs,
+        color: colors.textMuted,
+        marginTop: 2,
+        fontWeight: '600',
+    },
+    autoFieldLabel: {
+        fontSize: 10,
+        fontWeight: '800',
+        color: colors.textMuted,
+        textTransform: 'uppercase',
+        letterSpacing: 1,
+        marginBottom: -6,
+    },
+    timeSelectorField: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        backgroundColor: colors.bgCard,
+        borderWidth: 1.5,
+        borderColor: colors.border,
+        borderRadius: borderRadius.md,
+        paddingHorizontal: spacing.md,
+        height: 50,
+    },
+    timeSelectorFieldText: {
+        fontSize: fontSizes.md,
+        fontWeight: '700',
+        color: colors.textMuted,
+    },
+    autoTextInput: {
+        backgroundColor: colors.bgCard,
+        borderWidth: 1.5,
+        borderColor: colors.border,
+        borderRadius: borderRadius.md,
+        paddingHorizontal: spacing.md,
+        height: 50,
+        fontSize: fontSizes.md,
+        color: colors.text,
+        fontWeight: '600',
+    },
+    autoSaveBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#0f172a',
+        borderRadius: borderRadius.md,
+        height: 50,
+        marginTop: spacing.md,
+    },
+    autoSaveBtnText: {
+        color: colors.white,
+        fontSize: fontSizes.md,
+        fontWeight: '900',
+    },
     container: { flex: 1, backgroundColor: colors.bg },
     header: {
         paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 44,
@@ -681,6 +962,7 @@ const styles = StyleSheet.create({
     },
     backButton: { padding: 4 },
     headerTitle: { fontSize: fontSizes.lg, fontWeight: '700', color: colors.white },
+    historyHeaderBtn: { padding: 4 },
     
     loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.bg },
 

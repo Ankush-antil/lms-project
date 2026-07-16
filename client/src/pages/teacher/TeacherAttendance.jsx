@@ -451,22 +451,6 @@ const TeacherAttendance = () => {
                                     ))}
                                 </select>
                             </div>
-
-                            {/* Subject selection */}
-                            <div>
-                                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Subject</label>
-                                <select
-                                    value={selectedSubject}
-                                    onChange={(e) => setSelectedSubject(e.target.value)}
-                                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-750 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition cursor-pointer"
-                                    required
-                                >
-                                    <option value="">Select Subject</option>
-                                    {availableSubjects.map((sub, idx) => (
-                                        <option key={idx} value={sub}>{sub}</option>
-                                    ))}
-                                </select>
-                            </div>
                         </div>
 
                         {/* Verification Toggles */}

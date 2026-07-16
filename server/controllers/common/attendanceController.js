@@ -461,7 +461,10 @@ exports.getSessionRecords = async (req, res) => {
         // Find all students in this section or all teacher's students if section is 'ALL'
         let studentQuery = { role: 'Student' };
         if (session.course) {
-            studentQuery['studentProfile.course'] = session.course;
+            studentQuery.$or = [
+                { 'studentProfile.course': session.course },
+                { 'studentProfile.coursesList.course': session.course }
+            ];
         }
 
         if (session.section && session.section.toUpperCase() !== 'ALL') {
@@ -469,14 +472,20 @@ exports.getSessionRecords = async (req, res) => {
         } else {
             const teacher = await User.findById(session.teacher);
             if (teacher) {
-                const assignedCourses = teacher.teacherProfile?.assignedCourses || [];
-                const courseIds = assignedCourses.map(c => c._id || c);
-                if (courseIds.length > 0) {
-                    studentQuery['studentProfile.course'] = { $in: courseIds };
-                }
                 const mode = teacher.teacherProfile?.studentAssignmentMode || 'all';
                 const assignedSections = teacher.teacherProfile?.assignedSections || [];
                 const assignedStudents = teacher.teacherProfile?.assignedStudents || [];
+                
+                if (!session.course) {
+                    const assignedCourses = teacher.teacherProfile?.assignedCourses || [];
+                    const courseIds = assignedCourses.map(c => c._id || c);
+                    if (courseIds.length > 0) {
+                        studentQuery.$or = [
+                            { 'studentProfile.course': { $in: courseIds } },
+                            { 'studentProfile.coursesList.course': { $in: courseIds } }
+                        ];
+                    }
+                }
                 
                 if (mode === 'section' && assignedSections.length > 0) {
                     studentQuery['studentProfile.section'] = { $in: assignedSections };

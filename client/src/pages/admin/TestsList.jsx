@@ -29,12 +29,13 @@ const TestsList = () => {
     };
 
     // Search and tab filters
-    const [searchTerm, setSearchTerm] = useState('');
-    const [filterSubject, setFilterSubject] = useState('All');
-    const [filterCourse, setFilterCourse] = useState('All');
-    const [filterInstitute, setFilterInstitute] = useState('All');
-    const [activeTab, setActiveTab] = useState('lms'); // 'lms' | 'public'
-    const [currentPage, setCurrentPage] = useState(1);
+    const isFirstRender = useRef(true);
+    const [searchTerm, setSearchTerm] = useState(() => sessionStorage.getItem('testsList_searchTerm') || '');
+    const [filterSubject, setFilterSubject] = useState(() => sessionStorage.getItem('testsList_filterSubject') || 'All');
+    const [filterCourse, setFilterCourse] = useState(() => sessionStorage.getItem('testsList_filterCourse') || 'All');
+    const [filterInstitute, setFilterInstitute] = useState(() => sessionStorage.getItem('testsList_filterInstitute') || 'All');
+    const [activeTab, setActiveTab] = useState(() => sessionStorage.getItem('testsList_activeTab') || 'lms');
+    const [currentPage, setCurrentPage] = useState(() => Number(sessionStorage.getItem('testsList_currentPage')) || 1);
     const [itemsPerPage, setItemsPerPage] = useState(10);
 
     // Bulk actions
@@ -48,6 +49,10 @@ const TestsList = () => {
     }, [activeTab]);
 
     useEffect(() => {
+        if (isFirstRender.current) {
+            isFirstRender.current = false;
+            return;
+        }
         setCurrentPage(1);
     }, [searchTerm, filterSubject, filterCourse, filterInstitute, activeTab]);
 
@@ -70,7 +75,17 @@ const TestsList = () => {
     }, [userInfo, editorControls, activeTab]);
 
     // Folder Explorer state
-    const [showFolderExplorer, setShowFolderExplorer] = useState(false);
+    const [showFolderExplorer, setShowFolderExplorer] = useState(() => sessionStorage.getItem('testsList_showFolderExplorer') === 'true');
+
+    useEffect(() => {
+        sessionStorage.setItem('testsList_searchTerm', searchTerm);
+        sessionStorage.setItem('testsList_filterSubject', filterSubject);
+        sessionStorage.setItem('testsList_filterCourse', filterCourse);
+        sessionStorage.setItem('testsList_filterInstitute', filterInstitute);
+        sessionStorage.setItem('testsList_activeTab', activeTab);
+        sessionStorage.setItem('testsList_currentPage', String(currentPage));
+        sessionStorage.setItem('testsList_showFolderExplorer', String(showFolderExplorer));
+    }, [searchTerm, filterSubject, filterCourse, filterInstitute, activeTab, currentPage, showFolderExplorer]);
 
     // Core tests data
     const [tests, setTests] = useState([]);
@@ -805,94 +820,132 @@ const TestsList = () => {
     const [isExportDropdownOpen, setIsExportDropdownOpen] = useState(false);
     const importTestsRef = useRef(null);
 
-    const handleImportTests = (e) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-        const reader = new FileReader();
-        const filename = file.name.toLowerCase();
+    const handleImportTests = async (e) => {
+        const files = e.target.files;
+        if (!files || files.length === 0) return;
 
-        const processImported = async (parsed) => {
-            if (!Array.isArray(parsed)) {
-                toast.error('File must contain an array of assessments/tests');
-                return;
-            }
-            const parsedMapped = parsed.map(row => {
-                const keys = Object.keys(row);
-                const titleKey = keys.find(k => k.toLowerCase() === 'title');
-                const courseKey = keys.find(k => k.toLowerCase() === 'course');
-                const subjectKey = keys.find(k => k.toLowerCase() === 'subject');
-                const indexKey = keys.find(k => k.toLowerCase() === 'index');
-                const descKey = keys.find(k => ['description', 'desc'].includes(k.toLowerCase()));
-                const durationKey = keys.find(k => k.toLowerCase() === 'duration');
-                const publishModeKey = keys.find(k => ['publishmode', 'publish mode'].includes(k.toLowerCase()));
-                const statusKey = keys.find(k => k.toLowerCase() === 'status');
-                const questionsKey = keys.find(k => k.toLowerCase() === 'questions');
-                const settingsKey = keys.find(k => k.toLowerCase() === 'settings');
-                const publicSettingsKey = keys.find(k => ['publicsettings', 'public settings'].includes(k.toLowerCase()));
+        let allParsedRows = [];
+        const filePromises = Array.from(files).map(file => {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                const filename = file.name.toLowerCase();
 
-                return {
-                    title: titleKey ? String(row[titleKey]).trim() : '',
-                    course: courseKey ? String(row[courseKey]).trim() : '',
-                    subject: subjectKey ? String(row[subjectKey]).trim() : '',
-                    index: indexKey ? String(row[indexKey]).trim() : '',
-                    description: descKey ? String(row[descKey]).trim() : '',
-                    duration: durationKey ? Number(row[durationKey]) : undefined,
-                    publishMode: publishModeKey ? String(row[publishModeKey]).trim() : (activeTab === 'public' ? 'public' : (activeTab === 'draft' ? 'draft' : 'connected')),
-                    status: statusKey ? String(row[statusKey]).trim() : 'active',
-                    questions: questionsKey ? row[questionsKey] : undefined,
-                    settings: settingsKey ? row[settingsKey] : undefined,
-                    publicSettings: publicSettingsKey ? row[publicSettingsKey] : undefined
-                };
-            }).filter(item => item.title);
-
-            if (parsedMapped.length === 0) {
-                toast.error('No valid rows found. "Title" column is required.');
-                return;
-            }
-
-            const loadingToast = toast.loading(`Importing ${parsedMapped.length} assessments...`);
-            try {
-                const res = await axios.post('/api/tests/import', { tests: parsedMapped });
-                toast.dismiss(loadingToast);
-                const { successCount, errors } = res.data.results;
-                if (errors && errors.length > 0) {
-                    toast.success(`Successfully imported ${successCount} assessments. ${errors.length} failed.`);
+                if (filename.endsWith('.json')) {
+                    reader.onload = (evt) => {
+                        try {
+                            const parsed = JSON.parse(evt.target.result);
+                            const arr = Array.isArray(parsed) ? parsed : [parsed];
+                            allParsedRows.push(...arr);
+                            resolve();
+                        } catch (err) {
+                            toast.error(`Failed to parse JSON file: ${file.name}`);
+                            resolve();
+                        }
+                    };
+                    reader.readAsText(file);
                 } else {
-                    toast.success(`Successfully imported ${successCount} assessments!`);
+                    reader.onload = (evt) => {
+                        try {
+                            const data = new Uint8Array(evt.target.result);
+                            const workbook = XLSX.read(data, { type: 'array' });
+                            const firstSheetName = workbook.SheetNames[0];
+                            const worksheet = workbook.Sheets[firstSheetName];
+                            const parsed = XLSX.utils.sheet_to_json(worksheet);
+                            const arr = Array.isArray(parsed) ? parsed : [parsed];
+                            allParsedRows.push(...arr);
+                            resolve();
+                        } catch (err) {
+                            toast.error(`Failed to parse spreadsheet file: ${file.name}`);
+                            resolve();
+                        }
+                    };
+                    reader.readAsArrayBuffer(file);
                 }
-                if (typeof fetchLmsTests === 'function') fetchLmsTests();
-                if (typeof fetchPublicTests === 'function') fetchPublicTests();
-            } catch (err) {
-                toast.dismiss(loadingToast);
-                toast.error(err.response?.data?.message || 'Error importing assessments');
-            }
-        };
+            });
+        });
 
-        if (filename.endsWith('.json')) {
-            reader.onload = async (evt) => {
-                try {
-                    const parsed = JSON.parse(evt.target.result);
-                    processImported(parsed);
-                } catch (err) {
-                    toast.error('Failed to parse JSON file');
-                }
-            };
-            reader.readAsText(file);
-        } else {
-            reader.onload = async (evt) => {
-                try {
-                    const data = new Uint8Array(evt.target.result);
-                    const workbook = XLSX.read(data, { type: 'array' });
-                    const firstSheetName = workbook.SheetNames[0];
-                    const worksheet = workbook.Sheets[firstSheetName];
-                    const parsed = XLSX.utils.sheet_to_json(worksheet);
-                    processImported(parsed);
-                } catch (err) {
-                    toast.error('Failed to parse file');
-                }
-            };
-            reader.readAsArrayBuffer(file);
+        const loadingToast = toast.loading(`Reading ${files.length} backup file(s)...`);
+        await Promise.all(filePromises);
+        toast.dismiss(loadingToast);
+
+        if (allParsedRows.length === 0) {
+            toast.error('No valid rows or tests found in uploaded file(s).');
+            e.target.value = '';
+            return;
         }
+
+        const parsedMapped = allParsedRows.map(row => {
+            const keys = Object.keys(row);
+            const titleKey = keys.find(k => k.toLowerCase() === 'title' || k === 'Test Name');
+            const courseKey = keys.find(k => k.toLowerCase() === 'course' || k === 'Courses Name');
+            const subjectKey = keys.find(k => k.toLowerCase() === 'subject' || k === 'Subject Name');
+            const indexKey = keys.find(k => k.toLowerCase() === 'index' || k === 'Inbox No.');
+            const descKey = keys.find(k => ['description', 'desc'].includes(k.toLowerCase()));
+            const durationKey = keys.find(k => k.toLowerCase() === 'duration');
+            const publishModeKey = keys.find(k => ['publishmode', 'publish mode'].includes(k.toLowerCase()));
+            const statusKey = keys.find(k => k.toLowerCase() === 'status');
+            const questionsKey = keys.find(k => k.toLowerCase() === 'questions');
+            const settingsKey = keys.find(k => k.toLowerCase() === 'settings' || k === 'Setting');
+            const publicSettingsKey = keys.find(k => ['publicsettings', 'public settings', 'publish setting', 'public settings'].includes(k.toLowerCase()));
+
+            // Parse settings / questions if they are stringified JSON (from Excel/CSV exports)
+            let qList = undefined;
+            if (questionsKey && row[questionsKey]) {
+                try {
+                    qList = typeof row[questionsKey] === 'string' ? JSON.parse(row[questionsKey]) : row[questionsKey];
+                } catch {}
+            }
+            let settingsObj = undefined;
+            if (settingsKey && row[settingsKey]) {
+                try {
+                    settingsObj = typeof row[settingsKey] === 'string' ? JSON.parse(row[settingsKey]) : row[settingsKey];
+                } catch {}
+            }
+            let publicSettingsObj = undefined;
+            if (publicSettingsKey && row[publicSettingsKey]) {
+                try {
+                    publicSettingsObj = typeof row[publicSettingsKey] === 'string' ? JSON.parse(row[publicSettingsKey]) : row[publicSettingsKey];
+                } catch {}
+            }
+
+            return {
+                title: titleKey ? String(row[titleKey]).trim() : '',
+                course: courseKey ? String(row[courseKey]).trim() : '',
+                subject: subjectKey ? String(row[subjectKey]).trim() : '',
+                index: indexKey ? String(row[indexKey]).trim() : '',
+                description: descKey ? String(row[descKey]).trim() : '',
+                duration: durationKey ? Number(row[durationKey]) : undefined,
+                publishMode: publishModeKey ? String(row[publishModeKey]).trim() : (activeTab === 'public' ? 'public' : (activeTab === 'draft' ? 'draft' : 'connected')),
+                status: statusKey ? String(row[statusKey]).trim() : 'active',
+                questions: qList,
+                settings: settingsObj,
+                publicSettings: publicSettingsObj
+            };
+        }).filter(item => item.title);
+
+        if (parsedMapped.length === 0) {
+            toast.error('No valid rows found. "Title" or "Test Name" column is required.');
+            e.target.value = '';
+            return;
+        }
+
+        const importToast = toast.loading(`Importing ${parsedMapped.length} assessments...`);
+        try {
+            const res = await axios.post('/api/tests/import', { tests: parsedMapped });
+            toast.dismiss(importToast);
+            const { successCount, errors } = res.data.results;
+            if (errors && errors.length > 0) {
+                toast.success(`Successfully imported ${successCount} assessments. ${errors.length} failed.`);
+            } else {
+                toast.success(`Successfully imported ${successCount} assessments!`);
+            }
+            if (typeof fetchLmsTests === 'function') fetchLmsTests();
+            if (typeof fetchPublicTests === 'function') fetchPublicTests();
+        } catch (err) {
+            toast.dismiss(importToast);
+            toast.error(err.response?.data?.message || 'Error importing assessments');
+        }
+
         e.target.value = '';
     };
 
@@ -904,18 +957,21 @@ const TestsList = () => {
         }
 
         const rows = list.map(t => ({
-            Title: t.title || '',
-            Course: t.course || '',
-            Subject: t.subject || '',
-            Index: t.index || '',
+            'Test Name': t.title || '',
+            'Institute Name': t.institute || '',
+            'Courses Name': t.course || '',
+            'Subject Name': t.subject || '',
+            'Inbox No.': t.index || '',
             Description: t.description || '',
             Duration: t.settings?.duration || '',
             'Publish Mode': t.publishMode || '',
             Status: t.status || 'active',
+            'Types of Activities': t.activity || '',
+            'Visibility Mode': t.isAssigned ? 'assign' : 'upcoming',
             Questions: t.questions ? JSON.stringify(t.questions) : '[]',
-            Settings: t.settings ? JSON.stringify(t.settings) : '{}',
-            'Public Settings': t.publicSettings ? JSON.stringify(t.publicSettings) : '{}',
-            'Created At': t.createdAt ? new Date(t.createdAt).toLocaleString() : ''
+            Setting: t.settings ? JSON.stringify(t.settings) : '{}',
+            'Publish Setting': t.publicSettings ? JSON.stringify(t.publicSettings) : '{}',
+            'Created At Date': t.createdAt ? new Date(t.createdAt).toLocaleString() : ''
         }));
 
         if (format === 'json') {
@@ -2225,6 +2281,7 @@ const TestsList = () => {
                         ref={importTestsRef}
                         onChange={handleImportTests}
                         accept=".json,.csv,.xlsx,.xls"
+                        multiple
                         className="hidden"
                     />
                     <button
@@ -3130,6 +3187,10 @@ const TestsList = () => {
                 tests={activeTab === 'lms' ? tests : publicTests}
                 onOpenResponses={(test, type) => handleOpenResponses(test, type || 'connected')}
                 onDelete={handleDelete}
+                onImportSuccess={() => {
+                    if (typeof fetchLmsTests === 'function') fetchLmsTests();
+                    if (typeof fetchPublicTests === 'function') fetchPublicTests();
+                }}
             />
 
             {/* ── 1. PUBLIC TEST SETTINGS EDIT MODAL ────────────────── */}
@@ -3535,6 +3596,14 @@ const TestsList = () => {
                                         <p className="font-bold text-slate-800">
                                             {riTest.createdAt ? new Date(riTest.createdAt).toLocaleDateString() : 'N/A'}
                                         </p>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <span className="text-[10px] text-slate-400 font-bold uppercase">Duration (mins)</span>
+                                        <p className="font-bold text-slate-800">{riTest.settings?.duration || 'N/A'}</p>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <span className="text-[10px] text-slate-400 font-bold uppercase">Passing Marks</span>
+                                        <p className="font-bold text-slate-800">{riTest.settings?.passingMarks || 'N/A'}</p>
                                     </div>
                                 </div>
                             </div>

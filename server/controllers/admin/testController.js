@@ -45,6 +45,9 @@ const validateWebpageQuestions = (questions = []) => {
 };
 
 const validateInboxSubjectConflict = async (testId, testDetails, currentInstitute, res) => {
+    // Bypassed to allow multiple tests of different subjects in the same inbox
+    return;
+
     const index = testDetails?.index;
     const subject = testDetails?.subject;
     const course = testDetails?.course;
@@ -282,6 +285,7 @@ const updateTest = asyncHandler(async (req, res) => {
         }
 
         if (testDetails.title !== undefined) test.title = testDetails.title;
+        if (testDetails.description !== undefined) test.description = testDetails.description;
         if (testDetails.institute !== undefined) test.institute = testDetails.institute;
         if (testDetails.course !== undefined) test.course = testDetails.course;
         if (testDetails.subject !== undefined) test.subject = testDetails.subject;

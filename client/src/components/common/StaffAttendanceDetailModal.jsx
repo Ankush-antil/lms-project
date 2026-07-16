@@ -2,9 +2,9 @@ import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import {
-    X, Calendar, CheckCircle, XCircle, FileText, Sun,
+    X, Check, Calendar, CheckCircle, XCircle, FileText, Sun,
     Edit3, Trash2, ChevronLeft, ChevronRight, User, Image as ImageIcon,
-    Save, Clock
+    Save, ExternalLink, Clock
 } from 'lucide-react';
 
 // ─── Status config ─────────────────────────────────────────────────────────────
@@ -371,43 +371,52 @@ const StaffAttendanceDetailModal = ({ staffId, onClose, onDataChange }) => {
 
                                                 {/* Leave request handling */}
                                                 {rec.status === 'Leave' && (rec.leaveNote || rec.leaveFile) && (
-                                                    <div className="bg-amber-50/30 border border-amber-100/50 rounded-xl p-3.5 space-y-3">
-                                                        <div>
-                                                            <span className="text-[10px] font-bold text-amber-600 block uppercase">Leave Application Details</span>
-                                                            {rec.leaveNote && (
-                                                                <p className="text-xs font-semibold text-slate-650 mt-1 leading-relaxed">{rec.leaveNote}</p>
+                                                    <div className="bg-white border-l-4 border-amber-500 border border-slate-200/80 rounded-2xl p-5 flex flex-col gap-3 shadow-sm">
+                                                        <div className="flex justify-between items-center">
+                                                            <div className="flex items-center gap-1.5">
+                                                                <FileText size={12} className="text-amber-600" />
+                                                                <span className="text-[10px] font-black text-amber-700 uppercase tracking-widest">Leave Application Details</span>
+                                                            </div>
+                                                            {!isLeavePending && rec.leaveStatus && (
+                                                                <span className={`text-[10px] font-black px-2.5 py-1 rounded-full border ${
+                                                                    rec.leaveStatus === 'Approved' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' :
+                                                                    'bg-rose-50 border-rose-200 text-rose-700'
+                                                                }`}>
+                                                                    {rec.leaveStatus === 'Approved' ? <span className="flex items-center gap-1"><CheckCircle size={10} /> Approved</span> : <span className="flex items-center gap-1"><XCircle size={10} /> Rejected</span>}
+                                                                </span>
                                                             )}
                                                         </div>
 
-                                                        {rec.leaveFile && (
-                                                            <a href={rec.leaveFile} target="_blank" rel="noreferrer"
-                                                                className="inline-flex items-center gap-1.5 text-[10px] font-black text-indigo-650 bg-indigo-50 border border-indigo-100 hover:bg-indigo-100/80 px-2.5 py-1.5 rounded-lg transition cursor-pointer">
-                                                                <ImageIcon size={12} /> View Document
-                                                            </a>
+                                                        {rec.leaveNote && (
+                                                            <div className="bg-slate-50/65 rounded-xl p-3 border border-slate-100/80">
+                                                                <p className="text-xs font-bold text-slate-700 leading-relaxed">{rec.leaveNote}</p>
+                                                            </div>
                                                         )}
 
-                                                        {/* Approvals */}
-                                                        {isLeavePending ? (
-                                                            <div className="flex gap-2 pt-1">
-                                                                <button onClick={() => handleLeaveApproval(rec.date, false)}
-                                                                    className="flex-1 py-2 text-xs font-bold bg-white text-rose-600 hover:bg-rose-50 border border-rose-100 hover:border-rose-200 rounded-xl transition cursor-pointer">
-                                                                    Reject Leave
-                                                                </button>
-                                                                <button onClick={() => handleLeaveApproval(rec.date, true)}
-                                                                    className="flex-1 py-2 text-xs font-black bg-indigo-650 hover:bg-indigo-700 text-white rounded-xl shadow-md shadow-indigo-100 transition cursor-pointer">
-                                                                    Approve Leave
-                                                                </button>
-                                                            </div>
-                                                        ) : (
-                                                            <div className="pt-1">
-                                                                <span className={`inline-flex items-center gap-1 text-xs font-black ${
-                                                                    rec.leaveStatus === 'Approved' ? 'text-emerald-600' : 'text-rose-600'
-                                                                }`}>
-                                                                    {rec.leaveStatus === 'Approved' ? <CheckCircle size={13} /> : <XCircle size={13} />}
-                                                                    Leave {rec.leaveStatus}
-                                                                </span>
-                                                            </div>
-                                                        )}
+                                                        <div className="flex items-center justify-between gap-3 flex-wrap">
+                                                            {rec.leaveFile ? (
+                                                                <a href={rec.leaveFile} target="_blank" rel="noreferrer"
+                                                                    className="inline-flex items-center gap-1.5 text-[10px] font-black text-amber-700 hover:text-amber-900 bg-amber-50/40 border border-amber-200 rounded-xl px-3 py-1.8 transition hover:bg-amber-50 shadow-sm">
+                                                                    <ExternalLink size={11} /> View Document
+                                                                </a>
+                                                            ) : (
+                                                                <div />
+                                                            )}
+
+                                                            {/* Approval Buttons */}
+                                                            {isLeavePending && (
+                                                                <div className="flex gap-2 ml-auto">
+                                                                    <button onClick={() => handleLeaveApproval(rec.date, false)}
+                                                                        className="flex items-center gap-1 px-3.5 py-1.8 text-xs font-black bg-white text-rose-600 hover:bg-rose-50 border border-rose-200 hover:border-rose-300 rounded-xl transition cursor-pointer shadow-sm">
+                                                                        <X size={11} /> Reject
+                                                                    </button>
+                                                                    <button onClick={() => handleLeaveApproval(rec.date, true)}
+                                                                        className="flex items-center gap-1 px-3.5 py-1.8 text-xs font-black bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-md shadow-emerald-100 transition cursor-pointer">
+                                                                        <Check size={11} /> Approve
+                                                                    </button>
+                                                                </div>
+                                                            )}
+                                                        </div>
                                                     </div>
                                                 )}
                                             </div>

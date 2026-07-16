@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import {
-    X, Calendar, CheckCircle, XCircle, FileText, Sun, QrCode,
+    X, Check, Calendar, CheckCircle, XCircle, FileText, Sun, QrCode,
     Edit3, Trash2, ChevronLeft, ChevronRight, User, Image as ImageIcon,
     Save, ExternalLink, Clock, BookOpen
 } from 'lucide-react';
@@ -434,22 +434,34 @@ const StudentAttendanceDetailModal = ({ studentId, onClose, onDataChange }) => {
                                                             {(isEditing || rec.leaveNote || rec.leaveFile) && (
                                                                 <tr>
                                                                     <td colSpan={11} className="py-3.5 px-6 bg-slate-50/40 border-b border-slate-100">
-                                                                        <div className="flex flex-col gap-2">
-                                                                            {/* Inline Note Editor */}
+                                                                        <div className="flex flex-col gap-3">
                                                                             {isEditing && (
-                                                                                <div className="bg-white border border-slate-200 rounded-2xl p-4.5 shadow-sm max-w-xl text-left">
-                                                                                    <p className="text-[10px] font-black text-indigo-600 uppercase tracking-wider mb-2">Teacher Note Editor (Student visible)</p>
-                                                                                    <textarea rows={2} value={noteText} onChange={e => setNoteText(e.target.value)} autoFocus
-                                                                                        placeholder="Enter note details..."
-                                                                                        className="w-full text-xs border border-slate-200 rounded-xl px-3 py-2 resize-none outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 bg-white transition" />
-                                                                                    <div className="flex gap-2 justify-end mt-2">
-                                                                                        <button onClick={() => setEditingNoteFor(null)}
-                                                                                            className="text-xs px-3 py-1.5 bg-white border border-slate-200 text-slate-500 rounded-lg hover:bg-slate-50 transition cursor-pointer font-bold">
+                                                                                <div className="bg-white border-l-4 border-indigo-500 border border-slate-200/80 rounded-2xl p-5 shadow-sm max-w-xl text-left">
+                                                                                    <div className="flex items-center gap-1.5 mb-2.5">
+                                                                                        <Edit3 size={12} className="text-indigo-600" />
+                                                                                        <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">Teacher Note Editor (Student visible)</p>
+                                                                                    </div>
+                                                                                    <textarea 
+                                                                                        rows={3} 
+                                                                                        value={noteText} 
+                                                                                        onChange={e => setNoteText(e.target.value)} 
+                                                                                        autoFocus
+                                                                                        placeholder="Enter note details here..."
+                                                                                        className="w-full text-xs border border-slate-250 rounded-xl px-3.5 py-2.5 resize-none outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 bg-slate-50/50 hover:bg-slate-50 transition" 
+                                                                                    />
+                                                                                    <div className="flex gap-2 justify-end mt-3">
+                                                                                        <button 
+                                                                                            onClick={() => setEditingNoteFor(null)}
+                                                                                            className="text-xs px-3.5 py-1.8 bg-white border border-slate-200 text-slate-550 rounded-xl hover:bg-slate-50 transition cursor-pointer font-bold animate-pulse-slow"
+                                                                                        >
                                                                                             Cancel
                                                                                         </button>
-                                                                                        <button onClick={() => handleSaveTeacherNote(rec.date)} disabled={savingNote}
-                                                                                            className="text-xs px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-black transition cursor-pointer flex items-center gap-1 disabled:opacity-60 shadow-sm shadow-indigo-100">
-                                                                                            <Save size={11} /> {savingNote ? 'Saving...' : 'Save Note'}
+                                                                                        <button 
+                                                                                            onClick={() => handleSaveTeacherNote(rec.date)} 
+                                                                                            disabled={savingNote}
+                                                                                            className="text-xs px-3.5 py-1.8 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black transition cursor-pointer flex items-center gap-1.5 disabled:opacity-60 shadow-sm shadow-indigo-150"
+                                                                                        >
+                                                                                            <Save size={12} /> {savingNote ? 'Saving...' : 'Save Note'}
                                                                                         </button>
                                                                                     </div>
                                                                                 </div>
@@ -457,38 +469,47 @@ const StudentAttendanceDetailModal = ({ studentId, onClose, onDataChange }) => {
 
                                                                             {/* Leave Application Details */}
                                                                             {(rec.leaveNote || rec.leaveFile) && (
-                                                                                <div className="bg-amber-50/50 border border-amber-200/80 rounded-2xl p-4.5 flex flex-col gap-2.5 max-w-xl text-left">
+                                                                                <div className="bg-white border-l-4 border-amber-500 border border-slate-200/80 rounded-2xl p-5 flex flex-col gap-3 max-w-xl text-left shadow-sm">
                                                                                     <div className="flex justify-between items-center">
-                                                                                        <p className="text-[10px] font-black text-amber-700 uppercase tracking-wider">Leave Application Details</p>
-                                                                                        <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-full border ${
-                                                                                            rec.leaveStatus === 'Approved' ? 'bg-emerald-50 border-emerald-205 text-emerald-805' :
-                                                                                            rec.leaveStatus === 'Rejected' ? 'bg-rose-50 border-rose-205 text-rose-805' :
-                                                                                            'bg-amber-50 border-amber-205 text-amber-805 animate-pulse'
+                                                                                        <div className="flex items-center gap-1.5">
+                                                                                            <FileText size={12} className="text-amber-600" />
+                                                                                            <p className="text-[10px] font-black text-amber-700 uppercase tracking-widest">Leave Application Details</p>
+                                                                                        </div>
+                                                                                        <span className={`text-[10px] font-black px-2.5 py-0.8 rounded-full border ${
+                                                                                            rec.leaveStatus === 'Approved' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' :
+                                                                                            rec.leaveStatus === 'Rejected' ? 'bg-rose-50 border-rose-200 text-rose-700' :
+                                                                                            'bg-amber-50 border-amber-200 text-amber-700 animate-pulse'
                                                                                         }`}>
                                                                                             {rec.leaveStatus || 'Pending'}
                                                                                         </span>
                                                                                     </div>
-                                                                                    {rec.leaveNote && <p className="text-xs text-slate-700 font-semibold leading-normal">{rec.leaveNote}</p>}
+                                                                                    {rec.leaveNote && (
+                                                                                        <div className="bg-slate-50/65 rounded-xl p-3 border border-slate-100/80">
+                                                                                            <p className="text-xs text-slate-700 font-bold leading-relaxed">{rec.leaveNote}</p>
+                                                                                        </div>
+                                                                                    )}
                                                                                     <div className="flex items-center justify-between gap-3 mt-1 flex-wrap">
-                                                                                        {rec.leaveFile && (
+                                                                                        {rec.leaveFile ? (
                                                                                             <a href={rec.leaveFile} target="_blank" rel="noopener noreferrer"
-                                                                                                className="inline-flex items-center gap-1.5 text-[10px] font-bold text-amber-700 hover:text-amber-900 bg-white border border-amber-200 rounded-lg px-3 py-1 transition hover:bg-amber-50 shadow-sm">
-                                                                                                <ExternalLink size={10} /> View Document Attachment
+                                                                                                className="inline-flex items-center gap-1.5 text-[10px] font-bold text-amber-700 hover:text-amber-900 bg-amber-50/40 border border-amber-200 rounded-xl px-3 py-1.8 transition hover:bg-amber-50 shadow-sm">
+                                                                                                <ExternalLink size={11} /> View Document Attachment
                                                                                             </a>
+                                                                                        ) : (
+                                                                                            <div />
                                                                                         )}
                                                                                         {(!rec.leaveStatus || rec.leaveStatus === 'Pending') && (
                                                                                             <div className="flex gap-2 ml-auto">
                                                                                                 <button
                                                                                                     onClick={() => handleLeaveApproval(rec.date, true)}
-                                                                                                    className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[10px] font-black uppercase tracking-wider transition cursor-pointer shadow-sm shadow-emerald-100"
+                                                                                                    className="px-3.5 py-1.8 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition cursor-pointer shadow-md shadow-emerald-100 flex items-center gap-1"
                                                                                                 >
-                                                                                                    Approve
+                                                                                                    <Check size={11} /> Approve
                                                                                                 </button>
                                                                                                 <button
                                                                                                     onClick={() => handleLeaveApproval(rec.date, false)}
-                                                                                                    className="px-3 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-[10px] font-black uppercase tracking-wider transition cursor-pointer shadow-sm shadow-rose-100"
+                                                                                                    className="px-3.5 py-1.8 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition cursor-pointer shadow-md shadow-rose-100 flex items-center gap-1"
                                                                                                 >
-                                                                                                    Reject
+                                                                                                    <X size={11} /> Reject
                                                                                                 </button>
                                                                                             </div>
                                                                                         )}
@@ -527,7 +548,13 @@ const StudentAttendanceDetailModal = ({ studentId, onClose, onDataChange }) => {
                             {selectedPhoto.type === 'photo' ? (
                                 <img src={selectedPhoto.url} alt="Verification" className="w-full rounded-2xl aspect-video object-cover border border-slate-150 shadow-sm" />
                             ) : (
-                                <p className="text-slate-650 text-sm font-semibold whitespace-pre-wrap leading-relaxed bg-slate-50 rounded-2xl p-4.5 border border-slate-150">{selectedPhoto.content}</p>
+                                <div className="bg-slate-50/70 border-l-4 border-indigo-500 border border-slate-200/80 rounded-2xl p-5 shadow-sm">
+                                    <div className="flex items-center gap-1.5 mb-3">
+                                        <FileText size={14} className="text-indigo-600" />
+                                        <span className="text-[10px] font-black text-indigo-700 uppercase tracking-widest">Note Message</span>
+                                    </div>
+                                    <p className="text-slate-700 text-sm font-bold whitespace-pre-wrap leading-relaxed">{selectedPhoto.content}</p>
+                                </div>
                             )}
                         </div>
                     </div>

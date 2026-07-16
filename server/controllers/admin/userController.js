@@ -48,7 +48,14 @@ const getUsers = asyncHandler(async (req, res) => {
     if (institute) query.institute = institute;
     if (course) {
         if (role === 'Student') {
-            query['studentProfile.course'] = course;
+            query.$and = [
+                {
+                    $or: [
+                        { 'studentProfile.course': course },
+                        { 'studentProfile.coursesList.course': course }
+                    ]
+                }
+            ];
         } else if (role === 'Teacher') {
             query['teacherProfile.assignedCourses'] = course;
         } else if (role === 'Editor') {

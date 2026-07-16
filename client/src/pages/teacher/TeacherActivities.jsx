@@ -946,7 +946,11 @@ const TeacherActivities = () => {
 
             // 3. Match Course
             const testCourse = test.course?.trim().toLowerCase() || '';
-            if (testCourse && testCourse !== activeCourseName.toLowerCase()) return false;
+            if (testCourse) {
+                const testCoursesList = testCourse.split(',').map(c => c.trim()).filter(Boolean);
+                const isCourseMatched = testCoursesList.includes(activeCourseName.toLowerCase());
+                if (!isCourseMatched) return false;
+            }
 
             // 4. Match student-specific assignment
             if (test.assignedStudents && test.assignedStudents.length > 0) {

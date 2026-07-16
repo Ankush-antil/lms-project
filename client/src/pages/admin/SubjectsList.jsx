@@ -1,5 +1,5 @@
 import { useAuth } from '../../context/AuthContext';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import toast from 'react-hot-toast';
 import axios from 'axios';
@@ -59,6 +59,18 @@ const SubjectsList = () => {
     const [newSubjectTeachers, setNewSubjectTeachers] = useState([]);
     const [newSubjectCourses, setNewSubjectCourses] = useState([]);
 
+    const [activeCoursesDropdown, setActiveCoursesDropdown] = useState(null);
+
+    useEffect(() => {
+        const handleOutsideClick = (e) => {
+            if (activeCoursesDropdown && !e.target.closest('.courses-popover-container')) {
+                setActiveCoursesDropdown(null);
+            }
+        };
+        document.addEventListener('mousedown', handleOutsideClick);
+        return () => document.removeEventListener('mousedown', handleOutsideClick);
+    }, [activeCoursesDropdown]);
+
     useEffect(() => {
         if (selectedCourseId && isAddModalOpen) {
             const fetchCourseStudents = async () => {
@@ -90,11 +102,8 @@ const SubjectsList = () => {
         const initialTeachers = subject.teachers ? subject.teachers.map(t => t._id) : [];
         setEditSubjectTeachers(initialTeachers);
 
-        // Pre-fill assigned courses: find all courses in subjects array that have the same subject name
-        const initialCourses = subjects
-            .filter(s => s.name.toLowerCase() === subject.name.toLowerCase())
-            .map(s => s.course?._id)
-            .filter(Boolean);
+        // Pre-fill assigned courses
+        const initialCourses = subject.courses ? subject.courses.map(c => c._id) : [];
         setEditSubjectCourses([...new Set(initialCourses)]);
 
         setIsEditModalOpen(true);
@@ -128,7 +137,7 @@ const SubjectsList = () => {
         try {
             setSavingEdit(true);
             const res = await axios.put('/api/setup/subjects/update', {
-                courseId: selectedSubject.course?._id,
+                courseId: selectedSubject.courses?.[0]?._id,
                 oldSubjectName: selectedSubject.name,
                 newSubjectName: editSubjectName.trim(),
                 duration: Number(editSubjectDuration) || 0,
@@ -380,21 +389,78 @@ const SubjectsList = () => {
         e.target.value = '';
     };
 
+    // Group subjects by name and institute (so a subject with same name in same institute shows as one row listing all its courses)
+    const groupedSubjects = useMemo(() => {
+        const groups = {};
+        subjects.forEach(s => {
+            if (!s.name) return;
+            const key = `${s.name.toLowerCase()}:::${s.institute?._id || 'default'}`;
+            if (!groups[key]) {
+                groups[key] = {
+                    name: s.name,
+                    institute: s.institute,
+                    courses: [],
+                    teachers: [],
+                    testCount: 0,
+                    duration: 0,
+                    assignmentCount: s.assignmentCount || 0,
+                    tests: s.tests || []
+                };
+            }
+            
+            if (s.course) {
+                if (!groups[key].courses.some(c => c._id === s.course._id)) {
+                    groups[key].courses.push({
+                        _id: s.course._id,
+                        name: s.course.name,
+                        code: s.course.code,
+                        duration: s.duration || 0
+                    });
+                }
+            }
+            
+            if (s.teachers) {
+                s.teachers.forEach(t => {
+                    if (!groups[key].teachers.some(existing => existing._id === t._id)) {
+                        groups[key].teachers.push(t);
+                    }
+                });
+            }
+            
+            if (s.tests) {
+                s.tests.forEach(test => {
+                    if (!groups[key].tests.some(t => t._id === test._id)) {
+                        groups[key].tests.push(test);
+                    }
+                });
+            }
+            
+            groups[key].testCount += (s.testCount || 0);
+            if (groups[key].duration === 0) {
+                groups[key].duration = s.duration || 0;
+            }
+        });
+        
+        return Object.values(groups);
+    }, [subjects]);
+
     // Get unique courses for filter dropdown
     const uniqueCourses = [...new Set(subjects.map(s => s.course?.name).filter(Boolean))];
 
-    const filteredSubjects = subjects.filter(subject => {
-        const matchesCourse = filterCourse === 'All' || subject.course?.name === filterCourse;
-        
-        const term = searchTerm.toLowerCase();
-        const matchesSearch = 
-            subject.name.toLowerCase().includes(term) ||
-            (subject.course?.name && subject.course.name.toLowerCase().includes(term)) ||
-            (subject.institute?.name && subject.institute.name.toLowerCase().includes(term)) ||
-            (subject.teachers && subject.teachers.some(t => t.name.toLowerCase().includes(term)));
+    const filteredSubjects = useMemo(() => {
+        return groupedSubjects.filter(subject => {
+            const matchesCourse = filterCourse === 'All' || subject.courses.some(c => c.name === filterCourse);
             
-        return matchesCourse && matchesSearch;
-    });
+            const term = searchTerm.toLowerCase();
+            const matchesSearch = 
+                subject.name.toLowerCase().includes(term) ||
+                subject.courses.some(c => c.name && c.name.toLowerCase().includes(term)) ||
+                (subject.institute?.name && subject.institute.name.toLowerCase().includes(term)) ||
+                (subject.teachers && subject.teachers.some(t => t.name.toLowerCase().includes(term)));
+                
+            return matchesCourse && matchesSearch;
+        });
+    }, [groupedSubjects, filterCourse, searchTerm]);
 
     const totalPages = Math.ceil(filteredSubjects.length / itemsPerPage);
     const startIndex = (currentPage - 1) * itemsPerPage;
@@ -583,7 +649,7 @@ const SubjectsList = () => {
                                             if (selectedIds.size === paginatedSubjects.length) {
                                                 setSelectedIds(new Set());
                                             } else {
-                                                setSelectedIds(new Set(paginatedSubjects.map(item => `${item.course?._id || 'none'}:::${item.name}`)));
+                                                setSelectedIds(new Set(paginatedSubjects.map(item => `${item.institute?._id || 'none'}:::${item.name}`)));
                                             }
                                         }}
                                         className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer accent-indigo-650"
@@ -614,11 +680,11 @@ const SubjectsList = () => {
                                         <td className="p-4 w-10">
                                             <input
                                                 type="checkbox"
-                                                checked={selectedIds.has(`${s.course?._id || 'none'}:::${s.name}`)}
+                                                checked={selectedIds.has(`${s.institute?._id || 'none'}:::${s.name}`)}
                                                 onChange={() => {
                                                     setSelectedIds(prev => {
                                                         const next = new Set(prev);
-                                                        const key = `${s.course?._id || 'none'}:::${s.name}`;
+                                                        const key = `${s.institute?._id || 'none'}:::${s.name}`;
                                                         if (next.has(key)) {
                                                             next.delete(key);
                                                         } else {
@@ -643,10 +709,53 @@ const SubjectsList = () => {
                                         </td>
  
                                         {/* Course */}
-                                        <td className="p-4 whitespace-nowrap text-sm text-slate-700">
-                                            <span className="px-3 py-1 bg-slate-50 text-slate-700 rounded-full text-xs font-semibold border border-slate-100">
-                                                <TruncatedCell text={s.course?.name || 'N/A'} maxLength={20} />
-                                            </span>
+                                        <td className="p-4 text-sm text-slate-700 max-w-[280px] courses-popover-container relative">
+                                            {s.courses && s.courses.length > 0 ? (
+                                                <div className="flex items-center gap-1.5 flex-wrap">
+                                                    {/* Show first course */}
+                                                    <span className="px-2.5 py-1 bg-slate-50 text-slate-700 rounded-full text-[11px] font-semibold border border-slate-100 whitespace-nowrap">
+                                                        <TruncatedCell text={s.courses[0].name} maxLength={15} /> ({s.courses[0].duration}D)
+                                                    </span>
+
+                                                    {/* Show +N more button if there are more courses */}
+                                                    {s.courses.length > 1 && (
+                                                        <div className="relative inline-block">
+                                                            <button
+                                                                type="button"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    const key = `${s.name}-${index}`;
+                                                                    setActiveCoursesDropdown(activeCoursesDropdown === key ? null : key);
+                                                                }}
+                                                                className="px-2 py-0.5 bg-indigo-50 hover:bg-indigo-100 text-[#3E3ADD] rounded-full text-[10px] font-extrabold border border-indigo-100 transition-all cursor-pointer whitespace-nowrap active:scale-95 flex items-center justify-center"
+                                                            >
+                                                                +{s.courses.length - 1} more
+                                                            </button>
+
+                                                            {activeCoursesDropdown === `${s.name}-${index}` && (
+                                                                <div className="absolute left-0 mt-1.5 w-60 bg-white border border-slate-200 rounded-2xl shadow-2xl z-40 p-2.5 space-y-1.5 animate-fade-in text-left">
+                                                                    <div className="px-1 py-0.5 border-b border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-wider">
+                                                                        Assigned Courses
+                                                                    </div>
+                                                                    <div className="max-h-40 overflow-y-auto custom-scrollbar space-y-1">
+                                                                        {s.courses.slice(1).map((c, cIdx) => (
+                                                                            <div 
+                                                                                key={cIdx} 
+                                                                                className="px-2.5 py-2 hover:bg-slate-50 rounded-xl text-xs font-bold text-slate-750 flex items-center justify-between transition-colors"
+                                                                            >
+                                                                                <span className="truncate mr-2" title={c.name}>{c.name}</span>
+                                                                                <span className="shrink-0 text-[10px] text-indigo-650 bg-indigo-50 px-2 py-0.5 rounded-lg border border-indigo-100">{c.duration} Days</span>
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ) : (
+                                                <span className="text-slate-400 italic">No course assigned</span>
+                                            )}
                                         </td>
  
                                         {/* Institute */}
@@ -676,9 +785,9 @@ const SubjectsList = () => {
  
                                         {/* Days Duration */}
                                         <td className="p-4 whitespace-nowrap text-center font-bold text-slate-800 text-sm">
-                                            {s.duration || 0}
+                                            {[...new Set(s.courses?.map(c => c.duration))].join(', ')}
                                         </td>
-
+ 
                                         {/* Actions */}
                                         <td className="p-4 text-right whitespace-nowrap sticky right-0 bg-white group-hover:bg-slate-50 transition-colors border-l border-slate-100 shadow-[-8px_0_16px_-4px_rgba(0,0,0,0.06)] flex items-center justify-end gap-1.5">
                                             <button
@@ -704,7 +813,6 @@ const SubjectsList = () => {
                                                             try {
                                                                 await axios.delete('/api/setup/subjects', {
                                                                     data: {
-                                                                        courseId: s.course?._id,
                                                                         subjectName: s.name
                                                                     }
                                                                 });
@@ -811,7 +919,7 @@ const SubjectsList = () => {
                                 Subject: {selectedSubject.name}
                             </h3>
                             <p className="text-indigo-100 text-xs mt-1 font-medium">
-                                Course: {selectedSubject.course?.name} | Institute: {selectedSubject.institute?.name || 'N/A'}
+                                Courses: {selectedSubject.courses?.map(c => c.name).join(', ')} | Institute: {selectedSubject.institute?.name || 'N/A'}
                             </p>
                             <button
                                 onClick={() => setIsModalOpen(false)}
@@ -849,8 +957,8 @@ const SubjectsList = () => {
                                     </div>
                                     <div>
                                         <span className="text-[9px] text-slate-400 font-bold block uppercase tracking-wider">Allocated Time</span>
-                                        <span className="text-base font-black text-slate-800">
-                                            {selectedSubject.duration || 0} <span className="text-[10px] text-slate-400 font-medium">/ {selectedSubject.course?.duration || 0} days</span>
+                                        <span className="text-xs font-black text-slate-800 block mt-0.5 leading-tight">
+                                            {selectedSubject.courses?.map(c => `${c.name} (${c.duration} Days)`).join(', ')}
                                         </span>
                                     </div>
                                 </div>
@@ -928,7 +1036,7 @@ const SubjectsList = () => {
                                 Edit Subject Details
                             </h3>
                             <p className="text-emerald-50 text-xs mt-0.5">
-                                Course: {selectedSubject.course?.name}
+                                Courses: {selectedSubject.courses?.map(c => c.name).join(', ')}
                             </p>
                             <button
                                 onClick={() => setIsEditModalOpen(false)}
@@ -960,7 +1068,7 @@ const SubjectsList = () => {
                                     placeholder="Enter number of days"
                                 />
                                 <span className="text-[10px] text-slate-400 font-semibold block mt-1">
-                                    Total Course Duration: {selectedSubject.course?.duration || 0} days
+                                    Course Durations: {selectedSubject.courses?.map(c => `${c.name} (${c.duration} Days)`).join(', ')}
                                 </span>
                             </div>
 

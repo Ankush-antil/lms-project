@@ -1566,20 +1566,31 @@ const deleteSubject = asyncHandler(async (req, res) => {
     const courses = await Course.find(query);
 
     for (const course of courses) {
-        course.subjects = course.subjects.filter(s => s.toLowerCase() !== subjectName.toLowerCase());
-        if (course.subjectDurations) {
-            course.subjectDurations = course.subjectDurations.filter(sd => sd.subjectName?.toLowerCase() !== subjectName.toLowerCase());
-        }
-        await course.save();
+        const filteredSubjects = (course.subjects || []).filter(s => typeof s === 'string' && s.toLowerCase() !== subjectName.toLowerCase());
+        const filteredDurations = (course.subjectDurations || []).filter(sd => sd && sd.subjectName?.toLowerCase() !== subjectName.toLowerCase());
+        
+        await Course.updateOne(
+            { _id: course._id },
+            { 
+                $set: { 
+                    subjects: filteredSubjects,
+                    subjectDurations: filteredDurations
+                } 
+            }
+        );
 
         // Also remove from students in that course
         const students = await User.find({ role: 'Student', 'studentProfile.course': course._id });
         for (const student of students) {
             if (student.studentProfile?.subject) {
                 let studentSubjects = student.studentProfile.subject.split(',').map(s => s.trim());
-                studentSubjects = studentSubjects.filter(s => s.toLowerCase() !== subjectName.toLowerCase());
-                student.studentProfile.subject = studentSubjects.join(', ');
-                await student.save();
+                const filtered = studentSubjects.filter(s => typeof s === 'string' && s.toLowerCase() !== subjectName.toLowerCase());
+                if (filtered.length !== studentSubjects.length) {
+                    await User.updateOne(
+                        { _id: student._id },
+                        { $set: { 'studentProfile.subject': filtered.join(', ') } }
+                    );
+                }
             }
         }
         
@@ -1588,9 +1599,12 @@ const deleteSubject = asyncHandler(async (req, res) => {
         for (const teacher of teachers) {
             if (teacher.teacherProfile?.subjects) {
                 const originalSubjects = teacher.teacherProfile.subjects;
-                teacher.teacherProfile.subjects = originalSubjects.filter(s => s.toLowerCase() !== subjectName.toLowerCase());
-                if (teacher.teacherProfile.subjects.length !== originalSubjects.length) {
-                    await teacher.save();
+                const filtered = originalSubjects.filter(s => typeof s === 'string' && s.toLowerCase() !== subjectName.toLowerCase());
+                if (filtered.length !== originalSubjects.length) {
+                    await User.updateOne(
+                        { _id: teacher._id },
+                        { $set: { 'teacherProfile.subjects': filtered } }
+                    );
                 }
             }
         }

@@ -39,7 +39,7 @@ const CustomSelect = ({ label, value, options, onChange, onCreateNew, onRenameOp
         }
     };
 
-    const displayValue = isMulti 
+    const displayValue = isMulti
         ? (Array.isArray(value) && value.length > 0 ? value.map(v => renderOption ? renderOption(v) : v).join(', ') : '')
         : (renderOption ? renderOption(value) : value);
 
@@ -68,7 +68,7 @@ const CustomSelect = ({ label, value, options, onChange, onCreateNew, onRenameOp
                                         <input
                                             type="checkbox"
                                             checked={isSelected(option)}
-                                            onChange={() => {}} // handled by parent onClick
+                                            onChange={() => { }} // handled by parent onClick
                                             className="rounded text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5 border-slate-300 cursor-pointer flex-shrink-0"
                                         />
                                     )}
@@ -146,8 +146,11 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
         setLoadingMappings(true);
         try {
             const params = { courseId };
-            if (subjectList && subjectList.length > 0) {
-                params.subject = subjectList.join(', ');
+            if (subjectList) {
+                const subStr = Array.isArray(subjectList) ? subjectList.join(', ') : subjectList;
+                if (subStr) {
+                    params.subject = subStr;
+                }
             }
             const { data } = await axios.get('/api/users/inbox-configs/course-subject', { params });
             const mapping = {};
@@ -169,7 +172,7 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
     };
 
     const handleRenameIndex = async (currentOption) => {
-        const selectedSubjects = Array.isArray(formData.subject) ? formData.subject : [];
+        const selectedSubjects = Array.isArray(formData.subject) ? formData.subject : (formData.subject ? [formData.subject] : []);
         const selectedCourseNames = Array.isArray(formData.course) ? formData.course : [];
 
         if (selectedCourseNames.length === 0 && selectedSubjects.length === 0) {
@@ -240,8 +243,8 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
 
                     // If user is Institute or Editor, auto-fill the institute name from the fetched list
                     if (user?.role === 'Institute' || user?.role === 'Editor') {
-                        const userInstId = user && user.institute 
-                            ? (typeof user.institute === 'object' ? user.institute._id : user.institute) 
+                        const userInstId = user && user.institute
+                            ? (typeof user.institute === 'object' ? user.institute._id : user.institute)
                             : '';
                         const matchingInst = instRes.data.find(i => i._id === userInstId);
                         if (matchingInst) {
@@ -309,7 +312,7 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
         if (allCourses.length === 0) return;
         if (formData.course && formData.course.length > 0 && allCourses.length > 0) {
             const selectedCourses = allCourses.filter(c => formData.course.includes(c.name));
-            
+
             // Count frequency of subjects
             const subjectCounts = {};
             selectedCourses.forEach(course => {
@@ -342,6 +345,7 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
 
         } else {
             setOptions(prev => ({ ...prev, subject: [] }));
+            setFormData(prev => ({ ...prev, subject: '' }));
             setFormData(prev => ({ ...prev, subject: '' }));
         }
     }, [formData.course, allCourses]);

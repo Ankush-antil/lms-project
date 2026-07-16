@@ -2276,6 +2276,7 @@ const TestBuilder = () => {
     const [browseTab, setBrowseTab] = useState('site'); // 'site' | 'cloud'
     const [activeLibraryHeaderTab, setActiveLibraryHeaderTab] = useState('Templates'); // 'Section' | 'Form' | 'Templates'
     const [templateSearchQuery, setTemplateSearchQuery] = useState('');
+    const [previewTemplate, setPreviewTemplate] = useState(null);
 
     const [siteTemplates, setSiteTemplates] = useState(() => {
         const saved = localStorage.getItem('lms_site_templates');
@@ -2333,6 +2334,61 @@ const TestBuilder = () => {
             toast.error("Selected template is empty");
         }
         setIsTemplatesBrowseOpen(false);
+    };
+
+    const handleExportSingleTemplate = (tpl) => {
+        try {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(tpl, null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `${tpl.name.replace(/\s+/g, '_')}_template.json`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+            toast.success(`Template "${tpl.name}" exported successfully!`);
+        } catch (error) {
+            toast.error("Failed to export template");
+        }
+    };
+
+    const handleImportTemplates = (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+            try {
+                const parsed = JSON.parse(evt.target.result);
+                const templatesToAdd = Array.isArray(parsed) ? parsed : [parsed];
+
+                // Validate templates
+                const validTemplates = templatesToAdd.filter(tpl => {
+                    return tpl && typeof tpl === 'object' && tpl.name && tpl.type && Array.isArray(tpl.elements);
+                });
+
+                if (validTemplates.length === 0) {
+                    toast.error("No valid templates found in file");
+                    return;
+                }
+
+                // Add unique IDs and set fields
+                const processed = validTemplates.map(tpl => ({
+                    id: tpl.id || `tpl_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                    name: tpl.name,
+                    type: tpl.type === 'Section' ? 'Section' : 'Form',
+                    createdBy: tpl.createdBy || user?.name || 'Imported User',
+                    creationDate: tpl.creationDate || new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
+                    elements: tpl.elements
+                }));
+
+                setSiteTemplates(prev => [...processed, ...prev]);
+                toast.success(`Successfully imported ${processed.length} template(s)!`);
+            } catch (err) {
+                toast.error("Failed to parse JSON template file");
+            }
+        };
+        reader.readAsText(file);
+        e.target.value = "";
     };
 
     const handleInsertGeneratedQuestions = (questionsList, messageIndex) => {
@@ -6321,6 +6377,22 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                                         <span>Cloud templates</span>
                                         <span className="text-[8px] bg-indigo-50 text-indigo-700 font-black px-1.5 py-0.5 rounded border border-indigo-100 scale-90 origin-left">Pro</span>
                                     </button>
+
+                                    <input
+                                        type="file"
+                                        id="template-import-file-input"
+                                        accept=".json"
+                                        onChange={handleImportTemplates}
+                                        className="hidden"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => document.getElementById('template-import-file-input')?.click()}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[11px] font-extrabold shadow-sm transition-all focus:outline-none ml-2"
+                                    >
+                                        <Upload size={12} />
+                                        <span>Import Template</span>
+                                    </button>
                                 </div>
 
                                 {/* Search display */}
@@ -6412,12 +6484,22 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                                                                     <button
                                                                         type="button"
                                                                         onClick={() => {
-                                                                            toast(`Previewing: ${tpl.name} (${tpl.elements?.length || 0} fields)`);
+                                                                            setPreviewTemplate(tpl);
                                                                         }}
                                                                         className="text-slate-500 hover:text-indigo-650 font-extrabold flex items-center gap-1 transition-colors focus:outline-none"
                                                                     >
                                                                         <Eye size={12} />
                                                                         <span>Preview</span>
+                                                                    </button>
+
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => handleExportSingleTemplate(tpl)}
+                                                                        className="text-slate-500 hover:text-green-600 font-extrabold flex items-center gap-1 transition-colors focus:outline-none"
+                                                                        title="Export Template"
+                                                                    >
+                                                                        <Download size={12} />
+                                                                        <span>Export</span>
                                                                     </button>
 
                                                                     <button
@@ -6462,6 +6544,98 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                                     className="px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-sm rounded-xl transition-all"
                                 >
                                     Close
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {previewTemplate && (
+                    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[200] flex items-center justify-center p-4 font-sans animate-fade-in animate-scale-up">
+                        <div className="bg-white rounded-[30px] max-w-2xl w-full shadow-2xl p-6 border border-slate-100 flex flex-col gap-4 max-h-[80vh]">
+                            {/* Header */}
+                            <div className="flex justify-between items-center pb-3 border-b border-slate-100 bg-white">
+                                <div>
+                                    <h3 className="text-md font-bold text-slate-800 flex items-center gap-2">
+                                        <Eye size={18} className="text-indigo-655" />
+                                        <span>Template Preview: {previewTemplate.name}</span>
+                                    </h3>
+                                    <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">
+                                        Type: <span className="text-indigo-600 font-black">{previewTemplate.type}</span> | Created By: <span className="text-slate-600 font-black">{previewTemplate.createdBy}</span> | Date: {previewTemplate.creationDate}
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={() => setPreviewTemplate(null)}
+                                    className="p-1.5 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors focus:outline-none"
+                                >
+                                    <X size={16} />
+                                </button>
+                            </div>
+
+                            {/* Questions Content */}
+                            <div className="flex-1 overflow-y-auto pr-1 custom-scrollbar space-y-3 py-2 text-xs">
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Questions / Form Elements ({previewTemplate.elements?.length || 0})</span>
+                                {previewTemplate.elements && previewTemplate.elements.length > 0 ? (
+                                    previewTemplate.elements.map((el, i) => (
+                                        <div key={i} className="bg-slate-50 border border-slate-200/80 p-4 rounded-2xl shadow-sm space-y-2">
+                                            <div className="flex justify-between items-start gap-3">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="w-5 h-5 rounded-full bg-slate-200 flex items-center justify-center text-slate-700 font-bold text-[10px]">
+                                                        {i + 1}
+                                                    </span>
+                                                    <span className="px-2 py-0.5 bg-indigo-50 border border-indigo-100 text-indigo-600 rounded-md text-[9px] font-bold uppercase tracking-wider">
+                                                        {el.label || el.type}
+                                                    </span>
+                                                </div>
+                                                <span className="text-[10px] bg-slate-200/80 px-2 py-0.5 rounded-md font-bold text-slate-600">
+                                                    {el.marks !== undefined ? el.marks : 1} Marks
+                                                </span>
+                                            </div>
+                                            <p className="font-bold text-slate-800 text-sm mt-1">
+                                                {el.text || `${el.label || el.type} Field`}
+                                            </p>
+                                            {el.options && el.options.length > 0 && (
+                                                <div className="pl-7 space-y-1.5 mt-2">
+                                                    {el.options.map((opt, oIdx) => (
+                                                        <div key={oIdx} className="flex items-center gap-2 text-slate-600 text-xs">
+                                                            <div className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+                                                            <span>{opt.text || opt}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                            {el.helperText && (
+                                                <p className="text-[10px] text-slate-400 italic mt-1 pl-7">
+                                                    Note: {el.helperText}
+                                                </p>
+                                            )}
+                                        </div>
+                                    ))
+                                ) : (
+                                    <p className="text-slate-400 italic text-center py-6">No elements in this template.</p>
+                                )}
+                            </div>
+
+                            {/* Footer */}
+                            <div className="pt-3 border-t border-slate-100 flex justify-end gap-3 bg-white">
+                                <button
+                                    type="button"
+                                    onClick={() => setPreviewTemplate(null)}
+                                    className="px-5 py-2.5 border border-slate-200 hover:bg-slate-50 text-slate-600 font-bold text-xs rounded-xl transition-all"
+                                >
+                                    Close Preview
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        handleSelectTemplate(previewTemplate);
+                                        setPreviewTemplate(null);
+                                        setIsTemplatesBrowseOpen(false);
+                                    }}
+                                    className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-lg shadow-indigo-100 transition-all flex items-center gap-1.5"
+                                >
+                                    <FolderUp size={13} />
+                                    <span>Insert Template</span>
                                 </button>
                             </div>
                         </div>

@@ -80,19 +80,64 @@ const getContacts = asyncHandler(async (req, res) => {
         _id: { $in: contactIdArray }
     }).select('name email role avatar mobileNumber isActive');
 
-    const contactsWithMeta = await Promise.all(contacts.map(async (contact) => {
-        const lastMessage = await Message.findOne({
-            $or: [
-                { sender: userId, receiver: contact._id },
-                { sender: contact._id, receiver: userId }
-            ]
-        }).sort({ createdAt: -1 });
+    // 1. Pre-fetch last messages for all conversations involving the user
+    const lastMessages = await Message.aggregate([
+        {
+            $match: {
+                $or: [
+                    { sender: userId },
+                    { receiver: userId }
+                ]
+            }
+        },
+        {
+            $sort: { createdAt: -1 }
+        },
+        {
+            $group: {
+                _id: {
+                    $cond: [
+                        { $eq: ["$sender", userId] },
+                        "$receiver",
+                        "$sender"
+                    ]
+                },
+                lastMsg: { $first: "$$ROOT" }
+            }
+        }
+    ]);
 
-        const unreadCount = await Message.countDocuments({
-            sender: contact._id,
-            receiver: userId,
-            isRead: false
-        });
+    // 2. Pre-fetch unread message counts grouped by sender
+    const unreadCounts = await Message.aggregate([
+        {
+            $match: {
+                receiver: userId,
+                isRead: false
+            }
+        },
+        {
+            $group: {
+                _id: "$sender",
+                count: { $sum: 1 }
+            }
+        }
+    ]);
+
+    // Convert aggregation results to maps for O(1) lookups
+    const lastMsgMap = new Map();
+    lastMessages.forEach(item => {
+        if (item._id) lastMsgMap.set(item._id.toString(), item.lastMsg);
+    });
+
+    const unreadCountMap = new Map();
+    unreadCounts.forEach(item => {
+        if (item._id) unreadCountMap.set(item._id.toString(), item.count);
+    });
+
+    const contactsWithMeta = contacts.map((contact) => {
+        const contactIdStr = contact._id.toString();
+        const lastMessage = lastMsgMap.get(contactIdStr) || null;
+        const unreadCount = unreadCountMap.get(contactIdStr) || 0;
 
         return {
             _id: contact._id,
@@ -112,7 +157,7 @@ const getContacts = asyncHandler(async (req, res) => {
             } : null,
             unreadCount
         };
-    }));
+    });
 
     contactsWithMeta.sort((a, b) => {
         if (a.lastMessage && b.lastMessage) {

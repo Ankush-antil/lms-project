@@ -891,6 +891,7 @@ const TestsList = () => {
             const statusKey = keys.find(k => k.toLowerCase() === 'status');
             const questionsKey = keys.find(k => k.toLowerCase() === 'questions');
             const settingsKey = keys.find(k => k.toLowerCase() === 'settings' || k === 'Setting');
+            const visibilityModeKey = keys.find(k => k.toLowerCase() === 'visibility mode' || k === 'visibilityMode' || k.toLowerCase() === 'visibility');
             const publicSettingsKey = keys.find(k => ['publicsettings', 'public settings', 'publish setting', 'public settings'].includes(k.toLowerCase()));
 
             // Parse settings / questions if they are stringified JSON (from Excel/CSV exports)
@@ -923,6 +924,7 @@ const TestsList = () => {
                 duration: durationKey ? Number(row[durationKey]) : undefined,
                 publishMode: publishModeKey ? String(row[publishModeKey]).trim() : (activeTab === 'public' ? 'public' : (activeTab === 'draft' ? 'draft' : 'connected')),
                 status: statusKey ? String(row[statusKey]).trim() : 'active',
+                visibilityMode: visibilityModeKey ? String(row[visibilityModeKey]).trim() : undefined,
                 questions: qList,
                 settings: settingsObj,
                 publicSettings: publicSettingsObj
@@ -973,7 +975,7 @@ const TestsList = () => {
             'Publish Mode': t.publishMode || '',
             Status: t.status || 'active',
             'Types of Activities': t.activity || '',
-            'Visibility Mode': t.isAssigned ? 'assign' : 'upcoming',
+            'Visibility Mode': t.isAssigned ? 'upcoming' : 'assign',
             Questions: t.questions ? JSON.stringify(t.questions) : '[]',
             Setting: t.settings ? JSON.stringify(t.settings) : '{}',
             'Publish Setting': t.publicSettings ? JSON.stringify(t.publicSettings) : '{}',
@@ -989,6 +991,7 @@ const TestsList = () => {
                 description: t.description,
                 publishMode: t.publishMode,
                 status: t.status,
+                isAssigned: t.isAssigned || false,
                 questions: t.questions || [],
                 settings: t.settings || {},
                 publicSettings: t.publicSettings || {}

@@ -637,7 +637,7 @@ const importTests = asyncHandler(async (req, res) => {
 
     for (const t of tests) {
         try {
-            const { title, course, subject, index, description, publishMode, status, settings, questions, publicSettings } = t;
+            const { title, course, subject, index, description, publishMode, status, settings, questions, publicSettings, isAssigned, visibilityMode } = t;
             if (!title) {
                 errors.push({ name: 'Unknown', error: 'Title is required' });
                 continue;
@@ -669,6 +669,17 @@ const importTests = asyncHandler(async (req, res) => {
 
             validateWebpageQuestions(parsedQuestions);
 
+            // Determine isAssigned boolean: checked upcoming = true, checked assign = false
+            let finalIsAssigned = false;
+            const checkVal = isAssigned !== undefined ? isAssigned : visibilityMode;
+            if (checkVal !== undefined) {
+                if (typeof checkVal === 'string') {
+                    finalIsAssigned = checkVal.toLowerCase().trim() === 'upcoming';
+                } else {
+                    finalIsAssigned = !!checkVal;
+                }
+            }
+
             const testDetails = {
                 title,
                 description: description || '',
@@ -678,6 +689,7 @@ const importTests = asyncHandler(async (req, res) => {
                 index: index || '',
                 publishMode: publishMode || 'connected',
                 status: status || 'active',
+                isAssigned: finalIsAssigned,
                 publicSettings: parsedPublicSettings
             };
 

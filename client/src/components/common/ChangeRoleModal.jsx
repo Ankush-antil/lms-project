@@ -209,8 +209,8 @@ const ChangeRoleModal = ({ isOpen, onClose }) => {
                         </div>
                     </div>
 
-                    {/* Request Role Section (For non-admins) */}
-                    {!hasAdminPrivilege && requestableRoles.length > 0 && (
+                    {/* Request Role Section */}
+                    {requestableRoles.length > 0 && (
                         <div className="border-t border-slate-100 pt-5">
                             <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3">Request New Role</h4>
                             <form onSubmit={handleRequestRole} className="flex flex-col gap-3">

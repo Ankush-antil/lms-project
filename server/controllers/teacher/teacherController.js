@@ -2,6 +2,8 @@ const asyncHandler = require('express-async-handler');
 const User = require('../../models/User');
 const Test = require('../../models/Test');
 const Submission = require('../../models/Submission');
+const Course = require('../../models/Course');
+const Institute = require('../../models/Institute');
 
 // @desc    Get students for the logged in teacher
 // @route   GET /api/users/teacher-students

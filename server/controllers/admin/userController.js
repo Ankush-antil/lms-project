@@ -2,6 +2,7 @@ const asyncHandler = require('express-async-handler');
 const User = require('../../models/User');
 const Activity = require('../../models/Activity');
 const Course = require('../../models/Course');
+const Institute = require('../../models/Institute');
 const StudentInboxConfig = require('../../models/StudentInboxConfig');
 const StudentActivityConfig = require('../../models/StudentActivityConfig');
 const FeeRecord = require('../../models/FeeRecord');

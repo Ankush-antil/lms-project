@@ -3,6 +3,7 @@ const Test = require('../../models/Test');
 const Activity = require('../../models/Activity');
 const User = require('../../models/User');
 const TestHistory = require('../../models/TestHistory');
+const Institute = require('../../models/Institute');
 
 // @desc    Create new test
 // @route   POST /api/tests

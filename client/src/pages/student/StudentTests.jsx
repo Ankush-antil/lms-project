@@ -1052,7 +1052,7 @@ const StudentTests = () => {
     }, [dynamicInboxItems, inboxSearchQuery]);
 
     const groupedInboxItems = useMemo(() => {
-        return subjectDaysMapping.map(group => {
+        const resultGroups = subjectDaysMapping.map(group => {
             if (subjectFilter !== 'All' && group.subjectName.toLowerCase() !== subjectFilter.toLowerCase()) {
                 return null;
             }
@@ -1093,6 +1093,17 @@ const StudentTests = () => {
                 days: matchedDays
             };
         }).filter(Boolean).filter(group => group.days.length > 0);
+
+        // Sort the subject groups themselves numerically based on their subjectName prefix
+        resultGroups.sort((a, b) => {
+            const getNum = (name) => {
+                const match = String(name).match(/^(\d+)/);
+                return match ? parseInt(match[1], 10) : 999999;
+            };
+            return getNum(a.subjectName) - getNum(b.subjectName);
+        });
+
+        return resultGroups;
     }, [subjectDaysMapping, dynamicInboxItems, inboxSearchQuery, subjectFilter, inboxConfigs]);
 
     useEffect(() => {

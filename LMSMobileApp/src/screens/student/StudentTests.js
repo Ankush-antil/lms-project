@@ -249,7 +249,7 @@ const StudentTests = ({ navigation }) => {
 
     // Group Inboxes by Subject for display in Browse level
     const groupedInboxes = useMemo(() => {
-        return subjectDaysMapping.map(group => {
+        const resultGroups = subjectDaysMapping.map(group => {
             const matchedDays = group.days.map(day => {
                 const inboxItem = inboxItems.find(item => item.id?.trim().toLowerCase() === day.id?.trim().toLowerCase());
                 if (!inboxItem) return null;
@@ -284,6 +284,17 @@ const StudentTests = ({ navigation }) => {
                 days: filteredDays
             };
         }).filter(group => group.days.length > 0);
+
+        // Sort the subject groups themselves numerically based on their subjectName prefix
+        resultGroups.sort((a, b) => {
+            const getNum = (name) => {
+                const match = String(name).match(/^(\d+)/);
+                return match ? parseInt(match[1], 10) : 999999;
+            };
+            return getNum(a.subjectName) - getNum(b.subjectName);
+        });
+
+        return resultGroups;
     }, [subjectDaysMapping, inboxItems, inboxConfigs, search]);
 
     // Initialize expand/collapse states once mapping is loaded

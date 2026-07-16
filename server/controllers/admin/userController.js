@@ -8,6 +8,9 @@ const FeeRecord = require('../../models/FeeRecord');
 const RoleRequest = require('../../models/RoleRequest');
 const { deleteFromSheets } = require('../../utils/googleSheets');
 
+// Helper to escape regex special characters
+const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 // Helper: compute section letter for a student
 const computeSection = async (courseId) => {
     if (!courseId) return 'A';

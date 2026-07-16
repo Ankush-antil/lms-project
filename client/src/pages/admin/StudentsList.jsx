@@ -434,16 +434,11 @@ const StudentsList = () => {
 
                 toast.dismiss(loadingToast);
 
-                const { successCount, errors } = res.data.results;
-
                 if (errors && errors.length > 0) {
-
-                    toast.success(`Successfully imported ${successCount} users. ${errors.length} failed.`);
-
+                    const firstErrors = errors.slice(0, 3).map(e => `${e.row.name || e.row.email || 'Row'}: ${e.error}`).join('\n');
+                    alert(`Import Results:\n- Successfully imported/updated: ${successCount} users\n- Failed: ${errors.length} users\n\nError details:\n${firstErrors}${errors.length > 3 ? '\n...and more' : ''}`);
                 } else {
-
                     toast.success(`Successfully imported ${successCount} users!`);
-
                 }
 
                 if (typeof fetchData === 'function') fetchData();

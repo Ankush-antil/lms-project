@@ -73,7 +73,16 @@ const getUsers = asyncHandler(async (req, res) => {
 
     console.log(`[API] Fetching users with query:`, query);
 
-    const users = await User.find(query)
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 0;
+    const skip = (page - 1) * limit;
+
+    let dbQuery = User.find(query);
+    if (limit > 0) {
+        dbQuery = dbQuery.skip(skip).limit(limit);
+    }
+
+    const users = await dbQuery
         .select('-password')
         .populate('institute', 'name')
         .populate('studentProfile.course', 'name subjects duration subjectDurations')

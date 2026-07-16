@@ -287,7 +287,7 @@ const TestsList = () => {
     const fetchLmsTests = async () => {
         try {
             setLoading(true);
-            const res = await axios.get('/api/tests');
+            const res = await axios.get('/api/tests?limit=20&page=1');
             const filtered = Array.isArray(res.data) ? res.data.filter(t => t.publishMode !== 'public') : [];
             setTests(filtered);
 
@@ -324,10 +324,22 @@ const TestsList = () => {
                     // silently ignore — fallback to raw index
                 }
             }
+
+            setLoading(false);
+
+            // Deferred background load for the remaining tests
+            setTimeout(async () => {
+                try {
+                    const fullRes = await axios.get('/api/tests');
+                    const fullFiltered = Array.isArray(fullRes.data) ? fullRes.data.filter(t => t.publishMode !== 'public') : [];
+                    setTests(fullFiltered);
+                } catch (e) {
+                    console.error("Error background loading full tests data:", e);
+                }
+            }, 1000);
         } catch (error) {
             console.error("Error fetching tests:", error);
             toast.error("Error loading tests");
-        } finally {
             setLoading(false);
         }
     };

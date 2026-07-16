@@ -354,7 +354,16 @@ const getCourses = asyncHandler(async (req, res) => {
     }
 
     // Populate institute and createdBy details
-    const courses = await Course.find(query)
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 0;
+    const skip = (page - 1) * limit;
+
+    let dbQuery = Course.find(query);
+    if (limit > 0) {
+        dbQuery = dbQuery.skip(skip).limit(limit);
+    }
+
+    const courses = await dbQuery
         .populate('institute')
         .populate('createdBy', 'name email role');
 

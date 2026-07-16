@@ -226,9 +226,10 @@ const StudentsList = () => {
 
     const fetchData = async () => {
         try {
+            // Load first 20 items initially for instant rendering
             const [userRes, courseRes, instsRes] = await Promise.all([
-                axios.get('/api/users?role=Student'),
-                axios.get('/api/setup/courses'),
+                axios.get('/api/users?role=Student&limit=20&page=1'),
+                axios.get('/api/setup/courses?limit=20&page=1'),
                 axios.get('/api/setup/institutes')
             ]);
             setStudents(userRes.data);
@@ -242,6 +243,20 @@ const StudentsList = () => {
             }
 
             setLoading(false);
+
+            // Deferred background load for the remaining data
+            setTimeout(async () => {
+                try {
+                    const [fullUsers, fullCourses] = await Promise.all([
+                        axios.get('/api/users?role=Student'),
+                        axios.get('/api/setup/courses')
+                    ]);
+                    setStudents(fullUsers.data);
+                    setCourses(fullCourses.data);
+                } catch (e) {
+                    console.error("Error background loading full students data:", e);
+                }
+            }, 1000);
         } catch (error) {
             console.error("Error fetching students:", error);
             setLoading(false);

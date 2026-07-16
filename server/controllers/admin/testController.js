@@ -269,7 +269,16 @@ const getTests = asyncHandler(async (req, res) => {
             query = { isDeleted: { $ne: true }, createdBy: req.user._id };
         }
     }
-    const tests = await Test.find(query)
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 0;
+    const skip = (page - 1) * limit;
+
+    let dbQuery = Test.find(query);
+    if (limit > 0) {
+        dbQuery = dbQuery.skip(skip).limit(limit);
+    }
+
+    const tests = await dbQuery
         .populate('createdBy', 'name email role')
         .populate('collaborators', 'name email role')
         .sort({ createdAt: -1 });

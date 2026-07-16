@@ -222,5 +222,11 @@ const testSchema = new mongoose.Schema({
     versionKey: false
 });
 
+// Optimization Indexes
+testSchema.index({ isDeleted: 1 });
+testSchema.index({ isDeleted: 1, createdAt: -1 });
+testSchema.index({ isDeleted: 1, createdBy: 1 });
+testSchema.index({ isDeleted: 1, institute: 1 });
+
 const Test = mongoose.model('Test', testSchema);
 module.exports = Test;

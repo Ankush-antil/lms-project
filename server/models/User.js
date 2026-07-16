@@ -162,6 +162,11 @@ const userSchema = new mongoose.Schema({
 // Optimization Indexes
 userSchema.index({ role: 1 });
 userSchema.index({ role: 1, 'studentProfile.section': 1 });
+userSchema.index({ isDeleted: 1 });
+userSchema.index({ role: 1, isDeleted: 1 });
+userSchema.index({ role: 1, 'studentProfile.course': 1 });
+userSchema.index({ role: 1, 'studentProfile.coursesList.course': 1 });
+userSchema.index({ 'teacherProfile.assignedCourses': 1 });
 
 // Exclude Admin and Institute users when listing other roles
 userSchema.pre(/^find/, function (next) {

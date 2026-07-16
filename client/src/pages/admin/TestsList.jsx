@@ -31,6 +31,14 @@ const TestsList = () => {
     // Search and tab filters
     const isFirstRender = useRef(true);
     const [searchTerm, setSearchTerm] = useState(() => sessionStorage.getItem('testsList_searchTerm') || '');
+    const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(searchTerm);
+
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            setDebouncedSearchTerm(searchTerm);
+        }, 300);
+        return () => clearTimeout(handler);
+    }, [searchTerm]);
     const [filterSubject, setFilterSubject] = useState(() => sessionStorage.getItem('testsList_filterSubject') || 'All');
     const [filterCourse, setFilterCourse] = useState(() => sessionStorage.getItem('testsList_filterCourse') || 'All');
     const [filterInstitute, setFilterInstitute] = useState(() => sessionStorage.getItem('testsList_filterInstitute') || 'All');
@@ -54,7 +62,7 @@ const TestsList = () => {
             return;
         }
         setCurrentPage(1);
-    }, [searchTerm, filterSubject, filterCourse, filterInstitute, activeTab]);
+    }, [debouncedSearchTerm, filterSubject, filterCourse, filterInstitute, activeTab]);
 
     const editorControls = userInfo?.editorProfile?.controls;
 
@@ -803,7 +811,7 @@ const TestsList = () => {
         const tabMatch = activeTab === 'draft' ? test.publishMode === 'draft' : test.publishMode === 'connected';
         if (!tabMatch) return false;
 
-        const titleMatch = (test.title || 'Untitled').toLowerCase().includes(searchTerm.toLowerCase());
+        const titleMatch = (test.title || 'Untitled').toLowerCase().includes(debouncedSearchTerm.toLowerCase());
         const subjectMatch = filterSubject === 'All' || 
             (test.subject && test.subject.split(',').map(s => s.trim().toLowerCase()).includes(filterSubject.toLowerCase()));
         const courseMatch = filterCourse === 'All' || 
@@ -821,7 +829,7 @@ const TestsList = () => {
     const currentTestsList = (activeTab === 'lms' || activeTab === 'draft') ? tests : publicTests;
 
     const filteredPublicTests = publicTests.filter(test => {
-        const titleMatch = (test.title || '').toLowerCase().includes(searchTerm.toLowerCase());
+        const titleMatch = (test.title || '').toLowerCase().includes(debouncedSearchTerm.toLowerCase());
         const subjectMatch = filterSubject === 'All' || 
             (test.subject && test.subject.split(',').map(s => s.trim().toLowerCase()).includes(filterSubject.toLowerCase()));
         const courseMatch = filterCourse === 'All' || 

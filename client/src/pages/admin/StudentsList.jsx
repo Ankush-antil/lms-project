@@ -64,6 +64,14 @@ const StudentsList = () => {
     const navigate = useNavigate();
     const { openProfile } = useUserProfile();
     const [searchTerm, setSearchTerm] = useState('');
+    const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
+
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            setDebouncedSearchTerm(searchTerm);
+        }, 300);
+        return () => clearTimeout(handler);
+    }, [searchTerm]);
     const [filterClass, setFilterClass] = useState('All');
     const [filterSubject, setFilterSubject] = useState('All');
     const [filterSection, setFilterSection] = useState('All');
@@ -337,8 +345,8 @@ const StudentsList = () => {
         (filterSubject === 'All' || (student.studentProfile?.subject === filterSubject)) &&
         (filterSection === 'All' || (student.studentProfile?.section === filterSection)) &&
         (filterInstitute === 'All' || (student.institute?._id === filterInstitute || student.institute === filterInstitute)) &&
-        (student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            student._id.toLowerCase().includes(searchTerm.toLowerCase()))
+        (student.name.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+            student._id.toLowerCase().includes(debouncedSearchTerm.toLowerCase()))
     );
 
     const uniqueSections = [...new Set(students.map(s => s.studentProfile?.section).filter(Boolean))].sort();

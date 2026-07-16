@@ -2647,7 +2647,7 @@ const TeacherActivities = () => {
                                 ) : (
                                     /* --- DIRECT TESTS GRID --- */
                                     <div className="animate-fade-in space-y-4">
-                                        {!activeTests.length && !(viewMode === 'pending' && studyMaterials.length > 0) && !(viewMode === 'assign' && studyMaterials.length > 0) ? (
+                                        {!activeTests.length && viewMode !== 'assign' && !(viewMode === 'pending' && studyMaterials.length > 0) ? (
                                             <div className="py-12 text-center bg-white rounded-2xl border border-slate-100 shadow-sm max-w-md mx-auto">
                                                 <div className="text-4xl mb-2">🎉</div>
                                                 <p className="font-bold text-slate-700 text-sm">All caught up!</p>

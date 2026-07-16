@@ -499,43 +499,114 @@ const StudentsList = () => {
 
         }
 
-        const rows = list.map(u => ({
+        const getUserPageAccess = (u) => {
+            const accessList = [];
+            
+            if (u.allowedRoles?.includes('Student') && u.studentProfile?.controls) {
+                const enabledPages = Object.entries(u.studentProfile.controls)
+                    .filter(([_, value]) => value && value.enabled !== false)
+                    .map(([key]) => key);
+                if (enabledPages.length > 0) {
+                    accessList.push(`Student: (${enabledPages.join(', ')})`);
+                }
+            }
+            
+            if (u.allowedRoles?.includes('Teacher') && u.teacherProfile?.controls) {
+                const enabledPages = Object.entries(u.teacherProfile.controls)
+                    .filter(([_, value]) => value && value.enabled !== false)
+                    .map(([key]) => key);
+                if (enabledPages.length > 0) {
+                    accessList.push(`Teacher: (${enabledPages.join(', ')})`);
+                }
+            }
+            
+            if (u.allowedRoles?.includes('Editor') && u.editorProfile?.controls) {
+                const enabledPages = Object.entries(u.editorProfile.controls)
+                    .filter(([_, value]) => value && value.enabled !== false)
+                    .map(([key]) => key);
+                if (enabledPages.length > 0) {
+                    accessList.push(`Editor: (${enabledPages.join(', ')})`);
+                }
+            }
+            
+            if (u.allowedRoles?.includes('Accountant') && u.accountantProfile?.controls) {
+                const enabledPages = Object.entries(u.accountantProfile.controls)
+                    .filter(([_, value]) => value && value.enabled !== false)
+                    .map(([key]) => key);
+                if (enabledPages.length > 0) {
+                    accessList.push(`Accountant: (${enabledPages.join(', ')})`);
+                }
+            }
 
-            Name: u.name || '',
+            if (u.allowedRoles?.includes('Staff') && u.staffProfile?.controls) {
+                const enabledPages = Object.entries(u.staffProfile.controls)
+                    .filter(([_, value]) => value && value.enabled !== false)
+                    .map(([key]) => key);
+                if (enabledPages.length > 0) {
+                    accessList.push(`Staff: (${enabledPages.join(', ')})`);
+                }
+            }
 
-            Email: u.email || '',
+            if (u.allowedRoles?.includes('Parent') && u.parentProfile?.controls) {
+                const enabledPages = Object.entries(u.parentProfile.controls)
+                    .filter(([_, value]) => value && value.enabled !== false)
+                    .map(([key]) => key);
+                if (enabledPages.length > 0) {
+                    accessList.push(`Parent: (${enabledPages.join(', ')})`);
+                }
+            }
+            
+            return accessList.join(' | ');
+        };
 
-            Role: u.role || 'Student',
+        const rows = list.map(u => {
+            const courseNames = u.studentProfile?.course?.name || 
+                                (u.studentProfile?.coursesList && u.studentProfile.coursesList.length > 0 
+                                    ? u.studentProfile.coursesList.map(c => c.course?.name).filter(Boolean).join(', ') 
+                                    : '');
 
-            'Mobile Number': u.mobileNumber || '',
+            const subjectNames = u.studentProfile?.subject || 
+                                 (u.studentProfile?.coursesList && u.studentProfile.coursesList.length > 0 
+                                     ? u.studentProfile.coursesList.flatMap(c => c.subjects || []).filter(Boolean).join(', ') 
+                                     : '');
 
-            Course: u.studentProfile?.course?.name || u.teacherProfile?.assignedCourses?.[0]?.name || u.editorProfile?.assignedCourses?.[0]?.name || '',
-
-            Batch: u.studentProfile?.batch || '',
-
-            Section: u.studentProfile?.section || '',
-
-            'Created At': u.createdAt ? new Date(u.createdAt).toLocaleString() : ''
-
-        }));
+            return {
+                'Admission No.': u.admissionNo || '',
+                'Student Name': u.name || '',
+                Email: u.email || '',
+                'Phone No.': u.mobileNumber || '',
+                Institute: u.institute?.name || '',
+                Courses: courseNames,
+                Subjects: subjectNames,
+                Batch: u.studentProfile?.batch || '',
+                Section: u.studentProfile?.section || '',
+                'Page Access Permissions': getUserPageAccess(u)
+            };
+        });
 
         if (format === 'json') {
 
             const jsonContent = JSON.stringify(rows.map(r => ({
 
-                name: r.Name,
+                admissionNo: r['Admission No.'],
+
+                name: r['Student Name'],
 
                 email: r.Email,
 
-                role: r.Role,
+                mobileNumber: r['Phone No.'],
 
-                mobileNumber: r['Mobile Number'],
+                institute: r.Institute,
 
-                courseName: r.Course,
+                courses: r.Courses,
+
+                subjects: r.Subjects,
 
                 batch: r.Batch,
 
-                section: r.Section
+                section: r.Section,
+
+                pageAccessPermissions: r['Page Access Permissions']
 
             })), null, 2);
 

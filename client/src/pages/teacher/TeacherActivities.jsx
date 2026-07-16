@@ -585,9 +585,20 @@ const TeacherActivities = () => {
     const fetchStudents = async (token) => {
         try {
             setLoading(true);
-            const { data } = await axios.get('/api/users/teacher-students');
+            // Fetch first 20 students for instant display
+            const { data } = await axios.get('/api/users/teacher-students?limit=20&page=1');
             setStudents(data);
             setLoading(false);
+
+            // Deferred background load for remaining students
+            setTimeout(async () => {
+                try {
+                    const { data: fullData } = await axios.get('/api/users/teacher-students');
+                    setStudents(fullData);
+                } catch (e) {
+                    console.error("Error background loading full teacher students:", e);
+                }
+            }, 1000);
         } catch (error) {
             console.error("Error fetching students:", error);
             setLoading(false);
@@ -598,12 +609,27 @@ const TeacherActivities = () => {
 
     const fetchTests = async () => {
         try {
+            // Load first 20 tests/materials initially
             const [testsRes, materialsRes] = await Promise.all([
-                axios.get('/api/tests'),
-                axios.get('/api/study-materials').catch(() => ({ data: [] }))
+                axios.get('/api/tests?limit=20&page=1'),
+                axios.get('/api/study-materials?limit=20&page=1').catch(() => ({ data: [] }))
             ]);
             setAllTests(testsRes.data);
             setAllStudyMaterials(materialsRes.data || []);
+
+            // Deferred background load for remaining tests/materials
+            setTimeout(async () => {
+                try {
+                    const [fullTestsRes, fullMaterialsRes] = await Promise.all([
+                        axios.get('/api/tests'),
+                        axios.get('/api/study-materials').catch(() => ({ data: [] }))
+                    ]);
+                    setAllTests(fullTestsRes.data);
+                    setAllStudyMaterials(fullMaterialsRes.data || []);
+                } catch (e) {
+                    console.error("Error background loading full tests/materials:", e);
+                }
+            }, 1200);
         } catch (error) {
             console.error("Error fetching all tests:", error);
         }

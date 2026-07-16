@@ -36,7 +36,16 @@ const getTeacherStudents = asyncHandler(async (req, res) => {
         }
 
         // Find students matching assignment filters
-        const students = await User.find(query)
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 0;
+        const skip = (page - 1) * limit;
+
+        let dbQuery = User.find(query);
+        if (limit > 0) {
+            dbQuery = dbQuery.skip(skip).limit(limit);
+        }
+
+        const students = await dbQuery
             .select('-password')
             .populate([
                 { path: 'institute', select: 'name' },
@@ -45,7 +54,32 @@ const getTeacherStudents = asyncHandler(async (req, res) => {
             ]);
 
         const teacherSubjects = teacher.teacherProfile?.subjects || [];
-        const studentsWithStats = await Promise.all(students.map(async (student) => {
+        const teacherCourseNames = teacher.teacherProfile?.assignedCourses?.map(c => c.name) || [];
+        const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+        const testOrQueries = [];
+        teacherCourseNames.forEach(cName => {
+            testOrQueries.push({ course: { $regex: new RegExp(`(^|,)\\s*${escapeRegex(cName)}\\s*(,|$)`, 'i') } });
+        });
+        teacherSubjects.forEach(sub => {
+            testOrQueries.push({ subject: { $regex: new RegExp(`(^|,)\\s*${escapeRegex(sub)}\\s*(,|$)`, 'i') } });
+        });
+
+        // 1. Fetch matching tests once
+        const matchingTests = await Test.find(
+            testOrQueries.length > 0 ? { $or: testOrQueries } : { _id: null }
+        ).select('_id');
+        const testIds = matchingTests.map(t => t._id);
+
+        // 2. Fetch all submissions for all students in the list in one single query
+        const studentIds = students.map(s => s._id);
+        const allSubmissions = await Submission.find({
+            student: { $in: studentIds },
+            test: { $in: testIds }
+        });
+
+        // 3. Map students to stats in memory
+        const studentsWithStats = students.map((student) => {
             try {
                 const studentObj = student.toObject();
 
@@ -74,27 +108,8 @@ const getTeacherStudents = asyncHandler(async (req, res) => {
                     }
                 }
 
-                // Find tests matching teacher's assignments
-                const teacherCourseNames = teacher.teacherProfile?.assignedCourses?.map(c => c.name) || [];
-                const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
-                const testOrQueries = [];
-                teacherCourseNames.forEach(cName => {
-                    testOrQueries.push({ course: { $regex: new RegExp(`(^|,)\\s*${escapeRegex(cName)}\\s*(,|$)`, 'i') } });
-                });
-                teacherSubjects.forEach(sub => {
-                    testOrQueries.push({ subject: { $regex: new RegExp(`(^|,)\\s*${escapeRegex(sub)}\\s*(,|$)`, 'i') } });
-                });
-
-                const matchingTests = await Test.find(
-                    testOrQueries.length > 0 ? { $or: testOrQueries } : { _id: null }
-                ).select('_id');
-                const testIds = matchingTests.map(t => t._id);
-
-                const subs = await Submission.find({
-                    student: student._id,
-                    test: { $in: testIds }
-                });
+                // Filter submissions for this specific student from pre-fetched array in memory
+                const subs = allSubmissions.filter(s => String(s.student) === String(student._id));
 
                 return {
                     ...studentObj,
@@ -109,7 +124,7 @@ const getTeacherStudents = asyncHandler(async (req, res) => {
                 const fallbackObj = student.toObject();
                 return { ...fallbackObj, stats: { pending: 0, completed: 0, total: 0 } };
             }
-        }));
+        });
 
         res.json(studentsWithStats);
     } catch (error) {

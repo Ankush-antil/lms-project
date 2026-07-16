@@ -2893,27 +2893,8 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                 bodyPayload.image = currentAttachmentPreview;
             }
 
-            const response = await fetch('/api/ai/chat', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(bodyPayload)
-            });
-
-            if (!response.ok) {
-                let detailMsg = `HTTP Error ${response.status}`;
-                try {
-                    const errJson = await response.json();
-                    if (errJson.message) {
-                        detailMsg = errJson.message;
-                    }
-                } catch (_) { }
-                throw new Error(detailMsg);
-            }
-
-            const data = await response.json();
-            const responseText = data.text;
+            const response = await axios.post('/api/ai/chat', bodyPayload);
+            const responseText = response.data.text;
 
             if (!responseText) {
                 throw new Error("No response returned from AI");
@@ -2950,9 +2931,10 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
 
         } catch (err) {
             console.error("Gemini Chat Generation Error:", err);
+            const errMsg = err.response?.data?.message || err.message || 'Unknown network error';
             setAiChatMessages(prev => [
                 ...prev,
-                { sender: 'ai', text: `Failed to process request: ${err.message || 'Unknown network error'}` }
+                { sender: 'ai', text: `Failed to process request: ${errMsg}` }
             ]);
         } finally {
             setAiGenerating(false);

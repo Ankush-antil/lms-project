@@ -35,12 +35,14 @@ const ChangeRoleModal = ({ isOpen, onClose }) => {
 
     const allRoles = ['Admin', 'Teacher', 'Student', 'Editor', 'Institute', 'Accountant', 'Marketer', 'Staff', 'Parent'];
     
-    // Admin gets all roles; others get allowedRoles (or at least their current role)
+    // Only show roles that are explicitly in the user's allowedRoles (including their current active role)
     const hasAdminPrivilege = user?.role === 'Admin' || user?.role === 'Institute' || (user?.allowedRoles && (user.allowedRoles.includes('Admin') || user.allowedRoles.includes('Institute')));
     
-    const allowedRoles = hasAdminPrivilege 
-        ? allRoles 
-        : (user?.allowedRoles && user.allowedRoles.length > 0 ? user.allowedRoles : [user?.role]);
+    const allowedRoles = [...new Set([
+        user?.role,
+        ...(user?.allowedRoles || [])
+    ])].filter(Boolean);
+
 
     // Roles that can be requested (not already allowed, and not Admin)
     const requestableRoles = allRoles.filter(role => role !== 'Admin' && !allowedRoles.includes(role));

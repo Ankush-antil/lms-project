@@ -1875,19 +1875,9 @@ const switchRole = asyncHandler(async (req, res) => {
         }
     }
 
-    // Admin can switch to ANY role. Institute can switch to any role EXCEPT Admin.
-    // Other users can only switch to roles in their allowedRoles array (or current active role).
-    const hasAdminPrivilege = user.role === 'Admin' || (user.allowedRoles && user.allowedRoles.includes('Admin'));
-    const hasInstitutePrivilege = user.role === 'Institute' || (user.allowedRoles && user.allowedRoles.includes('Institute'));
+    // Users can only switch to roles that are explicitly assigned to them (listed in allowedRoles or current active role)
+    const isAllowed = (user.allowedRoles && user.allowedRoles.includes(newRole)) || user.role === newRole;
 
-    let isAllowed = false;
-    if (hasAdminPrivilege) {
-        isAllowed = true;
-    } else if (hasInstitutePrivilege) {
-        isAllowed = newRole !== 'Admin';
-    } else {
-        isAllowed = (user.allowedRoles && user.allowedRoles.includes(newRole)) || user.role === newRole;
-    }
 
     if (!isAllowed) {
         res.status(403);

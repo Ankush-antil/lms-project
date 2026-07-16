@@ -881,6 +881,7 @@ const TestsList = () => {
         const parsedMapped = allParsedRows.map(row => {
             const keys = Object.keys(row);
             const titleKey = keys.find(k => k.toLowerCase() === 'title' || k === 'Test Name');
+            const instituteKey = keys.find(k => k.toLowerCase() === 'institute' || k === 'Institute Name');
             const courseKey = keys.find(k => k.toLowerCase() === 'course' || k === 'Courses Name');
             const subjectKey = keys.find(k => k.toLowerCase() === 'subject' || k === 'Subject Name');
             const indexKey = keys.find(k => k.toLowerCase() === 'index' || k === 'Inbox No.');
@@ -914,6 +915,7 @@ const TestsList = () => {
 
             return {
                 title: titleKey ? String(row[titleKey]).trim() : '',
+                institute: instituteKey ? String(row[instituteKey]).trim() : '',
                 course: courseKey ? String(row[courseKey]).trim() : '',
                 subject: subjectKey ? String(row[subjectKey]).trim() : '',
                 index: indexKey ? String(row[indexKey]).trim() : '',

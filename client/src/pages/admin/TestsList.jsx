@@ -3580,52 +3580,65 @@ const TestsList = () => {
                         </div>
 
                         {/* Content */}
-                        <div className="p-6 space-y-4 bg-slate-50 text-slate-700 text-xs">
+                        <div className="p-4 space-y-3 bg-slate-50 text-slate-700 text-xs">
                             {/* Creator Details */}
-                            <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm space-y-2">
-                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Created By (Teacher)</span>
-                                <div className="flex items-center gap-3">
-                                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white text-sm font-black shadow-sm uppercase">
+                            <div className="bg-white p-3 rounded-2xl border border-slate-200/80 shadow-sm space-y-1.5">
+                                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block font-sans">Created By (Teacher)</span>
+                                <div className="flex items-center gap-2">
+                                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white text-[11px] font-black shadow-sm uppercase">
                                         {riTest.createdBy?.name ? riTest.createdBy.name.charAt(0) : 'U'}
                                     </div>
                                     <div>
-                                        <p className="font-bold text-slate-800 text-sm">{riTest.createdBy?.name || 'N/A'}</p>
-                                        <p className="text-slate-500 text-[11px]">{riTest.createdBy?.email || 'N/A'}</p>
-                                        <span className="inline-block mt-1 text-[8px] bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded-md font-bold uppercase tracking-wider">{riTest.createdBy?.role || 'N/A'}</span>
+                                        <p className="font-bold text-slate-800 text-[11px] leading-tight">{riTest.createdBy?.name || 'N/A'}</p>
+                                        <p className="text-slate-500 text-[9px] leading-normal">{riTest.createdBy?.email || 'N/A'}</p>
                                     </div>
                                 </div>
                             </div>
 
                             {/* Academic Context */}
-                            <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm space-y-3">
-                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Academic Details</span>
+                            <div className="bg-white p-3 rounded-2xl border border-slate-200/80 shadow-sm space-y-2">
+                                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block font-sans">Assessment Details</span>
 
-                                <div className="grid grid-cols-2 gap-3">
-                                    <div className="space-y-1">
-                                        <span className="text-[10px] text-slate-400 font-bold uppercase">Institute</span>
-                                        <p className="font-bold text-slate-800">{riTest.institute || 'N/A'}</p>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <div className="space-y-0.5 col-span-2">
+                                        <span className="text-[9px] text-slate-400 font-bold uppercase block">Form Name</span>
+                                        <p className="font-bold text-slate-800 text-xs">{riTest.title || 'N/A'}</p>
                                     </div>
-                                    <div className="space-y-1">
-                                        <span className="text-[10px] text-slate-400 font-bold uppercase">Course</span>
-                                        <p className="font-bold text-slate-800">{riTest.course || 'N/A'}</p>
+                                    <div className="space-y-0.5">
+                                        <span className="text-[9px] text-slate-400 font-bold uppercase block">Institute Name</span>
+                                        <p className="font-bold text-slate-800 text-[11px]">{riTest.institute || 'N/A'}</p>
                                     </div>
-                                    <div className="space-y-1">
-                                        <span className="text-[10px] text-slate-400 font-bold uppercase">Subject</span>
-                                        <p className="font-bold text-slate-800">{riTest.subject || 'N/A'}</p>
+                                    <div className="space-y-0.5">
+                                        <span className="text-[9px] text-slate-400 font-bold uppercase block">Courses Name</span>
+                                        <p className="font-bold text-slate-800 text-[11px]">{riTest.course || 'N/A'}</p>
                                     </div>
-                                    <div className="space-y-1">
-                                        <span className="text-[10px] text-slate-400 font-bold uppercase">Created Date</span>
-                                        <p className="font-bold text-slate-800">
+                                    <div className="space-y-0.5">
+                                        <span className="text-[9px] text-slate-400 font-bold uppercase block">Subject Name</span>
+                                        <p className="font-bold text-slate-800 text-[11px]">{riTest.subject || 'N/A'}</p>
+                                    </div>
+                                    <div className="space-y-0.5">
+                                        <span className="text-[9px] text-slate-400 font-bold uppercase block">Inbox No.</span>
+                                        <p className="font-bold text-indigo-600 text-[11px]">{riTest.index || 'N/A'}</p>
+                                    </div>
+                                    <div className="space-y-0.5">
+                                        <span className="text-[9px] text-slate-400 font-bold uppercase block">Type of Activity</span>
+                                        <p className="font-bold text-slate-800 text-[11px]">{riTest.activity || 'N/A'}</p>
+                                    </div>
+                                    <div className="space-y-0.5">
+                                        <span className="text-[9px] text-slate-400 font-bold uppercase block">Questions</span>
+                                        <p className="font-bold text-slate-800 text-[11px]">{Array.isArray(riTest.questions) ? riTest.questions.length : 0}</p>
+                                    </div>
+                                    <div className="space-y-0.5 col-span-2">
+                                        <span className="text-[9px] text-slate-400 font-bold uppercase block">Created Date</span>
+                                        <p className="font-bold text-slate-800 text-[11px]">
                                             {riTest.createdAt ? new Date(riTest.createdAt).toLocaleDateString() : 'N/A'}
                                         </p>
                                     </div>
-                                    <div className="space-y-1">
-                                        <span className="text-[10px] text-slate-400 font-bold uppercase">Duration (mins)</span>
-                                        <p className="font-bold text-slate-800">{riTest.settings?.duration || 'N/A'}</p>
-                                    </div>
-                                    <div className="space-y-1">
-                                        <span className="text-[10px] text-slate-400 font-bold uppercase">Passing Marks</span>
-                                        <p className="font-bold text-slate-800">{riTest.settings?.passingMarks || 'N/A'}</p>
+                                    <div className="space-y-0.5 col-span-2 border-t border-slate-100 pt-2">
+                                        <span className="text-[9px] text-slate-400 font-bold uppercase block mb-0.5">Description</span>
+                                        <div className="font-semibold text-slate-700 bg-slate-50 p-2 rounded-xl border border-slate-200/80 text-[10px] whitespace-pre-wrap max-h-24 overflow-y-auto leading-normal">
+                                            {riTest.description || 'No description provided.'}
+                                        </div>
                                     </div>
                                 </div>
                             </div>

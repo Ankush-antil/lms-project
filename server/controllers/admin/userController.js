@@ -42,7 +42,7 @@ const computeSection = async (courseId) => {
 // @access  Private/Admin
 const getUsers = asyncHandler(async (req, res) => {
     const { role, course, institute } = req.query;
-    const query = { isDeleted: { $ne: true } };
+    const query = { isDeleted: { $ne: true }, role: { $ne: 'Admin' } };
     if (role) {
         query.$or = [
             { role: role },

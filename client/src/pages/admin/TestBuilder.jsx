@@ -1070,6 +1070,16 @@ const QuestionBuilderCard = ({
                                     contentEditable
                                     dangerouslySetInnerHTML={{ __html: element.text || '' }}
                                     onBlur={(e) => onUpdateText(e.target.innerHTML)}
+                                    onClick={(e) => {
+                                        const anchor = e.target.closest('a');
+                                        if (anchor) {
+                                            e.preventDefault();
+                                            const url = anchor.getAttribute('href');
+                                            if (url) {
+                                                window.open(url, '_blank');
+                                            }
+                                        }
+                                    }}
                                     className="w-full font-bold text-slate-800 bg-transparent outline-none min-h-[32px] pr-12 placeholder:text-slate-400 rich-text-editor font-sans"
                                     placeholder="Type your Text here"
                                     style={{ fontSize: `${18 * (zoomScale / 100)}px` }}
@@ -2033,6 +2043,16 @@ const QuestionBuilderCard = ({
                                 setNoteContentInput(e.target.innerHTML);
                                 updateNoteActiveFormat();
                             }}
+                            onClick={(e) => {
+                                const anchor = e.target.closest('a');
+                                if (anchor) {
+                                    e.preventDefault();
+                                    const url = anchor.getAttribute('href');
+                                    if (url) {
+                                        window.open(url, '_blank');
+                                    }
+                                }
+                            }}
                             onFocus={updateNoteActiveFormat}
                             className="w-full text-xs font-medium bg-slate-55 border border-slate-200 rounded-xl px-3.5 py-2.5 outline-none min-h-[180px] focus:bg-white focus:border-[#0b1329] transition-all shadow-sm rich-text-editor font-sans"
                             placeholder="Write a note..."
@@ -2244,11 +2264,11 @@ const TestBuilder = () => {
                         setConnectData(prev => ({
                             ...prev,
                             name: `Test for ${data.name}`,
-                            institute: studentInstitute,
-                            course: studentCourse ? [studentCourse] : [],
-                            subject: studentSubject,
+                            institute: instParam || studentInstitute,
+                            course: courseParam || studentCourse || '',
+                            subject: subjectParam || studentSubject,
                             date: new Date().toISOString().split('T')[0],
-                            index: inboxIdParam,
+                            index: inboxParam || inboxIdParam || 'Inbox 1',
                             activity: 'Quiz'
                         }));
                         setIsConnected(true);
@@ -2262,7 +2282,7 @@ const TestBuilder = () => {
             setConnectData(prev => ({
                 ...prev,
                 institute: instParam || '',
-                course: courseParam ? [courseParam] : [],
+                course: courseParam || '',
                 subject: subjectParam || '',
                 index: inboxParam || 'Inbox 1',
                 date: new Date().toISOString().split('T')[0],
@@ -5943,6 +5963,11 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                 }
                 .animate-fade-in {
                     animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+                }
+                .rich-text-editor a {
+                    color: #2563eb !important;
+                    text-decoration: underline !important;
+                    cursor: pointer !important;
                 }
             `}</style>
 

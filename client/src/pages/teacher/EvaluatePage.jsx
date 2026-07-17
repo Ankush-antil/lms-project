@@ -1001,8 +1001,20 @@ Return ONLY the raw JSON object, without any markdown formatting or surrounding 
                                                 <div key={idx} className="flex flex-col gap-4 border-b border-slate-100 last:border-b-0 pb-6 last:pb-0">
                                                     {/* Question Header Bar */}
                                                     <div className="flex justify-between items-center pb-2 border-b border-slate-100 gap-4">
-                                                        <h3 className="text-base font-bold text-slate-800 flex-1 text-left">
-                                                            Q{idx + 1}: {ans.questionText || "Question"}
+                                                        <h3 
+                                                            onClick={(e) => {
+                                                                const anchor = e.target.closest('a');
+                                                                if (anchor) {
+                                                                    e.preventDefault();
+                                                                    const url = anchor.getAttribute('href');
+                                                                    if (url) {
+                                                                        window.open(url, '_blank');
+                                                                    }
+                                                                }
+                                                            }}
+                                                            className="text-base font-bold text-slate-800 flex-1 text-left"
+                                                        >
+                                                            Q{idx + 1}: <span dangerouslySetInnerHTML={{ __html: ans.questionText || "Question" }} />
                                                         </h3>
                                                         <button
                                                             onClick={() => setCollapsedQuestions(prev => ({ ...prev, [`${submission._id}-${idx}`]: !prev[`${submission._id}-${idx}`] }))}
@@ -1854,6 +1866,11 @@ Return ONLY the raw JSON object, without any markdown formatting or surrounding 
                 @keyframes fadeIn {
                     from { opacity: 0; transform: translateY(-10px); }
                     to { opacity: 1; transform: translateY(0); }
+                }
+                h3.font-bold a, p.font-bold a {
+                    color: #2563eb !important;
+                    text-decoration: underline !important;
+                    cursor: pointer !important;
                 }
             `}</style>
             {chatModalComponent}

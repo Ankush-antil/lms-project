@@ -83,6 +83,22 @@ const EvaluatePage = () => {
     const [loadingOverallComments, setLoadingOverallComments] = useState(false);
     const [aiChecking, setAiChecking] = useState({});
 
+    // AI check assistant modal states
+    const [isAiAssistantOpen, setIsAiAssistantOpen] = useState(false);
+    const [aiAssistantMessages, setAiAssistantMessages] = useState([]);
+    const [aiAssistantInput, setAiAssistantInput] = useState('');
+    const [aiAssistantLoading, setAiAssistantLoading] = useState(false);
+    const [aiAssistantTarget, setAiAssistantTarget] = useState(null);
+    const aiChatEndRef = React.useRef(null);
+
+    useEffect(() => {
+        if (isAiAssistantOpen) {
+            setTimeout(() => {
+                aiChatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+            }, 100);
+        }
+    }, [aiAssistantMessages, aiAssistantLoading, isAiAssistantOpen]);
+
     useEffect(() => {
         if (expandedId && submissions.length > 0) {
             const submission = submissions.find(s => s._id === expandedId);
@@ -241,9 +257,6 @@ const EvaluatePage = () => {
     };
 
     const handleAiAutoCheck = async (submission, idx) => {
-        const key = `${submission._id}-${idx}`;
-        if (aiChecking[key]) return;
-
         const q = submission.test?.questions?.[idx];
         const ans = submission.answers[idx];
         if (!q || !ans) {
@@ -261,7 +274,23 @@ const EvaluatePage = () => {
             return;
         }
 
-        setAiChecking(prev => ({ ...prev, [key]: true }));
+        // Open AI assistant modal
+        setIsAiAssistantOpen(true);
+        setAiAssistantLoading(true);
+        setAiAssistantInput('');
+        setAiAssistantTarget({
+            submission,
+            idx,
+            maxMarks,
+            questionText,
+            studentAnswer,
+            correctAnswer
+        });
+
+        // Set initial analyzing message
+        setAiAssistantMessages([
+            { sender: 'ai', text: `Analyzing response for: "Q${idx + 1}. ${questionText.replace(/<[^>]*>/g, '')}"...` }
+        ]);
 
         const promptText = `
 You are an expert AI evaluator grading a student's answer.
@@ -291,20 +320,63 @@ Return ONLY the raw JSON object, without any markdown formatting or surrounding 
             }
             cleanText = cleanText.trim();
 
-            const parsed = JSON.parse(cleanText);
-            const evaluatedScore = typeof parsed.score === 'number' ? parsed.score : Number(parsed.score || 0);
-            const evaluatedNotes = parsed.notes || "Auto-checked by AI.";
-
-            // Update the marks and feedback states!
-            setMark(submission._id, idx, Math.min(evaluatedScore, maxMarks).toString());
-            setFeedbackText(submission._id, idx, evaluatedNotes);
-
-            toast.success("AI Auto check complete!");
+            setAiAssistantMessages(prev => [
+                ...prev,
+                {
+                    sender: 'ai',
+                    text: `Based on my evaluation, here is the suggestion:\n\n\`\`\`json\n${cleanText}\n\`\`\``
+                }
+            ]);
         } catch (err) {
             console.error("AI auto check failed:", err);
-            toast.error("AI Auto check failed. Please grade manually.");
+            setAiAssistantMessages(prev => [
+                ...prev,
+                { sender: 'ai', text: "Failed to automatically evaluate. You can type a message to ask me details or grade manually." }
+            ]);
         } finally {
-            setAiChecking(prev => ({ ...prev, [key]: false }));
+            setAiAssistantLoading(false);
+        }
+    };
+
+    const handleSendAiAssistantMessage = async () => {
+        if (!aiAssistantInput.trim() || aiAssistantLoading || !aiAssistantTarget) return;
+
+        const userInput = aiAssistantInput.trim();
+        setAiAssistantInput('');
+        setAiAssistantMessages(prev => [...prev, { sender: 'user', text: userInput }]);
+        setAiAssistantLoading(true);
+
+        const target = aiAssistantTarget;
+        const promptText = `
+You are an expert AI evaluator helping a teacher grade a student's answer.
+Here is the context:
+Question: "${target.questionText}"
+Correct Answer / Model Answer: "${target.correctAnswer}"
+Max Marks: ${target.maxMarks}
+Student's Answer: "${target.studentAnswer}"
+
+Here is the conversation history between you (AI) and the teacher (User):
+${aiAssistantMessages.map(m => `${m.sender === 'user' ? 'Teacher' : 'AI'}: ${m.text}`).join('\n')}
+Teacher's new message: "${userInput}"
+
+Please respond to the teacher's message.
+If they are asking you to adjust the grading, evaluate it, explain your reasoning, and output the updated score and notes in a JSON block at the very end of your response like this:
+{
+  "score": updated_score_number,
+  "notes": "updated_notes_string"
+}
+If they are just asking a general question, answer it in a friendly, conversational manner. If you recommend a score/note update, include the JSON block at the end, otherwise just return text.
+`;
+
+        try {
+            const res = await axios.post('/api/ai/chat', { prompt: promptText });
+            const responseText = res.data.text?.trim() || "";
+            setAiAssistantMessages(prev => [...prev, { sender: 'ai', text: responseText }]);
+        } catch (err) {
+            console.error("AI Assistant custom message failed:", err);
+            setAiAssistantMessages(prev => [...prev, { sender: 'ai', text: "Failed to connect to AI. Please try again." }]);
+        } finally {
+            setAiAssistantLoading(false);
         }
     };
 
@@ -686,6 +758,134 @@ Return ONLY the raw JSON object, without any markdown formatting or surrounding 
                         disabled={sendingChat || !chatInput.trim()}
                     >
                         {sendingChat ? <Loader2 size={12} className="animate-spin" /> : 'Send'}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+
+    const aiAssistantModalComponent = isAiAssistantOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 animate-fade-in">
+            <div className="bg-white w-full max-w-lg rounded-[2rem] border border-slate-100/80 shadow-2xl overflow-hidden flex flex-col h-[85vh] max-h-[600px] text-left">
+                {/* Modal Header */}
+                <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50 shrink-0">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-600 text-white font-extrabold flex items-center justify-center shadow-md">
+                            <Cpu size={20} />
+                        </div>
+                        <div>
+                            <h3 className="font-extrabold text-slate-800 text-sm">AI Question Assistant</h3>
+                            <p className="text-[10px] text-slate-450 font-bold uppercase tracking-wider">AI Evaluation & Chat</p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => {
+                                setAiAssistantMessages([
+                                    { sender: 'ai', text: "Hello! I am your AI Assistant. How can I help you adjust or understand the evaluation?" }
+                                ]);
+                            }}
+                            className="text-[10px] font-bold text-slate-400 hover:text-[#3E3ADD] hover:bg-slate-100 px-2 py-1 rounded-lg transition-all"
+                        >
+                            Clear Chat
+                        </button>
+                        <button
+                            onClick={() => setIsAiAssistantOpen(false)}
+                            className="p-1.5 hover:bg-slate-200/50 text-slate-450 hover:text-slate-700 rounded-xl transition-all font-bold text-xs"
+                        >
+                            <X size={16} />
+                        </button>
+                    </div>
+                </div>
+
+                {/* Messages Body */}
+                <div className="flex-1 p-4 overflow-y-auto space-y-4 custom-scrollbar bg-slate-50/20">
+                    {aiAssistantMessages.map((msg, index) => {
+                        const isSelf = msg.sender === 'user';
+                        // Parse JSON recommended score/notes if present
+                        let parsedRecommend = null;
+                        try {
+                            const jsonMatch = msg.text.match(/\{[\s\S]*?\}/);
+                            if (jsonMatch) {
+                                const parsed = JSON.parse(jsonMatch[0]);
+                                if (parsed.score !== undefined && parsed.notes !== undefined) {
+                                    parsedRecommend = parsed;
+                                }
+                            }
+                        } catch (_) {}
+
+                        // Strip JSON block from displayed text for a clean chat bubble UI
+                        let cleanText = msg.text;
+                        if (parsedRecommend) {
+                            cleanText = msg.text.replace(/```json[\s\S]*?```/, "").replace(/\{[\s\S]*?\}/, "").trim();
+                        }
+
+                        return (
+                            <div key={index} className={`flex flex-col ${isSelf ? 'items-end' : 'items-start'}`}>
+                                <div className={`max-w-[85%] p-3.5 rounded-2xl text-xs leading-relaxed shadow-sm ${isSelf
+                                    ? 'bg-indigo-600 text-white rounded-tr-none'
+                                    : 'bg-white text-slate-800 border border-slate-150 rounded-tl-none'
+                                    }`}>
+                                    <p className="font-semibold whitespace-pre-wrap">{cleanText || (isSelf ? '' : "Evaluation results generated:")}</p>
+                                    
+                                    {parsedRecommend && (
+                                        <div className="mt-3 p-3 bg-indigo-50/80 border border-indigo-100 rounded-xl space-y-2 text-slate-800">
+                                            <div className="flex justify-between items-center text-[10px]">
+                                                <span className="font-bold text-slate-650">Score Recommendation:</span>
+                                                <span className="bg-[#3E3ADD] text-white font-black px-2 py-0.5 rounded text-[10px]">
+                                                    {parsedRecommend.score} / {aiAssistantTarget?.maxMarks}
+                                                </span>
+                                            </div>
+                                            <p className="text-[10.5px] text-slate-600 font-semibold italic">
+                                                "{parsedRecommend.notes}"
+                                            </p>
+                                            <button
+                                                onClick={() => {
+                                                    setMark(aiAssistantTarget.submission._id, aiAssistantTarget.idx, parsedRecommend.score.toString());
+                                                    setFeedbackText(aiAssistantTarget.submission._id, aiAssistantTarget.idx, parsedRecommend.notes);
+                                                    toast.success("AI suggested score & notes applied! ✓");
+                                                    setIsAiAssistantOpen(false);
+                                                }}
+                                                className="w-full flex items-center justify-center gap-1 py-1.5 bg-[#3E3ADD] hover:bg-indigo-700 text-white font-bold rounded-lg text-[10px] shadow-sm transition-all"
+                                            >
+                                                <CheckCircle2 size={12} />
+                                                Apply to Score & Notes
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        );
+                    })}
+                    {aiAssistantLoading && (
+                        <div className="flex items-center gap-2 text-xs text-slate-400 font-semibold animate-pulse">
+                            <Loader2 size={12} className="animate-spin text-indigo-600" />
+                            AI Assistant is thinking...
+                        </div>
+                    )}
+                    <div ref={aiChatEndRef} />
+                </div>
+
+                {/* Input Panel */}
+                <div className="p-3 border-t border-slate-100 flex gap-2 bg-white shrink-0">
+                    <input
+                        type="text"
+                        value={aiAssistantInput}
+                        onChange={e => setAiAssistantInput(e.target.value)}
+                        onKeyDown={e => {
+                            if (e.key === 'Enter' && !aiAssistantLoading && aiAssistantInput.trim()) {
+                                handleSendAiAssistantMessage();
+                            }
+                        }}
+                        placeholder="Ask AI (e.g. 'make notes more descriptive', 're-grade')..."
+                        className="flex-1 px-4 py-2.5 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                    />
+                    <button
+                        onClick={handleSendAiAssistantMessage}
+                        disabled={aiAssistantLoading || !aiAssistantInput.trim()}
+                        className="p-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 active:scale-95 transition-all disabled:opacity-50 disabled:scale-100 shrink-0"
+                    >
+                        <Send size={14} />
                     </button>
                 </div>
             </div>
@@ -1537,6 +1737,7 @@ Return ONLY the raw JSON object, without any markdown formatting or surrounding 
                 {chatModalComponent}
                 {infoModalComponent}
                 {totalEvalModalComponent}
+                {aiAssistantModalComponent}
             </>
         );
     }
@@ -1875,6 +2076,7 @@ Return ONLY the raw JSON object, without any markdown formatting or surrounding 
             `}</style>
             {chatModalComponent}
             {totalEvalModalComponent}
+            {aiAssistantModalComponent}
         </DashboardLayout>
     );
 };

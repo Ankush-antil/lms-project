@@ -140,23 +140,23 @@ const getCategoryDisplayName = (act) => {
 const getMatchingInboxIdsForTest = (test, subjectDaysMapping) => {
     if (!test.index) return ['no index'];
     const testIndexNorm = test.index.trim().toLowerCase();
-    
+
     // Find the subjects of the test
     const testSubjects = (test.subject || '')
         .split(',')
         .map(s => s.trim().toLowerCase())
         .filter(Boolean);
-        
+
     if (testSubjects.length === 0) {
         return [testIndexNorm];
     }
-    
+
     // Use the first subject to find the local dayNum of this test
     const firstSub = testSubjects[0];
     const firstSubGroup = subjectDaysMapping.find(
         g => g.subjectName.toLowerCase() === firstSub
     );
-    
+
     let localDayNum = null;
     if (firstSubGroup) {
         // Find if the test index matches any day's ID in firstSubGroup
@@ -208,7 +208,7 @@ const StudentTests = () => {
 
     const getTabControl = (tabId) => {
         if (!user || !user.studentProfile?.controls?.myActivity) return { enabled: true, mode: 'hide' };
-        
+
         const myActivityCtrl = user.studentProfile.controls.myActivity;
         if (myActivityCtrl.enabled === false) {
             return { enabled: false, mode: myActivityCtrl.mode, note: myActivityCtrl.note };
@@ -235,6 +235,7 @@ const StudentTests = () => {
     const [loading, setLoading] = useState(true);
     const [selectedItem, setSelectedItem] = useState(null);
     const [viewMode, setViewMode] = useState(null); // 'pending' | 'completed' | etc
+    const [isRiModalOpen, setIsRiModalOpen] = useState(false);
 
     useEffect(() => {
         if (user) {
@@ -519,9 +520,9 @@ const StudentTests = () => {
 
     useEffect(() => {
         if (userInfo && !selectedCourseId) {
-            const defaultId = userInfo?.studentProfile?.coursesList?.[0]?.course?._id 
+            const defaultId = userInfo?.studentProfile?.coursesList?.[0]?.course?._id
                 || userInfo?.studentProfile?.coursesList?.[0]?.course
-                || userInfo?.studentProfile?.course?._id 
+                || userInfo?.studentProfile?.course?._id
                 || userInfo?.studentProfile?.course;
             if (defaultId) {
                 setSelectedCourseId(String(defaultId));
@@ -850,7 +851,7 @@ const StudentTests = () => {
                 }
                 return '';
             })();
-            const config = inboxConfigs.find(c => 
+            const config = inboxConfigs.find(c =>
                 c.inboxId?.trim().toLowerCase() === normalized &&
                 (!c.subject || c.subject.trim().toLowerCase() === subjectName.trim().toLowerCase())
             );
@@ -878,12 +879,8 @@ const StudentTests = () => {
         }).filter(item => item.visible);
     }, [tests, allStudyMaterials, submittedTestIds, inboxConfigs, courseDuration, userInfo, subjectDaysMapping]);
 
-    useEffect(() => {
-        if (!selectedItem && dynamicInboxItems.length > 0) {
-            setSelectedItem(dynamicInboxItems[0].id);
-            setViewMode('pending');
-        }
-    }, [dynamicInboxItems, selectedItem]);
+    // Removed auto-select useEffect so no inbox is open by default.
+    // Student must select a subject/inbox to perform activities.
 
     const selectedGroup = dynamicInboxItems.find(item => item.id === selectedItem);
 
@@ -897,12 +894,21 @@ const StudentTests = () => {
         }
     }, [subjectDaysMapping]);
 
+    useEffect(() => {
+        if (subjectFilter && subjectFilter !== 'All') {
+            setExpandedSubjects(prev => ({
+                ...prev,
+                [subjectFilter]: true
+            }));
+        }
+    }, [subjectFilter]);
+
     const uniqueSubjects = useMemo(() => {
         if (!activeCourseObj) return [];
         const course = activeCourseObj;
         const subjects = course.subjects || [];
         const durations = course.subjectDurations || [];
-        
+
         const allSubjectNames = new Set();
         subjects.forEach(s => {
             if (s) allSubjectNames.add(s.trim());
@@ -910,13 +916,13 @@ const StudentTests = () => {
         durations.forEach(d => {
             if (d && d.subjectName) allSubjectNames.add(d.subjectName.trim());
         });
-        
+
         const allList = Array.from(allSubjectNames);
         if (activeAssignedSubjects && activeAssignedSubjects.length > 0) {
             const lowerAssigned = activeAssignedSubjects.map(s => s.toLowerCase());
             return allList.filter(s => lowerAssigned.includes(s.toLowerCase()));
         }
-        
+
         return allList;
     }, [activeCourseObj, activeAssignedSubjects]);
 
@@ -1064,7 +1070,7 @@ const StudentTests = () => {
                 const matchesSearch = getDisplayTitle(inboxItem.title).toLowerCase().includes(inboxSearchQuery.toLowerCase());
                 if (!matchesSearch) return null;
 
-                const config = inboxConfigs.find(c => 
+                const config = inboxConfigs.find(c =>
                     c.inboxId?.trim().toLowerCase() === day.id?.trim().toLowerCase() &&
                     (!c.subject || c.subject.trim().toLowerCase() === group.subjectName.trim().toLowerCase())
                 );
@@ -1219,6 +1225,122 @@ const StudentTests = () => {
         }
     };
 
+    const handlePrintRI = () => {
+        const studentName = userInfo?.name || 'Student';
+        const courseName = activeCourseObj?.name || 'N/A';
+        const studentEmail = userInfo?.email || 'N/A';
+        const inboxName = headerTitle;
+        const subjectName = activeDayDetails?.subjectName || 'General';
+        const reportDate = new Date().toLocaleDateString('en-GB');
+
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) {
+            toast.error("Popup blocker prevented opening the print page.");
+            return;
+        }
+
+        const testsList = selectedGroup?.tests || [];
+        const tableRowsHtml = testsList.map((test, idx) => {
+            const sub = submissionMap.get(test._id);
+            const isEvaluated = sub && sub.status === 'evaluated';
+            const isSubmitted = sub && sub.status === 'submitted';
+            const isReturned = sub && sub.status === 'returned';
+            const isReported = sub && sub.status === 'reported';
+            const isExpired = isTestExpired(test);
+
+            let statusLabel = 'Pending';
+            let badgeClass = 'badge-pend';
+            if (isEvaluated) { statusLabel = 'Evaluated'; badgeClass = 'badge-eval'; }
+            else if (isSubmitted) { statusLabel = 'Submitted'; badgeClass = 'badge-sub'; }
+            else if (isReturned) { statusLabel = 'Returned'; badgeClass = 'badge-ret'; }
+            else if (isReported) { statusLabel = 'Reported'; badgeClass = 'badge-rep'; }
+            else if (isExpired) { statusLabel = 'Expired'; badgeClass = 'badge-exp'; }
+
+            const maxMarks = sub?.test?.questions?.reduce((sum, q) => sum + (q.marks || 0), 0) || 100;
+            const marksObtained = isEvaluated ? sub.totalMarks : '-';
+            const displayPercentage = isEvaluated ? `${Math.round((sub.totalMarks / maxMarks) * 100)}%` : '-';
+            const displayMaxMarks = isEvaluated ? maxMarks : '-';
+
+            return `
+                <tr>
+                    <td>${idx + 1}. ${test.title}</td>
+                    <td>${getCategoryDisplayName(test.activity)}</td>
+                    <td><span class="badge ${badgeClass}">${statusLabel}</span></td>
+                    <td style="text-align: center; font-weight: bold;">${marksObtained}</td>
+                    <td style="text-align: center; font-weight: bold;">${displayMaxMarks}</td>
+                    <td style="text-align: center; font-weight: bold; color: ${isEvaluated ? '#4f46e5' : '#475569'};">${displayPercentage}</td>
+                </tr>
+            `;
+        }).join('') || '<tr><td colspan="6" style="text-align: center; color: #64748b;">No activities found in this inbox.</td></tr>';
+
+        printWindow.document.write(`
+            <html>
+            <head>
+                <title>RI Report - ${studentName}</title>
+                <style>
+                    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; padding: 40px; color: #1e293b; max-width: 800px; margin: 0 auto; line-height: 1.5; }
+                    .header-title { font-size: 24px; font-weight: 800; color: #0b1329; margin-bottom: 2px; }
+                    .header-subtitle { font-size: 12px; color: #64748b; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0; }
+                    .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 24px 0; border: 1px solid #e2e8f0; padding: 20px; border-radius: 16px; background: #f8fafc; }
+                    .meta-item { display: flex; flex-direction: column; }
+                    .meta-label { font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 2px; }
+                    .meta-value { font-size: 13px; font-weight: 700; color: #1e293b; }
+                    .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 30px; }
+                    .stat-card { border: 1px solid #e2e8f0; padding: 16px; border-radius: 12px; text-align: center; background: #ffffff; }
+                    .stat-num { font-size: 20px; font-weight: 800; color: #3e3add; }
+                    .stat-label { font-size: 10px; font-weight: 600; color: #64748b; text-transform: uppercase; margin-top: 4px; }
+                    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                    th { background: #f1f5f9; padding: 10px 12px; text-align: left; font-size: 11px; font-weight: bold; color: #475569; text-transform: uppercase; border-bottom: 2px solid #e2e8f0; }
+                    td { padding: 12px; border-bottom: 1px solid #e2e8f0; font-size: 12px; color: #334155; }
+                    .badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; text-transform: uppercase; }
+                    .badge-eval { background: #dcfce7; color: #15803d; }
+                    .badge-sub { background: #dbeafe; color: #1d4ed8; }
+                    .badge-ret { background: #ffedd5; color: #c2410c; }
+                    .badge-rep { background: #fef9c3; color: #a16207; }
+                    .badge-exp { background: #ffe4e6; color: #b91c1c; }
+                    .badge-pend { background: #f1f5f9; color: #475569; }
+                    h3 { font-size: 15px; font-weight: bold; color: #0b1329; margin-top: 25px; margin-bottom: 10px; }
+                </style>
+            </head>
+            <body>
+                <div style="border-bottom: 3px solid #3e3add; padding-bottom: 15px; margin-bottom: 20px;">
+                    <div class="header-title">INBOX PERFORMANCE REPORT (RI)</div>
+                    <div class="header-subtitle">${inboxName} — ${subjectName}</div>
+                </div>
+                <div class="meta-grid">
+                    <div class="meta-item"><span class="meta-label">Student Name</span><span class="meta-value">${studentName}</span></div>
+                    <div class="meta-item"><span class="meta-label">Course</span><span class="meta-value">${courseName}</span></div>
+                    <div class="meta-item"><span class="meta-label">Report Date</span><span class="meta-value">${reportDate}</span></div>
+                    <div class="meta-item"><span class="meta-label">Email</span><span class="meta-value">${studentEmail}</span></div>
+                </div>
+                <div class="stats-row">
+                    <div class="stat-card"><div class="stat-num">${testsList.length}</div><div class="stat-label">Total Activities</div></div>
+                    <div class="stat-card"><div class="stat-num">${riCompletedCount} / ${testsList.length}</div><div class="stat-label">Completed</div></div>
+                    <div class="stat-card"><div class="stat-num">${riAvgPercentage}%</div><div class="stat-label">Average Score</div></div>
+                </div>
+                <h3>Activity details</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Activity Title</th>
+                            <th>Category</th>
+                            <th>Status</th>
+                            <th style="text-align: center;">Obtained</th>
+                            <th style="text-align: center;">Max Marks</th>
+                            <th style="text-align: center;">Percentage</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${tableRowsHtml}
+                    </tbody>
+                </table>
+            </body>
+            </html>
+        `);
+        printWindow.document.close();
+        printWindow.print();
+    };
+
     const isMyActivityDisabled = user?.studentProfile?.controls?.myActivity?.enabled === false;
 
     if (isMyActivityDisabled) {
@@ -1252,7 +1374,7 @@ const StudentTests = () => {
 
                 {/* Left Sidebar backdrop */}
                 {isInboxSidebarOpen && (
-                    <div 
+                    <div
                         className="fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-xs lg:hidden"
                         onClick={() => setIsInboxSidebarOpen(false)}
                     />
@@ -1278,24 +1400,9 @@ const StudentTests = () => {
                             />
                         </div>
 
-                        {uniqueSubjects.length > 0 && (
-                            <div className="mb-3">
-                                <select
-                                    value={subjectFilter}
-                                    onChange={(e) => setSubjectFilter(e.target.value)}
-                                    className="w-full h-9 px-3 bg-white border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-[#3E3ADD] focus:ring-2 focus:ring-indigo-100 transition-all text-slate-700 font-bold cursor-pointer"
-                                >
-                                    <option value="All">All Subjects</option>
-                                    {uniqueSubjects.map(sub => (
-                                        <option key={sub} value={sub}>
-                                            {sub}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                        )}
 
-                        <div className="flex bg-slate-100 p-0.5 rounded-xl">
+
+                        <div className="flex bg-slate-100 p-0.5 rounded-xl mb-3">
                             {['Institute', 'Course'].map(f => {
                                 const isActive = activeFilter === f;
                                 return (
@@ -1312,17 +1419,34 @@ const StudentTests = () => {
                                 );
                             })}
                         </div>
-                    </div>
 
-                    <div className="flex-1 overflow-y-auto p-4 space-y-2.5 custom-scrollbar bg-slate-50/10">
                         {activeFilter === 'Institute' && activeCourseObj && (
-                            <div className="p-2.5 bg-indigo-50/50 border border-indigo-100/40 rounded-xl flex items-center justify-between px-3 animate-fade-in mb-1 shrink-0">
+                            <div className="p-2.5 bg-indigo-50/50 border border-indigo-100/40 rounded-xl flex items-center justify-between px-3 animate-fade-in mb-2.5 shrink-0">
                                 <span className="text-[9px] font-black uppercase tracking-wider text-indigo-600">Active Course:</span>
                                 <span className="text-[10px] font-black text-[#3E3ADD] max-w-[150px] truncate" title={activeCourseObj.name}>
                                     {activeCourseObj.name}
                                 </span>
                             </div>
                         )}
+                        {activeFilter === 'Institute' && uniqueSubjects.length > 0 && (
+                            <div className="mb-0 shrink-0">
+                                <select
+                                    value={subjectFilter}
+                                    onChange={(e) => setSubjectFilter(e.target.value)}
+                                    className="w-full h-9 px-3 bg-white border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-[#3E3ADD] focus:ring-2 focus:ring-indigo-100 transition-all text-slate-700 font-bold cursor-pointer"
+                                >
+                                    <option value="All">All Subjects</option>
+                                    {uniqueSubjects.map(sub => (
+                                        <option key={sub} value={sub}>
+                                            {sub}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto p-4 space-y-2.5 custom-scrollbar bg-slate-50/10">
                         {loading ? (
                             <div className="space-y-3">
                                 {[1, 2, 3, 4, 5].map(i => <div key={i} className="h-16 bg-slate-100 animate-pulse rounded-2xl" />)}
@@ -1342,16 +1466,14 @@ const StudentTests = () => {
                                                     setSelectedCourseId(String(course.id));
                                                     setActiveFilter('Institute');
                                                 }}
-                                                className={`w-full p-4 rounded-2xl border text-left transition-all hover:scale-[1.01] active:scale-[0.99] flex items-center justify-between group ${
-                                                    isSelected
+                                                className={`w-full p-4 rounded-2xl border text-left transition-all hover:scale-[1.01] active:scale-[0.99] flex items-center justify-between group ${isSelected
                                                         ? 'border-[#3E3ADD] bg-[#3E3ADD]/5 text-[#3E3ADD]'
                                                         : 'border-slate-100 bg-white hover:border-[#3E3ADD]/40 text-slate-700'
-                                                }`}
+                                                    }`}
                                             >
                                                 <div className="flex items-center gap-3">
-                                                    <div className={`p-2.5 rounded-xl shadow-xs transition-colors ${
-                                                        isSelected ? 'bg-[#3E3ADD] text-white' : 'bg-slate-50 text-slate-500 group-hover:bg-indigo-50 group-hover:text-[#3E3ADD]'
-                                                    }`}>
+                                                    <div className={`p-2.5 rounded-xl shadow-xs transition-colors ${isSelected ? 'bg-[#3E3ADD] text-white' : 'bg-slate-50 text-slate-500 group-hover:bg-indigo-50 group-hover:text-[#3E3ADD]'
+                                                        }`}>
                                                         <BookOpen size={16} />
                                                     </div>
                                                     <span className="text-xs font-black tracking-wide truncate max-w-[170px] uppercase">
@@ -1471,537 +1593,466 @@ const StudentTests = () => {
 
                 {/* ── MAIN CONTENT ──────────────────────────────────── */}
                 <main className="flex-1 flex flex-col bg-white overflow-hidden">
-                    {/* Top Header Section */}
-                    <div className="bg-white border-b border-slate-200 p-4 flex flex-col gap-2.5 shrink-0">
-                        <div className="flex items-center gap-2.5">
-                            <button
-                                type="button"
-                                onClick={() => setIsInboxSidebarOpen(true)}
-                                className="lg:hidden p-2 bg-slate-50 border border-slate-200 text-slate-650 hover:bg-slate-100 rounded-xl transition-all shrink-0 cursor-pointer"
-                                title="Open Activities List"
-                            >
-                                <Menu size={18} />
-                            </button>
-                            <div className="w-10 h-10 rounded-full bg-[#3E3ADD] text-white flex items-center justify-center shadow-md shadow-indigo-500/10 shrink-0">
-                                <BookOpen size={16} />
-                            </div>
-                            <div>
-                                <h1 className="text-lg font-extrabold text-indigo-950 tracking-tight leading-none">
-                                    {headerTitle}
-                                </h1>
-                                <p className="text-[10px] font-semibold text-slate-400 mt-0.5 uppercase tracking-wider">
-                                    Your activities for this inbox
-                                </p>
-                            </div>
-                        </div>
-
-                        {selectedGroup && (
-                            <div className="flex items-center gap-1 bg-slate-50/80 border border-slate-100 p-1 rounded-xl shrink-0 relative group/tabs">
-                                {/* Left Scroll Button */}
-                                <button
-                                    type="button"
-                                    onClick={() => handleStudentTabsScroll('left')}
-                                    className="p-1 hover:bg-slate-200/50 text-slate-400 hover:text-slate-700 rounded-lg transition-all shrink-0"
-                                    title="Scroll Left"
-                                >
-                                    <ChevronLeft size={14} strokeWidth={2.5} />
-                                </button>
-
-                                {/* Scrollable Container */}
-                                <div
-                                    ref={studentTabsRef}
-                                    className="flex-1 flex overflow-x-auto scrollbar-none gap-1 shrink-0 scroll-smooth"
-                                    style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-                                >
-                                    {[
-                                        { id: 'pending', label: `Upcoming (${pendingCount})`, icon: Sparkles, activeClass: 'bg-[#EF4444] text-white shadow-md' },
-                                        { id: 'submitted', label: `Submitted (${submittedCount})`, icon: FileText, activeClass: 'bg-blue-600 text-white shadow-md' },
-                                        { id: 'returned', label: `Returned (${returnedCount})`, icon: RotateCcw, activeClass: 'bg-orange-500 text-white shadow-md' },
-                                        { id: 'evaluated', label: `Evaluated (${evaluatedCount})`, icon: CheckCircle, activeClass: 'bg-emerald-600 text-white shadow-md' },
-                                        { id: 'expired', label: `Expired (${expiredCount})`, icon: Clock, activeClass: 'bg-rose-700 text-white shadow-md' },
-                                        { id: 'study-material', label: 'Study Material', icon: BookOpen, activeClass: 'bg-indigo-600 text-white shadow-md' },
-                                        { id: 'practice', label: 'Tools', icon: Settings, activeClass: 'bg-purple-600 text-white shadow-md' },
-                                        { id: 'analytics', label: 'Analytics', icon: BarChart3, activeClass: 'bg-amber-600 text-white shadow-md' }
-                                    ]
-                                    .map(tab => {
-                                        const ctrl = getTabControl(tab.id);
-                                        return { ...tab, ctrl };
-                                    })
-                                    .filter(tab => {
-                                        return !(tab.ctrl.enabled === false && tab.ctrl.mode === 'hide');
-                                    })
-                                    .map(tab => {
-                                        const ctrl = tab.ctrl;
-                                        const isDisabled = ctrl.enabled === false && ctrl.mode === 'disable';
-                                        const isActive = viewMode === tab.id;
-                                        const TabIcon = tab.icon;
-                                        return (
-                                            <button
-                                                key={tab.id}
-                                                onClick={() => {
-                                                    if (isDisabled) {
-                                                        toast.error(ctrl.note || "This tab is disabled by your administrator.");
-                                                        return;
-                                                    }
-                                                    setViewMode(tab.id);
-                                                    setSelectedCategory(null);
-                                                }}
-                                                title={isDisabled ? (ctrl.note || 'Restricted') : undefined}
-                                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all whitespace-nowrap 
-                                                    ${isDisabled 
-                                                        ? 'opacity-40 cursor-not-allowed text-slate-400 bg-slate-100/50' 
-                                                        : isActive
-                                                            ? tab.activeClass
-                                                            : 'text-slate-500 hover:bg-slate-100/50 hover:text-slate-700'
-                                                    }`}
-                                            >
-                                                <TabIcon size={12} className={isDisabled ? 'text-slate-455' : isActive ? 'text-white' : 'text-slate-400'} />
-                                                <span>{tab.label}</span>
-                                            </button>
-                                        );
-                                    })}
+                    {!selectedItem ? (
+                        <div className="flex-1 flex flex-col items-center justify-center bg-slate-50/40 p-8 text-center animate-fade-in font-sans">
+                            <div className="bg-white p-10 rounded-[32px] shadow-sm border border-slate-200/80 max-w-md w-full text-center space-y-6 transform hover:scale-[1.01] transition-all duration-300">
+                                <div className="w-20 h-20 bg-indigo-50 text-[#3E3ADD] rounded-[24px] flex items-center justify-center mx-auto shadow-sm">
+                                    <BookOpen size={36} className="animate-pulse" />
                                 </div>
-
-                                {/* Right Scroll Button */}
-                                <button
-                                    type="button"
-                                    onClick={() => handleStudentTabsScroll('right')}
-                                    className="p-1 hover:bg-slate-200/50 text-slate-400 hover:text-slate-700 rounded-lg transition-all shrink-0"
-                                    title="Scroll Right"
-                                >
-                                    <ChevronRight size={14} strokeWidth={2.5} />
-                                </button>
-                            </div>
-                        )}
-                    </div>
-
-                    <div className="flex-1 p-8 overflow-y-auto custom-scrollbar">
-                        {!selectedGroup ? (
-                            <div className="h-full flex items-center justify-center">
-                                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 max-w-md w-full text-center">
-                                    <h2 className="text-xl font-bold text-slate-400 mb-2">No Inbox Selected</h2>
-                                    <p className="text-slate-455 text-xs leading-relaxed">
-                                        Select an Inbox item from the sidebar to view categories and assignments.
+                                <div className="space-y-2">
+                                    <h2 className="text-xl font-black text-slate-800 tracking-tight leading-snug">
+                                        No Subject Selected
+                                    </h2>
+                                    <p className="text-slate-500 text-xs font-semibold leading-relaxed">
+                                        Select your subject and inbox to perform your activities.
                                     </p>
                                 </div>
-                            </div>
-                        ) : selectedGroup.disabled ? (
-                            <div className="h-full flex items-center justify-center">
-                                <div className="bg-white p-8 rounded-[32px] shadow-sm border border-slate-200 max-w-md w-full text-center space-y-4">
-                                    <div className="w-16 h-16 bg-amber-50 rounded-full flex items-center justify-center text-amber-500 mx-auto border border-amber-100">
-                                        <Lock size={28} />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <h2 className="text-lg font-black text-slate-800 tracking-tight">Inbox Locked</h2>
-                                        <p className="text-slate-450 text-xs leading-relaxed">
-                                            This Inbox has been disabled by your teacher. You cannot view or submit assignments here at the moment.
-                                        </p>
-                                    </div>
+                                <div className="pt-2.5 text-[10px] font-black uppercase text-[#3E3ADD] bg-indigo-50/50 py-2.5 rounded-2xl border border-indigo-100/55 tracking-wider">
+                                    ⬅️ Click an inbox from the left sidebar
                                 </div>
                             </div>
-                        ) : viewMode === 'study-material' ? (
-                            /* --- STUDY MATERIAL TAB --- */
-                            <div className="animate-fade-in space-y-6 text-left">
-                                <div className="flex justify-between items-center mb-4">
-                                    <h2 className="text-sm font-bold text-slate-800">Study Materials</h2>
-                                    <span className="text-xs bg-slate-100 text-slate-600 px-3 py-1 rounded-full font-bold">
-                                        Total Files: {studyMaterials.length}
-                                    </span>
-                                </div>
-                                {loadingMaterials ? (
-                                    <div className="flex flex-col items-center justify-center py-12 bg-white">
-                                        <div className="animate-spin rounded-full h-8 w-8 border-4 border-indigo-900/20 border-t-indigo-900 mb-2"></div>
-                                        <p className="text-xs text-slate-450 font-semibold">Loading materials...</p>
-                                    </div>
-                                ) : studyMaterials.length === 0 ? (
-                                    <div className="py-12 text-center bg-white rounded-2xl border border-slate-100 shadow-sm max-w-md mx-auto">
-                                        <div className="text-4xl mb-2">📚</div>
-                                        <p className="font-bold text-slate-700 text-sm">No Study Material Yet</p>
-                                        <p className="text-slate-450 text-xs mt-1 font-medium">Your instructor hasn't uploaded any study materials for this Inbox.</p>
-                                    </div>
-                                ) : (
-                                    <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
-                                        {studyMaterials.map((mat) => (
-                                            <div key={mat._id} className="bg-white p-5 rounded-2xl border border-slate-200 hover:shadow-md transition-all flex flex-col justify-between hover:-translate-y-0.5 duration-200">
-                                                <div className="space-y-2">
-                                                    <h4 className="font-extrabold text-slate-800 text-sm leading-snug line-clamp-1">{mat.title}</h4>
-                                                    <p className="text-xs text-slate-450 truncate" title={mat.filename}>
-                                                        {mat.filename === 'Web Link' ? (
-                                                            <span className="text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded text-[10px]">🔗 Web Link</span>
-                                                        ) : (
-                                                            mat.filename
-                                                        )}
-                                                    </p>
-                                                    <p className="text-[10px] text-slate-450">Uploaded on {new Date(mat.createdAt).toLocaleDateString()}</p>
-                                                </div>
-                                                <div className="mt-4 pt-3 border-t border-slate-100 flex justify-between items-center">
-                                                    <span className="text-[10px] font-bold text-[#3E3ADD] bg-indigo-50 px-2.5 py-1 rounded-lg">
-                                                        By: {mat.uploadedBy?.name || 'Instructor'}
-                                                    </span>
-                                                    <a
-                                                        href={mat.fileUrl}
-                                                        target="_blank"
-                                                        rel="noreferrer"
-                                                        className="px-3.5 py-1.5 bg-[#3E3ADD] hover:bg-indigo-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider shadow-sm transition-all"
+                        </div>
+                    ) : (
+                        <>
+                            {/* Top Header Section */}
+                            <div className="bg-white border-b border-slate-200 p-4 flex flex-col gap-2.5 shrink-0">
+                                <div className="flex items-center justify-between gap-2.5">
+                                    <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                                        <button
+                                            type="button"
+                                            onClick={() => setIsInboxSidebarOpen(true)}
+                                            className="lg:hidden p-2 bg-slate-50 border border-slate-200 text-slate-650 hover:bg-slate-100 rounded-xl transition-all shrink-0 cursor-pointer"
+                                            title="Open Activities List"
+                                        >
+                                            <Menu size={18} />
+                                        </button>
+                                        <div className="w-10 h-10 rounded-full bg-[#3E3ADD] text-white flex items-center justify-center shadow-md shadow-indigo-500/10 shrink-0">
+                                            <BookOpen size={16} />
+                                        </div>
+                                        <div className="flex flex-col min-w-0">
+                                            <div className="flex items-center gap-3">
+                                                <h1 className="text-lg font-extrabold text-indigo-950 tracking-tight leading-none truncate">
+                                                    {headerTitle}
+                                                </h1>
+                                                {selectedItem && (
+                                                    <button
+                                                        onClick={() => setIsRiModalOpen(true)}
+                                                        className="px-2.5 py-1 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white font-extrabold text-[9px] uppercase tracking-wider rounded-lg shadow-sm hover:from-indigo-700 hover:to-indigo-800 transition-all flex items-center gap-1 active:scale-95 cursor-pointer shrink-0 animate-fade-in"
+                                                        title="View Inbox Performance Report (RI)"
                                                     >
-                                                        {mat.filename === 'Web Link' ? 'Open Link' : 'Open File'}
-                                                    </a>
-                                                </div>
+                                                        <FileText size={10} />
+                                                        RI Report
+                                                    </button>
+                                                )}
                                             </div>
-                                        ))}
+                                            <p className="text-[10px] font-semibold text-slate-400 mt-1 uppercase tracking-wider">
+                                                Your activities for this inbox
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    {/* Duplicated Subject Filter on the Right Side */}
+                                    {uniqueSubjects.length > 0 && (
+                                        <div className="shrink-0">
+                                            <select
+                                                value={subjectFilter}
+                                                onChange={(e) => setSubjectFilter(e.target.value)}
+                                                className="h-9 px-3 bg-white border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-[#3E3ADD] focus:ring-2 focus:ring-indigo-100 transition-all text-slate-700 font-extrabold cursor-pointer shadow-sm min-w-[130px]"
+                                            >
+                                                <option value="All">All Subjects</option>
+                                                {uniqueSubjects.map(sub => (
+                                                    <option key={sub} value={sub}>
+                                                        {sub}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {selectedGroup && (
+                                    <div className="flex items-center gap-1 bg-slate-50/80 border border-slate-100 p-1 rounded-xl shrink-0 relative group/tabs">
+                                        {/* Left Scroll Button */}
+                                        <button
+                                            type="button"
+                                            onClick={() => handleStudentTabsScroll('left')}
+                                            className="p-1 hover:bg-slate-200/50 text-slate-400 hover:text-slate-700 rounded-lg transition-all shrink-0"
+                                            title="Scroll Left"
+                                        >
+                                            <ChevronLeft size={14} strokeWidth={2.5} />
+                                        </button>
+
+                                        {/* Scrollable Container */}
+                                        <div
+                                            ref={studentTabsRef}
+                                            className="flex-1 flex overflow-x-auto scrollbar-none gap-1 shrink-0 scroll-smooth"
+                                            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                                        >
+                                            {[
+                                                { id: 'pending', label: `Upcoming (${pendingCount})`, icon: Sparkles, activeClass: 'bg-[#EF4444] text-white shadow-md' },
+                                                { id: 'submitted', label: `Submitted (${submittedCount})`, icon: FileText, activeClass: 'bg-blue-600 text-white shadow-md' },
+                                                { id: 'returned', label: `Returned (${returnedCount})`, icon: RotateCcw, activeClass: 'bg-orange-500 text-white shadow-md' },
+                                                { id: 'evaluated', label: `Evaluated (${evaluatedCount})`, icon: CheckCircle, activeClass: 'bg-emerald-600 text-white shadow-md' },
+                                                { id: 'expired', label: `Expired (${expiredCount})`, icon: Clock, activeClass: 'bg-rose-700 text-white shadow-md' },
+                                                { id: 'study-material', label: 'Study Material', icon: BookOpen, activeClass: 'bg-indigo-600 text-white shadow-md' },
+                                                { id: 'practice', label: 'Tools', icon: Settings, activeClass: 'bg-purple-600 text-white shadow-md' },
+                                                { id: 'analytics', label: 'Analytics', icon: BarChart3, activeClass: 'bg-amber-600 text-white shadow-md' }
+                                            ]
+                                                .map(tab => {
+                                                    const ctrl = getTabControl(tab.id);
+                                                    return { ...tab, ctrl };
+                                                })
+                                                .filter(tab => {
+                                                    return !(tab.ctrl.enabled === false && tab.ctrl.mode === 'hide');
+                                                })
+                                                .map(tab => {
+                                                    const ctrl = tab.ctrl;
+                                                    const isDisabled = ctrl.enabled === false && ctrl.mode === 'disable';
+                                                    const isActive = viewMode === tab.id;
+                                                    const TabIcon = tab.icon;
+                                                    return (
+                                                        <button
+                                                            key={tab.id}
+                                                            onClick={() => {
+                                                                if (isDisabled) {
+                                                                    toast.error(ctrl.note || "This tab is disabled by your administrator.");
+                                                                    return;
+                                                                }
+                                                                setViewMode(tab.id);
+                                                                setSelectedCategory(null);
+                                                            }}
+                                                            title={isDisabled ? (ctrl.note || 'Restricted') : undefined}
+                                                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all whitespace-nowrap 
+                                                    ${isDisabled
+                                                                    ? 'opacity-40 cursor-not-allowed text-slate-400 bg-slate-100/50'
+                                                                    : isActive
+                                                                        ? tab.activeClass
+                                                                        : 'text-slate-500 hover:bg-slate-100/50 hover:text-slate-700'
+                                                                }`}
+                                                        >
+                                                            <TabIcon size={12} className={isDisabled ? 'text-slate-455' : isActive ? 'text-white' : 'text-slate-400'} />
+                                                            <span>{tab.label}</span>
+                                                        </button>
+                                                    );
+                                                })}
+                                        </div>
+
+                                        {/* Right Scroll Button */}
+                                        <button
+                                            type="button"
+                                            onClick={() => handleStudentTabsScroll('right')}
+                                            className="p-1 hover:bg-slate-200/50 text-slate-400 hover:text-slate-700 rounded-lg transition-all shrink-0"
+                                            title="Scroll Right"
+                                        >
+                                            <ChevronRight size={14} strokeWidth={2.5} />
+                                        </button>
                                     </div>
                                 )}
                             </div>
-                        ) : viewMode === 'practice' ? (
-                            /* --- PRACTICE TAB --- */
-                            <div className="animate-fade-in space-y-6 text-left">
 
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                                    {[
-                                        {
-                                            title: "Voice Recorder",
-                                            icon: Mic,
-                                            color: "text-blue-600 bg-blue-50 border-blue-150 hover:border-blue-300",
-                                            path: "/student/practice-tools/voice-recorder"
-                                        },
-                                        {
-                                            title: "Video Recorder",
-                                            icon: MonitorPlay,
-                                            color: "text-purple-600 bg-purple-50 border-purple-150 hover:border-purple-300",
-                                            path: "/student/practice-tools/video-recorder"
-                                        },
-                                        {
-                                            title: "File Uploader",
-                                            icon: Upload,
-                                            color: "text-amber-600 bg-amber-50 border-amber-150 hover:border-amber-300",
-                                            path: "/student/practice-tools/file-uploader"
-                                        },
-                                        {
-                                            title: "Notes Writing",
-                                            icon: FileText,
-                                            color: "text-amber-500 bg-amber-50 border-amber-150 hover:border-amber-300",
-                                            path: "/student/practice-tools/notes"
-                                        },
-                                        {
-                                            title: "Screenshot Tool",
-                                            icon: Camera,
-                                            color: "text-indigo-600 bg-indigo-50 border-indigo-150 hover:border-indigo-300",
-                                            path: "/student/practice-tools/screenshot"
-                                        },
-                                        {
-                                            title: "Screen Recorder",
-                                            icon: Video,
-                                            color: "text-emerald-600 bg-emerald-50 border-emerald-150 hover:border-emerald-300",
-                                            path: "/student/practice-tools/screen-recorder"
-                                        },
-                                        {
-                                            title: "Web-Calling Tool",
-                                            icon: Phone,
-                                            color: "text-pink-600 bg-pink-50 border-pink-150 hover:border-pink-300",
-                                            path: "/student/practice-tools/web-calling"
-                                        }
-                                    ].map((tool, idx) => {
-                                        const fileCount = getFileCountForTool(tool.title);
-                                        return (
-                                            <div
-                                                key={idx}
-                                                onClick={() => navigate(`${tool.path}?inbox=${selectedItem}`)}
-                                                className="bg-white p-5 rounded-2xl border border-slate-200 hover:shadow-md transition-all flex items-center justify-between group hover:-translate-y-0.5 duration-200 cursor-pointer text-left h-20"
-                                            >
-                                                {/* Left Side: Icon */}
-                                                <div className={`w-11 h-11 rounded-xl flex items-center justify-center border ${tool.color.split(' hover:')[0]} group-hover:scale-105 transition-all duration-200 shrink-0`}>
-                                                    <tool.icon size={18} />
-                                                </div>
-                                                {/* Right Side: Files Count and Tool Title */}
-                                                <div className="flex flex-col items-end gap-1.5 text-right min-w-0">
-                                                    <span className={`px-2 py-0.5 rounded-md font-black text-[8px] uppercase tracking-wider ${fileCount > 0 ? 'bg-indigo-50 text-indigo-700 border border-indigo-150' : 'bg-slate-100 text-slate-400'
-                                                        }`}>
-                                                        {fileCount} {fileCount === 1 ? 'file' : 'files'}
-                                                    </span>
-                                                    <h3 className="font-extrabold text-slate-850 text-[11px] tracking-tight leading-tight truncate max-w-full">{tool.title}</h3>
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                        ) : viewMode === 'chat' ? (
-                            /* --- CHAT TAB --- */
-                            <div className="animate-fade-in flex flex-col h-[calc(100vh-320px)] min-h-[350px] bg-white border border-slate-250 rounded-2xl overflow-hidden shadow-sm">
-                                <div className="p-4 border-b border-slate-100 flex items-center gap-3 bg-slate-50/50">
-                                    <div className="relative shrink-0">
-                                        <div className="w-10 h-10 rounded-full bg-indigo-150 text-indigo-700 font-bold flex items-center justify-center shadow-md overflow-hidden">
-                                            {teacherContact?.avatar ? (
-                                                <img src={teacherContact.avatar} alt={teacherContact.name} className="w-full h-full object-cover" />
-                                            ) : (
-                                                teacherContact?.name?.[0]?.toUpperCase() || 'T'
-                                            )}
-                                        </div>
-                                        {teacherContact && onlineUsers.includes(teacherContact._id) ? (
-                                            <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white ring-1 ring-emerald-500/20"></span>
-                                        ) : (
-                                            <span className="absolute bottom-0 right-0 w-3 h-3 bg-slate-350 rounded-full border-2 border-white"></span>
-                                        )}
-                                    </div>
-                                    <div>
-                                        <h3 className="font-bold text-slate-800 text-sm">
-                                            {teacherContact ? teacherContact.name : 'Loading Instructor...'}
-                                        </h3>
-                                        <p className="text-[10px] text-slate-450 font-semibold">
-                                            {teacherContact?.role || 'Teacher'}
-                                        </p>
-                                    </div>
-                                </div>
-
-                                <div className="flex-1 p-4 overflow-y-auto space-y-4 custom-scrollbar bg-slate-50/20">
-                                    {loadingChat ? (
-                                        <div className="h-full flex items-center justify-center">
-                                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600"></div>
-                                        </div>
-                                    ) : chatMessages.length === 0 ? (
-                                        <div className="h-full flex flex-col items-center justify-center text-center p-6 select-none">
-                                            <MessageSquare size={36} className="text-slate-350 mb-2 opacity-60 animate-pulse" />
-                                            <h4 className="font-bold text-slate-700 text-sm">No messages yet</h4>
-                                            <p className="text-slate-400 text-[11px] mt-1">
-                                                Send a message to start conversation with {teacherContact ? teacherContact.name : 'your teacher'}.
+                            <div className="flex-1 p-8 overflow-y-auto custom-scrollbar">
+                                {!selectedGroup ? (
+                                    <div className="h-full flex items-center justify-center">
+                                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 max-w-md w-full text-center">
+                                            <h2 className="text-xl font-bold text-slate-400 mb-2">No Inbox Selected</h2>
+                                            <p className="text-slate-455 text-xs leading-relaxed">
+                                                Select an Inbox item from the sidebar to view categories and assignments.
                                             </p>
                                         </div>
-                                    ) : (
-                                        chatMessages.map((msg, index) => {
-                                            const isSelf = msg.sender === userInfo._id || msg.sender?._id === userInfo._id;
-                                            const formattedTime = msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : (msg.time || '');
-                                            return (
-                                                <div key={msg._id || msg.id || index} className={`flex ${isSelf ? 'justify-end' : 'justify-start'}`}>
-                                                    <div className={`max-w-[70%] p-3 rounded-2xl text-xs leading-relaxed ${isSelf
-                                                        ? 'bg-indigo-600 text-white rounded-tr-none shadow-sm'
-                                                        : 'bg-white text-slate-800 border border-slate-150 rounded-tl-none shadow-sm'
-                                                        }`}>
-                                                        <p className="font-semibold">{msg.text}</p>
-                                                        <span className={`text-[8px] mt-1 block text-right ${isSelf ? 'text-indigo-200' : 'text-slate-450'
-                                                            }`}>
-                                                            {formattedTime}
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })
-                                    )}
-                                    <div ref={messagesEndRef} />
-                                </div>
-
-                                <form onSubmit={handleSendChatMessage} className="p-3 border-t border-slate-100 flex gap-2 bg-white">
-                                    <input
-                                        type="text"
-                                        value={chatInput}
-                                        onChange={e => setChatInput(e.target.value)}
-                                        placeholder="Type your message to the instructor..."
-                                        className="flex-1 px-4 py-2.5 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
-                                        disabled={!teacherContact}
-                                    />
-                                    <button
-                                        type="submit"
-                                        className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl transition-colors shrink-0 flex items-center justify-center shadow-sm disabled:opacity-50"
-                                        disabled={!teacherContact || !chatInput.trim()}
-                                    >
-                                        <SendHorizontal size={16} />
-                                    </button>
-                                </form>
-                            </div>
-                        ) : viewMode === 'analytics' ? (
-                            /* --- ANALYTICS TAB --- */
-                            <div className="animate-fade-in space-y-6">
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                    <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
-                                        <div>
-                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total Inbox Items</span>
-                                            <span className="text-2xl font-black text-slate-800 mt-1 block">{selectedGroup.tests.length}</span>
-                                        </div>
-                                        <div className="p-2.5 bg-indigo-50 text-indigo-600 rounded-lg"><BookOpen size={16} /></div>
                                     </div>
-                                    <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
-                                        <div>
-                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Completed</span>
-                                            <span className="text-2xl font-black text-emerald-600 mt-1 block">{selectedGroup.completed}</span>
+                                ) : selectedGroup.disabled ? (
+                                    <div className="h-full flex items-center justify-center">
+                                        <div className="bg-white p-8 rounded-[32px] shadow-sm border border-slate-200 max-w-md w-full text-center space-y-4">
+                                            <div className="w-16 h-16 bg-amber-50 rounded-full flex items-center justify-center text-amber-500 mx-auto border border-amber-100">
+                                                <Lock size={28} />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <h2 className="text-lg font-black text-slate-800 tracking-tight">Inbox Locked</h2>
+                                                <p className="text-slate-450 text-xs leading-relaxed">
+                                                    This Inbox has been disabled by your teacher. You cannot view or submit assignments here at the moment.
+                                                </p>
+                                            </div>
                                         </div>
-                                        <div className="p-2.5 bg-emerald-50 text-emerald-600 rounded-lg"><CheckCircle size={16} /></div>
                                     </div>
-                                    <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
-                                        <div>
-                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Pending</span>
-                                            <span className="text-2xl font-black text-orange-500 mt-1 block">{selectedGroup.pending}</span>
-                                        </div>
-                                        <div className="p-2.5 bg-orange-50 text-orange-600 rounded-lg"><Hourglass size={16} /></div>
-                                    </div>
-                                </div>
-
-                                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
-                                    <h3 className="font-bold text-slate-800 text-sm">Overall Completion Progress</h3>
-                                    <div>
-                                        <div className="flex justify-between items-center text-xs font-semibold text-slate-500 mb-1">
-                                            <span>Progress Status</span>
-                                            <span className="text-indigo-600">
-                                                {selectedGroup.tests.length > 0 ? Math.round((selectedGroup.completed / selectedGroup.tests.length) * 100) : 0}% Completed
+                                ) : viewMode === 'study-material' ? (
+                                    /* --- STUDY MATERIAL TAB --- */
+                                    <div className="animate-fade-in space-y-6 text-left">
+                                        <div className="flex justify-between items-center mb-4">
+                                            <h2 className="text-sm font-bold text-slate-800">Study Materials</h2>
+                                            <span className="text-xs bg-slate-100 text-slate-600 px-3 py-1 rounded-full font-bold">
+                                                Total Files: {studyMaterials.length}
                                             </span>
                                         </div>
-                                        <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
-                                            <div
-                                                className="bg-indigo-600 h-full rounded-full transition-all duration-500"
-                                                style={{ width: `${selectedGroup.tests.length > 0 ? (selectedGroup.completed / selectedGroup.tests.length) * 100 : 0}%` }}
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        ) : (
-                            /* --- DIRECT TESTS GRID --- */
-                            <div className="animate-fade-in space-y-4">
-                                {!activeTests.length ? (
-                                    <div className="py-12 text-center bg-white rounded-2xl border border-slate-100 shadow-sm max-w-md mx-auto">
-                                        <div className="text-4xl mb-2">🎉</div>
-                                        <p className="font-bold text-slate-700 text-sm">All caught up!</p>
-                                        <p className="text-slate-400 text-xs mt-1 font-medium">No {viewMode} activities exist in this Inbox.</p>
-                                    </div>
-                                ) : (
-                                    <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-                                        {activeTests.map(test => {
-                                            const sub = submissionMap.get(test._id);
-                                            const isEvaluated = sub && sub.status === 'evaluated';
-                                            const isReturned = sub && sub.status === 'returned';
-                                            const isReported = sub && sub.status === 'reported';
-                                            const config = activityConfigs.find(c => c.test === test._id);
-                                            const isDisabled = config ? !!config.disabled : false;
-
-                                            const isExpired = isTestExpired(test);
-                                            const cannotTake = isExpired && (!sub || isReturned || isReported);
-                                            const isBtnDisabled = isDisabled || cannotTake;
-
-                                            return (
-                                                <div
-                                                    key={test._id}
-                                                    onClick={() => {
-                                                        if (isDisabled) {
-                                                            toast.error("This test has been disabled by your teacher.");
-                                                            return;
-                                                        }
-                                                        if (cannotTake) {
-                                                            toast.error("This activity has expired and cannot be taken.");
-                                                            return;
-                                                        }
-                                                        if (!sub || isReturned || isReported) {
-                                                            navigate(`/student/take-test/${test._id}`);
-                                                        } else {
-                                                            navigate(`/student/test-result/${sub._id}`);
-                                                        }
-                                                    }}
-                                                    className={`bg-white p-3.5 rounded-xl border hover:shadow-md transition-all flex flex-col justify-between h-auto relative group ${isBtnDisabled
-                                                        ? 'border-slate-200 opacity-60 bg-slate-50/50 cursor-not-allowed hover:shadow-none'
-                                                        : isReturned
-                                                            ? 'border-orange-300 hover:border-orange-400 ring-1 ring-orange-100 cursor-pointer'
-                                                            : isReported
-                                                                ? 'border-amber-300 hover:border-amber-400 ring-1 ring-amber-100 cursor-pointer'
-                                                                : 'hover:border-[#3E3ADD] cursor-pointer'
-                                                        }`}
-                                                >
-                                                    {/* Returned warning banner */}
-                                                    {isReturned && !isExpired && (
-                                                        <div className="absolute -top-0.5 left-0 right-0 bg-orange-500 text-white text-[8px] font-black uppercase tracking-widest text-center py-0.5 rounded-t-xl">
-                                                            ⚠ Returned — Redo Required
+                                        {loadingMaterials ? (
+                                            <div className="flex flex-col items-center justify-center py-12 bg-white">
+                                                <div className="animate-spin rounded-full h-8 w-8 border-4 border-indigo-900/20 border-t-indigo-900 mb-2"></div>
+                                                <p className="text-xs text-slate-450 font-semibold">Loading materials...</p>
+                                            </div>
+                                        ) : studyMaterials.length === 0 ? (
+                                            <div className="py-12 text-center bg-white rounded-2xl border border-slate-100 shadow-sm max-w-md mx-auto">
+                                                <div className="text-4xl mb-2">📚</div>
+                                                <p className="font-bold text-slate-700 text-sm">No Study Material Yet</p>
+                                                <p className="text-slate-450 text-xs mt-1 font-medium">Your instructor hasn't uploaded any study materials for this Inbox.</p>
+                                            </div>
+                                        ) : (
+                                            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
+                                                {studyMaterials.map((mat) => (
+                                                    <div key={mat._id} className="bg-white p-5 rounded-2xl border border-slate-200 hover:shadow-md transition-all flex flex-col justify-between hover:-translate-y-0.5 duration-200">
+                                                        <div className="space-y-2">
+                                                            <h4 className="font-extrabold text-slate-800 text-sm leading-snug line-clamp-1">{mat.title}</h4>
+                                                            <p className="text-xs text-slate-450 truncate" title={mat.filename}>
+                                                                {mat.filename === 'Web Link' ? (
+                                                                    <span className="text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded text-[10px]">🔗 Web Link</span>
+                                                                ) : (
+                                                                    mat.filename
+                                                                )}
+                                                            </p>
+                                                            <p className="text-[10px] text-slate-450">Uploaded on {new Date(mat.createdAt).toLocaleDateString()}</p>
                                                         </div>
-                                                    )}
-                                                    {/* Reported warning banner */}
-                                                    {isReported && !isExpired && (
-                                                        <div className="absolute -top-0.5 left-0 right-0 bg-amber-500 text-white text-[8px] font-black uppercase tracking-widest text-center py-0.5 rounded-t-xl">
-                                                            ⚠ Reported — Resume Required
-                                                        </div>
-                                                    )}
-                                                    {/* Disabled warning banner */}
-                                                    {isDisabled && (
-                                                        <div className="absolute -top-0.5 left-0 right-0 bg-slate-400 text-white text-[8px] font-black uppercase tracking-widest text-center py-0.5 rounded-t-xl">
-                                                            🔒 Disabled by Teacher
-                                                        </div>
-                                                    )}
-                                                    {/* Expired warning banner */}
-                                                    {cannotTake && (
-                                                        <div className="absolute -top-0.5 left-0 right-0 bg-rose-500 text-white text-[8px] font-black uppercase tracking-widest text-center py-0.5 rounded-t-xl">
-                                                            ⏰ Expired
-                                                        </div>
-                                                    )}
-                                                    <div className={`flex items-center justify-between gap-2 min-w-0 ${(isReturned || isReported || isDisabled || cannotTake) ? 'mt-3' : ''}`}>
-                                                        <div className="flex items-center gap-2 min-w-0 flex-1">
-                                                            <div className={`w-2 h-2 rounded-full flex-shrink-0 ${isBtnDisabled
-                                                                ? 'bg-slate-400'
-                                                                : !sub
-                                                                    ? 'bg-orange-500'
-                                                                    : isEvaluated
-                                                                        ? 'bg-emerald-500'
-                                                                        : isReturned
-                                                                            ? 'bg-orange-500 animate-pulse'
-                                                                            : isReported
-                                                                                ? 'bg-amber-500 animate-pulse'
-                                                                                : 'bg-blue-500'
-                                                                }`} />
-                                                            <h3 className={`font-extrabold text-slate-800 text-xs leading-snug transition-colors line-clamp-1 uppercase tracking-tight truncate min-w-0 flex-1 ${isBtnDisabled
-                                                                ? 'text-slate-400'
-                                                                : isReturned
-                                                                    ? 'group-hover:text-orange-500'
-                                                                    : isReported
-                                                                        ? 'group-hover:text-amber-500'
-                                                                        : 'group-hover:text-[#3E3ADD]'
-                                                                }`}>
-                                                                {test.title}
-                                                            </h3>
-                                                        </div>
-
-                                                        <div className="relative shrink-0" onClick={e => e.stopPropagation()}>
-                                                            <button
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    setActiveDropdownTestId(activeDropdownTestId === test._id ? null : test._id);
-                                                                }}
-                                                                className="p-1 text-slate-450 hover:text-[#3E3ADD] hover:bg-slate-100 rounded-lg transition-all"
-                                                                title="Options"
+                                                        <div className="mt-4 pt-3 border-t border-slate-100 flex justify-between items-center">
+                                                            <span className="text-[10px] font-bold text-[#3E3ADD] bg-indigo-50 px-2.5 py-1 rounded-lg">
+                                                                By: {mat.uploadedBy?.name || 'Instructor'}
+                                                            </span>
+                                                            <a
+                                                                href={mat.fileUrl}
+                                                                target="_blank"
+                                                                rel="noreferrer"
+                                                                className="px-3.5 py-1.5 bg-[#3E3ADD] hover:bg-indigo-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider shadow-sm transition-all"
                                                             >
-                                                                <MoreVertical size={14} />
-                                                            </button>
-                                                            {activeDropdownTestId === test._id && (
-                                                                <div className="absolute right-0 top-7 z-50 bg-white border border-slate-200 rounded-xl shadow-xl py-1.5 w-40 animate-fade-in text-left">
-                                                                    <button
-                                                                        onClick={(e) => {
-                                                                            e.stopPropagation();
-                                                                            setActiveDropdownTestId(null);
-                                                                            setInfoModalData(test);
-                                                                        }}
-                                                                        className="w-full flex items-center gap-2 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors text-left"
-                                                                    >
-                                                                        <Eye size={13} className="text-slate-400" />
-                                                                        View Details
-                                                                    </button>
-                                                                    {sub && sub.conversation && sub.conversation.length > 0 && (
-                                                                        <button
-                                                                            onClick={(e) => {
-                                                                                e.stopPropagation();
-                                                                                setActiveDropdownTestId(null);
-                                                                                setActiveFeedbackSub(sub);
-                                                                                loadFeedbackHistory(sub._id);
-                                                                                setFeedbackModalOpen(true);
-                                                                            }}
-                                                                            className="w-full flex items-center gap-2 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors text-left border-t border-slate-100"
-                                                                        >
-                                                                            <MessageSquare size={13} className="text-slate-400" />
-                                                                            Teacher's Reply
-                                                                        </button>
-                                                                    )}
-                                                                </div>
-                                                            )}
+                                                                {mat.filename === 'Web Link' ? 'Open Link' : 'Open File'}
+                                                            </a>
                                                         </div>
                                                     </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                ) : viewMode === 'practice' ? (
+                                    /* --- PRACTICE TAB --- */
+                                    <div className="animate-fade-in space-y-6 text-left">
 
-                                                    <div className="flex flex-row items-center justify-between gap-3 mt-3 pt-2.5 border-t border-slate-100" onClick={e => e.stopPropagation()}>
-                                                        <div className="flex items-center gap-1.5">
-                                                            {viewMode === 'pending' && <ActivityTimer endTime={test.settings?.endTime} />}
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                                            {[
+                                                {
+                                                    title: "Voice Recorder",
+                                                    icon: Mic,
+                                                    color: "text-blue-600 bg-blue-50 border-blue-150 hover:border-blue-300",
+                                                    path: "/student/practice-tools/voice-recorder"
+                                                },
+                                                {
+                                                    title: "Video Recorder",
+                                                    icon: MonitorPlay,
+                                                    color: "text-purple-600 bg-purple-50 border-purple-150 hover:border-purple-300",
+                                                    path: "/student/practice-tools/video-recorder"
+                                                },
+                                                {
+                                                    title: "File Uploader",
+                                                    icon: Upload,
+                                                    color: "text-amber-600 bg-amber-50 border-amber-150 hover:border-amber-300",
+                                                    path: "/student/practice-tools/file-uploader"
+                                                },
+                                                {
+                                                    title: "Notes Writing",
+                                                    icon: FileText,
+                                                    color: "text-amber-500 bg-amber-50 border-amber-150 hover:border-amber-300",
+                                                    path: "/student/practice-tools/notes"
+                                                },
+                                                {
+                                                    title: "Screenshot Tool",
+                                                    icon: Camera,
+                                                    color: "text-indigo-600 bg-indigo-50 border-indigo-150 hover:border-indigo-300",
+                                                    path: "/student/practice-tools/screenshot"
+                                                },
+                                                {
+                                                    title: "Screen Recorder",
+                                                    icon: Video,
+                                                    color: "text-emerald-600 bg-emerald-50 border-emerald-150 hover:border-emerald-300",
+                                                    path: "/student/practice-tools/screen-recorder"
+                                                },
+                                                {
+                                                    title: "Web-Calling Tool",
+                                                    icon: Phone,
+                                                    color: "text-pink-600 bg-pink-50 border-pink-150 hover:border-pink-300",
+                                                    path: "/student/practice-tools/web-calling"
+                                                }
+                                            ].map((tool, idx) => {
+                                                const fileCount = getFileCountForTool(tool.title);
+                                                return (
+                                                    <div
+                                                        key={idx}
+                                                        onClick={() => navigate(`${tool.path}?inbox=${selectedItem}`)}
+                                                        className="bg-white p-5 rounded-2xl border border-slate-200 hover:shadow-md transition-all flex items-center justify-between group hover:-translate-y-0.5 duration-200 cursor-pointer text-left h-20"
+                                                    >
+                                                        {/* Left Side: Icon */}
+                                                        <div className={`w-11 h-11 rounded-xl flex items-center justify-center border ${tool.color.split(' hover:')[0]} group-hover:scale-105 transition-all duration-200 shrink-0`}>
+                                                            <tool.icon size={18} />
                                                         </div>
+                                                        {/* Right Side: Files Count and Tool Title */}
+                                                        <div className="flex flex-col items-end gap-1.5 text-right min-w-0">
+                                                            <span className={`px-2 py-0.5 rounded-md font-black text-[8px] uppercase tracking-wider ${fileCount > 0 ? 'bg-indigo-50 text-indigo-700 border border-indigo-150' : 'bg-slate-100 text-slate-400'
+                                                                }`}>
+                                                                {fileCount} {fileCount === 1 ? 'file' : 'files'}
+                                                            </span>
+                                                            <h3 className="font-extrabold text-slate-850 text-[11px] tracking-tight leading-tight truncate max-w-full">{tool.title}</h3>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                ) : viewMode === 'chat' ? (
+                                    /* --- CHAT TAB --- */
+                                    <div className="animate-fade-in flex flex-col h-[calc(100vh-320px)] min-h-[350px] bg-white border border-slate-250 rounded-2xl overflow-hidden shadow-sm">
+                                        <div className="p-4 border-b border-slate-100 flex items-center gap-3 bg-slate-50/50">
+                                            <div className="relative shrink-0">
+                                                <div className="w-10 h-10 rounded-full bg-indigo-150 text-indigo-700 font-bold flex items-center justify-center shadow-md overflow-hidden">
+                                                    {teacherContact?.avatar ? (
+                                                        <img src={teacherContact.avatar} alt={teacherContact.name} className="w-full h-full object-cover" />
+                                                    ) : (
+                                                        teacherContact?.name?.[0]?.toUpperCase() || 'T'
+                                                    )}
+                                                </div>
+                                                {teacherContact && onlineUsers.includes(teacherContact._id) ? (
+                                                    <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white ring-1 ring-emerald-500/20"></span>
+                                                ) : (
+                                                    <span className="absolute bottom-0 right-0 w-3 h-3 bg-slate-350 rounded-full border-2 border-white"></span>
+                                                )}
+                                            </div>
+                                            <div>
+                                                <h3 className="font-bold text-slate-800 text-sm">
+                                                    {teacherContact ? teacherContact.name : 'Loading Instructor...'}
+                                                </h3>
+                                                <p className="text-[10px] text-slate-450 font-semibold">
+                                                    {teacherContact?.role || 'Teacher'}
+                                                </p>
+                                            </div>
+                                        </div>
 
-                                                        <button
+                                        <div className="flex-1 p-4 overflow-y-auto space-y-4 custom-scrollbar bg-slate-50/20">
+                                            {loadingChat ? (
+                                                <div className="h-full flex items-center justify-center">
+                                                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600"></div>
+                                                </div>
+                                            ) : chatMessages.length === 0 ? (
+                                                <div className="h-full flex flex-col items-center justify-center text-center p-6 select-none">
+                                                    <MessageSquare size={36} className="text-slate-350 mb-2 opacity-60 animate-pulse" />
+                                                    <h4 className="font-bold text-slate-700 text-sm">No messages yet</h4>
+                                                    <p className="text-slate-400 text-[11px] mt-1">
+                                                        Send a message to start conversation with {teacherContact ? teacherContact.name : 'your teacher'}.
+                                                    </p>
+                                                </div>
+                                            ) : (
+                                                chatMessages.map((msg, index) => {
+                                                    const isSelf = msg.sender === userInfo._id || msg.sender?._id === userInfo._id;
+                                                    const formattedTime = msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : (msg.time || '');
+                                                    return (
+                                                        <div key={msg._id || msg.id || index} className={`flex ${isSelf ? 'justify-end' : 'justify-start'}`}>
+                                                            <div className={`max-w-[70%] p-3 rounded-2xl text-xs leading-relaxed ${isSelf
+                                                                ? 'bg-indigo-600 text-white rounded-tr-none shadow-sm'
+                                                                : 'bg-white text-slate-800 border border-slate-150 rounded-tl-none shadow-sm'
+                                                                }`}>
+                                                                <p className="font-semibold">{msg.text}</p>
+                                                                <span className={`text-[8px] mt-1 block text-right ${isSelf ? 'text-indigo-200' : 'text-slate-450'
+                                                                    }`}>
+                                                                    {formattedTime}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })
+                                            )}
+                                            <div ref={messagesEndRef} />
+                                        </div>
+
+                                        <form onSubmit={handleSendChatMessage} className="p-3 border-t border-slate-100 flex gap-2 bg-white">
+                                            <input
+                                                type="text"
+                                                value={chatInput}
+                                                onChange={e => setChatInput(e.target.value)}
+                                                placeholder="Type your message to the instructor..."
+                                                className="flex-1 px-4 py-2.5 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                                                disabled={!teacherContact}
+                                            />
+                                            <button
+                                                type="submit"
+                                                className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl transition-colors shrink-0 flex items-center justify-center shadow-sm disabled:opacity-50"
+                                                disabled={!teacherContact || !chatInput.trim()}
+                                            >
+                                                <SendHorizontal size={16} />
+                                            </button>
+                                        </form>
+                                    </div>
+                                ) : viewMode === 'analytics' ? (
+                                    /* --- ANALYTICS TAB --- */
+                                    <div className="animate-fade-in space-y-6">
+                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                            <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+                                                <div>
+                                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total Inbox Items</span>
+                                                    <span className="text-2xl font-black text-slate-800 mt-1 block">{selectedGroup.tests.length}</span>
+                                                </div>
+                                                <div className="p-2.5 bg-indigo-50 text-indigo-600 rounded-lg"><BookOpen size={16} /></div>
+                                            </div>
+                                            <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+                                                <div>
+                                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Completed</span>
+                                                    <span className="text-2xl font-black text-emerald-600 mt-1 block">{selectedGroup.completed}</span>
+                                                </div>
+                                                <div className="p-2.5 bg-emerald-50 text-emerald-600 rounded-lg"><CheckCircle size={16} /></div>
+                                            </div>
+                                            <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+                                                <div>
+                                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Pending</span>
+                                                    <span className="text-2xl font-black text-orange-500 mt-1 block">{selectedGroup.pending}</span>
+                                                </div>
+                                                <div className="p-2.5 bg-orange-50 text-orange-600 rounded-lg"><Hourglass size={16} /></div>
+                                            </div>
+                                        </div>
+
+                                        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
+                                            <h3 className="font-bold text-slate-800 text-sm">Overall Completion Progress</h3>
+                                            <div>
+                                                <div className="flex justify-between items-center text-xs font-semibold text-slate-500 mb-1">
+                                                    <span>Progress Status</span>
+                                                    <span className="text-indigo-600">
+                                                        {selectedGroup.tests.length > 0 ? Math.round((selectedGroup.completed / selectedGroup.tests.length) * 100) : 0}% Completed
+                                                    </span>
+                                                </div>
+                                                <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
+                                                    <div
+                                                        className="bg-indigo-600 h-full rounded-full transition-all duration-500"
+                                                        style={{ width: `${selectedGroup.tests.length > 0 ? (selectedGroup.completed / selectedGroup.tests.length) * 100 : 0}%` }}
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    /* --- DIRECT TESTS GRID --- */
+                                    <div className="animate-fade-in space-y-4">
+                                        {!activeTests.length ? (
+                                            <div className="py-12 text-center bg-white rounded-2xl border border-slate-100 shadow-sm max-w-md mx-auto">
+                                                <div className="text-4xl mb-2">🎉</div>
+                                                <p className="font-bold text-slate-700 text-sm">All caught up!</p>
+                                                <p className="text-slate-400 text-xs mt-1 font-medium">No {viewMode} activities exist in this Inbox.</p>
+                                            </div>
+                                        ) : (
+                                            <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+                                                {activeTests.map(test => {
+                                                    const sub = submissionMap.get(test._id);
+                                                    const isEvaluated = sub && sub.status === 'evaluated';
+                                                    const isReturned = sub && sub.status === 'returned';
+                                                    const isReported = sub && sub.status === 'reported';
+                                                    const config = activityConfigs.find(c => c.test === test._id);
+                                                    const isDisabled = config ? !!config.disabled : false;
+
+                                                    const isExpired = isTestExpired(test);
+                                                    const cannotTake = isExpired && (!sub || isReturned || isReported);
+                                                    const isBtnDisabled = isDisabled || cannotTake;
+
+                                                    return (
+                                                        <div
+                                                            key={test._id}
                                                             onClick={() => {
                                                                 if (isDisabled) {
                                                                     toast.error("This test has been disabled by your teacher.");
@@ -2017,31 +2068,157 @@ const StudentTests = () => {
                                                                     navigate(`/student/test-result/${sub._id}`);
                                                                 }
                                                             }}
-                                                            disabled={isBtnDisabled}
-                                                            className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all shadow-sm active:scale-95 shrink-0 border ${isBtnDisabled
-                                                                ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
+                                                            className={`bg-white p-3.5 rounded-xl border hover:shadow-md transition-all flex flex-col justify-between h-auto relative group ${isBtnDisabled
+                                                                ? 'border-slate-200 opacity-60 bg-slate-50/50 cursor-not-allowed hover:shadow-none'
                                                                 : isReturned
-                                                                    ? 'bg-orange-500 text-white hover:bg-orange-600 border-transparent'
-                                                                    : !sub
-                                                                        ? 'bg-[#3E3ADD] text-white hover:bg-indigo-700 border-transparent'
-                                                                        : isReported
-                                                                            ? 'bg-amber-500 text-white hover:bg-amber-600 border-transparent'
-                                                                            : isEvaluated
-                                                                                ? 'bg-[#ECFDF5] text-emerald-800 border-emerald-250 hover:bg-emerald-100'
-                                                                                : 'bg-blue-105 text-blue-800 border border-blue-250 hover:bg-blue-200'
+                                                                    ? 'border-orange-300 hover:border-orange-400 ring-1 ring-orange-100 cursor-pointer'
+                                                                    : isReported
+                                                                        ? 'border-amber-300 hover:border-amber-400 ring-1 ring-amber-100 cursor-pointer'
+                                                                        : 'hover:border-[#3E3ADD] cursor-pointer'
                                                                 }`}
                                                         >
-                                                            {isDisabled ? 'Disabled' : cannotTake ? 'Expired' : isReturned ? 'Redo' : isReported ? 'Continue' : !sub ? 'Take Test' : isEvaluated ? 'Feedback' : 'Submitted'}
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
+                                                            {/* Returned warning banner */}
+                                                            {isReturned && !isExpired && (
+                                                                <div className="absolute -top-0.5 left-0 right-0 bg-orange-500 text-white text-[8px] font-black uppercase tracking-widest text-center py-0.5 rounded-t-xl">
+                                                                    ⚠ Returned — Redo Required
+                                                                </div>
+                                                            )}
+                                                            {/* Reported warning banner */}
+                                                            {isReported && !isExpired && (
+                                                                <div className="absolute -top-0.5 left-0 right-0 bg-amber-500 text-white text-[8px] font-black uppercase tracking-widest text-center py-0.5 rounded-t-xl">
+                                                                    ⚠ Reported — Resume Required
+                                                                </div>
+                                                            )}
+                                                            {/* Disabled warning banner */}
+                                                            {isDisabled && (
+                                                                <div className="absolute -top-0.5 left-0 right-0 bg-slate-400 text-white text-[8px] font-black uppercase tracking-widest text-center py-0.5 rounded-t-xl">
+                                                                    🔒 Disabled by Teacher
+                                                                </div>
+                                                            )}
+                                                            {/* Expired warning banner */}
+                                                            {cannotTake && (
+                                                                <div className="absolute -top-0.5 left-0 right-0 bg-rose-500 text-white text-[8px] font-black uppercase tracking-widest text-center py-0.5 rounded-t-xl">
+                                                                    ⏰ Expired
+                                                                </div>
+                                                            )}
+                                                            <div className={`flex items-center justify-between gap-2 min-w-0 ${(isReturned || isReported || isDisabled || cannotTake) ? 'mt-3' : ''}`}>
+                                                                <div className="flex items-center gap-2 min-w-0 flex-1">
+                                                                    <div className={`w-2 h-2 rounded-full flex-shrink-0 ${isBtnDisabled
+                                                                        ? 'bg-slate-400'
+                                                                        : !sub
+                                                                            ? 'bg-orange-500'
+                                                                            : isEvaluated
+                                                                                ? 'bg-emerald-500'
+                                                                                : isReturned
+                                                                                    ? 'bg-orange-500 animate-pulse'
+                                                                                    : isReported
+                                                                                        ? 'bg-amber-500 animate-pulse'
+                                                                                        : 'bg-blue-500'
+                                                                        }`} />
+                                                                    <h3 className={`font-extrabold text-slate-800 text-xs leading-snug transition-colors line-clamp-1 uppercase tracking-tight truncate min-w-0 flex-1 ${isBtnDisabled
+                                                                        ? 'text-slate-400'
+                                                                        : isReturned
+                                                                            ? 'group-hover:text-orange-500'
+                                                                            : isReported
+                                                                                ? 'group-hover:text-amber-500'
+                                                                                : 'group-hover:text-[#3E3ADD]'
+                                                                        }`}>
+                                                                        {test.title}
+                                                                    </h3>
+                                                                </div>
+
+                                                                <div className="relative shrink-0" onClick={e => e.stopPropagation()}>
+                                                                    <button
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            setActiveDropdownTestId(activeDropdownTestId === test._id ? null : test._id);
+                                                                        }}
+                                                                        className="p-1 text-slate-450 hover:text-[#3E3ADD] hover:bg-slate-100 rounded-lg transition-all"
+                                                                        title="Options"
+                                                                    >
+                                                                        <MoreVertical size={14} />
+                                                                    </button>
+                                                                    {activeDropdownTestId === test._id && (
+                                                                        <div className="absolute right-0 top-7 z-50 bg-white border border-slate-200 rounded-xl shadow-xl py-1.5 w-40 animate-fade-in text-left">
+                                                                            <button
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation();
+                                                                                    setActiveDropdownTestId(null);
+                                                                                    setInfoModalData(test);
+                                                                                }}
+                                                                                className="w-full flex items-center gap-2 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors text-left"
+                                                                            >
+                                                                                <Eye size={13} className="text-slate-400" />
+                                                                                View Details
+                                                                            </button>
+                                                                            {sub && sub.conversation && sub.conversation.length > 0 && (
+                                                                                <button
+                                                                                    onClick={(e) => {
+                                                                                        e.stopPropagation();
+                                                                                        setActiveDropdownTestId(null);
+                                                                                        setActiveFeedbackSub(sub);
+                                                                                        loadFeedbackHistory(sub._id);
+                                                                                        setFeedbackModalOpen(true);
+                                                                                    }}
+                                                                                    className="w-full flex items-center gap-2 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors text-left border-t border-slate-100"
+                                                                                >
+                                                                                    <MessageSquare size={13} className="text-slate-400" />
+                                                                                    Teacher's Reply
+                                                                                </button>
+                                                                            )}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+
+                                                            <div className="flex flex-row items-center justify-between gap-3 mt-3 pt-2.5 border-t border-slate-100" onClick={e => e.stopPropagation()}>
+                                                                <div className="flex items-center gap-1.5">
+                                                                    {viewMode === 'pending' && <ActivityTimer endTime={test.settings?.endTime} />}
+                                                                </div>
+
+                                                                <button
+                                                                    onClick={() => {
+                                                                        if (isDisabled) {
+                                                                            toast.error("This test has been disabled by your teacher.");
+                                                                            return;
+                                                                        }
+                                                                        if (cannotTake) {
+                                                                            toast.error("This activity has expired and cannot be taken.");
+                                                                            return;
+                                                                        }
+                                                                        if (!sub || isReturned || isReported) {
+                                                                            navigate(`/student/take-test/${test._id}`);
+                                                                        } else {
+                                                                            navigate(`/student/test-result/${sub._id}`);
+                                                                        }
+                                                                    }}
+                                                                    disabled={isBtnDisabled}
+                                                                    className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all shadow-sm active:scale-95 shrink-0 border ${isBtnDisabled
+                                                                        ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
+                                                                        : isReturned
+                                                                            ? 'bg-orange-500 text-white hover:bg-orange-600 border-transparent'
+                                                                            : !sub
+                                                                                ? 'bg-[#3E3ADD] text-white hover:bg-indigo-700 border-transparent'
+                                                                                : isReported
+                                                                                    ? 'bg-amber-500 text-white hover:bg-amber-600 border-transparent'
+                                                                                    : isEvaluated
+                                                                                        ? 'bg-[#ECFDF5] text-emerald-800 border-emerald-250 hover:bg-emerald-100'
+                                                                                        : 'bg-blue-105 text-blue-800 border border-blue-250 hover:bg-blue-200'
+                                                                        }`}
+                                                                >
+                                                                    {isDisabled ? 'Disabled' : cannotTake ? 'Expired' : isReturned ? 'Redo' : isReported ? 'Continue' : !sub ? 'Take Test' : isEvaluated ? 'Feedback' : 'Submitted'}
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
                                     </div>
                                 )}
                             </div>
-                        )}
-                    </div>
+                        </>
+                    )}
                 </main>
             </div>
 
@@ -2221,6 +2398,176 @@ const StudentTests = () => {
                     </div>
                 </div>
             )}
+
+            {/* RI (ReportCard) Modal */}
+            {isRiModalOpen && selectedGroup && (() => {
+                const riEvaluatedTests = (selectedGroup.tests || []).filter(t => {
+                    const sub = submissionMap.get(t._id);
+                    return sub && sub.status === 'evaluated';
+                });
+                const riEvaluatedCount = riEvaluatedTests.length;
+                const riCompletedCount = (selectedGroup.tests || []).filter(t => {
+                    const sub = submissionMap.get(t._id);
+                    return sub && (sub.status === 'submitted' || sub.status === 'evaluated');
+                }).length;
+                const riTotalMarksObtained = riEvaluatedTests.reduce((sum, t) => {
+                    const sub = submissionMap.get(t._id);
+                    return sum + (sub?.totalMarks || 0);
+                }, 0);
+                const riTotalMaxMarks = riEvaluatedTests.reduce((sum, t) => {
+                    const sub = submissionMap.get(t._id);
+                    const maxMarks = sub?.test?.questions?.reduce((qSum, q) => qSum + (q.marks || 0), 0) || 100;
+                    return sum + maxMarks;
+                }, 0);
+                const riAvgPercentage = riTotalMaxMarks > 0 ? Math.round((riTotalMarksObtained / riTotalMaxMarks) * 100) : 0;
+
+                return (
+                    <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in font-sans">
+                        <div className="bg-white w-full max-w-2xl rounded-[32px] shadow-2xl border border-slate-100 overflow-hidden relative animate-slide-up flex flex-col max-h-[85vh]">
+                            {/* Modal Header */}
+                            <div className="p-6 border-b border-slate-100 flex items-center justify-between shrink-0 bg-slate-50/50">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 text-white flex items-center justify-center shadow-md">
+                                        <FileText size={20} />
+                                    </div>
+                                    <div>
+                                        <h2 className="text-base font-black text-slate-805 tracking-tight">Inbox Performance Report (RI)</h2>
+                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">
+                                            {headerTitle} • {activeDayDetails?.subjectName || 'General'}
+                                        </p>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => setIsRiModalOpen(false)}
+                                    className="p-2 hover:bg-slate-200/50 text-slate-400 hover:text-slate-650 rounded-xl transition-all font-bold text-xs"
+                                >
+                                    ✕
+                                </button>
+                            </div>
+
+                            {/* Modal Content */}
+                            <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar text-left">
+                                {/* Statistics Grid */}
+                                <div className="grid grid-cols-3 gap-4">
+                                    <div className="bg-slate-50 p-4 rounded-2xl border border-slate-150 text-center">
+                                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Total Activities</span>
+                                        <span className="text-xl font-black text-slate-800 mt-1 block">{selectedGroup.tests.length}</span>
+                                    </div>
+                                    <div className="bg-slate-50 p-4 rounded-2xl border border-slate-150 text-center">
+                                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Completed</span>
+                                        <span className="text-xl font-black text-[#3E3ADD] mt-1 block">{riCompletedCount} / {selectedGroup.tests.length}</span>
+                                    </div>
+                                    <div className="bg-slate-50 p-4 rounded-2xl border border-slate-150 text-center">
+                                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Average Score</span>
+                                        <span className="text-xl font-black text-emerald-600 mt-1 block">{riAvgPercentage}%</span>
+                                    </div>
+                                </div>
+
+                                {/* Table showing individual activities */}
+                                <div className="border border-slate-150 rounded-2xl overflow-hidden">
+                                    <table className="w-full text-xs">
+                                        <thead>
+                                            <tr className="bg-slate-50/70 border-b border-slate-150 text-slate-500 font-extrabold uppercase text-[9px] tracking-wider text-left">
+                                                <th className="p-3">Activity</th>
+                                                <th className="p-3">Category</th>
+                                                <th className="p-3">Status</th>
+                                                <th className="p-3 text-center">Score</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
+                                            {selectedGroup.tests.map((test, idx) => {
+                                                const sub = submissionMap.get(test._id);
+                                                const isEvaluated = sub && sub.status === 'evaluated';
+                                                const isSubmitted = sub && sub.status === 'submitted';
+                                                const isReturned = sub && sub.status === 'returned';
+                                                const isReported = sub && sub.status === 'reported';
+                                                const isExpired = isTestExpired(test);
+
+                                                let statusBadge = (
+                                                    <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-slate-100 text-slate-500">
+                                                        Pending
+                                                    </span>
+                                                );
+                                                if (isEvaluated) {
+                                                    statusBadge = (
+                                                        <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-100">
+                                                            Evaluated
+                                                        </span>
+                                                    );
+                                                } else if (isSubmitted) {
+                                                    statusBadge = (
+                                                        <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-blue-50 text-blue-700 border border-blue-100">
+                                                            Submitted
+                                                        </span>
+                                                    );
+                                                } else if (isReturned) {
+                                                    statusBadge = (
+                                                        <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-orange-50 text-orange-700 border border-orange-100 animate-pulse">
+                                                            Returned
+                                                        </span>
+                                                    );
+                                                } else if (isReported) {
+                                                    statusBadge = (
+                                                        <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-amber-50 text-amber-700 border border-amber-100 animate-pulse">
+                                                            Reported
+                                                        </span>
+                                                    );
+                                                } else if (isExpired) {
+                                                    statusBadge = (
+                                                        <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-rose-50 text-rose-700 border border-rose-100">
+                                                            Expired
+                                                        </span>
+                                                    );
+                                                }
+
+                                                const maxMarks = sub?.test?.questions?.reduce((sum, q) => sum + (q.marks || 0), 0) || 100;
+                                                const displayScore = isEvaluated ? `${sub.totalMarks} / ${maxMarks}` : '-';
+
+                                                return (
+                                                    <tr key={test._id} className="hover:bg-slate-50/30">
+                                                        <td className="p-3 max-w-[200px] truncate font-bold text-slate-800" title={test.title}>
+                                                            {idx + 1}. {test.title}
+                                                        </td>
+                                                        <td className="p-3 text-[10px] font-semibold text-slate-450 uppercase">
+                                                            {getCategoryDisplayName(test.activity)}
+                                                        </td>
+                                                        <td className="p-3">{statusBadge}</td>
+                                                        <td className="p-3 text-center font-bold text-slate-800">{displayScore}</td>
+                                                    </tr>
+                                                );
+                                            })}
+                                            {selectedGroup.tests.length === 0 && (
+                                                <tr>
+                                                    <td colSpan="4" className="p-6 text-center text-slate-400 font-semibold">
+                                                        No activities found in this inbox.
+                                                    </td>
+                                                </tr>
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            {/* Modal Footer */}
+                            <div className="p-5 border-t border-slate-100 flex gap-3 justify-end shrink-0 bg-slate-50/40">
+                                <button
+                                    onClick={() => setIsRiModalOpen(false)}
+                                    className="px-4 py-2 border border-slate-200 rounded-xl text-xs font-black uppercase tracking-wider text-slate-500 hover:bg-slate-50 transition-all cursor-pointer"
+                                >
+                                    Close
+                                </button>
+                                <button
+                                    onClick={handlePrintRI}
+                                    className="px-5 py-2 bg-[#3E3ADD] text-white rounded-xl text-xs font-black uppercase tracking-wider hover:bg-indigo-700 transition-all flex items-center gap-1.5 shadow-sm shadow-indigo-150 cursor-pointer"
+                                >
+                                    <FileText size={12} />
+                                    Print Report
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            })()}
 
             <style>{`
                 .animate-fade-in { animation: fadeIn 0.3s ease-out forwards; }

@@ -816,6 +816,17 @@ const TeacherActivities = () => {
             const matStatus = viewMode === 'pending' ? 'upcoming' : (viewMode === 'assign' ? 'assign' : 'study-material');
             formData.append('status', matStatus);
             
+            if (selectedStudent) {
+                formData.append('studentId', selectedStudent._id);
+            }
+            if (activeDayDetails) {
+                formData.append('subject', activeDayDetails.subjectName || '');
+                formData.append('dayNum', activeDayDetails.dayNum || '');
+            }
+            if (selectedStudentActiveCourseObj) {
+                formData.append('course', selectedStudentActiveCourseObj.name || '');
+            }
+
             if (uploadType === 'file') {
                 formData.append('file', matFile);
             } else {
@@ -1302,17 +1313,20 @@ const TeacherActivities = () => {
         setSubjectFilter('All');
     }, [selectedStudent]);
 
-    // Auto-select first group when student changes
     useEffect(() => {
-        if (dynamicInboxItems.length > 0) {
-            setSelectedInboxId(dynamicInboxItems[0].id);
-            setViewMode('assign');
-            setSelectedCategory(null);
-        } else {
-            setSelectedInboxId(null);
-            setSelectedCategory(null);
+        if (subjectFilter && subjectFilter !== 'All') {
+            setExpandedSubjects(prev => ({
+                ...prev,
+                [subjectFilter]: true
+            }));
         }
-    }, [selectedStudent, dynamicInboxItems]);
+    }, [subjectFilter]);
+
+    // Reset selection when student changes
+    useEffect(() => {
+        setSelectedInboxId(null);
+        setSelectedCategory(null);
+    }, [selectedStudent]);
 
     const selectedGroup = dynamicInboxItems.find(item => item.id === selectedInboxId);
 
@@ -1456,6 +1470,10 @@ const TeacherActivities = () => {
         const baseSubsLower = uniqueOriginals.map(s => s.toLowerCase());
         const teacherSubs = userInfo.teacherProfile?.subjects?.map(s => s.trim().toLowerCase()) || [];
         
+        if (teacherSubs.length === 0) {
+            return uniqueOriginals;
+        }
+
         const commonSubs = baseSubsLower.filter(sub => teacherSubs.includes(sub));
         return uniqueOriginals.filter(sub => commonSubs.includes(sub.toLowerCase()));
     }, [selectedStudent, userInfo]);
@@ -2173,18 +2191,38 @@ const TeacherActivities = () => {
 
                     {selectedStudent && studentTab === 'tests' && (
                         <div className="bg-white border-b border-slate-200 p-4 flex flex-col gap-2.5 shrink-0 select-none">
-                            <div className="flex items-center gap-2.5">
-                                <div className="w-10 h-10 rounded-full bg-[#3E3ADD] text-white flex items-center justify-center shadow-md shadow-indigo-500/10 shrink-0">
-                                    <BookOpen size={16} />
+                            <div className="flex justify-between items-center gap-4 w-full">
+                                <div className="flex items-center gap-2.5">
+                                    <div className="w-10 h-10 rounded-full bg-[#3E3ADD] text-white flex items-center justify-center shadow-md shadow-indigo-500/10 shrink-0">
+                                        <BookOpen size={16} />
+                                    </div>
+                                    <div>
+                                        <h1 className="text-lg font-extrabold text-indigo-950 tracking-tight leading-none">
+                                            {headerTitle}
+                                        </h1>
+                                        <p className="text-[10px] font-semibold text-slate-400 mt-0.5 uppercase tracking-wider">
+                                            Your activities for this inbox
+                                        </p>
+                                    </div>
                                 </div>
-                                <div>
-                                    <h1 className="text-lg font-extrabold text-indigo-950 tracking-tight leading-none">
-                                        {headerTitle}
-                                    </h1>
-                                    <p className="text-[10px] font-semibold text-slate-400 mt-0.5 uppercase tracking-wider">
-                                        Your activities for this inbox
-                                    </p>
-                                </div>
+
+                                {/* Duplicated Subject Filter on the Right Side */}
+                                {selectedInboxId && uniqueSubjects.length > 0 && (
+                                    <div className="shrink-0">
+                                        <select
+                                            value={subjectFilter}
+                                            onChange={(e) => setSubjectFilter(e.target.value)}
+                                            className="h-9 px-3 bg-white border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-[#3E3ADD] focus:ring-2 focus:ring-indigo-100 transition-all text-slate-700 font-extrabold cursor-pointer shadow-sm min-w-[130px]"
+                                        >
+                                            <option value="All">All Subjects</option>
+                                            {uniqueSubjects.map(sub => (
+                                                <option key={sub} value={sub}>
+                                                    {sub}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                )}
                             </div>
 
                             {selectedInboxId && (
@@ -2278,11 +2316,16 @@ const TeacherActivities = () => {
                             <>
                                 {!selectedInboxId ? (
                                     <div className="h-full flex items-center justify-center">
-                                        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 max-w-md w-full text-center">
-                                            <h2 className="text-xl font-bold text-slate-400 mb-2">No Inbox Assigned</h2>
-                                            <p className="text-slate-400 text-xs leading-relaxed">
-                                                This student does not have any assigned activities matching their course/subjects.
-                                            </p>
+                                        <div className="bg-white p-8 rounded-[32px] shadow-lg border border-slate-100 max-w-md w-full text-center space-y-4 animate-fade-in">
+                                            <div className="w-16 h-16 bg-indigo-50 rounded-2xl flex items-center justify-center text-[#3E3ADD] mx-auto border border-indigo-100">
+                                                <BookOpen size={28} />
+                                            </div>
+                                            <div className="space-y-1.5">
+                                                <h2 className="text-base font-black text-slate-800 tracking-tight">Select Subject & Inbox</h2>
+                                                <p className="text-slate-450 text-xs leading-relaxed">
+                                                    Select your subject and inbox to perform your activities.
+                                                </p>
+                                            </div>
                                         </div>
                                     </div>
                                 ) : viewMode === 'chat' ? (
@@ -2901,7 +2944,7 @@ const TeacherActivities = () => {
                                 )}
 
                                 {/* Upcoming Materials Section (only on pending tab) */}
-                                {viewMode === 'pending' && (
+                                {viewMode === 'pending' && (studyMaterials.length > 0 || loadingMaterials) && (
                                     <div className="animate-fade-in mt-6 space-y-3">
                                         <div className="flex items-center gap-2">
                                             <div className="w-6 h-6 rounded-lg bg-red-50 flex items-center justify-center">
@@ -2917,8 +2960,6 @@ const TeacherActivities = () => {
                                                 <div className="animate-spin rounded-full h-4 w-4 border-2 border-slate-200 border-t-indigo-500"></div>
                                                 Loading materials...
                                             </div>
-                                        ) : studyMaterials.length === 0 ? (
-                                            <p className="text-xs text-slate-400 font-semibold py-1">No materials added to upcoming yet.</p>
                                         ) : (
                                             <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
                                                 {studyMaterials.map((mat) => (
@@ -2956,7 +2997,7 @@ const TeacherActivities = () => {
                                 )}
 
                                 {/* Assign Materials Section (only on assign tab) */}
-                                {viewMode === 'assign' && (
+                                {viewMode === 'assign' && (studyMaterials.length > 0 || loadingMaterials) && (
                                     <div className="animate-fade-in mt-6 space-y-3">
                                         <div className="flex items-center gap-2">
                                             <div className="w-6 h-6 rounded-lg bg-indigo-50 flex items-center justify-center">
@@ -2972,8 +3013,6 @@ const TeacherActivities = () => {
                                                 <div className="animate-spin rounded-full h-4 w-4 border-2 border-slate-200 border-t-indigo-500"></div>
                                                 Loading materials...
                                             </div>
-                                        ) : studyMaterials.length === 0 ? (
-                                            <p className="text-xs text-slate-400 font-semibold py-1">No materials added to assign yet.</p>
                                         ) : (
                                             <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
                                                 {studyMaterials.map((mat) => (

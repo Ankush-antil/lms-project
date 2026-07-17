@@ -166,6 +166,7 @@ const menuItems = {
         { name: '_section_content', icon: BookOpen, path: null },
         { name: 'Courses', icon: BookOpen, path: '/admin/courses' },
         { name: 'Subjects', icon: BookOpen, path: '/admin/subjects' },
+        { name: 'Study Material', icon: BookOpen, path: '/admin?tab=study-material' },
         { name: 'Activities', icon: FileText, path: '/admin/activities' },
         { name: 'Tools', icon: PenTool, path: '/admin/tools' },
 
@@ -923,8 +924,12 @@ const Sidebar = ({ role = 'Admin', collapsed, onToggle, isMobileOpen }) => {
     };
 
     const isActive = (path) => {
+        if (!path) return false;
+        if (path.includes('?')) {
+            return (location.pathname + location.search).startsWith(path);
+        }
         const baseRolePath = `/${safeRole.toLowerCase()}`;
-        if (path === baseRolePath) return location.pathname === path;
+        if (path === baseRolePath) return location.pathname === path && !location.search;
         return location.pathname.startsWith(path);
     };
 

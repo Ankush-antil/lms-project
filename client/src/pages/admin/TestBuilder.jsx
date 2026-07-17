@@ -3931,6 +3931,42 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
         setIsAiGeneratorOpen(true);
     };
 
+    const handleAddPage = () => {
+        let basePath = '/admin/activities-builder';
+        if (user?.role === 'Institute') basePath = '/institute/activities-builder';
+        else if (user?.role === 'Editor') basePath = '/editor/activities-builder';
+        else if (user?.role === 'Teacher') basePath = '/teacher/activities-builder';
+
+        const params = new URLSearchParams();
+        if (connectData?.institute) params.set('institute', connectData.institute);
+        if (connectData?.course) params.set('course', connectData.course);
+        if (connectData?.subject) params.set('subject', connectData.subject);
+        if (connectData?.index) params.set('inbox', connectData.index);
+        
+        const wasLocked = searchParams.get('locked') === 'true';
+        if (wasLocked) {
+            params.set('locked', 'true');
+        }
+
+        // Navigate to the builder path with parameters
+        navigate(`${basePath}?${params.toString()}`);
+        
+        // Also clear local builder state to ensure fresh initialization
+        setFormElements([]);
+        setPublishModeSelected('connected');
+        setConnectData(prev => ({
+            ...prev,
+            name: 'Untitled Form',
+            date: new Date().toISOString().split('T')[0],
+            isAssigned: false,
+            duration: '',
+            passingMarks: '',
+            description: ''
+        }));
+        setIsConnected(true);
+        toast.success("Ready to create a new test in the same inbox!");
+    };
+
     const handleSaveAsDraft = () => {
         handlePublish('draft', null);
     };
@@ -5893,7 +5929,7 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                                 )}
                                 <div className="flex items-center gap-2">
                                     <button
-                                        onClick={() => toast.success("Page added! Page splits let you build multi-page survey forms.")}
+                                        onClick={handleAddPage}
                                         className="flex items-center gap-1.5 px-4 py-2 text-slate-600 hover:bg-slate-50 rounded-xl text-sm font-semibold transition-all whitespace-nowrap"
                                     >
                                         <Plus size={16} />

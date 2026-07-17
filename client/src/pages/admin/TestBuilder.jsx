@@ -2226,6 +2226,12 @@ const TestBuilder = () => {
     useEffect(() => {
         const studentIdParam = searchParams.get('studentId');
         const inboxIdParam = searchParams.get('inboxId');
+        
+        const instParam = searchParams.get('institute');
+        const courseParam = searchParams.get('course');
+        const subjectParam = searchParams.get('subject');
+        const inboxParam = searchParams.get('inbox');
+        
         if (studentIdParam && inboxIdParam) {
             const fetchStudentDetails = async () => {
                 try {
@@ -2235,15 +2241,16 @@ const TestBuilder = () => {
                         const studentCourse = data.studentProfile?.course?.name || data.studentProfile?.course || '';
                         const studentSubject = data.studentProfile?.subject || '';
 
-                        setConnectData({
+                        setConnectData(prev => ({
+                            ...prev,
                             name: `Test for ${data.name}`,
                             institute: studentInstitute,
-                            course: studentCourse,
+                            course: studentCourse ? [studentCourse] : [],
                             subject: studentSubject,
                             date: new Date().toISOString().split('T')[0],
                             index: inboxIdParam,
                             activity: 'Quiz'
-                        });
+                        }));
                         setIsConnected(true);
                     }
                 } catch (err) {
@@ -2251,6 +2258,17 @@ const TestBuilder = () => {
                 }
             };
             fetchStudentDetails();
+        } else if (instParam || courseParam || subjectParam || inboxParam) {
+            setConnectData(prev => ({
+                ...prev,
+                institute: instParam || '',
+                course: courseParam ? [courseParam] : [],
+                subject: subjectParam || '',
+                index: inboxParam || 'Inbox 1',
+                date: new Date().toISOString().split('T')[0],
+                activity: 'Quiz'
+            }));
+            setIsConnected(true);
         }
     }, [searchParams]);
 
@@ -5933,6 +5951,12 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                     onClose={() => setIsConnectModalOpen(false)}
                     onSave={handleConnectSave}
                     initialData={connectData}
+                    disabledFields={{
+                        institute: searchParams.get('locked') === 'true' || searchParams.get('institute') ? true : false,
+                        course: searchParams.get('locked') === 'true' || searchParams.get('course') ? true : false,
+                        subject: searchParams.get('locked') === 'true' || searchParams.get('subject') ? true : false,
+                        index: searchParams.get('locked') === 'true' || searchParams.get('inbox') ? true : false
+                    }}
                 />
 
                 {isDescriptionModalOpen && (

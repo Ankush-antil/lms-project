@@ -37,7 +37,11 @@ const {
     restoreApplication,
     permanentlyDeleteApplication,
     importApplications,
-    deleteSubject
+    deleteSubject,
+    getActivityTypes,
+    createActivityType,
+    updateActivityType,
+    deleteActivityType
 } = require('../../controllers/admin/setupController');
 const { toggleInstituteFlag, toggleCourseFlag } = require('../../controllers/admin/setupController');
 const { protect, admin, adminOrEditor, adminOrInstitute, parseUserOptional } = require('../../middleware/authMiddleware');
@@ -153,6 +157,15 @@ router.route('/applications/:id/status')
 
 router.route('/applications/:id')
     .delete(protect, adminOrInstitute, deleteApplication);
+
+// Activity types routes
+router.route('/activity-types')
+    .get(protect, getActivityTypes)
+    .post(protect, createActivityType);
+
+router.route('/activity-types/:id')
+    .put(protect, updateActivityType)
+    .delete(protect, deleteActivityType);
 
 module.exports = router;
 

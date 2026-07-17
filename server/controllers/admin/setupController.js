@@ -1710,6 +1710,98 @@ const importInstitutes = asyncHandler(async (req, res) => {
     });
 });
 
+const getActivityTypes = asyncHandler(async (req, res) => {
+    const ActivityType = require('../../models/ActivityType');
+    const types = await ActivityType.find({});
+    res.status(200).json(types);
+});
+
+const createActivityType = asyncHandler(async (req, res) => {
+    const ActivityType = require('../../models/ActivityType');
+    const { name } = req.body;
+    if (!name || !name.trim()) {
+        res.status(400);
+        throw new Error('Activity type name is required');
+    }
+
+    const reserved = ['viva', 'exam', 'assignment', 'test', 'quiz'];
+    if (reserved.includes(name.trim().toLowerCase())) {
+        res.status(400);
+        throw new Error('This activity type is reserved and cannot be created as a custom type');
+    }
+    
+    // Check if it already exists
+    const exists = await ActivityType.findOne({ name: name.trim() });
+    if (exists) {
+        res.status(400);
+        throw new Error('Activity type already exists');
+    }
+    
+    const newType = await ActivityType.create({
+        name: name.trim(),
+        createdBy: req.user._id
+    });
+    
+    res.status(201).json(newType);
+});
+
+const updateActivityType = asyncHandler(async (req, res) => {
+    const ActivityType = require('../../models/ActivityType');
+    const { name } = req.body;
+    if (!name || !name.trim()) {
+        res.status(400);
+        throw new Error('Activity type name is required');
+    }
+
+    const reserved = ['viva', 'exam', 'assignment', 'test', 'quiz'];
+    if (reserved.includes(name.trim().toLowerCase())) {
+        res.status(400);
+        throw new Error('This activity type is reserved and cannot be used');
+    }
+    
+    const type = await ActivityType.findById(req.params.id);
+    if (!type) {
+        res.status(404);
+        throw new Error('Activity type not found');
+    }
+    
+    // Check ownership
+    if (type.createdBy.toString() !== req.user._id.toString()) {
+        res.status(403);
+        throw new Error('You are not authorized to edit this activity type');
+    }
+    
+    // Check if name conflict
+    const exists = await ActivityType.findOne({ name: name.trim(), _id: { $ne: req.params.id } });
+    if (exists) {
+        res.status(400);
+        throw new Error('Activity type name already exists');
+    }
+    
+    type.name = name.trim();
+    await type.save();
+    
+    res.status(200).json(type);
+});
+
+const deleteActivityType = asyncHandler(async (req, res) => {
+    const ActivityType = require('../../models/ActivityType');
+    const type = await ActivityType.findById(req.params.id);
+    if (!type) {
+        res.status(404);
+        throw new Error('Activity type not found');
+    }
+    
+    // Check ownership
+    if (type.createdBy.toString() !== req.user._id.toString()) {
+        res.status(403);
+        throw new Error('You are not authorized to delete this activity type');
+    }
+    
+    await type.deleteOne();
+    res.status(200).json({ message: 'Activity type deleted successfully' });
+});
+
 module.exports = {
     getInstitutes,
     createInstitute,
@@ -1750,5 +1842,10 @@ module.exports = {
     permanentlyDeleteApplication,
     importApplications,
     toggleCourseFlag,
-    deleteSubject
+    deleteSubject,
+    
+    getActivityTypes,
+    createActivityType,
+    updateActivityType,
+    deleteActivityType
 };

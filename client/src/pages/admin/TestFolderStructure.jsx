@@ -11,6 +11,57 @@ import {
 } from 'lucide-react';
 
 
+const getSubjectRelativeInboxForTest = (courseName, subjectName, rawInbox, courses) => {
+    if (!rawInbox || !courseName || !subjectName || !courses || courses.length === 0) {
+        return rawInbox;
+    }
+    const course = courses.find(c => c.name?.toLowerCase() === courseName.toLowerCase());
+    if (!course) return rawInbox;
+
+    const subjects = course.subjects || [];
+    const durations = course.subjectDurations || [];
+    const totalDuration = course.duration || 5;
+
+    let currentDayIndex = 1;
+    const mapping = [];
+
+    if (subjects && subjects.length > 0) {
+        subjects.forEach(subjName => {
+            const d = durations.find(dur => dur.subjectName?.toLowerCase() === subjName.toLowerCase());
+            if (d) {
+                const subName = d.subjectName;
+                const subDur = Number(d.duration) || 0;
+                const subDays = [];
+                for (let i = 1; i <= subDur; i++) {
+                    if (currentDayIndex <= totalDuration) {
+                        subDays.push({
+                            dayNum: i,
+                            id: `Inbox ${currentDayIndex}`
+                        });
+                        currentDayIndex++;
+                    }
+                }
+                if (subDays.length > 0) {
+                    mapping.push({
+                        subjectName: subName,
+                        days: subDays
+                    });
+                }
+            }
+        });
+    }
+
+    const matchedGroup = mapping.find(m => m.subjectName.toLowerCase() === subjectName.toLowerCase());
+    if (matchedGroup) {
+        const inboxNorm = rawInbox.trim().toLowerCase();
+        const foundDay = matchedGroup.days.find(d => d.id.trim().toLowerCase() === inboxNorm);
+        if (foundDay) {
+            return `Inbox ${foundDay.dayNum}`;
+        }
+    }
+    return rawInbox;
+};
+
 const TestFolderStructure = ({ isOpen, onClose, tests, onOpenResponses, onDelete, onImportSuccess, onRenameSuccess }) => {
     const { user } = useAuth();
     const navigate = useNavigate();
@@ -244,7 +295,8 @@ const TestFolderStructure = ({ isOpen, onClose, tests, onOpenResponses, onDelete
             const inst = (test.institute || 'Unassigned Institute').trim();
             const crs = (test.course || 'Unassigned Course').trim();
             const subj = (test.subject || 'Unassigned Subject').trim();
-            const inbox = (test.index || 'Inbox 1').trim();
+            const rawInbox = (test.index || 'Inbox 1').trim();
+            const inbox = getSubjectRelativeInboxForTest(crs, subj, rawInbox, coursesList);
 
             if (!tree[inst]) {
                 tree[inst] = {};
@@ -275,7 +327,8 @@ const TestFolderStructure = ({ isOpen, onClose, tests, onOpenResponses, onDelete
             const inst = (t.institute || 'Unassigned Institute').trim();
             const crs = (t.course || 'Unassigned Course').trim();
             const subj = (t.subject || 'Unassigned Subject').trim();
-            const inbox = (t.index || 'Inbox 1').trim();
+            const rawInbox = (t.index || 'Inbox 1').trim();
+            const inbox = getSubjectRelativeInboxForTest(crs, subj, rawInbox, coursesList);
 
             if (path.length >= 1 && inst !== path[0]) return;
             if (path.length >= 2 && crs !== path[1]) return;
@@ -364,7 +417,8 @@ const TestFolderStructure = ({ isOpen, onClose, tests, onOpenResponses, onDelete
                 const inst = (t.institute || 'Unassigned Institute').trim();
                 const crs = (t.course || 'Unassigned Course').trim();
                 const subj = (t.subject || 'Unassigned Subject').trim();
-                const inbox = (t.index || 'Inbox 1').trim();
+                const rawInbox = (t.index || 'Inbox 1').trim();
+                const inbox = getSubjectRelativeInboxForTest(crs, subj, rawInbox, coursesList);
 
                 if (path.length >= 1 && inst !== path[0]) return false;
                 if (path.length >= 2 && crs !== path[1]) return false;
@@ -383,7 +437,8 @@ const TestFolderStructure = ({ isOpen, onClose, tests, onOpenResponses, onDelete
             filteredTests.forEach(t => {
                 const crs = (t.course || 'Unassigned Course').trim().replace(/[^a-z0-9]/gi, ' ');
                 const subj = (t.subject || 'Unassigned Subject').trim().replace(/[^a-z0-9]/gi, ' ');
-                const inbox = (t.index || 'Inbox 1').trim().replace(/[^a-z0-9]/gi, ' ');
+                const rawInbox = (t.index || 'Inbox 1').trim();
+                const inbox = getSubjectRelativeInboxForTest(t.course, t.subject, rawInbox, coursesList).replace(/[^a-z0-9]/gi, ' ');
                 const testTitle = (t.title || 'Untitled Test').trim().replace(/[^a-z0-9]/gi, ' ');
 
                 let relativePath = '';

@@ -713,10 +713,6 @@ const ViewTestResult = ({ isSharedView = false, submissionId = null }) => {
                                                                     <span>Teacher Evaluation</span>
                                                                 </button>
                                                             )}
-                                                            <div className="flex items-center gap-1 px-2.5 py-1 bg-blue-50 text-blue-600 rounded-md text-[10px] font-bold border border-blue-100">
-                                                                <Cpu size={11} />
-                                                                <span>AI Auto check</span>
-                                                            </div>
                                                         </div>
                                                     </div>
                                                 </div>

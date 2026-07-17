@@ -6,11 +6,12 @@ import toast from 'react-hot-toast';
 import axios from 'axios';
 import {
     X, Search, FolderOpen, School, Book, Layers, LayoutGrid, ChevronDown,
-    FileText, BarChart2, Link2, Check, Edit, Trash2, Folder, Download, Upload, Plus
+    FileText, BarChart2, Link2, Check, Edit, Trash2, Folder, Download, Upload, Plus, ChevronLeft,
+    Pencil, Sliders
 } from 'lucide-react';
 
 
-const TestFolderStructure = ({ isOpen, onClose, tests, onOpenResponses, onDelete, onImportSuccess }) => {
+const TestFolderStructure = ({ isOpen, onClose, tests, onOpenResponses, onDelete, onImportSuccess, onRenameSuccess }) => {
     const { user } = useAuth();
     const navigate = useNavigate();
     const fileInputRef = useRef(null);
@@ -60,6 +61,16 @@ const TestFolderStructure = ({ isOpen, onClose, tests, onOpenResponses, onDelete
     const [selectedExplorerFolderName, setSelectedExplorerFolderName] = useState(null);
     const [contextMenu, setContextMenu] = useState(null);
 
+    const [localTests, setLocalTests] = useState([]);
+    const [renameModalData, setRenameModalData] = useState(null);
+    const [newRenameTitle, setNewRenameTitle] = useState('');
+
+    useEffect(() => {
+        if (tests) {
+            setLocalTests(tests);
+        }
+    }, [tests]);
+
     const handleCreateFormClick = () => {
         const inst = explorerPath[0] || '';
         const crs = explorerPath[1] || '';
@@ -77,6 +88,54 @@ const TestFolderStructure = ({ isOpen, onClose, tests, onOpenResponses, onDelete
                     : '/admin/activities-builder'));
                     
         navigate(`${builderPath}?institute=${encodeURIComponent(inst)}&course=${encodeURIComponent(crs)}&subject=${encodeURIComponent(subj)}&inbox=${encodeURIComponent(inbox)}&locked=true`);
+    };
+
+    const handleBackClick = () => {
+        if (explorerPath.length > 0) {
+            setExplorerPath(prev => prev.slice(0, -1));
+            setSelectedTreePath(prev => prev.slice(0, -1));
+            setSelectedExplorerFolderName(null);
+            setSelectedExplorerTestId(null);
+        } else {
+            onClose();
+        }
+    };
+
+    const handleRenameTest = (testId, currentTitle) => {
+        setRenameModalData({ id: testId, title: currentTitle });
+        setNewRenameTitle(currentTitle);
+    };
+
+    const handleSaveRenameSubmit = async () => {
+        if (!renameModalData || !newRenameTitle || !newRenameTitle.trim()) return;
+        
+        const testId = renameModalData.id;
+        const oldText = renameModalData.title;
+        const newTitleClean = newRenameTitle.trim();
+        
+        if (newTitleClean === oldText) {
+            setRenameModalData(null);
+            return;
+        }
+
+        // Optimistic local update
+        setLocalTests(prev => prev.map(t => t._id === testId ? { ...t, title: newTitleClean } : t));
+        setRenameModalData(null);
+
+        try {
+            await axios.put(`/api/tests/${testId}`, {
+                testDetails: { title: newTitleClean }
+            });
+            toast.success('Test renamed successfully!');
+            if (typeof onRenameSuccess === 'function') {
+                onRenameSuccess(testId, newTitleClean);
+            }
+        } catch (err) {
+            console.error("Error renaming test:", err);
+            toast.error(err.response?.data?.message || 'Failed to rename test');
+            // Revert back on error
+            setLocalTests(prev => prev.map(t => t._id === testId ? { ...t, title: oldText } : t));
+        }
     };
 
     const handleContextMenu = (e) => {
@@ -166,7 +225,7 @@ const TestFolderStructure = ({ isOpen, onClose, tests, onOpenResponses, onDelete
         });
 
         // 2. Populate tests into the tree
-        tests.forEach(test => {
+        localTests.forEach(test => {
             if (!test) return;
             const inst = (test.institute || 'Unassigned Institute').trim();
             const crs = (test.course || 'Unassigned Course').trim();
@@ -197,7 +256,7 @@ const TestFolderStructure = ({ isOpen, onClose, tests, onOpenResponses, onDelete
         let subjectsInPath = new Set();
         let inboxesInPath = new Set();
 
-        tests.forEach(t => {
+        localTests.forEach(t => {
             if (!t) return;
             const inst = (t.institute || 'Unassigned Institute').trim();
             const crs = (t.course || 'Unassigned Course').trim();
@@ -287,7 +346,7 @@ const TestFolderStructure = ({ isOpen, onClose, tests, onOpenResponses, onDelete
             const zip = new JSZip();
 
             // Filter tests matching the path
-            const filteredTests = tests.filter(t => {
+            const filteredTests = localTests.filter(t => {
                 const inst = (t.institute || 'Unassigned Institute').trim();
                 const crs = (t.course || 'Unassigned Course').trim();
                 const subj = (t.subject || 'Unassigned Subject').trim();
@@ -483,6 +542,15 @@ const TestFolderStructure = ({ isOpen, onClose, tests, onOpenResponses, onDelete
                 {/* WINDOW TITLE BAR */}
                 <div className="flex items-center justify-between p-5 border-b border-slate-150 bg-slate-50">
                     <div className="flex items-center gap-4">
+                        {/* Back Button */}
+                        <button
+                            onClick={handleBackClick}
+                            className="flex items-center gap-1 px-3 py-1.5 bg-slate-200 text-slate-755 hover:bg-slate-300 rounded-xl text-[10px] font-black tracking-wider uppercase transition-all cursor-pointer shadow-sm active:scale-95"
+                            title={explorerPath.length > 0 ? "Go back to parent folder" : "Close explorer"}
+                        >
+                            <ChevronLeft size={12} />
+                            <span>Back</span>
+                        </button>
                         <h3 className="text-sm font-bold text-slate-700 flex items-center gap-2">
                             <FolderOpen size={16} className="text-[#0b1329]" />
                             <span>LMS Directory Explorer</span>
@@ -496,17 +564,6 @@ const TestFolderStructure = ({ isOpen, onClose, tests, onOpenResponses, onDelete
                             <Upload size={12} />
                             <span>Import Backup</span>
                         </button>
-                        {/* Create Form Button */}
-                        {explorerPath.length >= 3 && (
-                            <button
-                                onClick={handleCreateFormClick}
-                                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-[10px] font-black tracking-wider uppercase transition-all cursor-pointer shadow-sm active:scale-95"
-                                title="Create new test in this folder"
-                            >
-                                <Plus size={12} />
-                                <span>Create Form</span>
-                            </button>
-                        )}
                         <input
                             type="file"
                             ref={fileInputRef}
@@ -731,9 +788,10 @@ const TestFolderStructure = ({ isOpen, onClose, tests, onOpenResponses, onDelete
 
                     {/* 2. GRID PANEL (MIDDLE VIEW) */}
                     <div 
-                        className="flex-1 overflow-y-auto p-5 custom-scrollbar bg-slate-50/10"
+                        className="flex-1 flex flex-col relative"
                         onContextMenu={handleContextMenu}
                     >
+                        <div className="flex-1 overflow-y-auto p-5 custom-scrollbar bg-slate-50/10">
 
                         {explorerSearch ? (
                             /* Flat Search Results Mode */
@@ -743,12 +801,12 @@ const TestFolderStructure = ({ isOpen, onClose, tests, onOpenResponses, onDelete
                                         Search Results for "{explorerSearch}"
                                     </span>
                                     <span className="text-[10px] bg-slate-100 text-[#0b1329] px-2 py-0.5 rounded font-black">
-                                        {tests.filter(t => (t.title || '').toLowerCase().includes(explorerSearch.toLowerCase())).length} Found
+                                        {localTests.filter(t => (t.title || '').toLowerCase().includes(explorerSearch.toLowerCase())).length} Found
                                     </span>
                                 </div>
 
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                                    {tests
+                                    {localTests
                                         .filter(t => (t.title || '').toLowerCase().includes(explorerSearch.toLowerCase()))
                                         .map(test => (
                                             <div
@@ -1088,41 +1146,45 @@ const TestFolderStructure = ({ isOpen, onClose, tests, onOpenResponses, onDelete
 
                                 {/* Level 4: List Tests in Inbox */}
                                 {explorerPath.length === 4 && (
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
                                         {(folderTree[explorerPath[0]]?.[explorerPath[1]]?.[explorerPath[2]]?.[explorerPath[3]] || []).map(test => (
                                             <div
                                                 key={test._id}
-                                                className="p-3 rounded-xl border border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm transition-all flex items-center justify-between gap-3 select-none"
+                                                className="p-4.5 rounded-2xl border border-slate-200 bg-white hover:border-slate-350 hover:shadow-md transition-all flex flex-col gap-4 select-none"
                                             >
-                                                <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                                                    <div className="text-[#0b1329] flex-shrink-0">
-                                                        <FileText size={18} />
+                                                {/* Test Info */}
+                                                <div className="flex items-start gap-3 min-w-0">
+                                                    <div className="text-indigo-650 bg-indigo-50 p-2.5 rounded-xl flex-shrink-0 mt-0.5">
+                                                        <FileText size={20} />
                                                     </div>
                                                     <div className="min-w-0 flex-1">
-                                                        <h5 className="font-bold text-slate-800 text-xs truncate" title={test.title || 'Untitled'}>
+                                                        <h5 className="font-bold text-slate-800 text-sm whitespace-normal break-words leading-snug" title={test.title || 'Untitled'}>
                                                             {test.title || 'Untitled'}
                                                         </h5>
-                                                        <p className="text-[10px] text-slate-400 font-medium mt-0.5">
-                                                            {test.questions?.length || 0} Qs &bull; {test.settings?.duration || 0} mins
+                                                        <p className="text-xs text-slate-400 font-semibold mt-1">
+                                                            {test.questions?.length || 0} Questions &bull; {test.settings?.duration || 0} mins
                                                         </p>
                                                     </div>
                                                 </div>
 
+                                                {/* Divider */}
+                                                <div className="border-t border-slate-100 my-0.5"></div>
+
                                                 {/* Test Action Buttons */}
-                                                <div className="flex items-center gap-1 flex-shrink-0">
+                                                <div className="flex items-center justify-center gap-1.5 mt-auto pt-1 flex-wrap">
                                                     {/* Copy Link */}
                                                     <button
                                                         onClick={(e) => {
                                                             e.stopPropagation();
                                                             handleCopyUrl(test._id);
                                                         }}
-                                                        className={`p-1.5 border rounded-lg transition-all ${copiedId === test._id
+                                                        className={`p-2 border rounded-xl transition-all cursor-pointer ${copiedId === test._id
                                                                 ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
                                                                 : 'bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-600'
                                                             }`}
                                                         title="Copy Link"
                                                     >
-                                                        {copiedId === test._id ? <Check size={12} /> : <Link2 size={12} />}
+                                                        {copiedId === test._id ? <Check size={13} /> : <Link2 size={13} />}
                                                     </button>
 
                                                     {/* View Responses */}
@@ -1132,10 +1194,10 @@ const TestFolderStructure = ({ isOpen, onClose, tests, onOpenResponses, onDelete
                                                             onClose();
                                                             onOpenResponses(test, 'connected');
                                                         }}
-                                                        className="p-1.5 border border-slate-200 bg-slate-50 hover:bg-slate-100 hover:border-slate-300 hover:text-[#0b1329] rounded-lg text-slate-600 transition-all"
+                                                        className="p-2 border border-slate-200 bg-slate-50 hover:bg-slate-100 hover:border-slate-350 hover:text-[#0b1329] rounded-xl text-slate-655 transition-all cursor-pointer"
                                                         title="View Responses"
                                                     >
-                                                        <BarChart2 size={12} />
+                                                        <BarChart2 size={13} />
                                                     </button>
 
                                                     {/* Download Test */}
@@ -1144,22 +1206,34 @@ const TestFolderStructure = ({ isOpen, onClose, tests, onOpenResponses, onDelete
                                                             e.stopPropagation();
                                                             handleDownloadTest(test);
                                                         }}
-                                                        className="p-1.5 border border-slate-200 bg-slate-50 hover:bg-slate-100 hover:border-slate-300 hover:text-[#0b1329] rounded-lg text-slate-600 transition-all cursor-pointer"
+                                                        className="p-2 border border-slate-200 bg-slate-50 hover:bg-slate-100 hover:border-slate-350 hover:text-[#0b1329] rounded-xl text-slate-655 transition-all cursor-pointer"
                                                         title="Download Test JSON"
                                                     >
-                                                        <Download size={12} />
+                                                        <Download size={13} />
                                                     </button>
 
-                                                    {/* Edit Test */}
+                                                    {/* Rename Test */}
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleRenameTest(test._id, test.title);
+                                                        }}
+                                                        className="p-2 border border-slate-200 bg-slate-50 hover:bg-slate-100 hover:border-slate-350 hover:text-indigo-650 rounded-xl text-slate-655 transition-all cursor-pointer"
+                                                        title="Rename Test"
+                                                    >
+                                                        <Pencil size={13} />
+                                                    </button>
+
+                                                    {/* Edit Test (Builder) */}
                                                     <button
                                                         onClick={(e) => {
                                                             e.stopPropagation();
                                                             navigate(`${user?.role === 'Institute' ? '/institute/activities/edit' : (user?.role === 'Editor' ? '/editor/activities-edit' : '/admin/activities-edit')}/${test._id}`);
                                                         }}
-                                                        className="p-1.5 border border-slate-200 bg-slate-50 hover:bg-slate-100 hover:border-slate-300 hover:text-[#0b1329] rounded-lg text-slate-600 transition-all"
-                                                        title="Edit Test"
+                                                        className="p-2 border border-slate-200 bg-slate-50 hover:bg-slate-100 hover:border-slate-355 hover:text-indigo-650 rounded-xl text-slate-655 transition-all cursor-pointer"
+                                                        title="Configure Test Builder"
                                                     >
-                                                        <Edit size={12} />
+                                                        <Sliders size={13} />
                                                     </button>
 
                                                     {/* Delete Test */}
@@ -1168,10 +1242,10 @@ const TestFolderStructure = ({ isOpen, onClose, tests, onOpenResponses, onDelete
                                                             e.stopPropagation();
                                                             onDelete(test._id);
                                                         }}
-                                                        className="p-1.5 border border-rose-100 bg-rose-50 hover:bg-rose-105 hover:border-rose-200 text-rose-600 rounded-lg transition-all"
+                                                        className="p-2 border border-rose-100 bg-rose-50 hover:bg-rose-100 hover:border-rose-200 text-rose-600 rounded-xl transition-all cursor-pointer"
                                                         title="Delete Test"
                                                     >
-                                                        <Trash2 size={12} />
+                                                        <Trash2 size={13} />
                                                     </button>
                                                 </div>
                                             </div>
@@ -1185,11 +1259,73 @@ const TestFolderStructure = ({ isOpen, onClose, tests, onOpenResponses, onDelete
                                 )}
                             </div>
                         )}
+                        </div>
+                        {/* Floating Action Button */}
+                        {explorerPath.length === 4 && (
+                            <button
+                                onClick={handleCreateFormClick}
+                                className="absolute bottom-6 right-6 flex items-center gap-2 px-5 py-3 bg-[#0b1329] text-white hover:bg-slate-800 rounded-full text-xs font-bold shadow-xl hover:shadow-2xl transition-all cursor-pointer active:scale-95 z-40"
+                                title="Create new test in this inbox"
+                            >
+                                <Plus size={16} />
+                                <span>Create Form</span>
+                            </button>
+                        )}
                     </div>
 
 
                 </div>
             </div>
+            {/* Custom Rename Modal */}
+            {renameModalData && (
+                <div className="fixed inset-0 z-[220] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 font-sans animate-fade-in">
+                    <div className="bg-white w-full max-w-md rounded-[24px] shadow-2xl border border-slate-100 overflow-hidden relative p-6 animate-slide-up space-y-4">
+                        <div className="flex items-center justify-between">
+                            <h4 className="text-sm font-black text-slate-800 flex items-center gap-2">
+                                <Edit size={16} className="text-[#0b1329]" />
+                                <span>Rename Test</span>
+                            </h4>
+                            <button
+                                onClick={() => setRenameModalData(null)}
+                                className="p-1.5 hover:bg-slate-100 rounded-full transition-colors cursor-pointer"
+                            >
+                                <X size={16} className="text-slate-400" />
+                            </button>
+                        </div>
+
+                        <div className="space-y-1.5">
+                            <label className="text-[10px] uppercase font-black tracking-wider text-slate-400">New Test Name</label>
+                            <input
+                                type="text"
+                                value={newRenameTitle}
+                                onChange={(e) => setNewRenameTitle(e.target.value)}
+                                className="w-full px-4 py-3 text-xs font-bold text-slate-800 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-400 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 placeholder-slate-400 transition-all"
+                                placeholder="Enter test name..."
+                                autoFocus
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') handleSaveRenameSubmit();
+                                }}
+                            />
+                        </div>
+
+                        <div className="flex items-center justify-end gap-2 pt-2">
+                            <button
+                                onClick={() => setRenameModalData(null)}
+                                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-550 rounded-xl text-xs font-bold transition-all cursor-pointer"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleSaveRenameSubmit}
+                                className="px-4 py-2 bg-[#0b1329] hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-all cursor-pointer"
+                            >
+                                Save Name
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Custom Context Menu */}
             {contextMenu && (
                 <div

@@ -811,6 +811,22 @@ const StudentTests = () => {
                 });
                 const normalized = config ? config.inboxId.trim().toLowerCase() : normalizedRaw;
 
+                // Find the subject this inbox belongs to
+                const inboxSubject = (() => {
+                    const foundGroup = subjectDaysMapping.find(g => 
+                        g.days.some(d => d.id.trim().toLowerCase() === normalized)
+                    );
+                    return foundGroup ? foundGroup.subjectName : null;
+                })();
+
+                // Filter out if test has a subject and it doesn't match the inbox's subject
+                if (inboxSubject && test.subject) {
+                    const testSubs = test.subject.split(',').map(s => s.trim().toLowerCase());
+                    const inboxSubNorm = inboxSubject.trim().toLowerCase();
+                    const hasMatch = testSubs.some(s => s === inboxSubNorm || inboxSubNorm.includes(s) || s.includes(inboxSubNorm));
+                    if (!hasMatch) return;
+                }
+
                 if (!acc[normalized]) acc[normalized] = [];
                 if (!acc[normalized].some(t => t._id === test._id)) {
                     acc[normalized].push(test);

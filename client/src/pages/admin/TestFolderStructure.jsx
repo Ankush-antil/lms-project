@@ -1163,22 +1163,22 @@ const TestFolderStructure = ({ isOpen, onClose, tests, onOpenResponses, onDelete
                                         {(folderTree[explorerPath[0]]?.[explorerPath[1]]?.[explorerPath[2]]?.[explorerPath[3]] || []).map(test => (
                                             <div
                                                 key={test._id}
-                                                className={`p-4.5 rounded-2xl border transition-all flex flex-col gap-3 select-none ${
+                                                className={`p-3.5 rounded-2xl border transition-all flex flex-col gap-2.5 select-none ${
                                                     test._id === highlightedTestId 
                                                         ? 'border-indigo-500 bg-indigo-50/20 ring-2 ring-indigo-500 ring-offset-1 animate-pulse' 
                                                         : 'border-slate-200/80 bg-slate-50 hover:bg-slate-100/50 hover:border-slate-350 hover:shadow-md'
                                                 }`}
                                             >
                                                 {/* Test Info */}
-                                                <div className="flex items-start gap-2.5 min-w-0">
-                                                    <div className="text-[#0b1329] bg-white border border-slate-100 shadow-sm p-2 rounded-xl flex-shrink-0 mt-0.5">
-                                                        <FileText size={18} />
+                                                <div className="flex items-start gap-2 min-w-0">
+                                                    <div className="text-[#0b1329] bg-white border border-slate-100 shadow-sm p-1.5 rounded-xl flex-shrink-0 mt-0.5">
+                                                        <FileText size={15} />
                                                     </div>
                                                     <div className="min-w-0 flex-1">
-                                                        <h5 className="font-bold text-slate-800 text-[13px] whitespace-normal break-words leading-snug" title={test.title || 'Untitled'}>
+                                                        <h5 className="font-bold text-slate-800 text-[11.5px] whitespace-normal break-words leading-snug" title={test.title || 'Untitled'}>
                                                             {test.title || 'Untitled'}
                                                         </h5>
-                                                        <p className="text-[10px] text-slate-400 font-semibold mt-0.5">
+                                                        <p className="text-[9px] text-slate-400 font-semibold mt-0.5">
                                                             {test.questions?.length || 0} Questions &bull; {test.settings?.duration || 0} mins
                                                         </p>
                                                     </div>
@@ -1195,13 +1195,13 @@ const TestFolderStructure = ({ isOpen, onClose, tests, onOpenResponses, onDelete
                                                             e.stopPropagation();
                                                             handleCopyUrl(test._id);
                                                         }}
-                                                        className={`p-2 border rounded-xl transition-all cursor-pointer ${copiedId === test._id
+                                                        className={`p-1.5 border rounded-xl transition-all cursor-pointer ${copiedId === test._id
                                                                 ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
                                                                 : 'bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-600'
                                                             }`}
                                                         title="Copy Link"
                                                     >
-                                                        {copiedId === test._id ? <Check size={13} /> : <Link2 size={13} />}
+                                                        {copiedId === test._id ? <Check size={12} /> : <Link2 size={12} />}
                                                     </button>
 
                                                     {/* View Responses */}
@@ -1211,10 +1211,10 @@ const TestFolderStructure = ({ isOpen, onClose, tests, onOpenResponses, onDelete
                                                             onClose();
                                                             onOpenResponses(test, 'connected');
                                                         }}
-                                                        className="p-2 border border-slate-200 bg-slate-50 hover:bg-slate-100 hover:border-slate-350 hover:text-[#0b1329] rounded-xl text-slate-655 transition-all cursor-pointer"
+                                                        className="p-1.5 border border-slate-200 bg-slate-50 hover:bg-slate-100 hover:border-slate-350 hover:text-[#0b1329] rounded-xl text-slate-655 transition-all cursor-pointer"
                                                         title="View Responses"
                                                     >
-                                                        <BarChart2 size={13} />
+                                                        <BarChart2 size={12} />
                                                     </button>
 
                                                     {/* Download Test */}
@@ -1223,10 +1223,10 @@ const TestFolderStructure = ({ isOpen, onClose, tests, onOpenResponses, onDelete
                                                             e.stopPropagation();
                                                             handleDownloadTest(test);
                                                         }}
-                                                        className="p-2 border border-slate-200 bg-slate-50 hover:bg-slate-100 hover:border-slate-350 hover:text-[#0b1329] rounded-xl text-slate-655 transition-all cursor-pointer"
+                                                        className="p-1.5 border border-slate-200 bg-slate-50 hover:bg-slate-100 hover:border-slate-350 hover:text-[#0b1329] rounded-xl text-slate-655 transition-all cursor-pointer"
                                                         title="Download Test JSON"
                                                     >
-                                                        <Download size={13} />
+                                                        <Download size={12} />
                                                     </button>
 
                                                     {/* Rename Test */}
@@ -1235,10 +1235,10 @@ const TestFolderStructure = ({ isOpen, onClose, tests, onOpenResponses, onDelete
                                                             e.stopPropagation();
                                                             handleRenameTest(test._id, test.title);
                                                         }}
-                                                        className="p-2 border border-slate-200 bg-slate-50 hover:bg-slate-100 hover:border-slate-350 hover:text-indigo-650 rounded-xl text-slate-655 transition-all cursor-pointer"
+                                                        className="p-1.5 border border-slate-200 bg-slate-50 hover:bg-slate-100 hover:border-slate-350 hover:text-indigo-650 rounded-xl text-slate-655 transition-all cursor-pointer"
                                                         title="Rename Test"
                                                     >
-                                                        <Pencil size={13} />
+                                                        <Pencil size={12} />
                                                     </button>
 
                                                     {/* Edit Test (Builder) */}
@@ -1247,10 +1247,10 @@ const TestFolderStructure = ({ isOpen, onClose, tests, onOpenResponses, onDelete
                                                             e.stopPropagation();
                                                             navigate(`${user?.role === 'Institute' ? '/institute/activities/edit' : (user?.role === 'Editor' ? '/editor/activities-edit' : '/admin/activities-edit')}/${test._id}`);
                                                         }}
-                                                        className="p-2 border border-slate-200 bg-slate-50 hover:bg-slate-100 hover:border-slate-355 hover:text-indigo-650 rounded-xl text-slate-655 transition-all cursor-pointer"
+                                                        className="p-1.5 border border-slate-200 bg-slate-50 hover:bg-slate-100 hover:border-slate-355 hover:text-indigo-650 rounded-xl text-slate-655 transition-all cursor-pointer"
                                                         title="Configure Test Builder"
                                                     >
-                                                        <Sliders size={13} />
+                                                        <Sliders size={12} />
                                                     </button>
 
                                                     {/* Delete Test */}
@@ -1259,10 +1259,10 @@ const TestFolderStructure = ({ isOpen, onClose, tests, onOpenResponses, onDelete
                                                             e.stopPropagation();
                                                             onDelete(test._id);
                                                         }}
-                                                        className="p-2 border border-rose-100 bg-rose-50 hover:bg-rose-100 hover:border-rose-200 text-rose-600 rounded-xl transition-all cursor-pointer"
+                                                        className="p-1.5 border border-rose-100 bg-rose-50 hover:bg-rose-100 hover:border-rose-200 text-rose-600 rounded-xl transition-all cursor-pointer"
                                                         title="Delete Test"
                                                     >
-                                                        <Trash2 size={13} />
+                                                        <Trash2 size={12} />
                                                     </button>
                                                 </div>
                                             </div>

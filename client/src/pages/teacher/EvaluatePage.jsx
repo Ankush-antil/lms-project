@@ -81,6 +81,7 @@ const EvaluatePage = () => {
     const [overallCommentInput, setOverallCommentInput] = useState('');
     const [postingOverallComment, setPostingOverallComment] = useState(false);
     const [loadingOverallComments, setLoadingOverallComments] = useState(false);
+    const [aiChecking, setAiChecking] = useState({});
 
     useEffect(() => {
         if (expandedId && submissions.length > 0) {
@@ -237,6 +238,74 @@ const EvaluatePage = () => {
             ...prev,
             [subId]: { ...(prev[subId] || {}), [qIdx]: newVideoData }
         }));
+    };
+
+    const handleAiAutoCheck = async (submission, idx) => {
+        const key = `${submission._id}-${idx}`;
+        if (aiChecking[key]) return;
+
+        const q = submission.test?.questions?.[idx];
+        const ans = submission.answers[idx];
+        if (!q || !ans) {
+            toast.error("Question or answer details missing");
+            return;
+        }
+
+        const maxMarks = Number(q.marks || 10);
+        const questionText = ans.questionText || q.text || "Question";
+        const studentAnswer = ans.textAnswer || (ans.audioData ? "Audio Answer Provided" : ans.videoData ? "Video Answer Provided" : "");
+        const correctAnswer = q.correctAnswer || "";
+
+        if (!studentAnswer || studentAnswer.trim() === "No answer provided") {
+            toast.error("No student answer to evaluate!");
+            return;
+        }
+
+        setAiChecking(prev => ({ ...prev, [key]: true }));
+
+        const promptText = `
+You are an expert AI evaluator grading a student's answer.
+Grade the answer based on correctness compared to the question and correct/model answer.
+
+Question: "${questionText}"
+Correct Answer / Model Answer: "${correctAnswer}"
+Max Marks for this question: ${maxMarks}
+Student's Answer: "${studentAnswer}"
+
+Evaluate and return a JSON object containing two fields:
+1. "score": a number from 0 to ${maxMarks} (decimals allowed up to 1 decimal place, e.g., 8.5) representing the student's score. Be fair and constructive.
+2. "notes": a brief 1-2 sentence constructive explanation/notes for the student, or explanation of the grading.
+
+Return ONLY the raw JSON object, without any markdown formatting or surrounding text.
+`;
+
+        try {
+            const res = await axios.post('/api/ai/chat', { prompt: promptText });
+            const text = res.data.text?.trim() || "";
+            
+            // Clean markdown block wrappers if present
+            let cleanText = text;
+            if (cleanText.startsWith("```")) {
+                cleanText = cleanText.replace(/^```[a-zA-Z]*\n/, "");
+                cleanText = cleanText.replace(/\n```$/, "");
+            }
+            cleanText = cleanText.trim();
+
+            const parsed = JSON.parse(cleanText);
+            const evaluatedScore = typeof parsed.score === 'number' ? parsed.score : Number(parsed.score || 0);
+            const evaluatedNotes = parsed.notes || "Auto-checked by AI.";
+
+            // Update the marks and feedback states!
+            setMark(submission._id, idx, Math.min(evaluatedScore, maxMarks).toString());
+            setFeedbackText(submission._id, idx, evaluatedNotes);
+
+            toast.success("AI Auto check complete!");
+        } catch (err) {
+            console.error("AI auto check failed:", err);
+            toast.error("AI Auto check failed. Please grade manually.");
+        } finally {
+            setAiChecking(prev => ({ ...prev, [key]: false }));
+        }
     };
 
     useEffect(() => {
@@ -932,8 +1001,20 @@ const EvaluatePage = () => {
                                                 <div key={idx} className="flex flex-col gap-4 border-b border-slate-100 last:border-b-0 pb-6 last:pb-0">
                                                     {/* Question Header Bar */}
                                                     <div className="flex justify-between items-center pb-2 border-b border-slate-100 gap-4">
-                                                        <h3 className="text-base font-bold text-slate-800 flex-1 text-left">
-                                                            Q{idx + 1}: {ans.questionText || "Question"}
+                                                        <h3 
+                                                            onClick={(e) => {
+                                                                const anchor = e.target.closest('a');
+                                                                if (anchor) {
+                                                                    e.preventDefault();
+                                                                    const url = anchor.getAttribute('href');
+                                                                    if (url) {
+                                                                        window.open(url, '_blank');
+                                                                    }
+                                                                }
+                                                            }}
+                                                            className="text-base font-bold text-slate-800 flex-1 text-left"
+                                                        >
+                                                            Q{idx + 1}: <span dangerouslySetInnerHTML={{ __html: ans.questionText || "Question" }} />
                                                         </h3>
                                                         <button
                                                             onClick={() => setCollapsedQuestions(prev => ({ ...prev, [`${submission._id}-${idx}`]: !prev[`${submission._id}-${idx}`] }))}
@@ -1132,10 +1213,18 @@ const EvaluatePage = () => {
 
                                                                     <div className="flex items-center gap-3 shrink-0">
                                                                         {/* Badges */}
-                                                                        <div className="flex items-center gap-1 px-2.5 py-1 bg-blue-50 text-blue-600 rounded-md text-[10px] font-bold border border-blue-100">
-                                                                            <Cpu size={11} />
+                                                                        <button
+                                                                            onClick={() => handleAiAutoCheck(submission, idx)}
+                                                                            disabled={aiChecking[`${submission._id}-${idx}`]}
+                                                                            className="flex items-center gap-1 px-2.5 py-1 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-md text-[10px] font-bold border border-blue-100 hover:scale-105 active:scale-95 transition-all cursor-pointer disabled:opacity-50 disabled:scale-100"
+                                                                        >
+                                                                            {aiChecking[`${submission._id}-${idx}`] ? (
+                                                                                <Loader2 size={11} className="animate-spin" />
+                                                                            ) : (
+                                                                                <Cpu size={11} />
+                                                                            )}
                                                                             <span>AI Auto check</span>
-                                                                        </div>
+                                                                        </button>
                                                                     </div>
                                                                 </div>
                                                             </div>
@@ -1777,6 +1866,11 @@ const EvaluatePage = () => {
                 @keyframes fadeIn {
                     from { opacity: 0; transform: translateY(-10px); }
                     to { opacity: 1; transform: translateY(0); }
+                }
+                h3.font-bold a, p.font-bold a {
+                    color: #2563eb !important;
+                    text-decoration: underline !important;
+                    cursor: pointer !important;
                 }
             `}</style>
             {chatModalComponent}

@@ -100,9 +100,10 @@ const ChangeRoleModal = ({ isOpen, onClose }) => {
             toast.success(`Active role switched to ${targetRole}`);
             
             // Reload user session and redirect using AuthContext helper
-            const token = localStorage.getItem('authToken');
-            if (token && switchAccount) {
-                await switchAccount(token, data.user);
+            const currentToken = localStorage.getItem('authToken');
+            const tokenToUse = data.token || currentToken;
+            if (tokenToUse && switchAccount) {
+                await switchAccount(tokenToUse, data.user);
             } else {
                 await refreshUser();
                 window.location.reload();

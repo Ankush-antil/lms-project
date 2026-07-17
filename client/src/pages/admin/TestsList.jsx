@@ -292,9 +292,9 @@ const TestsList = () => {
         });
     };
 
-    const fetchLmsTests = async () => {
+    const fetchLmsTests = async (quiet = false) => {
         try {
-            setLoading(true);
+            if (!quiet) setLoading(true);
             const res = await axios.get('/api/tests?limit=20&page=1');
             const filtered = Array.isArray(res.data) ? res.data.filter(t => t.publishMode !== 'public') : [];
             setTests(filtered);
@@ -333,7 +333,7 @@ const TestsList = () => {
                 }
             }
 
-            setLoading(false);
+            if (!quiet) setLoading(false);
 
             // Deferred background load for the remaining tests
             setTimeout(async () => {
@@ -347,21 +347,20 @@ const TestsList = () => {
             }, 1000);
         } catch (error) {
             console.error("Error fetching tests:", error);
-            toast.error("Error loading tests");
-            setLoading(false);
+            if (!quiet) toast.error("Error loading tests");
         }
     };
 
-    const fetchPublicTests = async () => {
+    const fetchPublicTests = async (quiet = false) => {
         try {
-            setLoadingPublic(true);
+            if (!quiet) setLoadingPublic(true);
             const res = await axios.get('/api/public-tests/admin/dashboard');
             setPublicTests(res.data);
         } catch (error) {
             console.error("Error fetching public tests dashboard:", error);
-            toast.error("Error loading public tests dashboard");
+            if (!quiet) toast.error("Error loading public tests dashboard");
         } finally {
-            setLoadingPublic(false);
+            if (!quiet) setLoadingPublic(false);
         }
     };
 
@@ -2494,7 +2493,7 @@ const TestsList = () => {
                                 setItemsPerPage(10);
                             }
                         }}
-                        className="w-10 bg-slate-55 border border-slate-200 rounded-lg py-1 px-1.5 text-center text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-slate-350 transition-all h-[26px]"
+                        className="w-14 bg-slate-55 border border-slate-200 rounded-lg py-1 px-1.5 text-center text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-slate-350 transition-all h-[26px]"
                     />
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider select-none">entries</span>
                 </div>
@@ -3234,9 +3233,13 @@ const TestsList = () => {
                 tests={activeTab === 'lms' ? tests : publicTests}
                 onOpenResponses={(test, type) => handleOpenResponses(test, type || 'connected')}
                 onDelete={handleDelete}
-                onImportSuccess={() => {
-                    if (typeof fetchLmsTests === 'function') fetchLmsTests();
-                    if (typeof fetchPublicTests === 'function') fetchPublicTests();
+                onImportSuccess={(quiet) => {
+                    if (typeof fetchLmsTests === 'function') fetchLmsTests(quiet);
+                    if (typeof fetchPublicTests === 'function') fetchPublicTests(quiet);
+                }}
+                onRenameSuccess={(testId, newTitle) => {
+                    setTests(prev => prev.map(t => t._id === testId ? { ...t, title: newTitle } : t));
+                    setPublicTests(prev => prev.map(t => t._id === testId ? { ...t, title: newTitle } : t));
                 }}
             />
 

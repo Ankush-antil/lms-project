@@ -378,11 +378,21 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData, disabledFields =
 
             setOptions(prev => ({ ...prev, subject: uniqueSubjects }));
 
-            // Adjust selected subject to only keep valid subjects
+            // Adjust selected subject to only keep valid subjects (case-insensitive and prefix-tolerant check)
             setFormData(prev => {
+                const cleanStr = (str) => (str || '').replace(/^\d+[\s.-]*/, '').trim().toLowerCase();
                 const currentSelected = prev.subject || '';
-                const isValid = uniqueSubjects.includes(currentSelected);
-                return { ...prev, subject: isValid ? currentSelected : '' };
+                const currentCleaned = cleanStr(currentSelected);
+                
+                // Try exact case-insensitive match first
+                let matchedSubject = uniqueSubjects.find(s => s.trim().toLowerCase() === currentSelected.trim().toLowerCase());
+                
+                // If not found, try matching by stripping numeric prefixes (e.g. "1. COMPUTER FUNDAMENTAL" matches "COMPUTER FUNDAMENTAL")
+                if (!matchedSubject && currentCleaned) {
+                    matchedSubject = uniqueSubjects.find(s => cleanStr(s) === currentCleaned);
+                }
+                
+                return { ...prev, subject: matchedSubject || '' };
             });
 
         } else {

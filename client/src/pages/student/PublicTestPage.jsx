@@ -1684,8 +1684,20 @@ const PublicTestPage = () => {
                                     {/* Question Title Row */}
                                     <div className="flex justify-between items-start gap-4">
                                         <div className="space-y-1">
-                                            <h3 className={`font-extrabold text-slate-800 tracking-tight ${isAccessibilityActive ? 'text-2xl' : 'text-lg'}`}>
-                                                Q{idx + 1}. {q.text || 'What is a computer?'}
+                                            <h3 
+                                                onClick={(e) => {
+                                                    const anchor = e.target.closest('a');
+                                                    if (anchor) {
+                                                        e.preventDefault();
+                                                        const url = anchor.getAttribute('href');
+                                                        if (url) {
+                                                            window.open(url, '_blank');
+                                                        }
+                                                    }
+                                                }}
+                                                className={`font-extrabold text-slate-800 tracking-tight ${isAccessibilityActive ? 'text-2xl' : 'text-lg'}`}
+                                            >
+                                                Q{idx + 1}. <span dangerouslySetInnerHTML={{ __html: q.text || 'What is a computer?' }} />
                                             </h3>
                                             <p className="text-xs text-slate-500 font-medium italic">
                                                 "{q.description || q.instructions || 'This is a question that requires only a one-line answer.'}"
@@ -4230,6 +4242,13 @@ const PublicTestPage = () => {
                         </div>
                     </div>
                 )}
+                <style>{`
+                    h3.font-extrabold a {
+                        color: #2563eb !important;
+                        text-decoration: underline !important;
+                        cursor: pointer !important;
+                    }
+                `}</style>
             </div>
         );
     }

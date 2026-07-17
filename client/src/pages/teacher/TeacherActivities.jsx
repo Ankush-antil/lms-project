@@ -3421,13 +3421,20 @@ const TeacherActivities = () => {
                                 <Plus size={14} strokeWidth={3} />
                                 <span>Add Material</span>
                             </button>
-                            <button
-                                onClick={() => navigate(`/teacher/activities-builder?studentId=${selectedStudent._id}&inboxId=${selectedInboxId}`)}
-                                className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#3E3ADD] hover:bg-indigo-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md shadow-indigo-200 hover:shadow-indigo-300 active:scale-95"
-                            >
-                                <Plus size={14} strokeWidth={3} />
-                                <span>Add More</span>
-                            </button>
+                             <button
+                                 onClick={() => {
+                                     const inst = selectedStudent?.institute?.name || selectedStudent?.institute || '';
+                                     const crs = selectedStudent?.studentProfile?.course?.name || '';
+                                     const subj = activeDayDetails?.subjectName || '';
+                                     const inbox = selectedInboxId || 'Inbox 1';
+                                     
+                                     navigate(`/teacher/activities-builder?studentId=${selectedStudent._id}&inboxId=${selectedInboxId}&institute=${encodeURIComponent(inst)}&course=${encodeURIComponent(crs)}&subject=${encodeURIComponent(subj)}&inbox=${encodeURIComponent(inbox)}&locked=true`);
+                                 }}
+                                 className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#3E3ADD] hover:bg-indigo-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md shadow-indigo-200 hover:shadow-indigo-300 active:scale-95"
+                             >
+                                 <Plus size={14} strokeWidth={3} />
+                                 <span>Add More</span>
+                             </button>
                         </div>
                     )}
 

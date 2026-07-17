@@ -1909,14 +1909,19 @@ const switchRole = asyncHandler(async (req, res) => {
     user.role = newRole;
     await user.save();
 
+    const { generateToken, getCookieOptions } = require('../common/authController');
+    const token = generateToken(user._id, newRole);
+    res.cookie('token', token, getCookieOptions(req));
+
     res.json({
         success: true,
         message: `Role switched to ${newRole}`,
+        token,
         user: {
             _id: user._id,
             name: user.name,
             email: user.email,
-            role: user.role,
+            role: newRole,
             allowedRoles: user.allowedRoles,
             institute: user.institute,
             studentProfile: user.studentProfile,

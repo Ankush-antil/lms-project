@@ -28,6 +28,9 @@ const protect = async (req, res, next) => {
                 console.warn(`[AUTH] User deactivated: ${decoded.id}`);
                 return res.status(403).json({ message: 'disabled by admin' });
             }
+            if (decoded.role) {
+                req.user.role = decoded.role;
+            }
             next();
         } catch (error) {
             console.error(`[AUTH] Token verification failed:`, error.message);
@@ -78,6 +81,9 @@ const parseUserOptional = async (req, res, next) => {
         try {
             const decoded = jwt.verify(token, process.env.JWT_SECRET);
             req.user = await User.findById(decoded.id).select('-password');
+            if (req.user && decoded.role) {
+                req.user.role = decoded.role;
+            }
         } catch (error) {
             console.error(`[AUTH] Optional token verification failed:`, error.message);
         }

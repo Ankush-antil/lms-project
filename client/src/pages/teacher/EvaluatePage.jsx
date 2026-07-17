@@ -369,7 +369,7 @@ If they are just asking a general question, answer it in a friendly, conversatio
 `;
 
         try {
-            const res = await axios.post('/api/ai/chat', { prompt: promptText });
+            const res = await axios.post('/api/ai/chat', { prompt: promptText, jsonMode: false });
             const responseText = res.data.text?.trim() || "";
             setAiAssistantMessages(prev => [...prev, { sender: 'ai', text: responseText }]);
         } catch (err) {
@@ -808,7 +808,7 @@ If they are just asking a general question, answer it in a friendly, conversatio
 
                         // Parse JSON recommended score/notes if present
                         let parsedRecommend = null;
-                        if (!isGreeting && !isLoaderMessage) {
+                        if (!isSelf && !isGreeting && !isLoaderMessage) {
                             try {
                                 const jsonMatch = msg.text.match(/\{[\s\S]*?\}/);
                                 if (jsonMatch) {

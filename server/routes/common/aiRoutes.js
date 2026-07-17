@@ -4,7 +4,7 @@ const { protect } = require('../../middleware/authMiddleware');
 
 router.post('/chat', protect, async (req, res, next) => {
     try {
-        const { prompt, image } = req.body;
+        const { prompt, image, jsonMode } = req.body;
         if (!prompt) {
             return res.status(400).json({ message: 'Prompt is required' });
         }
@@ -31,25 +31,34 @@ router.post('/chat', protect, async (req, res, next) => {
               ]
             : prompt;
 
-        let response = await fetch(endpoint, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiKey}`
-            },
-            body: JSON.stringify({
-                model: model,
+        const isJsonMode = jsonMode !== false;
+
+        const makePayload = (targetModel) => {
+            const payload = {
+                model: targetModel,
                 messages: [
                     {
                         role: 'user',
                         content: messageContent
                     }
                 ],
-                response_format: {
-                    type: 'json_object'
-                },
                 temperature: 0.2
-            })
+            };
+            if (isJsonMode) {
+                payload.response_format = {
+                    type: 'json_object'
+                };
+            }
+            return payload;
+        };
+
+        let response = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`
+            },
+            body: JSON.stringify(makePayload(model))
         });
 
         // Fallback to llama-3.1-8b-instant if rate limit (429) is hit on llama-3.3-70b-versatile
@@ -61,19 +70,7 @@ router.post('/chat', protect, async (req, res, next) => {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${apiKey}`
                 },
-                body: JSON.stringify({
-                    model: 'llama-3.1-8b-instant',
-                    messages: [
-                        {
-                            role: 'user',
-                            content: messageContent
-                        }
-                    ],
-                    response_format: {
-                        type: 'json_object'
-                    },
-                    temperature: 0.2
-                })
+                body: JSON.stringify(makePayload('llama-3.1-8b-instant'))
             });
         }
 

@@ -802,22 +802,54 @@ If they are just asking a general question, answer it in a friendly, conversatio
                 <div className="flex-1 p-4 overflow-y-auto space-y-4 custom-scrollbar bg-slate-50/20">
                     {aiAssistantMessages.map((msg, index) => {
                         const isSelf = msg.sender === 'user';
+                        const firstGreeting = "Hello! I am your AI Assistant";
+                        const isGreeting = msg.text.startsWith(firstGreeting);
+                        const isLoaderMessage = msg.text.startsWith("Analyzing response for:");
+
                         // Parse JSON recommended score/notes if present
                         let parsedRecommend = null;
-                        try {
-                            const jsonMatch = msg.text.match(/\{[\s\S]*?\}/);
-                            if (jsonMatch) {
-                                const parsed = JSON.parse(jsonMatch[0]);
-                                if (parsed.score !== undefined && parsed.notes !== undefined) {
-                                    parsedRecommend = parsed;
+                        if (!isGreeting && !isLoaderMessage) {
+                            try {
+                                const jsonMatch = msg.text.match(/\{[\s\S]*?\}/);
+                                if (jsonMatch) {
+                                    const parsed = JSON.parse(jsonMatch[0]);
+                                    if (parsed.score !== undefined && parsed.notes !== undefined) {
+                                        parsedRecommend = {
+                                            type: 'both',
+                                            score: parsed.score,
+                                            notes: parsed.notes
+                                        };
+                                    } else if (parsed.response !== undefined) {
+                                        parsedRecommend = {
+                                            type: 'notes',
+                                            notes: parsed.response
+                                        };
+                                    } else if (parsed.notes !== undefined) {
+                                        parsedRecommend = {
+                                            type: 'notes',
+                                            notes: parsed.notes
+                                        };
+                                    }
                                 }
+                            } catch (_) {}
+
+                            if (!parsedRecommend) {
+                                // Fallback: treat the entire text response as notes
+                                parsedRecommend = {
+                                    type: 'notes',
+                                    notes: msg.text.replace(/```json[\s\S]*?```/, "").replace(/\{[\s\S]*?\}/, "").trim()
+                                };
                             }
-                        } catch (_) {}
+                        }
 
                         // Strip JSON block from displayed text for a clean chat bubble UI
                         let cleanText = msg.text;
                         if (parsedRecommend) {
-                            cleanText = msg.text.replace(/```json[\s\S]*?```/, "").replace(/\{[\s\S]*?\}/, "").trim();
+                            if (parsedRecommend.type === 'both') {
+                                cleanText = msg.text.replace(/```json[\s\S]*?```/, "").replace(/\{[\s\S]*?\}/, "").trim();
+                            } else if (parsedRecommend.type === 'notes') {
+                                cleanText = parsedRecommend.notes;
+                            }
                         }
 
                         return (
@@ -828,7 +860,7 @@ If they are just asking a general question, answer it in a friendly, conversatio
                                     }`}>
                                     <p className="font-semibold whitespace-pre-wrap">{cleanText || (isSelf ? '' : "Evaluation results generated:")}</p>
                                     
-                                    {parsedRecommend && (
+                                    {parsedRecommend && parsedRecommend.type === 'both' && (
                                         <div className="mt-3 p-3 bg-indigo-50/80 border border-indigo-100 rounded-xl space-y-2 text-slate-800">
                                             <div className="flex justify-between items-center text-[10px]">
                                                 <span className="font-bold text-slate-650">Score Recommendation:</span>
@@ -850,6 +882,28 @@ If they are just asking a general question, answer it in a friendly, conversatio
                                             >
                                                 <CheckCircle2 size={12} />
                                                 Apply to Score & Notes
+                                            </button>
+                                        </div>
+                                    )}
+
+                                    {parsedRecommend && parsedRecommend.type === 'notes' && parsedRecommend.notes && (
+                                        <div className="mt-3 p-3 bg-indigo-50/80 border border-indigo-100 rounded-xl space-y-2 text-slate-800">
+                                            <div className="text-[10px] font-bold text-slate-650">
+                                                Notes Recommendation:
+                                            </div>
+                                            <p className="text-[10.5px] text-slate-600 font-semibold italic">
+                                                "{parsedRecommend.notes}"
+                                            </p>
+                                            <button
+                                                onClick={() => {
+                                                    setFeedbackText(aiAssistantTarget.submission._id, aiAssistantTarget.idx, parsedRecommend.notes);
+                                                    toast.success("AI suggested notes applied! ✓");
+                                                    setIsAiAssistantOpen(false);
+                                                }}
+                                                className="w-full flex items-center justify-center gap-1 py-1.5 bg-[#3E3ADD] hover:bg-indigo-700 text-white font-bold rounded-lg text-[10px] shadow-sm transition-all"
+                                            >
+                                                <CheckCircle2 size={12} />
+                                                Apply to Notes
                                             </button>
                                         </div>
                                     )}

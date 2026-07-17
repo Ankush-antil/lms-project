@@ -1159,26 +1159,26 @@ const TestFolderStructure = ({ isOpen, onClose, tests, onOpenResponses, onDelete
                                 )}
                                 {/* Level 4: List Tests in Inbox */}
                                 {explorerPath.length === 4 && (
-                                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
                                         {(folderTree[explorerPath[0]]?.[explorerPath[1]]?.[explorerPath[2]]?.[explorerPath[3]] || []).map(test => (
                                             <div
                                                 key={test._id}
-                                                className={`p-6 rounded-2xl border transition-all flex flex-col gap-4 select-none ${
+                                                className={`p-4.5 rounded-2xl border transition-all flex flex-col gap-3 select-none ${
                                                     test._id === highlightedTestId 
                                                         ? 'border-indigo-500 bg-indigo-50/20 ring-2 ring-indigo-500 ring-offset-1 animate-pulse' 
                                                         : 'border-slate-200/80 bg-slate-50 hover:bg-slate-100/50 hover:border-slate-350 hover:shadow-md'
                                                 }`}
                                             >
                                                 {/* Test Info */}
-                                                <div className="flex items-start gap-3 min-w-0">
-                                                    <div className="text-[#0b1329] bg-white border border-slate-100 shadow-sm p-2.5 rounded-xl flex-shrink-0 mt-0.5">
-                                                        <FileText size={20} />
+                                                <div className="flex items-start gap-2.5 min-w-0">
+                                                    <div className="text-[#0b1329] bg-white border border-slate-100 shadow-sm p-2 rounded-xl flex-shrink-0 mt-0.5">
+                                                        <FileText size={18} />
                                                     </div>
                                                     <div className="min-w-0 flex-1">
-                                                        <h5 className="font-bold text-slate-800 text-sm whitespace-normal break-words leading-snug" title={test.title || 'Untitled'}>
+                                                        <h5 className="font-bold text-slate-800 text-[13px] whitespace-normal break-words leading-snug" title={test.title || 'Untitled'}>
                                                             {test.title || 'Untitled'}
                                                         </h5>
-                                                        <p className="text-xs text-slate-400 font-semibold mt-1">
+                                                        <p className="text-[10px] text-slate-400 font-semibold mt-0.5">
                                                             {test.questions?.length || 0} Questions &bull; {test.settings?.duration || 0} mins
                                                         </p>
                                                     </div>
@@ -1188,7 +1188,7 @@ const TestFolderStructure = ({ isOpen, onClose, tests, onOpenResponses, onDelete
                                                 <div className="border-t border-slate-200/60 my-0.5"></div>
 
                                                 {/* Test Action Buttons */}
-                                                <div className="flex items-center justify-center gap-1.5 mt-auto pt-1 flex-wrap">
+                                                <div className="flex items-center justify-center gap-1 mt-auto pt-1 flex-wrap">
                                                     {/* Copy Link */}
                                                     <button
                                                         onClick={(e) => {

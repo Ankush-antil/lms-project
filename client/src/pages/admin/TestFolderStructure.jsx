@@ -6,7 +6,7 @@ import toast from 'react-hot-toast';
 import axios from 'axios';
 import {
     X, Search, FolderOpen, School, Book, Layers, LayoutGrid, ChevronDown,
-    FileText, BarChart2, Link2, Check, Edit, Trash2, Folder, Download, Upload
+    FileText, BarChart2, Link2, Check, Edit, Trash2, Folder, Download, Upload, Plus
 } from 'lucide-react';
 
 
@@ -14,6 +14,22 @@ const TestFolderStructure = ({ isOpen, onClose, tests, onOpenResponses, onDelete
     const { user } = useAuth();
     const navigate = useNavigate();
     const fileInputRef = useRef(null);
+
+    const [coursesList, setCoursesList] = useState([]);
+
+    useEffect(() => {
+        if (isOpen) {
+            const fetchCourses = async () => {
+                try {
+                    const { data } = await axios.get('/api/setup/courses');
+                    setCoursesList(data || []);
+                } catch (err) {
+                    console.error("Error fetching courses for folder explorer:", err);
+                }
+            };
+            fetchCourses();
+        }
+    }, [isOpen]);
 
     // Folder Explorer state
     const [explorerPath, setExplorerPath] = useState(() => {
@@ -42,6 +58,42 @@ const TestFolderStructure = ({ isOpen, onClose, tests, onOpenResponses, onDelete
     });
     const [selectedExplorerTestId, setSelectedExplorerTestId] = useState(null);
     const [selectedExplorerFolderName, setSelectedExplorerFolderName] = useState(null);
+    const [contextMenu, setContextMenu] = useState(null);
+
+    const handleCreateFormClick = () => {
+        const inst = explorerPath[0] || '';
+        const crs = explorerPath[1] || '';
+        const subj = explorerPath[2] || '';
+        const inbox = explorerPath[3] || 'Inbox 1';
+        
+        onClose();
+        
+        const builderPath = user?.role === 'Institute' 
+            ? '/institute/activities-builder' 
+            : (user?.role === 'Editor' 
+                ? '/editor/activities-builder' 
+                : (user?.role === 'Teacher' 
+                    ? '/teacher/activities-builder' 
+                    : '/admin/activities-builder'));
+                    
+        navigate(`${builderPath}?institute=${encodeURIComponent(inst)}&course=${encodeURIComponent(crs)}&subject=${encodeURIComponent(subj)}&inbox=${encodeURIComponent(inbox)}&locked=true`);
+    };
+
+    const handleContextMenu = (e) => {
+        if (explorerPath.length >= 3) {
+            e.preventDefault();
+            setContextMenu({
+                x: e.clientX,
+                y: e.clientY
+            });
+        }
+    };
+
+    useEffect(() => {
+        const closeMenu = () => setContextMenu(null);
+        window.addEventListener('click', closeMenu);
+        return () => window.removeEventListener('click', closeMenu);
+    }, []);
     const [explorerSearch, setExplorerSearch] = useState('');
     const [copiedId, setCopiedId] = useState(null);
 
@@ -74,14 +126,52 @@ const TestFolderStructure = ({ isOpen, onClose, tests, onOpenResponses, onDelete
 
     if (!isOpen) return null;
 
-    // Aggregated tree: Institute -> Course -> Subject -> [Tests]
+    // Aggregated tree: Institute -> Course -> Subject -> Inbox -> [Tests]
     const folderTree = (() => {
         const tree = {};
+
+        // 1. Populate tree structure from coursesList to ensure empty courses, subjects, and day-inboxes are shown
+        coursesList.forEach(course => {
+            if (!course) return;
+            const inst = (course.institute?.name || 'Unassigned Institute').trim();
+            const crs = (course.name || 'Unassigned Course').trim();
+
+            if (!tree[inst]) {
+                tree[inst] = {};
+            }
+            if (!tree[inst][crs]) {
+                tree[inst][crs] = {};
+            }
+
+            // Populate subjects
+            const subjects = course.subjects || [];
+            subjects.forEach(subjectName => {
+                const subj = subjectName.trim();
+                if (!tree[inst][crs][subj]) {
+                    tree[inst][crs][subj] = {};
+                }
+
+                // Populate day inboxes based on duration (days)
+                const subjectDur = course.subjectDurations?.find(
+                    sd => sd.subjectName?.toLowerCase() === subj.toLowerCase()
+                );
+                const duration = subjectDur ? Number(subjectDur.duration) : 0;
+                for (let d = 1; d <= duration; d++) {
+                    const inboxName = `Inbox ${d}`;
+                    if (!tree[inst][crs][subj][inboxName]) {
+                        tree[inst][crs][subj][inboxName] = [];
+                    }
+                }
+            });
+        });
+
+        // 2. Populate tests into the tree
         tests.forEach(test => {
             if (!test) return;
             const inst = (test.institute || 'Unassigned Institute').trim();
             const crs = (test.course || 'Unassigned Course').trim();
             const subj = (test.subject || 'Unassigned Subject').trim();
+            const inbox = (test.index || 'Inbox 1').trim();
 
             if (!tree[inst]) {
                 tree[inst] = {};
@@ -90,37 +180,71 @@ const TestFolderStructure = ({ isOpen, onClose, tests, onOpenResponses, onDelete
                 tree[inst][crs] = {};
             }
             if (!tree[inst][crs][subj]) {
-                tree[inst][crs][subj] = [];
+                tree[inst][crs][subj] = {};
             }
-            tree[inst][crs][subj].push(test);
+            if (!tree[inst][crs][subj][inbox]) {
+                tree[inst][crs][subj][inbox] = [];
+            }
+            tree[inst][crs][subj][inbox].push(test);
         });
+
         return tree;
     })();
 
     const getFolderStats = (path) => {
         let testCount = 0;
-        let courseSet = new Set();
-        let subjectSet = new Set();
+        let coursesInPath = new Set();
+        let subjectsInPath = new Set();
+        let inboxesInPath = new Set();
 
         tests.forEach(t => {
             if (!t) return;
             const inst = (t.institute || 'Unassigned Institute').trim();
             const crs = (t.course || 'Unassigned Course').trim();
             const subj = (t.subject || 'Unassigned Subject').trim();
+            const inbox = (t.index || 'Inbox 1').trim();
 
             if (path.length >= 1 && inst !== path[0]) return;
             if (path.length >= 2 && crs !== path[1]) return;
             if (path.length >= 3 && subj !== path[2]) return;
+            if (path.length >= 4 && inbox !== path[3]) return;
 
             testCount++;
-            courseSet.add(crs);
-            subjectSet.add(subj);
+            coursesInPath.add(crs);
+            subjectsInPath.add(subj);
+            inboxesInPath.add(inbox);
+        });
+
+        // Merging empty courses/subjects from coursesList to stats so the counts match UI folders
+        coursesList.forEach(course => {
+            if (!course) return;
+            const inst = (course.institute?.name || 'Unassigned Institute').trim();
+            const crs = (course.name || 'Unassigned Course').trim();
+            
+            if (path.length >= 1 && inst !== path[0]) return;
+            coursesInPath.add(crs);
+
+            if (path.length >= 2 && crs !== path[1]) return;
+            (course.subjects || []).forEach(subjectName => {
+                const subj = subjectName.trim();
+                subjectsInPath.add(subj);
+
+                if (path.length >= 3 && subj !== path[2]) return;
+                const subjectDur = course.subjectDurations?.find(
+                    sd => sd.subjectName?.toLowerCase() === subj.toLowerCase()
+                );
+                const duration = subjectDur ? Number(subjectDur.duration) : 0;
+                for (let d = 1; d <= duration; d++) {
+                    inboxesInPath.add(`Inbox ${d}`);
+                }
+            });
         });
 
         return {
             testCount,
-            courseCount: courseSet.size,
-            subjectCount: subjectSet.size
+            courseCount: coursesInPath.size,
+            subjectCount: subjectsInPath.size,
+            inboxCount: inboxesInPath.size
         };
     };
 
@@ -167,10 +291,12 @@ const TestFolderStructure = ({ isOpen, onClose, tests, onOpenResponses, onDelete
                 const inst = (t.institute || 'Unassigned Institute').trim();
                 const crs = (t.course || 'Unassigned Course').trim();
                 const subj = (t.subject || 'Unassigned Subject').trim();
+                const inbox = (t.index || 'Inbox 1').trim();
 
                 if (path.length >= 1 && inst !== path[0]) return false;
                 if (path.length >= 2 && crs !== path[1]) return false;
                 if (path.length >= 3 && subj !== path[2]) return false;
+                if (path.length >= 4 && inbox !== path[3]) return false;
                 return true;
             });
 
@@ -184,17 +310,17 @@ const TestFolderStructure = ({ isOpen, onClose, tests, onOpenResponses, onDelete
             filteredTests.forEach(t => {
                 const crs = (t.course || 'Unassigned Course').trim().replace(/[^a-z0-9]/gi, ' ');
                 const subj = (t.subject || 'Unassigned Subject').trim().replace(/[^a-z0-9]/gi, ' ');
+                const inbox = (t.index || 'Inbox 1').trim().replace(/[^a-z0-9]/gi, ' ');
                 const testTitle = (t.title || 'Untitled Test').trim().replace(/[^a-z0-9]/gi, ' ');
 
                 let relativePath = '';
                 if (path.length === 1) {
-                    // Institute level: Course/Subject/Test.json
-                    relativePath = `${crs}/${subj}/${testTitle}.json`;
+                    relativePath = `${crs}/${subj}/${inbox}/${testTitle}.json`;
                 } else if (path.length === 2) {
-                    // Course level: Subject/Test.json
-                    relativePath = `${subj}/${testTitle}.json`;
+                    relativePath = `${subj}/${inbox}/${testTitle}.json`;
+                } else if (path.length === 3) {
+                    relativePath = `${inbox}/${testTitle}.json`;
                 } else {
-                    // Subject level: Test.json
                     relativePath = `${testTitle}.json`;
                 }
 
@@ -370,6 +496,17 @@ const TestFolderStructure = ({ isOpen, onClose, tests, onOpenResponses, onDelete
                             <Upload size={12} />
                             <span>Import Backup</span>
                         </button>
+                        {/* Create Form Button */}
+                        {explorerPath.length >= 3 && (
+                            <button
+                                onClick={handleCreateFormClick}
+                                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-[10px] font-black tracking-wider uppercase transition-all cursor-pointer shadow-sm active:scale-95"
+                                title="Create new test in this folder"
+                            >
+                                <Plus size={12} />
+                                <span>Create Form</span>
+                            </button>
+                        )}
                         <input
                             type="file"
                             ref={fileInputRef}
@@ -517,27 +654,65 @@ const TestFolderStructure = ({ isOpen, onClose, tests, onOpenResponses, onDelete
                                                                 <Book size={14} className="text-amber-500" />
                                                                 <span className="truncate flex-1">{courseName}</span>
                                                             </div>
-
-                                                            {/* Subjects under Course */}
+                                    {/* Subjects under Course */}
                                                             {isCourseExpanded && (
                                                                 <div className="pl-4 border-l border-slate-200 ml-3.5 space-y-1">
                                                                     {Object.keys(folderTree[instName][courseName] || {}).map(subjectName => {
+                                                                        const subjKey = `${instName} > ${courseName} > ${subjectName}`;
+                                                                        const isSubjExpanded = !!expandedFolders[subjKey];
                                                                         const isSubjSelected = selectedTreePath.length === 3 && selectedTreePath[0] === instName && selectedTreePath[1] === courseName && selectedTreePath[2] === subjectName;
 
                                                                         return (
-                                                                            <div
-                                                                                key={subjectName}
-                                                                                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg cursor-pointer transition-colors ${isSubjSelected ? 'bg-slate-100 text-[#0b1329] font-bold' : 'hover:bg-slate-150/60 text-slate-600'
-                                                                                    }`}
-                                                                                onClick={() => {
-                                                                                    setExplorerPath([instName, courseName, subjectName]);
-                                                                                    setSelectedTreePath([instName, courseName, subjectName]);
-                                                                                    setSelectedExplorerFolderName(null);
-                                                                                    setSelectedExplorerTestId(null);
-                                                                                }}
-                                                                            >
-                                                                                <Layers size={13} className="text-emerald-505" />
-                                                                                <span className="truncate flex-1">{subjectName}</span>
+                                                                            <div key={subjectName} className="space-y-1">
+                                                                                <div
+                                                                                    className={`flex items-center gap-1 px-2 py-1.5 rounded-lg cursor-pointer transition-colors ${isSubjSelected ? 'bg-slate-100 text-[#0b1329] font-bold' : 'hover:bg-slate-150/60 text-slate-600'
+                                                                                        }`}
+                                                                                    onClick={() => {
+                                                                                        setExplorerPath([instName, courseName, subjectName]);
+                                                                                        setSelectedTreePath([instName, courseName, subjectName]);
+                                                                                        setSelectedExplorerFolderName(null);
+                                                                                        setSelectedExplorerTestId(null);
+                                                                                    }}
+                                                                                >
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        onClick={(e) => {
+                                                                                            e.stopPropagation();
+                                                                                            setExpandedFolders(prev => ({ ...prev, [subjKey]: !prev[subjKey] }));
+                                                                                        }}
+                                                                                        className="p-0.5 hover:bg-slate-200 rounded transition-colors"
+                                                                                    >
+                                                                                        <ChevronDown size={14} className={`text-slate-400 transition-transform ${isSubjExpanded ? '' : '-rotate-90'}`} />
+                                                                                    </button>
+                                                                                    <Layers size={13} className="text-emerald-500" />
+                                                                                    <span className="truncate flex-1">{subjectName}</span>
+                                                                                </div>
+
+                                                                                {/* Inboxes under Subject */}
+                                                                                {isSubjExpanded && (
+                                                                                    <div className="pl-4 border-l border-slate-200 ml-3.5 space-y-1">
+                                                                                        {Object.keys(folderTree[instName][courseName][subjectName] || {}).map(inboxName => {
+                                                                                            const isInboxSelected = selectedTreePath.length === 4 && selectedTreePath[0] === instName && selectedTreePath[1] === courseName && selectedTreePath[2] === subjectName && selectedTreePath[3] === inboxName;
+
+                                                                                            return (
+                                                                                                <div
+                                                                                                    key={inboxName}
+                                                                                                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg cursor-pointer transition-colors ${isInboxSelected ? 'bg-slate-100 text-[#0b1329] font-bold' : 'hover:bg-slate-150/60 text-slate-500'
+                                                                                                        }`}
+                                                                                                    onClick={() => {
+                                                                                                        setExplorerPath([instName, courseName, subjectName, inboxName]);
+                                                                                                        setSelectedTreePath([instName, courseName, subjectName, inboxName]);
+                                                                                                        setSelectedExplorerFolderName(null);
+                                                                                                        setSelectedExplorerTestId(null);
+                                                                                                    }}
+                                                                                                >
+                                                                                                    <Folder size={13} className="text-amber-500/80" />
+                                                                                                    <span className="truncate flex-1">{inboxName}</span>
+                                                                                                </div>
+                                                                                            );
+                                                                                        })}
+                                                                                    </div>
+                                                                                )}
                                                                             </div>
                                                                         );
                                                                     })}
@@ -555,7 +730,10 @@ const TestFolderStructure = ({ isOpen, onClose, tests, onOpenResponses, onDelete
                     </div>
 
                     {/* 2. GRID PANEL (MIDDLE VIEW) */}
-                    <div className="flex-1 overflow-y-auto p-5 custom-scrollbar bg-slate-50/10">
+                    <div 
+                        className="flex-1 overflow-y-auto p-5 custom-scrollbar bg-slate-50/10"
+                        onContextMenu={handleContextMenu}
+                    >
 
                         {explorerSearch ? (
                             /* Flat Search Results Mode */
@@ -824,7 +1002,7 @@ const TestFolderStructure = ({ isOpen, onClose, tests, onOpenResponses, onDelete
                                                         <div className="min-w-0 flex-1">
                                                             <h5 className="font-bold text-slate-800 text-xs truncate" title={subj}>{subj}</h5>
                                                             <p className="text-[9px] text-slate-400 font-medium mt-0.5 truncate">
-                                                                {stats.testCount} Tests inside
+                                                                {stats.inboxCount} Inboxes &bull; {stats.testCount} Tests
                                                             </p>
                                                         </div>
                                                         {/* Download Folder Button */}
@@ -850,10 +1028,68 @@ const TestFolderStructure = ({ isOpen, onClose, tests, onOpenResponses, onDelete
                                     </div>
                                 )}
 
-                                {/* Level 3: List Tests in Subject */}
+                                {/* Level 3: List Inboxes in Subject */}
                                 {explorerPath.length === 3 && (
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                                        {Object.keys(folderTree[explorerPath[0]]?.[explorerPath[1]]?.[explorerPath[2]] || {}).map(inboxName => {
+                                            const stats = getFolderStats([explorerPath[0], explorerPath[1], explorerPath[2], inboxName]);
+                                            return (
+                                                <div
+                                                    key={inboxName}
+                                                    onClick={() => {
+                                                        setExplorerPath([explorerPath[0], explorerPath[1], explorerPath[2], inboxName]);
+                                                        setSelectedTreePath([explorerPath[0], explorerPath[1], explorerPath[2], inboxName]);
+                                                        setSelectedExplorerFolderName(null);
+                                                        setSelectedExplorerTestId(null);
+                                                    }}
+                                                    className="w-full cursor-pointer select-none animate-fade-in"
+                                                >
+                                                    {/* Folder Card Body */}
+                                                    <div className="p-2 rounded-xl border border-slate-200 bg-white hover:border-amber-400 hover:bg-amber-50/10 hover:shadow-sm transition-all flex items-center gap-2">
+                                                        {/* Realistic 3D Folder Icon */}
+                                                        <div className="relative w-[36px] h-[26px] flex-shrink-0 select-none mr-1">
+                                                            {/* Back Flap */}
+                                                            <div className="absolute inset-0 bg-[#ca8a04] rounded-[3px] shadow-sm">
+                                                                <div className="absolute -top-[3px] left-[2px] w-[14px] h-[3px] bg-[#ca8a04] rounded-t-[1px]" />
+                                                            </div>
+                                                            {/* Paper Sheet */}
+                                                            <div className="absolute top-[2px] left-[5px] w-[16px] h-[18px] bg-white rounded-[1px] shadow-sm border border-slate-100/50 transform -rotate-[4deg] origin-bottom-left" />
+                                                            {/* Front Cover */}
+                                                            <div className="absolute left-0 right-0 bottom-0 top-[8px] bg-gradient-to-b from-[#fde047] to-[#ca8a04] rounded-b-[3px] rounded-t-[1px] shadow border-t border-[#fef08a]/60" />
+                                                        </div>
+                                                        <div className="min-w-0 flex-1">
+                                                            <h5 className="font-bold text-slate-800 text-xs truncate" title={inboxName}>{inboxName}</h5>
+                                                            <p className="text-[9px] text-slate-400 font-medium mt-0.5 truncate">
+                                                                {stats.testCount} Tests inside
+                                                            </p>
+                                                        </div>
+                                                        {/* Download Folder Button */}
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleDownloadFolder([explorerPath[0], explorerPath[1], explorerPath[2], inboxName], inboxName);
+                                                            }}
+                                                            className="p-1.5 hover:bg-amber-100 rounded-lg text-slate-400 hover:text-amber-700 transition-colors flex-shrink-0 cursor-pointer"
+                                                            title="Download Folder JSON"
+                                                        >
+                                                            <Download size={14} />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                        {Object.keys(folderTree[explorerPath[0]]?.[explorerPath[1]]?.[explorerPath[2]] || {}).length === 0 && (
+                                            <div className="col-span-full text-center py-12 text-slate-400 text-xs font-semibold">
+                                                No inboxes found under this subject.
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* Level 4: List Tests in Inbox */}
+                                {explorerPath.length === 4 && (
                                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                                        {(folderTree[explorerPath[0]]?.[explorerPath[1]]?.[explorerPath[2]] || []).map(test => (
+                                        {(folderTree[explorerPath[0]]?.[explorerPath[1]]?.[explorerPath[2]]?.[explorerPath[3]] || []).map(test => (
                                             <div
                                                 key={test._id}
                                                 className="p-3 rounded-xl border border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm transition-all flex items-center justify-between gap-3 select-none"
@@ -940,9 +1176,9 @@ const TestFolderStructure = ({ isOpen, onClose, tests, onOpenResponses, onDelete
                                                 </div>
                                             </div>
                                         ))}
-                                        {(folderTree[explorerPath[0]]?.[explorerPath[1]]?.[explorerPath[2]] || []).length === 0 && (
+                                        {(folderTree[explorerPath[0]]?.[explorerPath[1]]?.[explorerPath[2]]?.[explorerPath[3]] || []).length === 0 && (
                                             <div className="col-span-full text-center py-12 text-slate-400 text-xs font-semibold">
-                                                No tests found in this directory.
+                                                No tests found under this inbox.
                                             </div>
                                         )}
                                     </div>
@@ -954,6 +1190,21 @@ const TestFolderStructure = ({ isOpen, onClose, tests, onOpenResponses, onDelete
 
                 </div>
             </div>
+            {/* Custom Context Menu */}
+            {contextMenu && (
+                <div
+                    style={{ top: contextMenu.y, left: contextMenu.x }}
+                    className="fixed bg-white border border-slate-200 rounded-xl shadow-xl z-[200] py-1.5 w-40 animate-fade-in font-sans"
+                >
+                    <button
+                        onClick={handleCreateFormClick}
+                        className="w-full text-left px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+                    >
+                        <Plus size={14} className="text-[#0b1329]" />
+                        <span>Create Form</span>
+                    </button>
+                </div>
+            )}
         </div>,
         document.body
     );

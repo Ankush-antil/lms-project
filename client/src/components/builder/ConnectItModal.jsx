@@ -1,11 +1,11 @@
 import { useAuth } from '../../context/AuthContext';
-import { X, Info, ChevronDown, Plus, Edit } from 'lucide-react';
+import { X, Info, ChevronDown, Plus, Edit, Trash2 } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
 import { createPortal } from 'react-dom';
 import toast from 'react-hot-toast';
 
-const CustomSelect = ({ label, value, options, onChange, onCreateNew, onRenameOption, placeholder, isMulti = false, renderOption }) => {
+const CustomSelect = ({ label, value, options, onChange, onCreateNew, onRenameOption, onDeleteOption, canShowRename = () => true, canShowDelete = () => true, placeholder, isMulti = false, renderOption, disabled = false }) => {
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef(null);
 
@@ -20,21 +20,23 @@ const CustomSelect = ({ label, value, options, onChange, onCreateNew, onRenameOp
     }, []);
 
     const isSelected = (option) => {
+        const optVal = typeof option === 'object' && option ? option.name : option;
         if (isMulti) {
-            return Array.isArray(value) && value.includes(option);
+            return Array.isArray(value) && value.includes(optVal);
         }
-        return value === option;
+        return value === optVal;
     };
 
     const handleOptionClick = (option) => {
+        const optVal = typeof option === 'object' && option ? option.name : option;
         if (isMulti) {
             const currentValues = Array.isArray(value) ? value : [];
-            const newValues = currentValues.includes(option)
-                ? currentValues.filter(v => v !== option)
-                : [...currentValues, option];
+            const newValues = currentValues.includes(optVal)
+                ? currentValues.filter(v => v !== optVal)
+                : [...currentValues, optVal];
             onChange(newValues);
         } else {
-            onChange(option);
+            onChange(optVal);
             setIsOpen(false);
         }
     };
@@ -47,11 +49,17 @@ const CustomSelect = ({ label, value, options, onChange, onCreateNew, onRenameOp
         <div className="space-y-1.5 relative" ref={dropdownRef}>
             <label className="text-sm font-semibold text-slate-600">{label}</label>
             <div
-                className={`w-full p-2.5 bg-white border ${isOpen ? 'border-indigo-500 ring-2 ring-indigo-100' : 'border-slate-300'} rounded-lg text-slate-700 cursor-pointer flex justify-between items-center transition-all`}
-                onClick={() => setIsOpen(!isOpen)}
+                className={`w-full p-2.5 border rounded-lg flex justify-between items-center transition-all ${
+                    disabled 
+                        ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed select-none' 
+                        : isOpen 
+                            ? 'bg-white border-indigo-500 ring-2 ring-indigo-100 cursor-pointer' 
+                            : 'bg-white border-slate-300 cursor-pointer'
+                }`}
+                onClick={() => !disabled && setIsOpen(!isOpen)}
             >
-                <span className={`truncate ${displayValue ? 'text-slate-700' : 'text-slate-400'}`}>{displayValue || placeholder}</span>
-                <ChevronDown size={16} className={`text-slate-400 transition-transform flex-shrink-0 ${isOpen ? 'rotate-180' : ''}`} />
+                <span className={`truncate ${displayValue ? (disabled ? 'text-slate-500' : 'text-slate-700') : 'text-slate-400'}`}>{displayValue || placeholder}</span>
+                {!disabled && <ChevronDown size={16} className={`text-slate-400 transition-transform flex-shrink-0 ${isOpen ? 'rotate-180' : ''}`} />}
             </div>
 
             {isOpen && (
@@ -72,21 +80,36 @@ const CustomSelect = ({ label, value, options, onChange, onCreateNew, onRenameOp
                                             className="rounded text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5 border-slate-300 cursor-pointer flex-shrink-0"
                                         />
                                     )}
-                                    <span className="truncate">{renderOption ? renderOption(option) : option}</span>
+                                    <span className="truncate">{renderOption ? renderOption(option) : (typeof option === 'object' && option ? option.name : option)}</span>
                                 </div>
-                                {onRenameOption && !isMulti && (
-                                    <button
-                                        type="button"
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            onRenameOption(option);
-                                        }}
-                                        className="p-1 text-slate-400 hover:text-indigo-650 hover:bg-indigo-50 rounded transition-all cursor-pointer flex-shrink-0"
-                                        title="Rename Index"
-                                    >
-                                        <Edit size={13} />
-                                    </button>
-                                )}
+                                <div className="flex items-center gap-1 flex-shrink-0">
+                                    {onRenameOption && !isMulti && canShowRename(option) && (
+                                        <button
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                onRenameOption(option);
+                                            }}
+                                            className="p-1 text-slate-400 hover:text-indigo-650 hover:bg-indigo-50 rounded transition-all cursor-pointer flex-shrink-0"
+                                            title="Rename"
+                                        >
+                                            <Edit size={13} />
+                                        </button>
+                                    )}
+                                    {onDeleteOption && !isMulti && canShowDelete(option) && (
+                                        <button
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                onDeleteOption(option);
+                                            }}
+                                            className="p-1 text-slate-455 hover:text-rose-600 hover:bg-rose-50 rounded transition-all cursor-pointer flex-shrink-0"
+                                            title="Delete"
+                                        >
+                                            <Trash2 size={12} />
+                                        </button>
+                                    )}
+                                </div>
                             </div>
                         ))}
                     </div>
@@ -108,7 +131,7 @@ const CustomSelect = ({ label, value, options, onChange, onCreateNew, onRenameOp
     );
 };
 
-const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
+const ConnectItModal = ({ isOpen, onClose, onSave, initialData, disabledFields = {} }) => {
     const { user } = useAuth();
     const [formData, setFormData] = useState({
         institute: '',
@@ -130,7 +153,13 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
         course: [],
         subject: [],
         index: Array.from({ length: 50 }, (_, i) => `Inbox ${i + 1}`),
-        activity: ['Viva', 'Exam', 'Assignment', 'Test', 'Quiz']
+        activity: [
+            { name: 'Viva', isDefault: true },
+            { name: 'Exam', isDefault: true },
+            { name: 'Assignment', isDefault: true },
+            { name: 'Test', isDefault: true },
+            { name: 'Quiz', isDefault: true }
+        ]
     });
 
     const [indexMappings, setIndexMappings] = useState({});
@@ -139,6 +168,8 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
 
     const parseCommaSeparated = (str) => {
         if (!str) return [];
+        if (Array.isArray(str)) return str;
+        if (typeof str !== 'string') return [String(str)];
         return str.split(',').map(s => s.trim()).filter(Boolean);
     };
 
@@ -229,16 +260,27 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
         if (isOpen) {
             const fetchData = async () => {
                 try {
-                    const [instRes, courseRes] = await Promise.all([
+                    const [instRes, courseRes, actTypesRes] = await Promise.all([
                         axios.get('/api/setup/institutes'),
-                        axios.get('/api/setup/courses')
+                        axios.get('/api/setup/courses'),
+                        axios.get('/api/setup/activity-types')
                     ]);
 
                     setAllCourses(courseRes.data);
+                    
+                    const defaults = [
+                        { name: 'Viva', isDefault: true },
+                        { name: 'Exam', isDefault: true },
+                        { name: 'Assignment', isDefault: true },
+                        { name: 'Test', isDefault: true },
+                        { name: 'Quiz', isDefault: true }
+                    ];
+
                     setOptions(prev => ({
                         ...prev,
                         institute: instRes.data.map(i => i.name),
-                        course: courseRes.data.map(c => c.name)
+                        course: courseRes.data.map(c => c.name),
+                        activity: [...defaults, ...(actTypesRes.data || [])]
                     }));
 
                     // If user is Institute or Editor, auto-fill the institute name from the fetched list
@@ -463,25 +505,107 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
         }));
     }, [formData.course, formData.subject, allCourses]);
 
-    const handleCreateNew = (field, key) => {
+    const handleCreateNew = async (field, key) => {
         const newValue = prompt(`Enter new ${field}:`);
-        if (newValue) {
-            setOptions(prev => ({
-                ...prev,
-                [key]: [...prev[key], newValue]
-            }));
-            setFormData(prev => {
-                if (key === 'course') {
+        if (newValue && newValue.trim()) {
+            if (key === 'activity') {
+                const reserved = ['viva', 'exam', 'assignment', 'test', 'quiz'];
+                if (reserved.includes(newValue.trim().toLowerCase())) {
+                    toast.error('This activity type is reserved');
+                    return;
+                }
+                try {
+                    const { data } = await axios.post('/api/setup/activity-types', { name: newValue.trim() });
+                    toast.success('Activity type created successfully');
+                    setOptions(prev => ({
+                        ...prev,
+                        activity: [...prev.activity, data]
+                    }));
+                    setFormData(prev => ({
+                        ...prev,
+                        activity: data.name
+                    }));
+                } catch (err) {
+                    console.error("Error creating activity type:", err);
+                    toast.error(err.response?.data?.message || 'Failed to create activity type');
+                }
+            } else {
+                setOptions(prev => ({
+                    ...prev,
+                    [key]: [...prev[key], newValue.trim()]
+                }));
+                setFormData(prev => {
+                    if (key === 'course') {
+                        return {
+                            ...prev,
+                            [key]: [...(prev[key] || []), newValue.trim()]
+                        };
+                    }
                     return {
                         ...prev,
-                        [key]: [...(prev[key] || []), newValue]
+                        [key]: newValue.trim()
                     };
-                }
-                return {
+                });
+            }
+        }
+    };
+
+    const canModifyActivity = (option) => {
+        if (typeof option !== 'object' || !option) return false;
+        if (option.isDefault) return false;
+        const currentUserId = user?._id || user?.id || '';
+        return option.createdBy && option.createdBy.toString() === currentUserId.toString();
+    };
+
+    const handleEditActivity = async (option) => {
+        const newName = prompt(`Rename "${option.name}" to:`, option.name);
+        if (newName && newName.trim() && newName.trim() !== option.name) {
+            const reserved = ['viva', 'exam', 'assignment', 'test', 'quiz'];
+            if (reserved.includes(newName.trim().toLowerCase())) {
+                toast.error('This activity type is reserved');
+                return;
+            }
+            try {
+                const { data } = await axios.put(`/api/setup/activity-types/${option._id}`, { name: newName.trim() });
+                toast.success('Activity type updated successfully');
+                
+                // Update options list
+                setOptions(prev => ({
                     ...prev,
-                    [key]: newValue
-                };
-            });
+                    activity: prev.activity.map(act => act._id === option._id ? data : act)
+                }));
+                
+                // If it was selected, update form data
+                if (formData.activity === option.name) {
+                    setFormData(prev => ({ ...prev, activity: data.name }));
+                }
+            } catch (err) {
+                console.error("Error updating activity type:", err);
+                toast.error(err.response?.data?.message || 'Failed to update activity type');
+            }
+        }
+    };
+
+    const handleDeleteActivity = async (option) => {
+        if (confirm(`Are you sure you want to delete the activity type "${option.name}"?`)) {
+            try {
+                await axios.delete(`/api/setup/activity-types/${option._id}`);
+                toast.success('Activity type deleted successfully');
+                
+                // Remove from options list
+                setOptions(prev => ({
+                    ...prev,
+                    activity: prev.activity.filter(act => act._id !== option._id)
+                }));
+                
+                // If it was selected, clear it
+                if (formData.activity === option.name) {
+                    setFormData(prev => ({ ...prev, activity: '' }));
+                }
+            } catch (err) {
+                console.error("Error deleting activity type:", err);
+                toast.error(err.response?.data?.message || 'Failed to delete activity type');
+            }
         }
     };
 
@@ -528,6 +652,7 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
                                 options={options.institute}
                                 onChange={(val) => setFormData(prev => ({ ...prev, institute: val }))}
                                 placeholder="Select Institute"
+                                disabled={disabledFields?.institute}
                             />
                         )}
 
@@ -538,6 +663,7 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
                             onChange={(val) => setFormData(prev => ({ ...prev, course: val }))}
                             placeholder="Select Course"
                             isMulti={true}
+                            disabled={disabledFields?.course}
                         />
 
                         <CustomSelect
@@ -547,6 +673,7 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
                             onChange={(val) => setFormData(prev => ({ ...prev, subject: val }))}
                             onCreateNew={() => handleCreateNew('Subject Name', 'subject')}
                             placeholder="Select Subject"
+                            disabled={disabledFields?.subject}
                         />
 
                         <div className="space-y-1.5">
@@ -588,6 +715,7 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
                                         return opt;
                                     }}
                                     placeholder="Select Day / Inbox"
+                                    disabled={disabledFields?.index}
                                 />
                             )
                         ) : null}
@@ -598,6 +726,11 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData }) => {
                             options={options.activity}
                             onChange={(val) => setFormData(prev => ({ ...prev, activity: val }))}
                             onCreateNew={() => handleCreateNew('Type of Activity', 'activity')}
+                            onRenameOption={handleEditActivity}
+                            onDeleteOption={handleDeleteActivity}
+                            canShowRename={canModifyActivity}
+                            canShowDelete={canModifyActivity}
+                            renderOption={(opt) => typeof opt === 'object' && opt ? opt.name : opt}
                             placeholder="Select Activity"
                         />
 

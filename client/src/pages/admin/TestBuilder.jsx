@@ -2340,7 +2340,8 @@ const TestBuilder = () => {
                     subject: finalSubject,
                     index: finalInbox,
                     date: new Date().toISOString().split('T')[0],
-                    activity: prev.activity || 'Quiz'
+                    activity: prev.activity || 'Quiz',
+                    isAssigned: false
                 }));
                 setIsConnected(true);
 

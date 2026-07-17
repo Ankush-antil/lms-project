@@ -20,7 +20,12 @@ const uploadStudyMaterial = asyncHandler(async (req, res) => {
         throw new Error('Not authorized to upload study material');
     }
 
-    const { title, inboxId, fileUrl, isPrivate, status } = req.body;
+    try {
+        fs.appendFileSync(path.join(__dirname, '../upload_debug.log'), `[${new Date().toISOString()}] Upload payload: ${JSON.stringify(req.body)}\n`);
+    } catch (logErr) {
+        console.error("Failed to write upload log:", logErr);
+    }
+    const { title, inboxId, fileUrl, isPrivate, status, studentId, subject, course, dayNum } = req.body;
 
     if (!req.file && !fileUrl) {
         res.status(400);
@@ -62,7 +67,11 @@ const uploadStudyMaterial = asyncHandler(async (req, res) => {
         institute: instituteName,
         uploadedBy: req.user._id,
         isPrivate: isPrivate === 'true' || isPrivate === true,
-        status: status || 'study-material'
+        status: status || 'study-material',
+        student: studentId || null,
+        subject: subject || '',
+        course: course || '',
+        dayNum: dayNum ? parseInt(dayNum, 10) : null
     });
 
     res.status(201).json(material);
@@ -107,6 +116,7 @@ const getStudyMaterials = asyncHandler(async (req, res) => {
 
     const materials = await StudyMaterial.find(query)
         .populate('uploadedBy', 'name email role')
+        .populate('student', 'name email')
         .sort({ createdAt: -1 });
 
     res.json(materials);

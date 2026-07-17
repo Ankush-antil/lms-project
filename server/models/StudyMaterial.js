@@ -34,6 +34,19 @@ const studyMaterialSchema = new mongoose.Schema({
         type: String,
         default: 'study-material',
         enum: ['study-material', 'upcoming', 'assign']
+    },
+    student: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
+    },
+    subject: {
+        type: String
+    },
+    course: {
+        type: String
+    },
+    dayNum: {
+        type: Number
     }
 }, {
     timestamps: true

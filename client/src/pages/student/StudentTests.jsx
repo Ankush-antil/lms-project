@@ -233,9 +233,18 @@ const StudentTests = () => {
     const [inboxConfigs, setInboxConfigs] = useState([]);
     const [activityConfigs, setActivityConfigs] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [selectedItem, setSelectedItem] = useState(null);
-    const [viewMode, setViewMode] = useState(null); // 'pending' | 'completed' | etc
+    const [selectedItem, setSelectedItem] = useState(() => sessionStorage.getItem('student_selectedInbox') || null);
+    const [viewMode, setViewMode] = useState(() => sessionStorage.getItem('student_viewMode') || null); // 'pending' | 'completed' | etc
     const [isRiModalOpen, setIsRiModalOpen] = useState(false);
+
+    // Persist inbox and viewMode so back-navigation restores the last position
+    useEffect(() => {
+        if (selectedItem) sessionStorage.setItem('student_selectedInbox', selectedItem);
+    }, [selectedItem]);
+
+    useEffect(() => {
+        if (viewMode) sessionStorage.setItem('student_viewMode', viewMode);
+    }, [viewMode]);
 
     useEffect(() => {
         if (user) {

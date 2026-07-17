@@ -1699,9 +1699,11 @@ const PublicTestPage = () => {
                                             >
                                                 Q{idx + 1}. <span dangerouslySetInnerHTML={{ __html: q.text || 'What is a computer?' }} />
                                             </h3>
-                                            <p className="text-xs text-slate-500 font-medium italic">
-                                                "{q.description || q.instructions}"
-                                            </p>
+                                            {q.instructions && (
+                                                <p className="text-xs text-slate-500 font-medium italic">
+                                                    "{q.instructions}"
+                                                </p>
+                                            )}
                                         </div>
                                         <button
                                             type="button"

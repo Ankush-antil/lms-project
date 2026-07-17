@@ -41,6 +41,7 @@ const TestsList = () => {
     }, [searchTerm]);
     const [filterSubject, setFilterSubject] = useState(() => sessionStorage.getItem('testsList_filterSubject') || 'All');
     const [filterCourse, setFilterCourse] = useState(() => sessionStorage.getItem('testsList_filterCourse') || 'All');
+    const [filterInbox, setFilterInbox] = useState(() => sessionStorage.getItem('testsList_filterInbox') || 'All');
     const [filterInstitute, setFilterInstitute] = useState(() => sessionStorage.getItem('testsList_filterInstitute') || 'All');
     const [activeTab, setActiveTab] = useState(() => sessionStorage.getItem('testsList_activeTab') || 'lms');
     const [currentPage, setCurrentPage] = useState(() => Number(sessionStorage.getItem('testsList_currentPage')) || 1);
@@ -62,7 +63,7 @@ const TestsList = () => {
             return;
         }
         setCurrentPage(1);
-    }, [debouncedSearchTerm, filterSubject, filterCourse, filterInstitute, activeTab]);
+    }, [debouncedSearchTerm, filterSubject, filterCourse, filterInbox, filterInstitute, activeTab]);
 
     const editorControls = userInfo?.editorProfile?.controls;
 
@@ -89,11 +90,12 @@ const TestsList = () => {
         sessionStorage.setItem('testsList_searchTerm', searchTerm);
         sessionStorage.setItem('testsList_filterSubject', filterSubject);
         sessionStorage.setItem('testsList_filterCourse', filterCourse);
+        sessionStorage.setItem('testsList_filterInbox', filterInbox);
         sessionStorage.setItem('testsList_filterInstitute', filterInstitute);
         sessionStorage.setItem('testsList_activeTab', activeTab);
         sessionStorage.setItem('testsList_currentPage', String(currentPage));
         sessionStorage.setItem('testsList_showFolderExplorer', String(showFolderExplorer));
-    }, [searchTerm, filterSubject, filterCourse, filterInstitute, activeTab, currentPage, showFolderExplorer]);
+    }, [searchTerm, filterSubject, filterCourse, filterInbox, filterInstitute, activeTab, currentPage, showFolderExplorer]);
 
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
@@ -858,7 +860,8 @@ const TestsList = () => {
         const courseMatch = filterCourse === 'All' || 
             (test.course && test.course.split(',').map(c => c.trim().toLowerCase()).includes(filterCourse.toLowerCase()));
         const instituteMatch = filterInstitute === 'All' || test.institute === filterInstitute;
-        return titleMatch && subjectMatch && courseMatch && instituteMatch;
+        const inboxMatch = filterInbox === 'All' || test.index === filterInbox;
+        return titleMatch && subjectMatch && courseMatch && instituteMatch && inboxMatch;
     }).sort((a, b) => {
         const getNum = (s) => parseInt(s?.match(/\d+/)?.[0] || 0);
         const numA = getNum(a.index);
@@ -876,7 +879,8 @@ const TestsList = () => {
         const courseMatch = filterCourse === 'All' || 
             (test.course && test.course.split(',').map(c => c.trim().toLowerCase()).includes(filterCourse.toLowerCase()));
         const instituteMatch = filterInstitute === 'All' || test.institute === filterInstitute;
-        return titleMatch && subjectMatch && courseMatch && instituteMatch;
+        const inboxMatch = filterInbox === 'All' || test.index === filterInbox;
+        return titleMatch && subjectMatch && courseMatch && instituteMatch && inboxMatch;
     });
 
     const paginatedTests = filteredTests.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
@@ -1144,6 +1148,33 @@ const TestsList = () => {
         });
         return ['All', ...Array.from(subjects)];
     }, [currentTestsList, filterInstitute, filterCourse]);
+
+    const uniqueInboxes = useMemo(() => {
+        const testsFilteredByInstCrsAndSub = currentTestsList.filter(t =>
+            (filterInstitute === 'All' || t.institute === filterInstitute) &&
+            (filterCourse === 'All' || (t.course && t.course.split(',').map(c => c.trim().toLowerCase()).includes(filterCourse.toLowerCase()))) &&
+            (filterSubject === 'All' || (t.subject && t.subject.split(',').map(s => s.trim().toLowerCase()).includes(filterSubject.toLowerCase())))
+        );
+        const inboxes = new Set();
+        testsFilteredByInstCrsAndSub.forEach(t => {
+            if (t.index) {
+                const trimmed = t.index.trim();
+                if (trimmed) inboxes.add(trimmed);
+            }
+        });
+        
+        // Natural numeric sorting (e.g. Inbox 1, Inbox 2, ..., Inbox 10, Inbox 22)
+        const sortedInboxes = Array.from(inboxes).sort((a, b) => {
+            const numA = parseInt(a.replace(/\D/g, ''), 10);
+            const numB = parseInt(b.replace(/\D/g, ''), 10);
+            if (!isNaN(numA) && !isNaN(numB)) {
+                return numA - numB;
+            }
+            return a.localeCompare(b);
+        });
+        
+        return ['All', ...sortedInboxes];
+    }, [currentTestsList, filterInstitute, filterCourse, filterSubject]);
 
     // Aggregated tree: Institute -> Course -> Subject -> [Tests]
     const folderTree = (() => {
@@ -2571,6 +2602,7 @@ const TestsList = () => {
                                 onChange={(e) => {
                                     setFilterCourse(e.target.value);
                                     setFilterSubject('All');
+                                    setFilterInbox('All');
                                 }}
                                 className="w-full pl-7 pr-6 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none appearance-none cursor-pointer font-semibold text-slate-700 focus:bg-white focus:border-indigo-500 transition-all h-full truncate"
                             >
@@ -2585,11 +2617,28 @@ const TestsList = () => {
                             <Filter className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={11} />
                             <select
                                 value={filterSubject}
-                                onChange={(e) => setFilterSubject(e.target.value)}
+                                onChange={(e) => {
+                                    setFilterSubject(e.target.value);
+                                    setFilterInbox('All');
+                                }}
                                 className="w-full pl-7 pr-6 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none appearance-none cursor-pointer font-semibold text-slate-700 focus:bg-white focus:border-indigo-500 transition-all h-full truncate"
                             >
                                 {uniqueSubjects.map(subject => (
                                     <option key={subject} value={subject}>{subject === 'All' ? 'All Subjects' : subject}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {/* Inbox Filter */}
+                        <div className="relative w-[130px] h-[32px]">
+                            <Filter className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={11} />
+                            <select
+                                value={filterInbox}
+                                onChange={(e) => setFilterInbox(e.target.value)}
+                                className="w-full pl-7 pr-6 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none appearance-none cursor-pointer font-semibold text-slate-700 focus:bg-white focus:border-indigo-500 transition-all h-full truncate"
+                            >
+                                {uniqueInboxes.map(inbox => (
+                                    <option key={inbox} value={inbox}>{inbox === 'All' ? 'All Inboxes' : inbox}</option>
                                 ))}
                             </select>
                         </div>

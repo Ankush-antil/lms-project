@@ -38,7 +38,7 @@ const getTests = asyncHandler(async (req, res) => {
     }
 
     const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    let query = {};
+    let query = { isDeleted: { $ne: true } };
 
     // 1. MUST match Institute (case-insensitive, flexible whitespace)
     query.institute = { $regex: new RegExp(`^\\s*${escapeRegex(studentInstitute)}\\s*$`, 'i') };
@@ -134,7 +134,7 @@ const getTests = asyncHandler(async (req, res) => {
 // @access  Private/Student
 const getTestById = asyncHandler(async (req, res) => {
     const test = await Test.findById(req.params.id).populate('createdBy', 'name email role');
-    if (!test) {
+    if (!test || test.isDeleted) {
         res.status(404);
         throw new Error('Test not found');
     }

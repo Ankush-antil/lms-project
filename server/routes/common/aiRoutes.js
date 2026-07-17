@@ -31,7 +31,7 @@ router.post('/chat', protect, async (req, res, next) => {
               ]
             : prompt;
 
-        const response = await fetch(endpoint, {
+        let response = await fetch(endpoint, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -51,6 +51,31 @@ router.post('/chat', protect, async (req, res, next) => {
                 temperature: 0.2
             })
         });
+
+        // Fallback to llama-3.1-8b-instant if rate limit (429) is hit on llama-3.3-70b-versatile
+        if (response.status === 429 && model === 'llama-3.3-70b-versatile') {
+            console.warn('[GROQ RATE LIMIT] Hitting rate limit on llama-3.3-70b-versatile, falling back to llama-3.1-8b-instant');
+            response = await fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`
+                },
+                body: JSON.stringify({
+                    model: 'llama-3.1-8b-instant',
+                    messages: [
+                        {
+                            role: 'user',
+                            content: messageContent
+                        }
+                    ],
+                    response_format: {
+                        type: 'json_object'
+                    },
+                    temperature: 0.2
+                })
+            });
+        }
 
         if (!response.ok) {
             let detailMsg = `Groq API returned status ${response.status}`;

@@ -1163,15 +1163,15 @@ const TestFolderStructure = ({ isOpen, onClose, tests, onOpenResponses, onDelete
                                         {(folderTree[explorerPath[0]]?.[explorerPath[1]]?.[explorerPath[2]]?.[explorerPath[3]] || []).map(test => (
                                             <div
                                                 key={test._id}
-                                                className={`p-4.5 rounded-2xl border transition-all flex flex-col gap-4 select-none ${
+                                                className={`p-6 rounded-2xl border transition-all flex flex-col gap-4 select-none ${
                                                     test._id === highlightedTestId 
                                                         ? 'border-indigo-500 bg-indigo-50/20 ring-2 ring-indigo-500 ring-offset-1 animate-pulse' 
-                                                        : 'border-slate-200 bg-white hover:border-slate-350 hover:shadow-md'
+                                                        : 'border-slate-200/80 bg-slate-50 hover:bg-slate-100/50 hover:border-slate-350 hover:shadow-md'
                                                 }`}
                                             >
                                                 {/* Test Info */}
                                                 <div className="flex items-start gap-3 min-w-0">
-                                                    <div className="text-indigo-650 bg-indigo-50 p-2.5 rounded-xl flex-shrink-0 mt-0.5">
+                                                    <div className="text-[#0b1329] bg-white border border-slate-100 shadow-sm p-2.5 rounded-xl flex-shrink-0 mt-0.5">
                                                         <FileText size={20} />
                                                     </div>
                                                     <div className="min-w-0 flex-1">
@@ -1185,7 +1185,7 @@ const TestFolderStructure = ({ isOpen, onClose, tests, onOpenResponses, onDelete
                                                 </div>
 
                                                 {/* Divider */}
-                                                <div className="border-t border-slate-100 my-0.5"></div>
+                                                <div className="border-t border-slate-200/60 my-0.5"></div>
 
                                                 {/* Test Action Buttons */}
                                                 <div className="flex items-center justify-center gap-1.5 mt-auto pt-1 flex-wrap">

@@ -2341,7 +2341,7 @@ const TestBuilder = () => {
                     index: finalInbox,
                     date: new Date().toISOString().split('T')[0],
                     activity: prev.activity || 'Quiz',
-                    isAssigned: false
+                    isAssigned: true
                 }));
                 setIsConnected(true);
 
@@ -3097,7 +3097,7 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
         date: new Date().toISOString().split('T')[0],
         index: 'Inbox 1',
         activity: 'Quiz',
-        isAssigned: false,
+        isAssigned: true,
         duration: '',
         passingMarks: ''
     });
@@ -3959,7 +3959,7 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
             ...prev,
             name: 'Untitled Form',
             date: new Date().toISOString().split('T')[0],
-            isAssigned: false,
+            isAssigned: true,
             duration: '',
             passingMarks: '',
             description: ''

@@ -445,10 +445,10 @@ const PublicTestPage = () => {
                 const subId = res.data.submissionId;
                 const subRes = await axios.get(`/api/submissions/shared/${subId}`);
                 const submissionData = subRes.data;
-                
+
                 const loadedAnswers = {};
                 const loadedSubmittedAnswers = {};
-                
+
                 test.questions.forEach((q, idx) => {
                     const ans = submissionData.answers.find(item => item.questionId === (q.id || `q${idx}`));
                     if (ans) {
@@ -457,7 +457,7 @@ const PublicTestPage = () => {
                             if ((textVal.startsWith('{') && textVal.endsWith('}')) || (textVal.startsWith('[') && textVal.endsWith(']'))) {
                                 textVal = JSON.parse(textVal);
                             }
-                        } catch (e) {}
+                        } catch (e) { }
 
                         loadedSubmittedAnswers[idx] = {
                             text: textVal,
@@ -1245,7 +1245,7 @@ const PublicTestPage = () => {
             <div className="h-screen w-screen overflow-hidden flex items-center justify-center bg-gradient-to-r from-[#fafafa] from-35% via-[#b8c5d6] to-[#0b1329] to-65% p-4 md:p-8 font-sans">
                 <div className="flex w-full max-w-5xl h-[85vh] max-h-[580px] bg-transparent rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.3)] overflow-hidden border border-slate-200/50 relative">
                     {/* Left Side - Form (Off-White Theme) */}
-                    <motion.div 
+                    <motion.div
                         initial={{ opacity: 0, x: -40 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ duration: 0.6, ease: 'easeOut' }}
@@ -1253,7 +1253,7 @@ const PublicTestPage = () => {
                     >
                         <div>
                             {/* Title Section */}
-                            <motion.div 
+                            <motion.div
                                 initial={{ opacity: 0, y: -15 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: 0.15, duration: 0.4 }}
@@ -1269,7 +1269,7 @@ const PublicTestPage = () => {
 
                             <form onSubmit={handleRegisterStart} className="space-y-3">
                                 {/* Full Name field */}
-                                <motion.div 
+                                <motion.div
                                     initial={{ opacity: 0, y: 15 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ delay: 0.2, duration: 0.4 }}
@@ -1287,7 +1287,7 @@ const PublicTestPage = () => {
                                 </motion.div>
 
                                 {/* Email Address field */}
-                                <motion.div 
+                                <motion.div
                                     initial={{ opacity: 0, y: 15 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ delay: 0.25, duration: 0.4 }}
@@ -1305,7 +1305,7 @@ const PublicTestPage = () => {
                                 </motion.div>
 
                                 {/* Mobile Number field */}
-                                <motion.div 
+                                <motion.div
                                     initial={{ opacity: 0, y: 15 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ delay: 0.3, duration: 0.4 }}
@@ -1322,7 +1322,7 @@ const PublicTestPage = () => {
                                 </motion.div>
 
                                 {/* Institute/Organization field */}
-                                <motion.div 
+                                <motion.div
                                     initial={{ opacity: 0, y: 15 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ delay: 0.35, duration: 0.4 }}
@@ -1340,7 +1340,7 @@ const PublicTestPage = () => {
 
                                 {/* reCAPTCHA Anti-Spam simulation */}
                                 {test?.publicSettings?.antiSpam && (
-                                    <motion.div 
+                                    <motion.div
                                         initial={{ opacity: 0, scale: 0.95 }}
                                         animate={{ opacity: 1, scale: 1 }}
                                         transition={{ delay: 0.4, duration: 0.3 }}
@@ -1387,7 +1387,7 @@ const PublicTestPage = () => {
                         </div>
 
                         {/* Footer / Empty area to align with LoginPage */}
-                        <motion.div 
+                        <motion.div
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             transition={{ delay: 0.5, duration: 0.4 }}
@@ -1407,7 +1407,7 @@ const PublicTestPage = () => {
                         <div className="absolute -bottom-20 -left-20 w-80 h-80 rounded-full bg-white/5 blur-3xl"></div>
 
                         {/* Text Section */}
-                        <motion.div 
+                        <motion.div
                             initial={{ opacity: 0, y: -20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.2, duration: 0.5, type: 'spring', stiffness: 90 }}
@@ -1437,7 +1437,7 @@ const PublicTestPage = () => {
 
                         {/* Custom Illustration Image */}
                         <div className="w-full max-w-[280px] z-10 my-auto flex justify-center">
-                            <motion.img 
+                            <motion.img
                                 initial={{ opacity: 0, y: 30, scale: 0.95 }}
                                 animate={{ opacity: 1, y: 0, scale: 1 }}
                                 transition={{ delay: 0.4, duration: 0.6, type: 'spring', stiffness: 80 }}
@@ -1684,7 +1684,7 @@ const PublicTestPage = () => {
                                     {/* Question Title Row */}
                                     <div className="flex justify-between items-start gap-4">
                                         <div className="space-y-1">
-                                            <h3 
+                                            <h3
                                                 onClick={(e) => {
                                                     const anchor = e.target.closest('a');
                                                     if (anchor) {
@@ -1700,7 +1700,7 @@ const PublicTestPage = () => {
                                                 Q{idx + 1}. <span dangerouslySetInnerHTML={{ __html: q.text || 'What is a computer?' }} />
                                             </h3>
                                             <p className="text-xs text-slate-500 font-medium italic">
-                                                "{q.description || q.instructions || 'This is a question that requires only a one-line answer.'}"
+                                                "{q.description || q.instructions}"
                                             </p>
                                         </div>
                                         <button
@@ -1803,7 +1803,7 @@ const PublicTestPage = () => {
                                             )}
 
                                             {(q.youtubeUrl || q.embeddedVideoUrl) && !isEmbeddedVideo && (
-                                                <div 
+                                                <div
                                                     className="mt-2 mx-auto overflow-hidden rounded-2xl border border-slate-200 shadow-sm aspect-video bg-black flex items-center justify-center"
                                                     style={{ width: `${q.videoWidth || 500}px`, maxWidth: '100%' }}
                                                 >
@@ -2222,7 +2222,7 @@ const PublicTestPage = () => {
                                                 )}
                                                 {/* Embedded Video Displaying */}
                                                 {isEmbeddedVideo && (
-                                                    <div 
+                                                    <div
                                                         className="mt-2 mx-auto overflow-hidden rounded-2xl border border-slate-200 shadow-sm aspect-video bg-black flex items-center justify-center"
                                                         style={{ width: `${q.videoWidth || 500}px`, maxWidth: '100%' }}
                                                     >
@@ -2317,7 +2317,7 @@ const PublicTestPage = () => {
                                                         )}
                                                     </div>
                                                 )}
-                                                
+
                                                 {/* Multi file Displaying */}
                                                 {isMultiFile && (
                                                     <div className="space-y-3">
@@ -2490,9 +2490,9 @@ const PublicTestPage = () => {
                                                                 onClick={handleCallTeacher}
                                                                 className="w-full py-2.5 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 disabled:from-slate-200 disabled:to-slate-300 disabled:text-slate-400 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2"
                                                             >
-                                                                <Phone size={14} /> 
-                                                                {singleTeacher 
-                                                                    ? `Call ${singleTeacher.name} (${onlineUsers.includes(singleTeacher._id) ? 'Online' : 'Offline'})` 
+                                                                <Phone size={14} />
+                                                                {singleTeacher
+                                                                    ? `Call ${singleTeacher.name} (${onlineUsers.includes(singleTeacher._id) ? 'Online' : 'Offline'})`
                                                                     : 'Establish Voice Connection'
                                                                 }
                                                             </button>
@@ -2508,86 +2508,86 @@ const PublicTestPage = () => {
                                                 })()}
 
                                                 {/* Web based Video calling */}
-{isVideoCall && (() => {
-    const allowedIds = q.particulars?.allowedTeachers || [];
-    const questionTeachers = teachersList.filter(t => allowedIds.includes(t._id));
-    const elementTeachers = questionTeachers.length > 0 ? questionTeachers : teachersList;
-    const singleTeacher = elementTeachers.length === 1 ? elementTeachers[0] : null;
+                                                {isVideoCall && (() => {
+                                                    const allowedIds = q.particulars?.allowedTeachers || [];
+                                                    const questionTeachers = teachersList.filter(t => allowedIds.includes(t._id));
+                                                    const elementTeachers = questionTeachers.length > 0 ? questionTeachers : teachersList;
+                                                    const singleTeacher = elementTeachers.length === 1 ? elementTeachers[0] : null;
 
-    const handleCallTeacher = () => {
-        const targetId = singleTeacher ? singleTeacher._id : (selectedTeachers[idx] || '');
-        const target = elementTeachers.find(t => t._id === targetId);
-        if (!target) {
-            toast.error("Please select a teacher to call");
-            return;
-        }
-        callUser(target._id, target.name, 'Teacher', 'video');
-        handleTextChange(idx, `Video Call Session with ${target.name} on ${new Date().toLocaleString()}`);
-    };
+                                                    const handleCallTeacher = () => {
+                                                        const targetId = singleTeacher ? singleTeacher._id : (selectedTeachers[idx] || '');
+                                                        const target = elementTeachers.find(t => t._id === targetId);
+                                                        if (!target) {
+                                                            toast.error("Please select a teacher to call");
+                                                            return;
+                                                        }
+                                                        callUser(target._id, target.name, 'Teacher', 'video');
+                                                        handleTextChange(idx, `Video Call Session with ${target.name} on ${new Date().toLocaleString()}`);
+                                                    };
 
-    return (
-        <div className="mt-2 border border-slate-200 rounded-2xl p-6 bg-slate-900 text-white flex flex-col gap-4 text-left">
-            <div className="flex items-center gap-3">
-                <div className="p-3 bg-purple-500/10 border border-purple-500/30 text-purple-400 rounded-xl">
-                    <Video size={22} />
-                </div>
-                <div>
-                    <span className="text-sm font-bold block">Web Video Call Meeting</span>
-                    <span className="text-xs text-slate-400">Establish a live video call with your instructor</span>
-                </div>
-            </div>
+                                                    return (
+                                                        <div className="mt-2 border border-slate-200 rounded-2xl p-6 bg-slate-900 text-white flex flex-col gap-4 text-left">
+                                                            <div className="flex items-center gap-3">
+                                                                <div className="p-3 bg-purple-500/10 border border-purple-500/30 text-purple-400 rounded-xl">
+                                                                    <Video size={22} />
+                                                                </div>
+                                                                <div>
+                                                                    <span className="text-sm font-bold block">Web Video Call Meeting</span>
+                                                                    <span className="text-xs text-slate-400">Establish a live video call with your instructor</span>
+                                                                </div>
+                                                            </div>
 
-            {q.videoCallScenario && (
-                <div className="bg-white/10 p-3 rounded-xl border border-white/5 text-xs font-medium text-slate-300 leading-relaxed max-h-24 overflow-y-auto">
-                    <strong className="text-white uppercase tracking-wider block mb-1 text-[10px]">Meeting Topic:</strong>
-                    {q.videoCallScenario}
-                </div>
-            )}
+                                                            {q.videoCallScenario && (
+                                                                <div className="bg-white/10 p-3 rounded-xl border border-white/5 text-xs font-medium text-slate-300 leading-relaxed max-h-24 overflow-y-auto">
+                                                                    <strong className="text-white uppercase tracking-wider block mb-1 text-[10px]">Meeting Topic:</strong>
+                                                                    {q.videoCallScenario}
+                                                                </div>
+                                                            )}
 
-            {!singleTeacher && elementTeachers.length > 0 && (
-                <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Choose Teacher to Call</label>
-                    <select
-                        value={selectedTeachers[idx] || ''}
-                        onChange={(e) => setSelectedTeachers(prev => ({ ...prev, [idx]: e.target.value }))}
-                        disabled={!isEditable}
-                        className="w-full border border-white/10 rounded-xl p-2.5 text-xs font-semibold outline-none focus:border-purple-500 bg-white/5 text-white"
-                    >
-                        <option value="" className="text-slate-900">-- Select Teacher --</option>
-                        {elementTeachers.map(t => {
-                            const isOnline = onlineUsers.includes(t._id);
-                            return (
-                                <option key={t._id} value={t._id} className="text-slate-900">
-                                    {t.name} ({isOnline ? 'Online' : 'Offline'})
-                                </option>
-                            );
-                        })}
-                    </select>
-                </div>
-            )}
+                                                            {!singleTeacher && elementTeachers.length > 0 && (
+                                                                <div className="space-y-1.5">
+                                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Choose Teacher to Call</label>
+                                                                    <select
+                                                                        value={selectedTeachers[idx] || ''}
+                                                                        onChange={(e) => setSelectedTeachers(prev => ({ ...prev, [idx]: e.target.value }))}
+                                                                        disabled={!isEditable}
+                                                                        className="w-full border border-white/10 rounded-xl p-2.5 text-xs font-semibold outline-none focus:border-purple-500 bg-white/5 text-white"
+                                                                    >
+                                                                        <option value="" className="text-slate-900">-- Select Teacher --</option>
+                                                                        {elementTeachers.map(t => {
+                                                                            const isOnline = onlineUsers.includes(t._id);
+                                                                            return (
+                                                                                <option key={t._id} value={t._id} className="text-slate-900">
+                                                                                    {t.name} ({isOnline ? 'Online' : 'Offline'})
+                                                                                </option>
+                                                                            );
+                                                                        })}
+                                                                    </select>
+                                                                </div>
+                                                            )}
 
-            <button
-                type="button"
-                disabled={!isEditable || (!singleTeacher && !selectedTeachers[idx])}
-                onClick={handleCallTeacher}
-                className="w-full py-2.5 bg-purple-600 hover:bg-purple-700 disabled:bg-slate-700 disabled:text-slate-400 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2"
-            >
-                <Video size={14} />
-                {singleTeacher
-                    ? `Call ${singleTeacher.name} (${onlineUsers.includes(singleTeacher._id) ? 'Online' : 'Offline'})`
-                    : 'Establish Video Connection'
-                }
-            </button>
+                                                            <button
+                                                                type="button"
+                                                                disabled={!isEditable || (!singleTeacher && !selectedTeachers[idx])}
+                                                                onClick={handleCallTeacher}
+                                                                className="w-full py-2.5 bg-purple-600 hover:bg-purple-700 disabled:bg-slate-700 disabled:text-slate-400 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2"
+                                                            >
+                                                                <Video size={14} />
+                                                                {singleTeacher
+                                                                    ? `Call ${singleTeacher.name} (${onlineUsers.includes(singleTeacher._id) ? 'Online' : 'Offline'})`
+                                                                    : 'Establish Video Connection'
+                                                                }
+                                                            </button>
 
-            {answers[idx] && (
-                <span className="text-xs text-emerald-450 font-bold flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                    {answers[idx]}
-                </span>
-            )}
-        </div>
-    );
-})()}
+                                                            {answers[idx] && (
+                                                                <span className="text-xs text-emerald-450 font-bold flex items-center gap-1">
+                                                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                                                    {answers[idx]}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })()}
 
                                                 {/* Text based AI agent */}
                                                 {isTextAI && (

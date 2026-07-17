@@ -95,6 +95,48 @@ const TestsList = () => {
         sessionStorage.setItem('testsList_showFolderExplorer', String(showFolderExplorer));
     }, [searchTerm, filterSubject, filterCourse, filterInstitute, activeTab, currentPage, showFolderExplorer]);
 
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const expInst = params.get('exp_inst');
+        const expCourse = params.get('exp_course');
+        const expSubject = params.get('exp_subject');
+        const expInbox = params.get('exp_inbox');
+        const highlightId = params.get('highlightTestId');
+
+        if (expInst || expCourse || expSubject || expInbox) {
+            const cleanInst = expInst ? decodeURIComponent(expInst) : '';
+            const cleanCourse = expCourse ? decodeURIComponent(expCourse) : '';
+            const cleanSubject = expSubject ? decodeURIComponent(expSubject) : '';
+            const cleanInbox = expInbox ? decodeURIComponent(expInbox) : 'Inbox 1';
+            
+            const path = [];
+            if (cleanInst) {
+                path.push(cleanInst);
+                if (cleanCourse) {
+                    path.push(cleanCourse);
+                    if (cleanSubject) {
+                        path.push(cleanSubject);
+                        if (cleanInbox) {
+                            path.push(cleanInbox);
+                        }
+                    }
+                }
+            }
+
+            if (path.length > 0) {
+                sessionStorage.setItem('folderExplorer_explorerPath', JSON.stringify(path));
+                if (highlightId) {
+                    sessionStorage.setItem('folderExplorer_highlightTestId', highlightId);
+                }
+                setShowFolderExplorer(true);
+            }
+
+            // Silently clean URL
+            const cleanUrl = window.location.pathname;
+            window.history.replaceState({}, document.title, cleanUrl);
+        }
+    }, []);
+
     // Core tests data
     const [tests, setTests] = useState([]);
     const [publicTests, setPublicTests] = useState([]);

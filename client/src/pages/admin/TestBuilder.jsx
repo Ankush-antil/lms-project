@@ -2243,6 +2243,54 @@ const TestBuilder = () => {
         formElementsRef.current = formElements;
     }, [formElements]);
 
+    const convertToSubjectRelativeInbox = (courseObj, subjectName, rawInbox) => {
+        if (!rawInbox || !subjectName || !courseObj) return rawInbox;
+        
+        const subjects = courseObj.subjects || [];
+        const durations = courseObj.subjectDurations || [];
+        const totalDuration = courseObj.duration || 5;
+
+        let currentDayIndex = 1;
+        const mapping = [];
+
+        if (subjects && subjects.length > 0) {
+            subjects.forEach(subjName => {
+                const d = durations.find(dur => dur.subjectName?.toLowerCase() === subjName.toLowerCase());
+                if (d) {
+                    const subName = d.subjectName;
+                    const subDur = Number(d.duration) || 0;
+                    const subDays = [];
+                    for (let i = 1; i <= subDur; i++) {
+                        if (currentDayIndex <= totalDuration) {
+                            subDays.push({
+                                dayNum: i,
+                                indexNum: currentDayIndex,
+                                id: `Inbox ${currentDayIndex}`
+                            });
+                            currentDayIndex++;
+                        }
+                    }
+                    if (subDays.length > 0) {
+                        mapping.push({
+                            subjectName: subjName,
+                            days: subDays
+                        });
+                    }
+                }
+            });
+        }
+
+        const matchedGroup = mapping.find(m => m.subjectName.toLowerCase() === subjectName.toLowerCase());
+        if (matchedGroup) {
+            const inboxNorm = rawInbox.trim().toLowerCase();
+            const foundDay = matchedGroup.days.find(d => d.id.trim().toLowerCase() === inboxNorm);
+            if (foundDay) {
+                return `Inbox ${foundDay.dayNum}`;
+            }
+        }
+        return rawInbox;
+    };
+
     useEffect(() => {
         const studentIdParam = searchParams.get('studentId');
         const inboxIdParam = searchParams.get('inboxId');
@@ -2252,43 +2300,57 @@ const TestBuilder = () => {
         const subjectParam = searchParams.get('subject');
         const inboxParam = searchParams.get('inbox');
         
-        if (studentIdParam && inboxIdParam) {
-            const fetchStudentDetails = async () => {
-                try {
-                    const { data } = await axios.get(`/api/users/${studentIdParam}`);
-                    if (data) {
-                        const studentInstitute = data.institute?.name || data.institute || '';
-                        const studentCourse = data.studentProfile?.course?.name || data.studentProfile?.course || '';
-                        const studentSubject = data.studentProfile?.subject || '';
+        const initializeConnectData = async () => {
+            try {
+                const { data: coursesList } = await axios.get('/api/setup/courses');
+                
+                let finalInst = instParam || '';
+                let finalCourse = courseParam || '';
+                let finalSubject = subjectParam || '';
+                let rawInbox = inboxParam || inboxIdParam || 'Inbox 1';
+                let studentName = '';
 
-                        setConnectData(prev => ({
-                            ...prev,
-                            name: `Test for ${data.name}`,
-                            institute: instParam || studentInstitute,
-                            course: courseParam || studentCourse || '',
-                            subject: subjectParam || studentSubject,
-                            date: new Date().toISOString().split('T')[0],
-                            index: inboxParam || inboxIdParam || 'Inbox 1',
-                            activity: 'Quiz'
-                        }));
-                        setIsConnected(true);
+                if (studentIdParam) {
+                    const { data: studentData } = await axios.get(`/api/users/${studentIdParam}`);
+                    if (studentData) {
+                        const studentInstitute = studentData.institute?.name || studentData.institute || '';
+                        const studentCourse = studentData.studentProfile?.course?.name || studentData.studentProfile?.course || '';
+                        const studentSubject = studentData.studentProfile?.subject || '';
+                        
+                        finalInst = instParam || studentInstitute;
+                        finalCourse = courseParam || studentCourse || '';
+                        finalSubject = subjectParam || studentSubject;
+                        studentName = studentData.name;
                     }
-                } catch (err) {
-                    console.error("Error fetching student details for TestBuilder pre-fill:", err);
                 }
-            };
-            fetchStudentDetails();
-        } else if (instParam || courseParam || subjectParam || inboxParam) {
-            setConnectData(prev => ({
-                ...prev,
-                institute: instParam || '',
-                course: courseParam || '',
-                subject: subjectParam || '',
-                index: inboxParam || 'Inbox 1',
-                date: new Date().toISOString().split('T')[0],
-                activity: 'Quiz'
-            }));
-            setIsConnected(true);
+
+                let finalInbox = rawInbox;
+                if (finalCourse && finalSubject && coursesList && coursesList.length > 0) {
+                    const courseObj = coursesList.find(c => c.name?.toLowerCase() === finalCourse.toLowerCase());
+                    if (courseObj) {
+                        finalInbox = convertToSubjectRelativeInbox(courseObj, finalSubject, rawInbox);
+                    }
+                }
+
+                setConnectData(prev => ({
+                    ...prev,
+                    name: studentName ? `Test for ${studentName}` : (prev.name || 'Untitled Form'),
+                    institute: finalInst,
+                    course: finalCourse,
+                    subject: finalSubject,
+                    index: finalInbox,
+                    date: new Date().toISOString().split('T')[0],
+                    activity: prev.activity || 'Quiz'
+                }));
+                setIsConnected(true);
+
+            } catch (err) {
+                console.error("Error during TestBuilder connect prefill:", err);
+            }
+        };
+
+        if (studentIdParam || instParam || courseParam || subjectParam || inboxParam) {
+            initializeConnectData();
         }
     }, [searchParams]);
 
@@ -4029,7 +4091,17 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                 const redirectPath = (searchParams.get('studentId') || user?.role === 'Teacher')
                     ? '/teacher/activities'
                     : (user?.role === 'Editor' ? '/editor' : user?.role === 'Institute' ? '/institute/activities' : '/admin/activities');
-                navigate(redirectPath);
+                
+                if (redirectPath !== '/teacher/activities') {
+                    const inst = testData.testDetails.institute || '';
+                    const crs = testData.testDetails.course || '';
+                    const subj = testData.testDetails.subject || '';
+                    const inbox = testData.testDetails.index || 'Inbox 1';
+                    const testId = publishedTest?._id || id || '';
+                    navigate(`${redirectPath}?exp_inst=${encodeURIComponent(inst)}&exp_course=${encodeURIComponent(crs)}&exp_subject=${encodeURIComponent(subj)}&exp_inbox=${encodeURIComponent(inbox)}&highlightTestId=${testId}`);
+                } else {
+                    navigate(redirectPath);
+                }
                 return;
             }
 
@@ -4043,7 +4115,17 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                 const redirectPath = (searchParams.get('studentId') || user?.role === 'Teacher')
                     ? '/teacher/activities'
                     : (user?.role === 'Editor' ? '/editor' : user?.role === 'Institute' ? '/institute/activities' : '/admin/activities');
-                navigate(redirectPath);
+                
+                if (redirectPath !== '/teacher/activities') {
+                    const inst = testData.testDetails.institute || '';
+                    const crs = testData.testDetails.course || '';
+                    const subj = testData.testDetails.subject || '';
+                    const inbox = testData.testDetails.index || 'Inbox 1';
+                    const testId = id || '';
+                    navigate(`${redirectPath}?exp_inst=${encodeURIComponent(inst)}&exp_course=${encodeURIComponent(crs)}&exp_subject=${encodeURIComponent(subj)}&exp_inbox=${encodeURIComponent(inbox)}&highlightTestId=${testId}`);
+                } else {
+                    navigate(redirectPath);
+                }
             }
         } catch (error) {
             console.error("Error publishing form:", error);
@@ -6171,7 +6253,17 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                         const redirectPath = (searchParams.get('studentId') || user?.role === 'Teacher')
                             ? '/teacher/activities'
                             : (user?.role === 'Editor' ? '/editor' : user?.role === 'Institute' ? '/institute/activities' : '/admin/activities');
-                        navigate(redirectPath);
+                        
+                        if (redirectPath !== '/teacher/activities') {
+                            const inst = connectData?.institute || user?.institute?.name || (typeof user?.institute === 'string' ? user.institute : 'Default Institute');
+                            const crs = connectData?.course || '';
+                            const subj = connectData?.subject || '';
+                            const inbox = connectData?.index || 'Inbox 1';
+                            const testId = publishSuccessInfo?.testId || '';
+                            navigate(`${redirectPath}?exp_inst=${encodeURIComponent(inst)}&exp_course=${encodeURIComponent(crs)}&exp_subject=${encodeURIComponent(subj)}&exp_inbox=${encodeURIComponent(inbox)}&highlightTestId=${testId}`);
+                        } else {
+                            navigate(redirectPath);
+                        }
                     }}
                     testId={publishSuccessInfo?.testId}
                     testTitle={publishSuccessInfo?.testTitle}

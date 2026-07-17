@@ -71,6 +71,20 @@ const TestFolderStructure = ({ isOpen, onClose, tests, onOpenResponses, onDelete
         }
     }, [tests]);
 
+    const [highlightedTestId, setHighlightedTestId] = useState(() => {
+        return sessionStorage.getItem('folderExplorer_highlightTestId') || null;
+    });
+
+    useEffect(() => {
+        if (highlightedTestId && isOpen) {
+            const timer = setTimeout(() => {
+                setHighlightedTestId(null);
+                sessionStorage.removeItem('folderExplorer_highlightTestId');
+            }, 6000);
+            return () => clearTimeout(timer);
+        }
+    }, [highlightedTestId, isOpen]);
+
     const handleCreateFormClick = () => {
         const inst = explorerPath[0] || '';
         const crs = explorerPath[1] || '';
@@ -1143,14 +1157,17 @@ const TestFolderStructure = ({ isOpen, onClose, tests, onOpenResponses, onDelete
                                         )}
                                     </div>
                                 )}
-
                                 {/* Level 4: List Tests in Inbox */}
                                 {explorerPath.length === 4 && (
                                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
                                         {(folderTree[explorerPath[0]]?.[explorerPath[1]]?.[explorerPath[2]]?.[explorerPath[3]] || []).map(test => (
                                             <div
                                                 key={test._id}
-                                                className="p-4.5 rounded-2xl border border-slate-200 bg-white hover:border-slate-350 hover:shadow-md transition-all flex flex-col gap-4 select-none"
+                                                className={`p-4.5 rounded-2xl border transition-all flex flex-col gap-4 select-none ${
+                                                    test._id === highlightedTestId 
+                                                        ? 'border-indigo-500 bg-indigo-50/20 ring-2 ring-indigo-500 ring-offset-1 animate-pulse' 
+                                                        : 'border-slate-200 bg-white hover:border-slate-350 hover:shadow-md'
+                                                }`}
                                             >
                                                 {/* Test Info */}
                                                 <div className="flex items-start gap-3 min-w-0">

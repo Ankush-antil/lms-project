@@ -509,7 +509,8 @@ const TeacherActivities = () => {
     const [uploadType, setUploadType] = useState('url'); // 'file' or 'url'
     const [uploadingMaterial, setUploadingMaterial] = useState(false);
     const [showMatModal, setShowMatModal] = useState(false);
-    const [uploadTarget, setUploadTarget] = useState('student'); // 'student' or 'all'
+    const [uploadTarget, setUploadTarget] = useState('current'); // 'current', 'all', 'particular'
+    const [uploadStudentId, setUploadStudentId] = useState('');
 
     // Categorized study materials states
     const [selectedCategoryTab, setSelectedCategoryTab] = useState('all');
@@ -927,8 +928,15 @@ const TeacherActivities = () => {
             const matStatus = viewMode === 'pending' ? 'upcoming' : (viewMode === 'assign' ? 'assign' : 'study-material');
             formData.append('status', matStatus);
 
-            if (selectedStudent && uploadTarget === 'student') {
+            if (uploadTarget === 'current' && selectedStudent) {
                 formData.append('studentId', selectedStudent._id);
+            } else if (uploadTarget === 'particular') {
+                if (!uploadStudentId) {
+                    toast.error("Please select a student first");
+                    setUploadingMaterial(false);
+                    return;
+                }
+                formData.append('studentId', uploadStudentId);
             }
             if (activeDayDetails) {
                 formData.append('subject', activeDayDetails.subjectName || '');
@@ -962,7 +970,8 @@ const TeacherActivities = () => {
             setMatFile(null);
             setMatUrl('');
             setHtmlCode('');
-            setUploadTarget('student');
+            setUploadTarget('current');
+            setUploadStudentId('');
             stopRecordingStream();
             setShowMatModal(false);
 
@@ -3964,27 +3973,70 @@ const TeacherActivities = () => {
                                         </div>
 
                                         {/* Visible To (Upload Target Selection) */}
-                                        {selectedStudent && (
-                                            <div className="space-y-1.5">
-                                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Visible To</label>
-                                                <div className="grid grid-cols-2 bg-slate-50 border border-slate-200/60 p-1 rounded-xl">
+                                        <div className="space-y-1.5">
+                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Visible To</label>
+                                            {selectedStudent ? (
+                                                <div className="grid grid-cols-3 bg-slate-50 border border-slate-200/60 p-1 rounded-xl">
                                                     <button
                                                         type="button"
-                                                        onClick={() => setUploadTarget('student')}
-                                                        className={`py-1.5 rounded-lg text-[10px] font-extrabold uppercase tracking-wider transition-all cursor-pointer ${uploadTarget === 'student' ? 'bg-white text-indigo-600 shadow-sm border border-slate-100' : 'text-slate-500 hover:text-slate-700'}`}
+                                                        onClick={() => setUploadTarget('current')}
+                                                        className={`py-1.5 rounded-lg text-[10px] font-extrabold uppercase tracking-wider transition-all cursor-pointer truncate ${uploadTarget === 'current' ? 'bg-white text-indigo-600 shadow-sm border border-slate-100' : 'text-slate-500 hover:text-slate-700'}`}
+                                                        title={`${selectedStudent.name} Only`}
                                                     >
-                                                        {selectedStudent.name} Only
+                                                        {selectedStudent.name.split(' ')[0]} Only
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setUploadTarget('particular')}
+                                                        className={`py-1.5 rounded-lg text-[10px] font-extrabold uppercase tracking-wider transition-all cursor-pointer truncate ${uploadTarget === 'particular' ? 'bg-white text-indigo-600 shadow-sm border border-slate-100' : 'text-slate-500 hover:text-slate-700'}`}
+                                                    >
+                                                        Select Student
                                                     </button>
                                                     <button
                                                         type="button"
                                                         onClick={() => setUploadTarget('all')}
-                                                        className={`py-1.5 rounded-lg text-[10px] font-extrabold uppercase tracking-wider transition-all cursor-pointer ${uploadTarget === 'all' ? 'bg-white text-indigo-600 shadow-sm border border-slate-100' : 'text-slate-500 hover:text-slate-700'}`}
+                                                        className={`py-1.5 rounded-lg text-[10px] font-extrabold uppercase tracking-wider transition-all cursor-pointer truncate ${uploadTarget === 'all' ? 'bg-white text-indigo-600 shadow-sm border border-slate-100' : 'text-slate-500 hover:text-slate-700'}`}
                                                     >
-                                                        All Students (Subject)
+                                                        All Students
                                                     </button>
                                                 </div>
-                                            </div>
-                                        )}
+                                            ) : (
+                                                <div className="grid grid-cols-2 bg-slate-50 border border-slate-200/60 p-1 rounded-xl">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setUploadTarget('all')}
+                                                        className={`py-1.5 rounded-lg text-[10px] font-extrabold uppercase tracking-wider transition-all cursor-pointer truncate ${uploadTarget === 'all' ? 'bg-white text-indigo-600 shadow-sm border border-slate-100' : 'text-slate-500 hover:text-slate-700'}`}
+                                                    >
+                                                        All Students
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setUploadTarget('particular')}
+                                                        className={`py-1.5 rounded-lg text-[10px] font-extrabold uppercase tracking-wider transition-all cursor-pointer truncate ${uploadTarget === 'particular' ? 'bg-white text-indigo-600 shadow-sm border border-slate-100' : 'text-slate-500 hover:text-slate-700'}`}
+                                                    >
+                                                        Select Student
+                                                    </button>
+                                                </div>
+                                            )}
+
+                                            {/* Particular Student Selection Dropdown */}
+                                            {uploadTarget === 'particular' && (
+                                                <div className="pt-1.5">
+                                                    <select
+                                                        value={uploadStudentId}
+                                                        onChange={(e) => setUploadStudentId(e.target.value)}
+                                                        className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 bg-white"
+                                                    >
+                                                        <option value="">-- Choose Student --</option>
+                                                        {students.map(std => (
+                                                            <option key={std._id} value={std._id}>
+                                                                {std.name} {std.email ? `(${std.email})` : ''}
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                            )}
+                                        </div>
 
                                         {/* Modal fields based on Type & Submode */}
                                         {/* 1. PDF Upload or Embedded Link */}

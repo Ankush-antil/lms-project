@@ -1901,7 +1901,7 @@ const ChatPage = () => {
 
     // Combine core filters with custom lists
     const filterTabs = useMemo(() => {
-        const core = ['All', 'Teacher', 'Editor', 'Student'];
+        const core = ['All', 'Teacher', 'Editor', 'Student', 'Others'];
         const customItems = customLists.map(l => ({ id: l.id, name: l.name }));
         return [...core, ...customItems];
     }, [customLists]);
@@ -2032,7 +2032,14 @@ const ChatPage = () => {
             }
 
             // Otherwise, filter by core role
-            const matchesTab = activeFilterTab === 'All' || contact.role === activeFilterTab;
+            let matchesTab = false;
+            if (activeFilterTab === 'All') {
+                matchesTab = true;
+            } else if (activeFilterTab === 'Others') {
+                matchesTab = !['Teacher', 'Editor', 'Student'].includes(contact.role);
+            } else {
+                matchesTab = contact.role === activeFilterTab;
+            }
             return matchesSearch && matchesTab;
         });
     }, [allAvailableContacts, searchTerm, activeFilterTab, customLists]);
@@ -2365,7 +2372,7 @@ const ChatPage = () => {
                                         <div className="flex items-center gap-1.5 mt-3.5 overflow-x-auto pb-1 scrollbar-thin">
                                             {filterTabs.map((tab) => {
                                                 const tabId = typeof tab === 'object' ? tab.id : tab;
-                                                const tabLabel = typeof tab === 'object' ? tab.name : (tab === 'All' ? 'All' : `${tab}s`);
+                                                const tabLabel = typeof tab === 'object' ? tab.name : (tab === 'All' ? 'All' : (tab === 'Others' ? 'Others' : `${tab}s`));
                                                 const isActive = activeFilterTab === tabId;
                                                 return (
                                                     <button

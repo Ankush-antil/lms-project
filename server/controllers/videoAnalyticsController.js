@@ -187,8 +187,8 @@ const getVideoAnalyticsDetails = asyncHandler(async (req, res) => {
 
     // Enforce teacher course enrollments check
     if (req.user.role === 'Teacher') {
-        const teacherProfile = req.user.teacherProfile || {};
-        const teacherCourses = (teacherProfile.assignedCourses || []).map(c => c.name?.trim().toLowerCase());
+        const teacherUser = await User.findById(req.user._id).populate('teacherProfile.assignedCourses');
+        const teacherCourses = (teacherUser?.teacherProfile?.assignedCourses || []).map(c => c.name?.trim().toLowerCase());
         const materialCourseName = material.course?.trim().toLowerCase();
 
         if (materialCourseName && !teacherCourses.includes(materialCourseName)) {

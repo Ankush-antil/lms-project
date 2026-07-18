@@ -2790,42 +2790,6 @@ const StudentTests = () => {
                 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
                 @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
             `}</style>
-            {activeVideoModalUrl && (
-                <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/85 backdrop-blur-sm animate-fade-in">
-                    <div className="absolute inset-0" onClick={() => setActiveVideoModalUrl(null)} />
-                    <div className="bg-slate-955 border border-slate-800 rounded-3xl w-full max-w-3xl aspect-video relative z-50 overflow-hidden shadow-2xl animate-scale-up">
-                        <button
-                            type="button"
-                            onClick={() => setActiveVideoModalUrl(null)}
-                            className="absolute top-4 right-4 z-[60] w-8 h-8 rounded-full bg-black/60 hover:bg-black text-white hover:text-slate-200 flex items-center justify-center font-bold text-lg transition-all cursor-pointer border border-white/10"
-                        >
-                            ×
-                        </button>
-                        {(() => {
-                            const embedUrl = getEmbedVideoUrl(activeVideoModalUrl);
-                            const isIframe = embedUrl.includes('youtube.com/embed/') || embedUrl.includes('player.vimeo.com/video/');
-                            if (isIframe) {
-                                return (
-                                    <iframe
-                                        src={`${embedUrl}?autoplay=1`}
-                                        frameBorder="0"
-                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                        allowFullScreen
-                                        className="w-full h-full"
-                                    />
-                                );
-                            }
-                            return (
-                                <VideoTracker
-                                    src={activeVideoModalUrl}
-                                    material={activeVideoMaterial}
-                                    className="w-full h-full object-contain"
-                                />
-                            );
-                        })()}
-                    </div>
-                </div>
-            )}
         </DashboardLayout>
         {activeVideoModalUrl && (
             <div className="fixed inset-0 z-[100000] flex items-center justify-center bg-white/75 backdrop-blur-md animate-fade-in p-4">

@@ -1070,6 +1070,16 @@ const QuestionBuilderCard = ({
                                     contentEditable
                                     dangerouslySetInnerHTML={{ __html: element.text || '' }}
                                     onBlur={(e) => onUpdateText(e.target.innerHTML)}
+                                    onClick={(e) => {
+                                        const anchor = e.target.closest('a');
+                                        if (anchor) {
+                                            e.preventDefault();
+                                            const url = anchor.getAttribute('href');
+                                            if (url) {
+                                                window.open(url, '_blank');
+                                            }
+                                        }
+                                    }}
                                     className="w-full font-bold text-slate-800 bg-transparent outline-none min-h-[32px] pr-12 placeholder:text-slate-400 rich-text-editor font-sans"
                                     placeholder="Type your Text here"
                                     style={{ fontSize: `${18 * (zoomScale / 100)}px` }}
@@ -2033,6 +2043,16 @@ const QuestionBuilderCard = ({
                                 setNoteContentInput(e.target.innerHTML);
                                 updateNoteActiveFormat();
                             }}
+                            onClick={(e) => {
+                                const anchor = e.target.closest('a');
+                                if (anchor) {
+                                    e.preventDefault();
+                                    const url = anchor.getAttribute('href');
+                                    if (url) {
+                                        window.open(url, '_blank');
+                                    }
+                                }
+                            }}
                             onFocus={updateNoteActiveFormat}
                             className="w-full text-xs font-medium bg-slate-55 border border-slate-200 rounded-xl px-3.5 py-2.5 outline-none min-h-[180px] focus:bg-white focus:border-[#0b1329] transition-all shadow-sm rich-text-editor font-sans"
                             placeholder="Write a note..."
@@ -2223,6 +2243,54 @@ const TestBuilder = () => {
         formElementsRef.current = formElements;
     }, [formElements]);
 
+    const convertToSubjectRelativeInbox = (courseObj, subjectName, rawInbox) => {
+        if (!rawInbox || !subjectName || !courseObj) return rawInbox;
+        
+        const subjects = courseObj.subjects || [];
+        const durations = courseObj.subjectDurations || [];
+        const totalDuration = courseObj.duration || 5;
+
+        let currentDayIndex = 1;
+        const mapping = [];
+
+        if (subjects && subjects.length > 0) {
+            subjects.forEach(subjName => {
+                const d = durations.find(dur => dur.subjectName?.toLowerCase() === subjName.toLowerCase());
+                if (d) {
+                    const subName = d.subjectName;
+                    const subDur = Number(d.duration) || 0;
+                    const subDays = [];
+                    for (let i = 1; i <= subDur; i++) {
+                        if (currentDayIndex <= totalDuration) {
+                            subDays.push({
+                                dayNum: i,
+                                indexNum: currentDayIndex,
+                                id: `Inbox ${currentDayIndex}`
+                            });
+                            currentDayIndex++;
+                        }
+                    }
+                    if (subDays.length > 0) {
+                        mapping.push({
+                            subjectName: subjName,
+                            days: subDays
+                        });
+                    }
+                }
+            });
+        }
+
+        const matchedGroup = mapping.find(m => m.subjectName.toLowerCase() === subjectName.toLowerCase());
+        if (matchedGroup) {
+            const inboxNorm = rawInbox.trim().toLowerCase();
+            const foundDay = matchedGroup.days.find(d => d.id.trim().toLowerCase() === inboxNorm);
+            if (foundDay) {
+                return `Inbox ${foundDay.dayNum}`;
+            }
+        }
+        return rawInbox;
+    };
+
     useEffect(() => {
         const studentIdParam = searchParams.get('studentId');
         const inboxIdParam = searchParams.get('inboxId');
@@ -2232,43 +2300,58 @@ const TestBuilder = () => {
         const subjectParam = searchParams.get('subject');
         const inboxParam = searchParams.get('inbox');
         
-        if (studentIdParam && inboxIdParam) {
-            const fetchStudentDetails = async () => {
-                try {
-                    const { data } = await axios.get(`/api/users/${studentIdParam}`);
-                    if (data) {
-                        const studentInstitute = data.institute?.name || data.institute || '';
-                        const studentCourse = data.studentProfile?.course?.name || data.studentProfile?.course || '';
-                        const studentSubject = data.studentProfile?.subject || '';
+        const initializeConnectData = async () => {
+            try {
+                const { data: coursesList } = await axios.get('/api/setup/courses');
+                
+                let finalInst = instParam || '';
+                let finalCourse = courseParam || '';
+                let finalSubject = subjectParam || '';
+                let rawInbox = inboxParam || inboxIdParam || 'Inbox 1';
+                let studentName = '';
 
-                        setConnectData(prev => ({
-                            ...prev,
-                            name: `Test for ${data.name}`,
-                            institute: studentInstitute,
-                            course: studentCourse ? [studentCourse] : [],
-                            subject: studentSubject,
-                            date: new Date().toISOString().split('T')[0],
-                            index: inboxIdParam,
-                            activity: 'Quiz'
-                        }));
-                        setIsConnected(true);
+                if (studentIdParam) {
+                    const { data: studentData } = await axios.get(`/api/users/${studentIdParam}`);
+                    if (studentData) {
+                        const studentInstitute = studentData.institute?.name || studentData.institute || '';
+                        const studentCourse = studentData.studentProfile?.course?.name || studentData.studentProfile?.course || '';
+                        const studentSubject = studentData.studentProfile?.subject || '';
+                        
+                        finalInst = instParam || studentInstitute;
+                        finalCourse = courseParam || studentCourse || '';
+                        finalSubject = subjectParam || studentSubject;
+                        studentName = studentData.name;
                     }
-                } catch (err) {
-                    console.error("Error fetching student details for TestBuilder pre-fill:", err);
                 }
-            };
-            fetchStudentDetails();
-        } else if (instParam || courseParam || subjectParam || inboxParam) {
-            setConnectData(prev => ({
-                ...prev,
-                institute: instParam || '',
-                course: courseParam ? [courseParam] : [],
-                subject: subjectParam || '',
-                index: inboxParam || 'Inbox 1',
-                date: new Date().toISOString().split('T')[0],
-                activity: 'Quiz'
-            }));
-            setIsConnected(true);
+
+                let finalInbox = rawInbox;
+                if (finalCourse && finalSubject && coursesList && coursesList.length > 0) {
+                    const courseObj = coursesList.find(c => c.name?.toLowerCase() === finalCourse.toLowerCase());
+                    if (courseObj) {
+                        finalInbox = convertToSubjectRelativeInbox(courseObj, finalSubject, rawInbox);
+                    }
+                }
+
+                setConnectData(prev => ({
+                    ...prev,
+                    name: studentName ? `Test for ${studentName}` : (prev.name || 'Untitled Form'),
+                    institute: finalInst,
+                    course: finalCourse,
+                    subject: finalSubject,
+                    index: finalInbox,
+                    date: new Date().toISOString().split('T')[0],
+                    activity: prev.activity || 'Quiz',
+                    isAssigned: true
+                }));
+                setIsConnected(true);
+
+            } catch (err) {
+                console.error("Error during TestBuilder connect prefill:", err);
+            }
+        };
+
+        if (studentIdParam || instParam || courseParam || subjectParam || inboxParam) {
+            initializeConnectData();
         }
     }, [searchParams]);
 
@@ -3014,7 +3097,7 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
         date: new Date().toISOString().split('T')[0],
         index: 'Inbox 1',
         activity: 'Quiz',
-        isAssigned: false,
+        isAssigned: true,
         duration: '',
         passingMarks: ''
     });
@@ -3849,6 +3932,42 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
         setIsAiGeneratorOpen(true);
     };
 
+    const handleAddPage = () => {
+        let basePath = '/admin/activities-builder';
+        if (user?.role === 'Institute') basePath = '/institute/activities-builder';
+        else if (user?.role === 'Editor') basePath = '/editor/activities-builder';
+        else if (user?.role === 'Teacher') basePath = '/teacher/activities-builder';
+
+        const params = new URLSearchParams();
+        if (connectData?.institute) params.set('institute', connectData.institute);
+        if (connectData?.course) params.set('course', connectData.course);
+        if (connectData?.subject) params.set('subject', connectData.subject);
+        if (connectData?.index) params.set('inbox', connectData.index);
+        
+        const wasLocked = searchParams.get('locked') === 'true';
+        if (wasLocked) {
+            params.set('locked', 'true');
+        }
+
+        // Navigate to the builder path with parameters
+        navigate(`${basePath}?${params.toString()}`);
+        
+        // Also clear local builder state to ensure fresh initialization
+        setFormElements([]);
+        setPublishModeSelected('connected');
+        setConnectData(prev => ({
+            ...prev,
+            name: 'Untitled Form',
+            date: new Date().toISOString().split('T')[0],
+            isAssigned: true,
+            duration: '',
+            passingMarks: '',
+            description: ''
+        }));
+        setIsConnected(true);
+        toast.success("Ready to create a new test in the same inbox!");
+    };
+
     const handleSaveAsDraft = () => {
         handlePublish('draft', null);
     };
@@ -4009,7 +4128,17 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                 const redirectPath = (searchParams.get('studentId') || user?.role === 'Teacher')
                     ? '/teacher/activities'
                     : (user?.role === 'Editor' ? '/editor' : user?.role === 'Institute' ? '/institute/activities' : '/admin/activities');
-                navigate(redirectPath);
+                
+                if (redirectPath !== '/teacher/activities') {
+                    const inst = testData.testDetails.institute || '';
+                    const crs = testData.testDetails.course || '';
+                    const subj = testData.testDetails.subject || '';
+                    const inbox = testData.testDetails.index || 'Inbox 1';
+                    const testId = publishedTest?._id || id || '';
+                    navigate(`${redirectPath}?exp_inst=${encodeURIComponent(inst)}&exp_course=${encodeURIComponent(crs)}&exp_subject=${encodeURIComponent(subj)}&exp_inbox=${encodeURIComponent(inbox)}&highlightTestId=${testId}`);
+                } else {
+                    navigate(redirectPath);
+                }
                 return;
             }
 
@@ -4023,7 +4152,17 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                 const redirectPath = (searchParams.get('studentId') || user?.role === 'Teacher')
                     ? '/teacher/activities'
                     : (user?.role === 'Editor' ? '/editor' : user?.role === 'Institute' ? '/institute/activities' : '/admin/activities');
-                navigate(redirectPath);
+                
+                if (redirectPath !== '/teacher/activities') {
+                    const inst = testData.testDetails.institute || '';
+                    const crs = testData.testDetails.course || '';
+                    const subj = testData.testDetails.subject || '';
+                    const inbox = testData.testDetails.index || 'Inbox 1';
+                    const testId = id || '';
+                    navigate(`${redirectPath}?exp_inst=${encodeURIComponent(inst)}&exp_course=${encodeURIComponent(crs)}&exp_subject=${encodeURIComponent(subj)}&exp_inbox=${encodeURIComponent(inbox)}&highlightTestId=${testId}`);
+                } else {
+                    navigate(redirectPath);
+                }
             }
         } catch (error) {
             console.error("Error publishing form:", error);
@@ -5791,7 +5930,7 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                                 )}
                                 <div className="flex items-center gap-2">
                                     <button
-                                        onClick={() => toast.success("Page added! Page splits let you build multi-page survey forms.")}
+                                        onClick={handleAddPage}
                                         className="flex items-center gap-1.5 px-4 py-2 text-slate-600 hover:bg-slate-50 rounded-xl text-sm font-semibold transition-all whitespace-nowrap"
                                     >
                                         <Plus size={16} />
@@ -5943,6 +6082,11 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                 }
                 .animate-fade-in {
                     animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+                }
+                .rich-text-editor a {
+                    color: #2563eb !important;
+                    text-decoration: underline !important;
+                    cursor: pointer !important;
                 }
             `}</style>
 
@@ -6146,7 +6290,17 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                         const redirectPath = (searchParams.get('studentId') || user?.role === 'Teacher')
                             ? '/teacher/activities'
                             : (user?.role === 'Editor' ? '/editor' : user?.role === 'Institute' ? '/institute/activities' : '/admin/activities');
-                        navigate(redirectPath);
+                        
+                        if (redirectPath !== '/teacher/activities') {
+                            const inst = connectData?.institute || user?.institute?.name || (typeof user?.institute === 'string' ? user.institute : 'Default Institute');
+                            const crs = connectData?.course || '';
+                            const subj = connectData?.subject || '';
+                            const inbox = connectData?.index || 'Inbox 1';
+                            const testId = publishSuccessInfo?.testId || '';
+                            navigate(`${redirectPath}?exp_inst=${encodeURIComponent(inst)}&exp_course=${encodeURIComponent(crs)}&exp_subject=${encodeURIComponent(subj)}&exp_inbox=${encodeURIComponent(inbox)}&highlightTestId=${testId}`);
+                        } else {
+                            navigate(redirectPath);
+                        }
                     }}
                     testId={publishSuccessInfo?.testId}
                     testTitle={publishSuccessInfo?.testTitle}
@@ -6651,7 +6805,7 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                 {/* AI Question Generator Modal */}
                 {isAiGeneratorOpen && (
                     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm animate-fade-in">
-                        <div className="bg-white border border-slate-100 rounded-3xl shadow-2xl w-full max-w-lg h-[600px] mx-4 transform scale-100 transition-all duration-300 animate-slide-up flex flex-col overflow-hidden">
+                        <div className="bg-white border border-slate-100 rounded-3xl shadow-2xl w-full max-w-md h-[500px] mx-4 transform scale-100 transition-all duration-300 animate-slide-up flex flex-col overflow-hidden">
 
                             {/* Modal Header */}
                             <div className="flex justify-between items-center p-4 border-b border-slate-100 shrink-0">
@@ -6942,6 +7096,7 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                                     </button>
                                     <input
                                         type="text"
+                                        autoFocus
                                         value={aiChatInput}
                                         onChange={(e) => setAiChatInput(e.target.value)}
                                         placeholder="Ask AI (e.g. 'make 5 questions from this')"

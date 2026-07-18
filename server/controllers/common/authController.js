@@ -2,8 +2,8 @@ const jwt = require('jsonwebtoken');
 const User = require('../../models/User');
 const bcrypt = require('bcryptjs');
 
-const generateToken = (id) => {
-    return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: '30d' });
+const generateToken = (id, role) => {
+    return jwt.sign({ id, role }, process.env.JWT_SECRET, { expiresIn: '30d' });
 };
 
 const getCookieOptions = (req) => {
@@ -60,7 +60,7 @@ const loginUser = async (req, res) => {
                 return;
             }
 
-            const token = generateToken(user._id);
+            const token = generateToken(user._id, user.role);
 
             // Set Cookie
             res.cookie('token', token, getCookieOptions(req));
@@ -121,6 +121,9 @@ const getMe = async (req, res) => {
             ]);
         if (user) {
             const userObj = user.toObject();
+            if (req.user && req.user.role) {
+                userObj.role = req.user.role;
+            }
             if (userObj.role === 'Teacher') {
                 const teacherSubjects = userObj.teacherProfile?.subjects || [];
                 if (userObj.teacherProfile && userObj.teacherProfile.assignedCourses) {
@@ -183,7 +186,7 @@ const registerUser = async (req, res) => {
     const user = await User.create(userFields);
 
     if (user) {
-        const token = generateToken(user._id);
+        const token = generateToken(user._id, user.role);
 
         // Set Cookie
         res.cookie('token', token, getCookieOptions(req));
@@ -241,6 +244,6 @@ const setTokenCookie = async (req, res) => {
     }
 };
 
-module.exports = { loginUser, registerUser, getMe, logoutUser, setTokenCookie, validateAccounts };
+module.exports = { loginUser, registerUser, getMe, logoutUser, setTokenCookie, validateAccounts, generateToken, getCookieOptions };
 
 

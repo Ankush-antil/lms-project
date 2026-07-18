@@ -122,23 +122,26 @@ const getGlobalIdForSubjectDay = async (courseIdOrName, subjectName, localDayNum
     let currentDayIndex = 1;
     const mapping = [];
 
-    if (durations && durations.length > 0) {
-        durations.forEach(d => {
-            const subName = d.subjectName;
-            const subDur = Number(d.duration) || 0;
-            const subDays = [];
-            for (let i = 1; i <= subDur; i++) {
-                subDays.push({
-                    dayNum: i,
-                    id: `Inbox ${currentDayIndex}`
-                });
-                currentDayIndex++;
-            }
-            if (subDays.length > 0) {
-                mapping.push({
-                    subjectName: subName,
-                    days: subDays
-                });
+    if (subjects && subjects.length > 0) {
+        subjects.forEach(subjName => {
+            const d = durations.find(dur => dur.subjectName?.toLowerCase() === subjName.toLowerCase());
+            if (d) {
+                const subName = d.subjectName;
+                const subDur = Number(d.duration) || 0;
+                const subDays = [];
+                for (let i = 1; i <= subDur; i++) {
+                    subDays.push({
+                        dayNum: i,
+                        id: `Inbox ${currentDayIndex}`
+                    });
+                    currentDayIndex++;
+                }
+                if (subDays.length > 0) {
+                    mapping.push({
+                        subjectName: subName,
+                        days: subDays
+                    });
+                }
             }
         });
     }

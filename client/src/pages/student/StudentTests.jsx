@@ -233,9 +233,18 @@ const StudentTests = () => {
     const [inboxConfigs, setInboxConfigs] = useState([]);
     const [activityConfigs, setActivityConfigs] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [selectedItem, setSelectedItem] = useState(null);
-    const [viewMode, setViewMode] = useState(null); // 'pending' | 'completed' | etc
+    const [selectedItem, setSelectedItem] = useState(() => sessionStorage.getItem('student_selectedInbox') || null);
+    const [viewMode, setViewMode] = useState(() => sessionStorage.getItem('student_viewMode') || null); // 'pending' | 'completed' | etc
     const [isRiModalOpen, setIsRiModalOpen] = useState(false);
+
+    // Persist inbox and viewMode so back-navigation restores the last position
+    useEffect(() => {
+        if (selectedItem) sessionStorage.setItem('student_selectedInbox', selectedItem);
+    }, [selectedItem]);
+
+    useEffect(() => {
+        if (viewMode) sessionStorage.setItem('student_viewMode', viewMode);
+    }, [viewMode]);
 
     useEffect(() => {
         if (user) {
@@ -642,24 +651,27 @@ const StudentTests = () => {
         let currentDayIndex = 1;
         const mapping = [];
 
-        if (durations && durations.length > 0) {
-            durations.forEach(d => {
-                const subName = d.subjectName;
-                const subDur = Number(d.duration) || 0;
-                const daysList = [];
-                for (let i = 1; i <= subDur; i++) {
-                    daysList.push({
-                        dayNum: i,
-                        indexNum: currentDayIndex,
-                        id: `Inbox ${currentDayIndex}`
-                    });
-                    currentDayIndex++;
-                }
-                if (daysList.length > 0) {
-                    mapping.push({
-                        subjectName: subName,
-                        days: daysList
-                    });
+        if (subjects && subjects.length > 0) {
+            subjects.forEach(subjName => {
+                const d = durations.find(dur => dur.subjectName?.toLowerCase() === subjName.toLowerCase());
+                if (d) {
+                    const subName = d.subjectName;
+                    const subDur = Number(d.duration) || 0;
+                    const daysList = [];
+                    for (let i = 1; i <= subDur; i++) {
+                        daysList.push({
+                            dayNum: i,
+                            indexNum: currentDayIndex,
+                            id: `Inbox ${currentDayIndex}`
+                        });
+                        currentDayIndex++;
+                    }
+                    if (daysList.length > 0) {
+                        mapping.push({
+                            subjectName: subName,
+                            days: daysList
+                        });
+                    }
                 }
             });
         }
@@ -801,6 +813,22 @@ const StudentTests = () => {
                     return cDisplayName === normalizedRaw || cInboxId === normalizedRaw;
                 });
                 const normalized = config ? config.inboxId.trim().toLowerCase() : normalizedRaw;
+
+                // Find the subject this inbox belongs to
+                const inboxSubject = (() => {
+                    const foundGroup = subjectDaysMapping.find(g => 
+                        g.days.some(d => d.id.trim().toLowerCase() === normalized)
+                    );
+                    return foundGroup ? foundGroup.subjectName : null;
+                })();
+
+                // Filter out if test has a subject and it doesn't match the inbox's subject
+                if (inboxSubject && test.subject) {
+                    const testSubs = test.subject.split(',').map(s => s.trim().toLowerCase());
+                    const inboxSubNorm = inboxSubject.trim().toLowerCase();
+                    const hasMatch = testSubs.some(s => s === inboxSubNorm || inboxSubNorm.includes(s) || s.includes(inboxSubNorm));
+                    if (!hasMatch) return;
+                }
 
                 if (!acc[normalized]) acc[normalized] = [];
                 if (!acc[normalized].some(t => t._id === test._id)) {

@@ -157,7 +157,7 @@ const ShortAnswerTest = () => {
     useEffect(() => {
         const activeIdx = Object.keys(activeQuestionTab || {}).find(k => activeQuestionTab[k] === 'chat');
         if (activeIdx === undefined || !test || !user) return;
-        
+
         const idx = Number(activeIdx);
         const receiverId = test.createdBy?._id || test.createdBy;
         if (!receiverId) return;
@@ -697,7 +697,7 @@ const ShortAnswerTest = () => {
 
         try {
             const qTitle = test?.questions?.[idx]?.text ? test.questions[idx].text.replace(/<[^>]*>/g, '').trim() : `Question ${idx + 1}`;
-            
+
             // Save to DB first
             const { data } = await axios.post('/api/chat/messages', {
                 receiver: receiverId,
@@ -1362,12 +1362,26 @@ const ShortAnswerTest = () => {
                                 {/* Question Title Row */}
                                 <div className="flex justify-between items-start gap-4">
                                     <div className="space-y-1">
-                                        <h3 className={`font-extrabold text-slate-800 tracking-tight ${isAccessibilityActive ? 'text-2xl' : 'text-lg'}`}>
-                                            Q{idx + 1}. {q.text || 'What is a computer?'}
+                                        <h3
+                                            onClick={(e) => {
+                                                const anchor = e.target.closest('a');
+                                                if (anchor) {
+                                                    e.preventDefault();
+                                                    const url = anchor.getAttribute('href');
+                                                    if (url) {
+                                                        window.open(url, '_blank');
+                                                    }
+                                                }
+                                            }}
+                                            className={`font-extrabold text-slate-800 tracking-tight ${isAccessibilityActive ? 'text-2xl' : 'text-lg'}`}
+                                        >
+                                            Q{idx + 1}. <span dangerouslySetInnerHTML={{ __html: q.text || 'What is a computer?' }} />
                                         </h3>
-                                        <p className="text-xs text-slate-500 font-medium italic">
-                                            "{q.description || q.instructions || 'This is a question that requires only a one-line answer.'}"
-                                        </p>
+                                        {q.instructions && (
+                                            <p className="text-xs text-slate-500 font-medium italic">
+                                                "{q.instructions}"
+                                            </p>
+                                        )}
                                     </div>
                                     <button
                                         type="button"
@@ -1392,7 +1406,7 @@ const ShortAnswerTest = () => {
                                         )}
 
                                         {q.videoUrl && !isVideoDisplay && (
-                                            <div 
+                                            <div
                                                 className="mt-2 mx-auto flex justify-center bg-slate-900 p-2 rounded-2xl border border-slate-800 overflow-hidden"
                                                 style={{ width: `${q.videoWidth || 500}px`, maxWidth: '100%' }}
                                             >
@@ -1454,1230 +1468,1230 @@ const ShortAnswerTest = () => {
 
                                         {/* Answer Inputs based on Question Type */}
                                         <div className="answer-input-zone">
-                                             {/* MCQ Options */}
-                                             {isMcq && q.options && (
-                                                 <div className="space-y-2.5">
-                                                     {q.options.map((opt, optIdx) => (
-                                                         <label
-                                                             key={optIdx}
-                                                             className={`flex items-center gap-3 p-3.5 border rounded-2xl transition-all ${answers[idx] === opt.text
-                                                                 ? 'border-[#6F42C1] bg-[#6F42C1]/5'
-                                                                 : 'border-slate-200 bg-white'
-                                                                 } ${!isEditable ? 'opacity-60 cursor-not-allowed pointer-events-none' : 'hover:bg-slate-50 cursor-pointer'}`}
-                                                         >
-                                                             <input
-                                                                 type="radio"
-                                                                 name={`q-${idx}`}
-                                                                 disabled={!isEditable}
-                                                                 checked={answers[idx] === opt.text}
-                                                                 onChange={() => handleTextChange(idx, opt.text)}
-                                                                 className="text-[#6F42C1] focus:ring-[#6F42C1] w-4 h-4 border-slate-300 disabled:opacity-50"
-                                                             />
-                                                             <span className="text-sm font-semibold text-slate-700">{opt.text}</span>
-                                                         </label>
-                                                     ))}
-                                                 </div>
-                                             )}
+                                            {/* MCQ Options */}
+                                            {isMcq && q.options && (
+                                                <div className="space-y-2.5">
+                                                    {q.options.map((opt, optIdx) => (
+                                                        <label
+                                                            key={optIdx}
+                                                            className={`flex items-center gap-3 p-3.5 border rounded-2xl transition-all ${answers[idx] === opt.text
+                                                                ? 'border-[#6F42C1] bg-[#6F42C1]/5'
+                                                                : 'border-slate-200 bg-white'
+                                                                } ${!isEditable ? 'opacity-60 cursor-not-allowed pointer-events-none' : 'hover:bg-slate-50 cursor-pointer'}`}
+                                                        >
+                                                            <input
+                                                                type="radio"
+                                                                name={`q-${idx}`}
+                                                                disabled={!isEditable}
+                                                                checked={answers[idx] === opt.text}
+                                                                onChange={() => handleTextChange(idx, opt.text)}
+                                                                className="text-[#6F42C1] focus:ring-[#6F42C1] w-4 h-4 border-slate-300 disabled:opacity-50"
+                                                            />
+                                                            <span className="text-sm font-semibold text-slate-700">{opt.text}</span>
+                                                        </label>
+                                                    ))}
+                                                </div>
+                                            )}
 
-                                             {/* Dropdown Options */}
-                                             {isDropdown && q.options && (
-                                                 <select
-                                                     disabled={!isEditable}
-                                                     value={answers[idx] || ""}
-                                                     onChange={(e) => handleTextChange(idx, e.target.value)}
-                                                     className={`w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:border-[#6F42C1] outline-none text-sm shadow-sm transition-all ${!isEditable ? 'opacity-60 cursor-not-allowed bg-slate-50/50' : ''}`}
-                                                 >
-                                                     <option value="">Select option...</option>
-                                                     {q.options.map((opt, oIdx) => (
-                                                         <option key={oIdx} value={opt.text}>{opt.text}</option>
-                                                     ))}
-                                                 </select>
-                                             )}
+                                            {/* Dropdown Options */}
+                                            {isDropdown && q.options && (
+                                                <select
+                                                    disabled={!isEditable}
+                                                    value={answers[idx] || ""}
+                                                    onChange={(e) => handleTextChange(idx, e.target.value)}
+                                                    className={`w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:border-[#6F42C1] outline-none text-sm shadow-sm transition-all ${!isEditable ? 'opacity-60 cursor-not-allowed bg-slate-50/50' : ''}`}
+                                                >
+                                                    <option value="">Select option...</option>
+                                                    {q.options.map((opt, oIdx) => (
+                                                        <option key={oIdx} value={opt.text}>{opt.text}</option>
+                                                    ))}
+                                                </select>
+                                            )}
 
-                                             {/* Checkboxes Options */}
-                                             {isCheckboxes && q.options && (
-                                                 <div className="space-y-2.5">
-                                                     {q.options.map((opt, optIdx) => {
-                                                         const isChecked = Array.isArray(answers[idx]) && answers[idx].includes(opt.text);
-                                                         return (
-                                                             <label
-                                                                 key={optIdx}
-                                                                 className={`flex items-center gap-3 p-3.5 border rounded-2xl transition-all ${isChecked
-                                                                     ? 'border-[#6F42C1] bg-[#6F42C1]/5'
-                                                                     : 'border-slate-200 bg-white'
-                                                                     } ${!isEditable ? 'opacity-60 cursor-not-allowed pointer-events-none' : 'hover:bg-slate-55 cursor-pointer'}`}
-                                                             >
-                                                                 <input
-                                                                     type="checkbox"
-                                                                     disabled={!isEditable}
-                                                                     checked={isChecked}
-                                                                     onChange={(e) => {
-                                                                         const optText = opt.text;
-                                                                         const isCheckedNow = e.target.checked;
-                                                                         setAnswers(prev => {
-                                                                             const current = Array.isArray(prev[idx]) ? prev[idx] : [];
-                                                                             if (isCheckedNow) {
-                                                                                 return { ...prev, [idx]: [...current, optText] };
-                                                                             } else {
-                                                                                 return { ...prev, [idx]: current.filter(x => x !== optText) };
-                                                                             }
-                                                                         });
-                                                                     }}
-                                                                     className="rounded text-[#6F42C1] focus:ring-[#6F42C1] w-4 h-4 border-slate-300 disabled:opacity-50"
-                                                                 />
-                                                                 <span className="text-sm font-semibold text-slate-700">{opt.text}</span>
-                                                             </label>
-                                                         );
-                                                     })}
-                                                 </div>
-                                             )}
+                                            {/* Checkboxes Options */}
+                                            {isCheckboxes && q.options && (
+                                                <div className="space-y-2.5">
+                                                    {q.options.map((opt, optIdx) => {
+                                                        const isChecked = Array.isArray(answers[idx]) && answers[idx].includes(opt.text);
+                                                        return (
+                                                            <label
+                                                                key={optIdx}
+                                                                className={`flex items-center gap-3 p-3.5 border rounded-2xl transition-all ${isChecked
+                                                                    ? 'border-[#6F42C1] bg-[#6F42C1]/5'
+                                                                    : 'border-slate-200 bg-white'
+                                                                    } ${!isEditable ? 'opacity-60 cursor-not-allowed pointer-events-none' : 'hover:bg-slate-55 cursor-pointer'}`}
+                                                            >
+                                                                <input
+                                                                    type="checkbox"
+                                                                    disabled={!isEditable}
+                                                                    checked={isChecked}
+                                                                    onChange={(e) => {
+                                                                        const optText = opt.text;
+                                                                        const isCheckedNow = e.target.checked;
+                                                                        setAnswers(prev => {
+                                                                            const current = Array.isArray(prev[idx]) ? prev[idx] : [];
+                                                                            if (isCheckedNow) {
+                                                                                return { ...prev, [idx]: [...current, optText] };
+                                                                            } else {
+                                                                                return { ...prev, [idx]: current.filter(x => x !== optText) };
+                                                                            }
+                                                                        });
+                                                                    }}
+                                                                    className="rounded text-[#6F42C1] focus:ring-[#6F42C1] w-4 h-4 border-slate-300 disabled:opacity-50"
+                                                                />
+                                                                <span className="text-sm font-semibold text-slate-700">{opt.text}</span>
+                                                            </label>
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
 
-                                             {/* True False Options */}
-                                             {isTrueFalse && (
-                                                 <div className="flex gap-4">
-                                                     {['True', 'False'].map((val) => (
-                                                         <label
-                                                             key={val}
-                                                             className={`flex-1 flex items-center gap-3 p-3.5 border rounded-2xl transition-all justify-center ${answers[idx] === val
-                                                                 ? 'border-[#6F42C1] bg-[#6F42C1]/5'
-                                                                 : 'border-slate-200 bg-white'
-                                                                 } ${!isEditable ? 'opacity-60 cursor-not-allowed pointer-events-none' : 'hover:bg-slate-50 cursor-pointer'}`}
-                                                         >
-                                                             <input
-                                                                 type="radio"
-                                                                 name={`q-${idx}`}
-                                                                 disabled={!isEditable}
-                                                                 checked={answers[idx] === val}
-                                                                 onChange={() => handleTextChange(idx, val)}
-                                                                 className="text-[#6F42C1] focus:ring-[#6F42C1] w-4 h-4 border-slate-300 disabled:opacity-50"
-                                                             />
-                                                             <span className="text-sm font-bold text-slate-700">{val}</span>
-                                                         </label>
-                                                     ))}
-                                                 </div>
-                                             )}
+                                            {/* True False Options */}
+                                            {isTrueFalse && (
+                                                <div className="flex gap-4">
+                                                    {['True', 'False'].map((val) => (
+                                                        <label
+                                                            key={val}
+                                                            className={`flex-1 flex items-center gap-3 p-3.5 border rounded-2xl transition-all justify-center ${answers[idx] === val
+                                                                ? 'border-[#6F42C1] bg-[#6F42C1]/5'
+                                                                : 'border-slate-200 bg-white'
+                                                                } ${!isEditable ? 'opacity-60 cursor-not-allowed pointer-events-none' : 'hover:bg-slate-50 cursor-pointer'}`}
+                                                        >
+                                                            <input
+                                                                type="radio"
+                                                                name={`q-${idx}`}
+                                                                disabled={!isEditable}
+                                                                checked={answers[idx] === val}
+                                                                onChange={() => handleTextChange(idx, val)}
+                                                                className="text-[#6F42C1] focus:ring-[#6F42C1] w-4 h-4 border-slate-300 disabled:opacity-50"
+                                                            />
+                                                            <span className="text-sm font-bold text-slate-700">{val}</span>
+                                                        </label>
+                                                    ))}
+                                                </div>
+                                            )}
 
-                                             {/* Fill in the Blanks */}
-                                             {isFillBlanks && (
-                                                 <div className="space-y-3 text-left">
-                                                     <span className="text-xs text-slate-400 font-bold block">Fill in the blank fields below:</span>
-                                                     <input
-                                                         type="text"
-                                                         disabled={!isEditable}
-                                                         value={answers[idx] || ''}
-                                                         onChange={(e) => handleTextChange(idx, e.target.value)}
-                                                         placeholder="Type blank answer response..."
-                                                         className={`w-full border border-slate-200 rounded-xl px-4 py-3 bg-slate-50 outline-none text-slate-800 text-sm focus:bg-white focus:border-[#6F42C1] ${!isEditable ? 'opacity-60 cursor-not-allowed bg-slate-50/50' : ''}`}
-                                                     />
-                                                 </div>
-                                             )}
+                                            {/* Fill in the Blanks */}
+                                            {isFillBlanks && (
+                                                <div className="space-y-3 text-left">
+                                                    <span className="text-xs text-slate-400 font-bold block">Fill in the blank fields below:</span>
+                                                    <input
+                                                        type="text"
+                                                        disabled={!isEditable}
+                                                        value={answers[idx] || ''}
+                                                        onChange={(e) => handleTextChange(idx, e.target.value)}
+                                                        placeholder="Type blank answer response..."
+                                                        className={`w-full border border-slate-200 rounded-xl px-4 py-3 bg-slate-50 outline-none text-slate-800 text-sm focus:bg-white focus:border-[#6F42C1] ${!isEditable ? 'opacity-60 cursor-not-allowed bg-slate-50/50' : ''}`}
+                                                    />
+                                                </div>
+                                            )}
 
-                                             {/* Matching */}
-                                             {isMatching && (
-                                                 <div className="space-y-3 text-left">
-                                                     <span className="text-xs text-slate-400 font-bold block">Match the pairs correctly:</span>
-                                                     {(q.matchingPairs || [{ key: 'Computer', value: 'Machine' }, { key: 'Software', value: 'Instructions' }]).map((pair, pIdx) => {
-                                                         const val = answers[idx]?.[pair.key] || "";
-                                                         return (
-                                                             <div key={pIdx} className="flex items-center justify-between gap-4 p-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
-                                                                 <span className="font-bold text-slate-750 text-sm">{pair.key}</span>
-                                                                 <select
-                                                                     value={val}
-                                                                     disabled={!isEditable}
-                                                                     onChange={(e) => {
-                                                                         const val = e.target.value;
-                                                                         setAnswers(prev => ({
-                                                                             ...prev,
-                                                                             [idx]: { ...(prev[idx] || {}), [pair.key]: val }
-                                                                         }));
-                                                                     }}
-                                                                     className={`border border-slate-200 rounded-lg p-1.5 text-xs outline-none focus:border-[#6F42C1] ${!isEditable ? 'opacity-60 cursor-not-allowed bg-slate-50/50' : ''}`}
-                                                                 >
-                                                                     <option value="">Select Match...</option>
-                                                                     {(q.matchingPairs || [{ key: 'Computer', value: 'Machine' }, { key: 'Software', value: 'Instructions' }]).map((item, iIdx) => (
-                                                                         <option key={iIdx} value={item.value}>{item.value}</option>
-                                                                     ))}
-                                                                 </select>
-                                                             </div>
-                                                         );
-                                                     })}
-                                                 </div>
-                                             )}
+                                            {/* Matching */}
+                                            {isMatching && (
+                                                <div className="space-y-3 text-left">
+                                                    <span className="text-xs text-slate-400 font-bold block">Match the pairs correctly:</span>
+                                                    {(q.matchingPairs || [{ key: 'Computer', value: 'Machine' }, { key: 'Software', value: 'Instructions' }]).map((pair, pIdx) => {
+                                                        const val = answers[idx]?.[pair.key] || "";
+                                                        return (
+                                                            <div key={pIdx} className="flex items-center justify-between gap-4 p-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
+                                                                <span className="font-bold text-slate-750 text-sm">{pair.key}</span>
+                                                                <select
+                                                                    value={val}
+                                                                    disabled={!isEditable}
+                                                                    onChange={(e) => {
+                                                                        const val = e.target.value;
+                                                                        setAnswers(prev => ({
+                                                                            ...prev,
+                                                                            [idx]: { ...(prev[idx] || {}), [pair.key]: val }
+                                                                        }));
+                                                                    }}
+                                                                    className={`border border-slate-200 rounded-lg p-1.5 text-xs outline-none focus:border-[#6F42C1] ${!isEditable ? 'opacity-60 cursor-not-allowed bg-slate-50/50' : ''}`}
+                                                                >
+                                                                    <option value="">Select Match...</option>
+                                                                    {(q.matchingPairs || [{ key: 'Computer', value: 'Machine' }, { key: 'Software', value: 'Instructions' }]).map((item, iIdx) => (
+                                                                        <option key={iIdx} value={item.value}>{item.value}</option>
+                                                                    ))}
+                                                                </select>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
 
-                                              {/* Tabular Data */}
-                                              {isTabularData && (
-                                                  <div className="space-y-3 text-left">
-                                                      <span className="text-xs text-slate-400 font-bold block">Fill in the table:</span>
-                                                      <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
-                                                          <table className="min-w-full divide-y divide-slate-200">
-                                                              <thead className="bg-slate-50">
-                                                                  <tr>
-                                                                      {(q.tableData?.headers || []).map((header, colIdx) => (
-                                                                          <th key={colIdx} className="px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider text-left">
-                                                                              {header}
-                                                                          </th>
-                                                                      ))}
-                                                                  </tr>
-                                                              </thead>
-                                                              <tbody className="divide-y divide-slate-150 bg-white">
-                                                                  {(q.tableData?.rows || []).map((row, rowIdx) => (
-                                                                      <tr key={rowIdx}>
-                                                                          {row.map((cell, colIdx) => {
-                                                                              const isPreFilled = cell !== '';
-                                                                              const currentVal = (answers[idx]?.[rowIdx]?.[colIdx] !== undefined)
-                                                                                  ? answers[idx][rowIdx][colIdx]
-                                                                                  : '';
-                                                                              return (
-                                                                                  <td key={colIdx} className="px-4 py-3 text-sm text-slate-700">
-                                                                                      {isPreFilled ? (
-                                                                                          <span className="font-semibold text-slate-800">{cell}</span>
-                                                                                      ) : (
-                                                                                          <input
-                                                                                              type="text"
-                                                                                              value={currentVal}
-                                                                                              disabled={!isEditable}
-                                                                                              onChange={(e) => {
-                                                                                                  const val = e.target.value;
-                                                                                                  setAnswers(prev => {
-                                                                                                      const copy = prev[idx] ? JSON.parse(JSON.stringify(prev[idx])) : [];
-                                                                                                      while (copy.length <= rowIdx) {
-                                                                                                          copy.push(Array(row.length).fill(''));
-                                                                                                      }
-                                                                                                      copy[rowIdx][colIdx] = val;
-                                                                                                      return {
-                                                                                                          ...prev,
-                                                                                                          [idx]: copy
-                                                                                                      };
-                                                                                                  });
-                                                                                              }}
-                                                                                              placeholder="Type answer..."
-                                                                                              className={`w-full text-xs font-medium text-slate-650 bg-slate-50 border border-slate-200 focus:bg-white focus:border-purple-500 rounded px-2.5 py-1.5 outline-none transition-all ${!isEditable ? 'opacity-60 cursor-not-allowed bg-slate-50/50' : ''}`}
-                                                                                          />
-                                                                                      )}
-                                                                                  </td>
-                                                                              );
-                                                                          })}
-                                                                      </tr>
-                                                                  ))}
-                                                              </tbody>
-                                                          </table>
-                                                      </div>
-                                                  </div>
-                                              )}
+                                            {/* Tabular Data */}
+                                            {isTabularData && (
+                                                <div className="space-y-3 text-left">
+                                                    <span className="text-xs text-slate-400 font-bold block">Fill in the table:</span>
+                                                    <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
+                                                        <table className="min-w-full divide-y divide-slate-200">
+                                                            <thead className="bg-slate-50">
+                                                                <tr>
+                                                                    {(q.tableData?.headers || []).map((header, colIdx) => (
+                                                                        <th key={colIdx} className="px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider text-left">
+                                                                            {header}
+                                                                        </th>
+                                                                    ))}
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody className="divide-y divide-slate-150 bg-white">
+                                                                {(q.tableData?.rows || []).map((row, rowIdx) => (
+                                                                    <tr key={rowIdx}>
+                                                                        {row.map((cell, colIdx) => {
+                                                                            const isPreFilled = cell !== '';
+                                                                            const currentVal = (answers[idx]?.[rowIdx]?.[colIdx] !== undefined)
+                                                                                ? answers[idx][rowIdx][colIdx]
+                                                                                : '';
+                                                                            return (
+                                                                                <td key={colIdx} className="px-4 py-3 text-sm text-slate-700">
+                                                                                    {isPreFilled ? (
+                                                                                        <span className="font-semibold text-slate-800">{cell}</span>
+                                                                                    ) : (
+                                                                                        <input
+                                                                                            type="text"
+                                                                                            value={currentVal}
+                                                                                            disabled={!isEditable}
+                                                                                            onChange={(e) => {
+                                                                                                const val = e.target.value;
+                                                                                                setAnswers(prev => {
+                                                                                                    const copy = prev[idx] ? JSON.parse(JSON.stringify(prev[idx])) : [];
+                                                                                                    while (copy.length <= rowIdx) {
+                                                                                                        copy.push(Array(row.length).fill(''));
+                                                                                                    }
+                                                                                                    copy[rowIdx][colIdx] = val;
+                                                                                                    return {
+                                                                                                        ...prev,
+                                                                                                        [idx]: copy
+                                                                                                    };
+                                                                                                });
+                                                                                            }}
+                                                                                            placeholder="Type answer..."
+                                                                                            className={`w-full text-xs font-medium text-slate-650 bg-slate-50 border border-slate-200 focus:bg-white focus:border-purple-500 rounded px-2.5 py-1.5 outline-none transition-all ${!isEditable ? 'opacity-60 cursor-not-allowed bg-slate-50/50' : ''}`}
+                                                                                        />
+                                                                                    )}
+                                                                                </td>
+                                                                            );
+                                                                        })}
+                                                                    </tr>
+                                                                ))}
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                </div>
+                                            )}
 
-                                             {/* Date & Time */}
-                                             {isDateTime && (
-                                                 <div className="grid grid-cols-2 gap-4">
-                                                     <input
-                                                         type="date"
-                                                         disabled={!isEditable}
-                                                         value={(answers[idx] || '').split('T')[0] || ''}
-                                                         onChange={(e) => {
-                                                             const timePart = (answers[idx] || '').split('T')[1] || '';
-                                                             handleTextChange(idx, e.target.value + (timePart ? 'T' + timePart : ''));
-                                                         }}
-                                                         className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-[#6F42C1] shadow-sm ${!isEditable ? 'opacity-60 cursor-not-allowed bg-slate-50/50' : ''}`}
-                                                     />
-                                                     <input
-                                                         type="time"
-                                                         disabled={!isEditable}
-                                                         value={(answers[idx] || '').split('T')[1] || ''}
-                                                         onChange={(e) => {
-                                                             const datePart = (answers[idx] || '').split('T')[0] || '';
-                                                             handleTextChange(idx, (datePart ? datePart : new Date().toISOString().split('T')[0]) + 'T' + e.target.value);
-                                                         }}
-                                                         className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-[#6F42C1] shadow-sm ${!isEditable ? 'opacity-60 cursor-not-allowed bg-slate-50/50' : ''}`}
-                                                     />
-                                                 </div>
-                                             )}
+                                            {/* Date & Time */}
+                                            {isDateTime && (
+                                                <div className="grid grid-cols-2 gap-4">
+                                                    <input
+                                                        type="date"
+                                                        disabled={!isEditable}
+                                                        value={(answers[idx] || '').split('T')[0] || ''}
+                                                        onChange={(e) => {
+                                                            const timePart = (answers[idx] || '').split('T')[1] || '';
+                                                            handleTextChange(idx, e.target.value + (timePart ? 'T' + timePart : ''));
+                                                        }}
+                                                        className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-[#6F42C1] shadow-sm ${!isEditable ? 'opacity-60 cursor-not-allowed bg-slate-50/50' : ''}`}
+                                                    />
+                                                    <input
+                                                        type="time"
+                                                        disabled={!isEditable}
+                                                        value={(answers[idx] || '').split('T')[1] || ''}
+                                                        onChange={(e) => {
+                                                            const datePart = (answers[idx] || '').split('T')[0] || '';
+                                                            handleTextChange(idx, (datePart ? datePart : new Date().toISOString().split('T')[0]) + 'T' + e.target.value);
+                                                        }}
+                                                        className={`w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-[#6F42C1] shadow-sm ${!isEditable ? 'opacity-60 cursor-not-allowed bg-slate-50/50' : ''}`}
+                                                    />
+                                                </div>
+                                            )}
 
-                                             {/* Rating */}
-                                             {isRating && (
-                                                 <div className="flex items-center gap-2 mt-1">
-                                                     {[1, 2, 3, 4, 5].map((star) => {
-                                                         const currentRating = Number(answers[idx]) || 0;
-                                                         return (
-                                                             <button
-                                                                 key={star}
-                                                                 type="button"
-                                                                 disabled={!isEditable}
-                                                                 onClick={() => handleTextChange(idx, String(star))}
-                                                                 className="transition-transform active:scale-90"
-                                                             >
-                                                                 <Star
-                                                                     size={24}
-                                                                     className={`cursor-pointer transition-colors ${star <= currentRating
-                                                                         ? 'text-amber-400 fill-amber-400'
-                                                                         : 'text-slate-300 fill-transparent hover:text-amber-400'
-                                                                         }`}
-                                                                 />
-                                                             </button>
-                                                         );
-                                                     })}
-                                                 </div>
-                                             )}
+                                            {/* Rating */}
+                                            {isRating && (
+                                                <div className="flex items-center gap-2 mt-1">
+                                                    {[1, 2, 3, 4, 5].map((star) => {
+                                                        const currentRating = Number(answers[idx]) || 0;
+                                                        return (
+                                                            <button
+                                                                key={star}
+                                                                type="button"
+                                                                disabled={!isEditable}
+                                                                onClick={() => handleTextChange(idx, String(star))}
+                                                                className="transition-transform active:scale-90"
+                                                            >
+                                                                <Star
+                                                                    size={24}
+                                                                    className={`cursor-pointer transition-colors ${star <= currentRating
+                                                                        ? 'text-amber-400 fill-amber-400'
+                                                                        : 'text-slate-300 fill-transparent hover:text-amber-400'
+                                                                        }`}
+                                                                />
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
 
-                                             {/* File upload */}
-                                             {isUpload && (
-                                                 <div className="space-y-3">
-                                                     <div className="border-2 border-dashed border-slate-200 rounded-2xl p-6 bg-slate-50 flex items-center justify-between text-xs text-slate-500">
-                                                         <div className="flex items-center gap-3">
-                                                             <button
-                                                                 type="button"
-                                                                 disabled={!isEditable}
-                                                                 onClick={() => {
-                                                                     const input = document.createElement('input');
-                                                                     input.type = 'file';
-                                                                     input.onchange = (e) => {
-                                                                         if (e.target.files) handleFileUploadSimulated(idx, e.target.files);
-                                                                     };
-                                                                     input.click();
-                                                                 }}
-                                                                 className="px-4 py-2.5 bg-purple-50 hover:bg-purple-100 text-[#6F42C1] text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 border border-purple-150"
-                                                             >
-                                                                 <Upload size={14} />
-                                                                 Choose File
-                                                             </button>
-                                                             <span className="text-xs text-slate-400 font-semibold">
-                                                                 {attachedFiles[idx] ? attachedFiles[idx].map(f => f.name).join(', ') : 'No file selected'}
-                                                             </span>
-                                                         </div>
-                                                     </div>
-                                                     {isUploading[idx] && (
-                                                         <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
-                                                             <div className="bg-[#6F42C1] h-1.5 rounded-full transition-all duration-200" style={{ width: `${uploadProgress[idx] || 0}%` }}></div>
-                                                         </div>
-                                                     )}
-                                                 </div>
-                                             )}
+                                            {/* File upload */}
+                                            {isUpload && (
+                                                <div className="space-y-3">
+                                                    <div className="border-2 border-dashed border-slate-200 rounded-2xl p-6 bg-slate-50 flex items-center justify-between text-xs text-slate-500">
+                                                        <div className="flex items-center gap-3">
+                                                            <button
+                                                                type="button"
+                                                                disabled={!isEditable}
+                                                                onClick={() => {
+                                                                    const input = document.createElement('input');
+                                                                    input.type = 'file';
+                                                                    input.onchange = (e) => {
+                                                                        if (e.target.files) handleFileUploadSimulated(idx, e.target.files);
+                                                                    };
+                                                                    input.click();
+                                                                }}
+                                                                className="px-4 py-2.5 bg-purple-50 hover:bg-purple-100 text-[#6F42C1] text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 border border-purple-150"
+                                                            >
+                                                                <Upload size={14} />
+                                                                Choose File
+                                                            </button>
+                                                            <span className="text-xs text-slate-400 font-semibold">
+                                                                {attachedFiles[idx] ? attachedFiles[idx].map(f => f.name).join(', ') : 'No file selected'}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                    {isUploading[idx] && (
+                                                        <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                                                            <div className="bg-[#6F42C1] h-1.5 rounded-full transition-all duration-200" style={{ width: `${uploadProgress[idx] || 0}%` }}></div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
 
-                                             {/* Image Displaying */}
-                                             {isImageDisplay && (
-                                                 <div className="mt-2 flex justify-center bg-slate-50 p-3 rounded-2xl border border-slate-100">
-                                                     <img
-                                                         src={q.imageUrl || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=600&q=80'}
-                                                         alt={q.altText || 'Display Image'}
-                                                         className={`max-w-full max-h-60 rounded-xl object-contain shadow-sm ${q.align === 'left' ? 'mr-auto' : q.align === 'right' ? 'ml-auto' : 'mx-auto'}`}
-                                                     />
-                                                 </div>
-                                             )}
+                                            {/* Image Displaying */}
+                                            {isImageDisplay && (
+                                                <div className="mt-2 flex justify-center bg-slate-50 p-3 rounded-2xl border border-slate-100">
+                                                    <img
+                                                        src={q.imageUrl || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=600&q=80'}
+                                                        alt={q.altText || 'Display Image'}
+                                                        className={`max-w-full max-h-60 rounded-xl object-contain shadow-sm ${q.align === 'left' ? 'mr-auto' : q.align === 'right' ? 'ml-auto' : 'mx-auto'}`}
+                                                    />
+                                                </div>
+                                            )}
 
-                                             {/* Video Displaying */}
-                                             {isVideoDisplay && (
-                                                 <div 
-                                                     className="mt-2 mx-auto flex justify-center bg-slate-900 p-2 rounded-2xl border border-slate-800 overflow-hidden"
-                                                     style={{ width: `${q.videoWidth || 500}px`, maxWidth: '100%' }}
-                                                 >
-                                                     <video
-                                                         src={q.videoUrl || 'https://www.w3schools.com/html/mov_bbb.mp4'}
-                                                         controls
-                                                         autoPlay={!!q.autoplay}
-                                                         loop={!!q.loop}
-                                                         className="w-full rounded-2xl object-contain bg-black"
-                                                     />
-                                                 </div>
-                                             )}
+                                            {/* Video Displaying */}
+                                            {isVideoDisplay && (
+                                                <div
+                                                    className="mt-2 mx-auto flex justify-center bg-slate-900 p-2 rounded-2xl border border-slate-800 overflow-hidden"
+                                                    style={{ width: `${q.videoWidth || 500}px`, maxWidth: '100%' }}
+                                                >
+                                                    <video
+                                                        src={q.videoUrl || 'https://www.w3schools.com/html/mov_bbb.mp4'}
+                                                        controls
+                                                        autoPlay={!!q.autoplay}
+                                                        loop={!!q.loop}
+                                                        className="w-full rounded-2xl object-contain bg-black"
+                                                    />
+                                                </div>
+                                            )}
 
-                                             {/* PDF Displaying */}
-                                             {isPdfDisplay && (
-                                                 <div className="mt-2 flex items-center justify-between p-4 bg-slate-55 border border-slate-200 rounded-2xl">
-                                                     <div className="flex items-center gap-3">
-                                                         <div className="p-3 bg-red-100 text-red-600 rounded-xl">
-                                                             <FileText size={22} />
-                                                         </div>
-                                                         <div className="flex flex-col text-left">
-                                                             <span className="font-bold text-slate-700 text-sm">{q.text || 'View Document'}</span>
-                                                             <span className="text-xs text-slate-400">PDF Document File</span>
-                                                         </div>
-                                                     </div>
-                                                     <a
-                                                         href={q.pdfUrl || '#'}
-                                                         target="_blank"
-                                                         rel="noreferrer"
-                                                         className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-purple-500/10"
-                                                     >
-                                                         View Document
-                                                     </a>
-                                                 </div>
-                                             )}
+                                            {/* PDF Displaying */}
+                                            {isPdfDisplay && (
+                                                <div className="mt-2 flex items-center justify-between p-4 bg-slate-55 border border-slate-200 rounded-2xl">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="p-3 bg-red-100 text-red-600 rounded-xl">
+                                                            <FileText size={22} />
+                                                        </div>
+                                                        <div className="flex flex-col text-left">
+                                                            <span className="font-bold text-slate-700 text-sm">{q.text || 'View Document'}</span>
+                                                            <span className="text-xs text-slate-400">PDF Document File</span>
+                                                        </div>
+                                                    </div>
+                                                    <a
+                                                        href={q.pdfUrl || '#'}
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                        className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-purple-500/10"
+                                                    >
+                                                        View Document
+                                                    </a>
+                                                </div>
+                                            )}
 
-                                             {/* Webpage Displaying */}
-                                             {isWebpageDisplay && (
-                                                 <div className="mt-2 rounded-xl border border-slate-200 overflow-hidden shadow-sm bg-white text-left">
-                                                     {q.webpageUrl ? (
-                                                         <div className="flex flex-col">
-                                                             <div className="flex items-center gap-2 p-2 bg-slate-50 border-b border-slate-200 text-[10px] font-bold text-slate-500">
-                                                                 <Globe size={10} className="text-purple-500" />
-                                                                 <span>{q.webpageUrl}</span>
-                                                             </div>
-                                                             <iframe
-                                                                 src={q.webpageUrl}
-                                                                 title="Webpage Display"
-                                                                 className="w-full border-0 bg-white"
-                                                                 style={{ height: `${Math.min(q.webpageHeight || 300, 200)}px` }}
-                                                             />
-                                                         </div>
-                                                     ) : (
-                                                         <div className="text-center text-slate-400 p-4 bg-slate-50">
-                                                             <Globe size={32} className="mx-auto mb-2 text-purple-400" />
-                                                             <p className="text-xs font-semibold">No webpage URL provided</p>
-                                                         </div>
-                                                     )}
-                                                 </div>
-                                             )}
+                                            {/* Webpage Displaying */}
+                                            {isWebpageDisplay && (
+                                                <div className="mt-2 rounded-xl border border-slate-200 overflow-hidden shadow-sm bg-white text-left">
+                                                    {q.webpageUrl ? (
+                                                        <div className="flex flex-col">
+                                                            <div className="flex items-center gap-2 p-2 bg-slate-50 border-b border-slate-200 text-[10px] font-bold text-slate-500">
+                                                                <Globe size={10} className="text-purple-500" />
+                                                                <span>{q.webpageUrl}</span>
+                                                            </div>
+                                                            <iframe
+                                                                src={q.webpageUrl}
+                                                                title="Webpage Display"
+                                                                className="w-full border-0 bg-white"
+                                                                style={{ height: `${Math.min(q.webpageHeight || 300, 200)}px` }}
+                                                            />
+                                                        </div>
+                                                    ) : (
+                                                        <div className="text-center text-slate-400 p-4 bg-slate-50">
+                                                            <Globe size={32} className="mx-auto mb-2 text-purple-400" />
+                                                            <p className="text-xs font-semibold">No webpage URL provided</p>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
 
-                                             {/* Embedded Video Displaying */}
-                                             {isEmbeddedVideo && (
-                                                 <div 
-                                                     className="mt-2 mx-auto overflow-hidden rounded-2xl border border-slate-200 shadow-sm aspect-video bg-black flex items-center justify-center"
-                                                     style={{ width: `${q.videoWidth || 500}px`, maxWidth: '100%' }}
-                                                 >
-                                                     {(q.youtubeUrl || q.embeddedVideoUrl) ? (
-                                                         <iframe
-                                                             src={getEmbedUrl(q.embeddedVideoUrl || q.youtubeUrl)}
-                                                             title="Embedded Video"
-                                                             className="w-full h-full border-0"
-                                                             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                                             allowFullScreen
-                                                         />
-                                                     ) : (
-                                                         <div className="text-center text-slate-400 p-4">
-                                                             <Play size={32} className="mx-auto mb-2 text-red-500" />
-                                                             <p className="text-xs font-semibold">No video URL provided</p>
-                                                         </div>
-                                                     )}
-                                                 </div>
-                                             )}
+                                            {/* Embedded Video Displaying */}
+                                            {isEmbeddedVideo && (
+                                                <div
+                                                    className="mt-2 mx-auto overflow-hidden rounded-2xl border border-slate-200 shadow-sm aspect-video bg-black flex items-center justify-center"
+                                                    style={{ width: `${q.videoWidth || 500}px`, maxWidth: '100%' }}
+                                                >
+                                                    {(q.youtubeUrl || q.embeddedVideoUrl) ? (
+                                                        <iframe
+                                                            src={getEmbedUrl(q.embeddedVideoUrl || q.youtubeUrl)}
+                                                            title="Embedded Video"
+                                                            className="w-full h-full border-0"
+                                                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                                            allowFullScreen
+                                                        />
+                                                    ) : (
+                                                        <div className="text-center text-slate-400 p-4">
+                                                            <Play size={32} className="mx-auto mb-2 text-red-500" />
+                                                            <p className="text-xs font-semibold">No video URL provided</p>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
 
-                                             {/* Embedded SM Content Displaying */}
-                                             {isEmbeddedSM && (
-                                                 <div className="mt-2 border border-slate-200 rounded-2xl p-4 bg-slate-50 flex items-center gap-3 text-left">
-                                                     <div className="p-3 bg-sky-50 text-sky-600 rounded-xl border border-sky-100 shadow-sm">
-                                                         <Share2 size={20} />
-                                                     </div>
-                                                     <div>
-                                                         <span className="text-xs font-bold text-slate-400 uppercase tracking-widest block">{q.smPlatform || 'Social Media'} Post</span>
-                                                         <span className="text-sm font-semibold text-slate-700 block truncate max-w-xs">{q.smPostUrl || 'No social media link provided'}</span>
-                                                     </div>
-                                                 </div>
-                                             )}
+                                            {/* Embedded SM Content Displaying */}
+                                            {isEmbeddedSM && (
+                                                <div className="mt-2 border border-slate-200 rounded-2xl p-4 bg-slate-50 flex items-center gap-3 text-left">
+                                                    <div className="p-3 bg-sky-50 text-sky-600 rounded-xl border border-sky-100 shadow-sm">
+                                                        <Share2 size={20} />
+                                                    </div>
+                                                    <div>
+                                                        <span className="text-xs font-bold text-slate-400 uppercase tracking-widest block">{q.smPlatform || 'Social Media'} Post</span>
+                                                        <span className="text-sm font-semibold text-slate-700 block truncate max-w-xs">{q.smPostUrl || 'No social media link provided'}</span>
+                                                    </div>
+                                                </div>
+                                            )}
 
-                                             {/* Audio listening Displaying */}
-                                             {isAudioListening && (
-                                                 <div className="mt-2 border border-slate-200 rounded-2xl p-6 bg-slate-50 flex flex-col gap-4 text-left">
-                                                     <div className="flex items-center gap-3">
-                                                         <div className="p-3 bg-purple-100 text-purple-600 rounded-xl">
-                                                             <Headphones size={22} />
-                                                         </div>
-                                                         <div className="flex-1">
-                                                             <span className="text-xs font-bold text-slate-400 uppercase tracking-widest block">Comprehension Track</span>
-                                                             <audio src={q.audioUrl || ''} controls className="w-full mt-1.5 h-9" />
-                                                         </div>
-                                                     </div>
-                                                     {q.options && q.options.length > 0 && (
-                                                         <div className="space-y-2.5 mt-2 pt-4 border-t border-slate-200/50">
-                                                             <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block text-left">Answer Options:</span>
-                                                             {q.options.map((opt, oIdx) => (
-                                                                 <label
-                                                                     key={oIdx}
-                                                                     className={`flex items-center gap-3 p-3.5 border rounded-2xl transition-all ${answers[idx] === opt.text
-                                                                         ? 'border-[#6F42C1] bg-[#6F42C1]/5'
-                                                                         : 'border-slate-200 bg-white'
-                                                                         } ${!isEditable ? 'opacity-60 cursor-not-allowed pointer-events-none' : 'hover:bg-slate-50 cursor-pointer'}`}
-                                                                 >
-                                                                     <input
-                                                                         type="radio"
-                                                                         name={`listening-mc-${idx}`}
-                                                                         disabled={!isEditable}
-                                                                         checked={answers[idx] === opt.text}
-                                                                         onChange={() => handleTextChange(idx, opt.text)}
-                                                                         className="text-[#6F42C1] focus:ring-[#6F42C1] w-4 h-4 border-slate-300 disabled:opacity-50"
-                                                                     />
-                                                                     <span className="text-sm font-semibold text-slate-700">{opt.text}</span>
-                                                                 </label>
-                                                             ))}
-                                                         </div>
-                                                     )}
-                                                 </div>
-                                             )}
+                                            {/* Audio listening Displaying */}
+                                            {isAudioListening && (
+                                                <div className="mt-2 border border-slate-200 rounded-2xl p-6 bg-slate-50 flex flex-col gap-4 text-left">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="p-3 bg-purple-100 text-purple-600 rounded-xl">
+                                                            <Headphones size={22} />
+                                                        </div>
+                                                        <div className="flex-1">
+                                                            <span className="text-xs font-bold text-slate-400 uppercase tracking-widest block">Comprehension Track</span>
+                                                            <audio src={q.audioUrl || ''} controls className="w-full mt-1.5 h-9" />
+                                                        </div>
+                                                    </div>
+                                                    {q.options && q.options.length > 0 && (
+                                                        <div className="space-y-2.5 mt-2 pt-4 border-t border-slate-200/50">
+                                                            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block text-left">Answer Options:</span>
+                                                            {q.options.map((opt, oIdx) => (
+                                                                <label
+                                                                    key={oIdx}
+                                                                    className={`flex items-center gap-3 p-3.5 border rounded-2xl transition-all ${answers[idx] === opt.text
+                                                                        ? 'border-[#6F42C1] bg-[#6F42C1]/5'
+                                                                        : 'border-slate-200 bg-white'
+                                                                        } ${!isEditable ? 'opacity-60 cursor-not-allowed pointer-events-none' : 'hover:bg-slate-50 cursor-pointer'}`}
+                                                                >
+                                                                    <input
+                                                                        type="radio"
+                                                                        name={`listening-mc-${idx}`}
+                                                                        disabled={!isEditable}
+                                                                        checked={answers[idx] === opt.text}
+                                                                        onChange={() => handleTextChange(idx, opt.text)}
+                                                                        className="text-[#6F42C1] focus:ring-[#6F42C1] w-4 h-4 border-slate-300 disabled:opacity-50"
+                                                                    />
+                                                                    <span className="text-sm font-semibold text-slate-700">{opt.text}</span>
+                                                                </label>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
 
-                                             {/* Multi file Displaying */}
-                                             {isMultiFile && (
-                                                 <div className="space-y-3">
-                                                     <div className="border-2 border-dashed border-purple-200 rounded-2xl p-6 bg-purple-50/20 text-center space-y-2">
-                                                         <div className="p-3 bg-white text-purple-600 rounded-full border border-purple-150 inline-block">
-                                                             <Files size={20} />
-                                                         </div>
-                                                         <div>
-                                                             <button
-                                                                 type="button"
-                                                                 disabled={!isEditable}
-                                                                 onClick={() => {
-                                                                     const input = document.createElement('input');
-                                                                     input.type = 'file';
-                                                                     input.multiple = true;
-                                                                     input.onchange = (e) => {
-                                                                         if (e.target.files) handleFileUploadSimulated(idx, e.target.files);
-                                                                     };
-                                                                     input.click();
-                                                                 }}
-                                                                 className="px-4 py-2 bg-[#6F42C1] hover:bg-[#5a32a3] text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 mx-auto"
-                                                             >
-                                                                 Choose Multiple Files
-                                                             </button>
-                                                             <span className="text-xs text-slate-400 mt-2 block">
-                                                                 {attachedFiles[idx] ? `${attachedFiles[idx].length} files selected` : `Maximum of ${q.multiMaxFiles || 5} files`}
-                                                             </span>
-                                                         </div>
-                                                     </div>
-                                                     {attachedFiles[idx] && (
-                                                         <div className="flex flex-col gap-2 text-left">
-                                                             {attachedFiles[idx].map((file, fIdx) => (
-                                                                 <div key={fIdx} className="flex justify-between items-center bg-white p-2 rounded-xl border border-slate-200 text-xs">
-                                                                     <span className="text-slate-700 font-semibold">{file.name}</span>
-                                                                     <button
-                                                                         type="button"
-                                                                         onClick={() => {
-                                                                             setAttachedFiles(prev => ({
-                                                                                 ...prev,
-                                                                                 [idx]: prev[idx].filter((_, i) => i !== fIdx)
-                                                                             }));
-                                                                         }}
-                                                                         className="text-red-500 hover:text-red-700"
-                                                                     >
-                                                                         <X size={14} />
-                                                                     </button>
-                                                                 </div>
-                                                             ))}
-                                                         </div>
-                                                     )}
-                                                 </div>
-                                             )}
+                                            {/* Multi file Displaying */}
+                                            {isMultiFile && (
+                                                <div className="space-y-3">
+                                                    <div className="border-2 border-dashed border-purple-200 rounded-2xl p-6 bg-purple-50/20 text-center space-y-2">
+                                                        <div className="p-3 bg-white text-purple-600 rounded-full border border-purple-150 inline-block">
+                                                            <Files size={20} />
+                                                        </div>
+                                                        <div>
+                                                            <button
+                                                                type="button"
+                                                                disabled={!isEditable}
+                                                                onClick={() => {
+                                                                    const input = document.createElement('input');
+                                                                    input.type = 'file';
+                                                                    input.multiple = true;
+                                                                    input.onchange = (e) => {
+                                                                        if (e.target.files) handleFileUploadSimulated(idx, e.target.files);
+                                                                    };
+                                                                    input.click();
+                                                                }}
+                                                                className="px-4 py-2 bg-[#6F42C1] hover:bg-[#5a32a3] text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 mx-auto"
+                                                            >
+                                                                Choose Multiple Files
+                                                            </button>
+                                                            <span className="text-xs text-slate-400 mt-2 block">
+                                                                {attachedFiles[idx] ? `${attachedFiles[idx].length} files selected` : `Maximum of ${q.multiMaxFiles || 5} files`}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                    {attachedFiles[idx] && (
+                                                        <div className="flex flex-col gap-2 text-left">
+                                                            {attachedFiles[idx].map((file, fIdx) => (
+                                                                <div key={fIdx} className="flex justify-between items-center bg-white p-2 rounded-xl border border-slate-200 text-xs">
+                                                                    <span className="text-slate-700 font-semibold">{file.name}</span>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                            setAttachedFiles(prev => ({
+                                                                                ...prev,
+                                                                                [idx]: prev[idx].filter((_, i) => i !== fIdx)
+                                                                            }));
+                                                                        }}
+                                                                        className="text-red-500 hover:text-red-700"
+                                                                    >
+                                                                        <X size={14} />
+                                                                    </button>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
 
-                                             {/* Screenshot taking */}
-                                             {isScreenshot && (
-                                                 <div className="mt-2 border border-slate-200 rounded-2xl p-6 bg-slate-50 flex flex-col items-center justify-center gap-4 text-center">
-                                                     <div className="w-14 h-14 bg-purple-100 text-purple-600 rounded-2xl flex items-center justify-center">
-                                                         <Camera size={28} />
-                                                     </div>
-                                                     <div>
-                                                         <span className="text-sm font-bold text-slate-700 block">Capture Screenshot ({q.screenshotScope || 'Entire Screen'})</span>
-                                                         <span className="text-xs text-slate-400 mt-1 block">Take a screenshot of the specified frame and upload</span>
-                                                     </div>
-                                                     <button
-                                                         type="button"
-                                                         disabled={!isEditable}
-                                                         onClick={() => {
-                                                             handleTextChange(idx, "screenshot_taken_" + Date.now() + ".png");
-                                                             toast.success("Screenshot saved successfully!", { icon: '📸' });
-                                                         }}
-                                                         className="px-6 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center gap-2"
-                                                     >
-                                                         <Camera size={14} /> {answers[idx] ? "Capture Again" : "Capture Screenshot"}
-                                                     </button>
-                                                     {answers[idx] && (
-                                                         <span className="text-xs text-emerald-600 font-bold">✓ Saved: {answers[idx]}</span>
-                                                     )}
-                                                 </div>
-                                             )}
+                                            {/* Screenshot taking */}
+                                            {isScreenshot && (
+                                                <div className="mt-2 border border-slate-200 rounded-2xl p-6 bg-slate-50 flex flex-col items-center justify-center gap-4 text-center">
+                                                    <div className="w-14 h-14 bg-purple-100 text-purple-600 rounded-2xl flex items-center justify-center">
+                                                        <Camera size={28} />
+                                                    </div>
+                                                    <div>
+                                                        <span className="text-sm font-bold text-slate-700 block">Capture Screenshot ({q.screenshotScope || 'Entire Screen'})</span>
+                                                        <span className="text-xs text-slate-400 mt-1 block">Take a screenshot of the specified frame and upload</span>
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        disabled={!isEditable}
+                                                        onClick={() => {
+                                                            handleTextChange(idx, "screenshot_taken_" + Date.now() + ".png");
+                                                            toast.success("Screenshot saved successfully!", { icon: '📸' });
+                                                        }}
+                                                        className="px-6 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center gap-2"
+                                                    >
+                                                        <Camera size={14} /> {answers[idx] ? "Capture Again" : "Capture Screenshot"}
+                                                    </button>
+                                                    {answers[idx] && (
+                                                        <span className="text-xs text-emerald-600 font-bold">✓ Saved: {answers[idx]}</span>
+                                                    )}
+                                                </div>
+                                            )}
 
-                                             {/* Screen recording */}
-                                             {isScreenRec && (
-                                                 <div className="mt-2 border border-slate-200 rounded-2xl p-6 bg-slate-50 flex flex-col items-center justify-center gap-4 text-center">
-                                                     <div className="w-14 h-14 bg-red-50 text-red-500 rounded-2xl flex items-center justify-center animate-pulse">
-                                                         <Monitor size={28} />
-                                                     </div>
-                                                     <div>
-                                                         <span className="text-sm font-bold text-slate-700 block">Screen Recorder Ready ({q.quality || '1080p'})</span>
-                                                         <span className="text-xs text-slate-400 mt-1 block">Permission will be requested to record your screen {q.includeMic ? 'and voice audio' : ''}</span>
-                                                     </div>
-                                                     <button
-                                                         type="button"
-                                                         disabled={!isEditable}
-                                                         onClick={() => {
-                                                             handleTextChange(idx, "screen_recording_" + Date.now() + ".webm");
-                                                             toast.success("Screen recording simulation started...", { icon: '📹' });
-                                                         }}
-                                                         className="px-6 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center gap-2"
-                                                     >
-                                                         <Monitor size={14} /> {answers[idx] ? "Record Again" : "Start Screen Share"}
-                                                     </button>
-                                                     {answers[idx] && (
-                                                         <span className="text-xs text-emerald-600 font-bold">✓ Saved: {answers[idx]}</span>
-                                                     )}
-                                                 </div>
-                                             )}
+                                            {/* Screen recording */}
+                                            {isScreenRec && (
+                                                <div className="mt-2 border border-slate-200 rounded-2xl p-6 bg-slate-50 flex flex-col items-center justify-center gap-4 text-center">
+                                                    <div className="w-14 h-14 bg-red-50 text-red-500 rounded-2xl flex items-center justify-center animate-pulse">
+                                                        <Monitor size={28} />
+                                                    </div>
+                                                    <div>
+                                                        <span className="text-sm font-bold text-slate-700 block">Screen Recorder Ready ({q.quality || '1080p'})</span>
+                                                        <span className="text-xs text-slate-400 mt-1 block">Permission will be requested to record your screen {q.includeMic ? 'and voice audio' : ''}</span>
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        disabled={!isEditable}
+                                                        onClick={() => {
+                                                            handleTextChange(idx, "screen_recording_" + Date.now() + ".webm");
+                                                            toast.success("Screen recording simulation started...", { icon: '📹' });
+                                                        }}
+                                                        className="px-6 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center gap-2"
+                                                    >
+                                                        <Monitor size={14} /> {answers[idx] ? "Record Again" : "Start Screen Share"}
+                                                    </button>
+                                                    {answers[idx] && (
+                                                        <span className="text-xs text-emerald-600 font-bold">✓ Saved: {answers[idx]}</span>
+                                                    )}
+                                                </div>
+                                            )}
 
-                                             {/* Web based Audio calling */}
-                                             {isAudioCall && (() => {
-                                                 const allowedIds = q.particulars?.allowedTeachers || [];
-                                                 const questionTeachers = teachersList.filter(t => allowedIds.includes(t._id));
-                                                 const elementTeachers = questionTeachers.length > 0 ? questionTeachers : teachersList;
-                                                 const singleTeacher = elementTeachers.length === 1 ? elementTeachers[0] : null;
+                                            {/* Web based Audio calling */}
+                                            {isAudioCall && (() => {
+                                                const allowedIds = q.particulars?.allowedTeachers || [];
+                                                const questionTeachers = teachersList.filter(t => allowedIds.includes(t._id));
+                                                const elementTeachers = questionTeachers.length > 0 ? questionTeachers : teachersList;
+                                                const singleTeacher = elementTeachers.length === 1 ? elementTeachers[0] : null;
 
-                                                 const handleCallTeacher = () => {
-                                                     const targetId = singleTeacher ? singleTeacher._id : (selectedTeachers[idx] || '');
-                                                     const target = elementTeachers.find(t => t._id === targetId);
-                                                     if (!target) {
-                                                         toast.error("Please select a teacher to call");
-                                                         return;
-                                                     }
-                                                     callUser(target._id, target.name, 'Teacher');
-                                                     handleTextChange(idx, `Voice Call Session with ${target.name} on ${new Date().toLocaleString()}`);
-                                                 };
+                                                const handleCallTeacher = () => {
+                                                    const targetId = singleTeacher ? singleTeacher._id : (selectedTeachers[idx] || '');
+                                                    const target = elementTeachers.find(t => t._id === targetId);
+                                                    if (!target) {
+                                                        toast.error("Please select a teacher to call");
+                                                        return;
+                                                    }
+                                                    callUser(target._id, target.name, 'Teacher');
+                                                    handleTextChange(idx, `Voice Call Session with ${target.name} on ${new Date().toLocaleString()}`);
+                                                };
 
-                                                 return (
-                                                     <div className="mt-2 border border-slate-200 rounded-2xl p-6 bg-slate-50 flex flex-col gap-4 text-left">
-                                                         <div className="flex items-center gap-3">
-                                                             <div className="p-3 bg-emerald-100 text-emerald-600 rounded-xl">
-                                                                 <Phone size={22} />
-                                                             </div>
-                                                             <div>
-                                                                 <span className="text-sm font-bold text-slate-700 block">Dialer Voice Connection</span>
-                                                                 <span className="text-xs text-slate-400">Establish a live audio call with your instructor</span>
-                                                             </div>
-                                                         </div>
+                                                return (
+                                                    <div className="mt-2 border border-slate-200 rounded-2xl p-6 bg-slate-50 flex flex-col gap-4 text-left">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="p-3 bg-emerald-100 text-emerald-600 rounded-xl">
+                                                                <Phone size={22} />
+                                                            </div>
+                                                            <div>
+                                                                <span className="text-sm font-bold text-slate-700 block">Dialer Voice Connection</span>
+                                                                <span className="text-xs text-slate-400">Establish a live audio call with your instructor</span>
+                                                            </div>
+                                                        </div>
 
-                                                         {q.scriptScenario && (
-                                                             <div className="bg-white p-3 rounded-xl border border-slate-100 text-xs font-medium text-slate-650 leading-relaxed max-h-24 overflow-y-auto">
-                                                                 <strong className="text-slate-700 uppercase tracking-wider block mb-1 text-[10px]">Roleplay Scenario:</strong>
-                                                                 {q.scriptScenario}
-                                                             </div>
-                                                         )}
+                                                        {q.scriptScenario && (
+                                                            <div className="bg-white p-3 rounded-xl border border-slate-100 text-xs font-medium text-slate-650 leading-relaxed max-h-24 overflow-y-auto">
+                                                                <strong className="text-slate-700 uppercase tracking-wider block mb-1 text-[10px]">Roleplay Scenario:</strong>
+                                                                {q.scriptScenario}
+                                                            </div>
+                                                        )}
 
-                                                         {!singleTeacher && elementTeachers.length > 0 && (
-                                                             <div className="space-y-1.5">
-                                                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Choose Teacher to Call</label>
-                                                                 <select
-                                                                     value={selectedTeachers[idx] || ''}
-                                                                     onChange={(e) => setSelectedTeachers(prev => ({ ...prev, [idx]: e.target.value }))}
-                                                                     disabled={!isEditable}
-                                                                     className="w-full border border-slate-200 rounded-xl p-2.5 text-xs font-semibold outline-none focus:border-[#6F42C1] bg-white text-slate-700"
-                                                                 >
-                                                                     <option value="">-- Select Teacher --</option>
-                                                                     {elementTeachers.map(t => {
-                                                                         const isOnline = onlineUsers.includes(t._id);
-                                                                         return (
-                                                                             <option key={t._id} value={t._id}>
-                                                                                 {t.name} ({isOnline ? 'Online' : 'Offline'})
-                                                                             </option>
-                                                                         );
-                                                                     })}
-                                                                 </select>
-                                                             </div>
-                                                         )}
+                                                        {!singleTeacher && elementTeachers.length > 0 && (
+                                                            <div className="space-y-1.5">
+                                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Choose Teacher to Call</label>
+                                                                <select
+                                                                    value={selectedTeachers[idx] || ''}
+                                                                    onChange={(e) => setSelectedTeachers(prev => ({ ...prev, [idx]: e.target.value }))}
+                                                                    disabled={!isEditable}
+                                                                    className="w-full border border-slate-200 rounded-xl p-2.5 text-xs font-semibold outline-none focus:border-[#6F42C1] bg-white text-slate-700"
+                                                                >
+                                                                    <option value="">-- Select Teacher --</option>
+                                                                    {elementTeachers.map(t => {
+                                                                        const isOnline = onlineUsers.includes(t._id);
+                                                                        return (
+                                                                            <option key={t._id} value={t._id}>
+                                                                                {t.name} ({isOnline ? 'Online' : 'Offline'})
+                                                                            </option>
+                                                                        );
+                                                                    })}
+                                                                </select>
+                                                            </div>
+                                                        )}
 
-                                                         <button
-                                                             type="button"
-                                                             disabled={!isEditable || (!singleTeacher && !selectedTeachers[idx])}
-                                                             onClick={handleCallTeacher}
-                                                             className="w-full py-2.5 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 disabled:from-slate-200 disabled:to-slate-300 disabled:text-slate-400 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2"
-                                                         >
-                                                             <Phone size={14} /> 
-                                                             {singleTeacher 
-                                                                 ? `Call ${singleTeacher.name} (${onlineUsers.includes(singleTeacher._id) ? 'Online' : 'Offline'})` 
-                                                                 : 'Establish Voice Connection'
-                                                             }
-                                                         </button>
+                                                        <button
+                                                            type="button"
+                                                            disabled={!isEditable || (!singleTeacher && !selectedTeachers[idx])}
+                                                            onClick={handleCallTeacher}
+                                                            className="w-full py-2.5 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 disabled:from-slate-200 disabled:to-slate-300 disabled:text-slate-400 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2"
+                                                        >
+                                                            <Phone size={14} />
+                                                            {singleTeacher
+                                                                ? `Call ${singleTeacher.name} (${onlineUsers.includes(singleTeacher._id) ? 'Online' : 'Offline'})`
+                                                                : 'Establish Voice Connection'
+                                                            }
+                                                        </button>
 
-                                                         {answers[idx] && (
-                                                             <span className="text-xs text-emerald-600 font-bold flex items-center gap-1">
-                                                                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                                                                 {answers[idx]}
-                                                             </span>
-                                                         )}
-                                                     </div>
-                                                 );
-                                             })()}
+                                                        {answers[idx] && (
+                                                            <span className="text-xs text-emerald-600 font-bold flex items-center gap-1">
+                                                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                                                {answers[idx]}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })()}
 
-                                             {/* Web based video calling */}
-                                             {isVideoCall && (() => {
-                                                 const allowedIds = q.particulars?.allowedTeachers || [];
-                                                 const questionTeachers = teachersList.filter(t => allowedIds.includes(t._id));
-                                                 const elementTeachers = questionTeachers.length > 0 ? questionTeachers : teachersList;
-                                                 const singleTeacher = elementTeachers.length === 1 ? elementTeachers[0] : null;
+                                            {/* Web based video calling */}
+                                            {isVideoCall && (() => {
+                                                const allowedIds = q.particulars?.allowedTeachers || [];
+                                                const questionTeachers = teachersList.filter(t => allowedIds.includes(t._id));
+                                                const elementTeachers = questionTeachers.length > 0 ? questionTeachers : teachersList;
+                                                const singleTeacher = elementTeachers.length === 1 ? elementTeachers[0] : null;
 
-                                                 const handleCallTeacher = () => {
-                                                     const targetId = singleTeacher ? singleTeacher._id : (selectedTeachers[idx] || '');
-                                                     const target = elementTeachers.find(t => t._id === targetId);
-                                                     if (!target) {
-                                                         toast.error("Please select a teacher to call");
-                                                         return;
-                                                     }
-                                                     callUser(target._id, target.name, 'Teacher', 'video');
-                                                     handleTextChange(idx, `Video Call Session with ${target.name} on ${new Date().toLocaleString()}`);
-                                                 };
+                                                const handleCallTeacher = () => {
+                                                    const targetId = singleTeacher ? singleTeacher._id : (selectedTeachers[idx] || '');
+                                                    const target = elementTeachers.find(t => t._id === targetId);
+                                                    if (!target) {
+                                                        toast.error("Please select a teacher to call");
+                                                        return;
+                                                    }
+                                                    callUser(target._id, target.name, 'Teacher', 'video');
+                                                    handleTextChange(idx, `Video Call Session with ${target.name} on ${new Date().toLocaleString()}`);
+                                                };
 
-                                                 return (
-                                                     <div className="mt-2 border border-slate-200 rounded-2xl p-6 bg-slate-900 text-white flex flex-col gap-4 text-left">
-                                                         <div className="flex items-center gap-3">
-                                                             <div className="p-3 bg-purple-500/10 border border-purple-500/30 text-purple-400 rounded-xl">
-                                                                 <Video size={22} />
-                                                             </div>
-                                                             <div>
-                                                                 <span className="text-sm font-bold block">Web Video Call Meeting</span>
-                                                                 <span className="text-xs text-slate-400">Establish a live video call with your instructor</span>
-                                                             </div>
-                                                         </div>
+                                                return (
+                                                    <div className="mt-2 border border-slate-200 rounded-2xl p-6 bg-slate-900 text-white flex flex-col gap-4 text-left">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="p-3 bg-purple-500/10 border border-purple-500/30 text-purple-400 rounded-xl">
+                                                                <Video size={22} />
+                                                            </div>
+                                                            <div>
+                                                                <span className="text-sm font-bold block">Web Video Call Meeting</span>
+                                                                <span className="text-xs text-slate-400">Establish a live video call with your instructor</span>
+                                                            </div>
+                                                        </div>
 
-                                                         {q.videoCallScenario && (
-                                                             <div className="bg-white/10 p-3 rounded-xl border border-white/5 text-xs font-medium text-slate-300 leading-relaxed max-h-24 overflow-y-auto">
-                                                                 <strong className="text-white uppercase tracking-wider block mb-1 text-[10px]">Meeting Topic:</strong>
-                                                                 {q.videoCallScenario}
-                                                             </div>
-                                                         )}
+                                                        {q.videoCallScenario && (
+                                                            <div className="bg-white/10 p-3 rounded-xl border border-white/5 text-xs font-medium text-slate-300 leading-relaxed max-h-24 overflow-y-auto">
+                                                                <strong className="text-white uppercase tracking-wider block mb-1 text-[10px]">Meeting Topic:</strong>
+                                                                {q.videoCallScenario}
+                                                            </div>
+                                                        )}
 
-                                                         {!singleTeacher && elementTeachers.length > 0 && (
-                                                             <div className="space-y-1.5">
-                                                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Choose Teacher to Call</label>
-                                                                 <select
-                                                                     value={selectedTeachers[idx] || ''}
-                                                                     onChange={(e) => setSelectedTeachers(prev => ({ ...prev, [idx]: e.target.value }))}
-                                                                     disabled={!isEditable}
-                                                                     className="w-full border border-white/10 rounded-xl p-2.5 text-xs font-semibold outline-none focus:border-purple-500 bg-white/5 text-white"
-                                                                 >
-                                                                     <option value="" className="text-slate-900">-- Select Teacher --</option>
-                                                                     {elementTeachers.map(t => {
-                                                                         const isOnline = onlineUsers.includes(t._id);
-                                                                         return (
-                                                                             <option key={t._id} value={t._id} className="text-slate-900">
-                                                                                 {t.name} ({isOnline ? 'Online' : 'Offline'})
-                                                                             </option>
-                                                                         );
-                                                                     })}
-                                                                 </select>
-                                                             </div>
-                                                         )}
+                                                        {!singleTeacher && elementTeachers.length > 0 && (
+                                                            <div className="space-y-1.5">
+                                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Choose Teacher to Call</label>
+                                                                <select
+                                                                    value={selectedTeachers[idx] || ''}
+                                                                    onChange={(e) => setSelectedTeachers(prev => ({ ...prev, [idx]: e.target.value }))}
+                                                                    disabled={!isEditable}
+                                                                    className="w-full border border-white/10 rounded-xl p-2.5 text-xs font-semibold outline-none focus:border-purple-500 bg-white/5 text-white"
+                                                                >
+                                                                    <option value="" className="text-slate-900">-- Select Teacher --</option>
+                                                                    {elementTeachers.map(t => {
+                                                                        const isOnline = onlineUsers.includes(t._id);
+                                                                        return (
+                                                                            <option key={t._id} value={t._id} className="text-slate-900">
+                                                                                {t.name} ({isOnline ? 'Online' : 'Offline'})
+                                                                            </option>
+                                                                        );
+                                                                    })}
+                                                                </select>
+                                                            </div>
+                                                        )}
 
-                                                         <button
-                                                             type="button"
-                                                             disabled={!isEditable || (!singleTeacher && !selectedTeachers[idx])}
-                                                             onClick={handleCallTeacher}
-                                                             className="w-full py-2.5 bg-purple-600 hover:bg-purple-700 disabled:bg-slate-700 disabled:text-slate-400 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2"
-                                                         >
-                                                             <Video size={14} />
-                                                             {singleTeacher
-                                                                 ? `Call ${singleTeacher.name} (${onlineUsers.includes(singleTeacher._id) ? 'Online' : 'Offline'})`
-                                                                 : 'Establish Video Connection'
-                                                             }
-                                                         </button>
+                                                        <button
+                                                            type="button"
+                                                            disabled={!isEditable || (!singleTeacher && !selectedTeachers[idx])}
+                                                            onClick={handleCallTeacher}
+                                                            className="w-full py-2.5 bg-purple-600 hover:bg-purple-700 disabled:bg-slate-700 disabled:text-slate-400 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2"
+                                                        >
+                                                            <Video size={14} />
+                                                            {singleTeacher
+                                                                ? `Call ${singleTeacher.name} (${onlineUsers.includes(singleTeacher._id) ? 'Online' : 'Offline'})`
+                                                                : 'Establish Video Connection'
+                                                            }
+                                                        </button>
 
-                                                         {answers[idx] && (
-                                                             <span className="text-xs text-emerald-450 font-bold flex items-center gap-1">
-                                                                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                                                                 {answers[idx]}
-                                                             </span>
-                                                         )}
-                                                     </div>
-                                                 );
-                                             })()}
+                                                        {answers[idx] && (
+                                                            <span className="text-xs text-emerald-450 font-bold flex items-center gap-1">
+                                                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                                                {answers[idx]}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })()}
 
-                                             {/* Text based AI agent */}
-                                             {isTextAI && (
-                                                 <div className="mt-2 border border-slate-200 rounded-3xl overflow-hidden bg-white shadow-sm flex flex-col h-80 text-left">
-                                                     <div className="bg-[#6F42C1] p-4 flex items-center justify-between text-white">
-                                                         <div className="flex items-center gap-2">
-                                                             <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
-                                                                 <Bot size={18} />
-                                                             </div>
-                                                             <div className="flex flex-col">
-                                                                 <span className="text-xs font-extrabold">{q.agentName || 'AI Assistant'}</span>
-                                                                 <span className="text-[10px] text-purple-100 flex items-center gap-1 font-semibold">
-                                                                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Online
-                                                                 </span>
-                                                             </div>
-                                                         </div>
-                                                         <span className="text-[10px] uppercase font-bold bg-white/10 px-2 py-0.5 rounded-full">AI Roleplay</span>
-                                                     </div>
-                                                     <div className="flex-1 p-4 bg-slate-50/50 overflow-y-auto space-y-3 text-xs custom-scrollbar">
-                                                         <div className="flex gap-2">
-                                                             <div className="w-6 h-6 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center shrink-0 font-bold text-[10px]">AI</div>
-                                                             <div className="bg-white p-2.5 rounded-2xl rounded-tl-none border border-slate-100 shadow-sm max-w-[80%] font-medium text-slate-700">
-                                                                 {q.greetingMessage || 'Hello! Let\'s begin our roleplay session.'}
-                                                             </div>
-                                                         </div>
-                                                         {(chatMessages[idx] || []).map((msg, mIdx) => (
-                                                             <div key={mIdx} className={`flex gap-2 ${msg.sender === 'student' ? 'flex-row-reverse' : ''}`}>
-                                                                 <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 font-bold text-[10px] ${msg.sender === 'student' ? 'bg-indigo-105 text-indigo-600' : 'bg-purple-100 text-purple-600'}`}>
-                                                                     {msg.sender === 'student' ? 'ST' : 'AI'}
-                                                                 </div>
-                                                                 <div className={`p-2.5 rounded-2xl border shadow-sm max-w-[80%] font-medium ${msg.sender === 'student' ? 'bg-[#6F42C1] text-white border-purple-700 rounded-tr-none' : 'bg-white text-slate-700 border-slate-100 rounded-tl-none'}`}>
-                                                                     {msg.text}
-                                                                 </div>
-                                                             </div>
-                                                         ))}
-                                                     </div>
-                                                     <div className="p-3 border-t border-slate-100 bg-white flex gap-2">
-                                                         <input
-                                                             type="text"
-                                                             disabled={!isEditable}
-                                                             placeholder="Type message to chat..."
-                                                             value={chatInput[idx] || ''}
-                                                             onChange={(e) => setChatInput(prev => ({ ...prev, [idx]: e.target.value }))}
-                                                             onKeyDown={(e) => {
-                                                                 if (e.key === 'Enter') {
-                                                                     const val = e.target.value;
-                                                                     if (!val.trim()) return;
-                                                                     const newMessages = [...(chatMessages[idx] || []), { sender: 'student', text: val }];
-                                                                     setChatMessages(prev => ({ ...prev, [idx]: newMessages }));
-                                                                     setChatInput(prev => ({ ...prev, [idx]: '' }));
-                                                                     handleTextChange(idx, JSON.stringify(newMessages));
-                                                                     setTimeout(() => {
-                                                                         const aiReply = { sender: 'ai', text: `Got your message. This is a simulation response from ${q.agentName || 'AI Assistant'}.` };
-                                                                         const updatedMessages = [...newMessages, aiReply];
-                                                                         setChatMessages(prev => ({ ...prev, [idx]: updatedMessages }));
-                                                                         handleTextChange(idx, JSON.stringify(updatedMessages));
-                                                                     }, 1000);
-                                                                 }
-                                                             }}
-                                                             className="flex-1 px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:border-[#6F42C1]"
-                                                         />
-                                                         <button
-                                                             type="button"
-                                                             disabled={!isEditable}
-                                                             onClick={() => {
-                                                                 const val = chatInput[idx] || '';
-                                                                 if (!val.trim()) return;
-                                                                 const newMessages = [...(chatMessages[idx] || []), { sender: 'student', text: val }];
-                                                                 setChatMessages(prev => ({ ...prev, [idx]: newMessages }));
-                                                                 setChatInput(prev => ({ ...prev, [idx]: '' }));
-                                                                 handleTextChange(idx, JSON.stringify(newMessages));
-                                                                 setTimeout(() => {
-                                                                     const aiReply = { sender: 'ai', text: `Got your message. This is a simulation response from ${q.agentName || 'AI Assistant'}.` };
-                                                                     const updatedMessages = [...newMessages, aiReply];
-                                                                     setChatMessages(prev => ({ ...prev, [idx]: updatedMessages }));
-                                                                     handleTextChange(idx, JSON.stringify(updatedMessages));
-                                                                 }, 1000);
-                                                             }}
-                                                             className="px-4 bg-[#6F42C1] hover:bg-purple-700 text-white rounded-xl text-xs font-bold transition-all shadow-md"
-                                                         >
-                                                             Send
-                                                         </button>
-                                                     </div>
-                                                 </div>
-                                             )}
+                                            {/* Text based AI agent */}
+                                            {isTextAI && (
+                                                <div className="mt-2 border border-slate-200 rounded-3xl overflow-hidden bg-white shadow-sm flex flex-col h-80 text-left">
+                                                    <div className="bg-[#6F42C1] p-4 flex items-center justify-between text-white">
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
+                                                                <Bot size={18} />
+                                                            </div>
+                                                            <div className="flex flex-col">
+                                                                <span className="text-xs font-extrabold">{q.agentName || 'AI Assistant'}</span>
+                                                                <span className="text-[10px] text-purple-100 flex items-center gap-1 font-semibold">
+                                                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Online
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                        <span className="text-[10px] uppercase font-bold bg-white/10 px-2 py-0.5 rounded-full">AI Roleplay</span>
+                                                    </div>
+                                                    <div className="flex-1 p-4 bg-slate-50/50 overflow-y-auto space-y-3 text-xs custom-scrollbar">
+                                                        <div className="flex gap-2">
+                                                            <div className="w-6 h-6 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center shrink-0 font-bold text-[10px]">AI</div>
+                                                            <div className="bg-white p-2.5 rounded-2xl rounded-tl-none border border-slate-100 shadow-sm max-w-[80%] font-medium text-slate-700">
+                                                                {q.greetingMessage || 'Hello! Let\'s begin our roleplay session.'}
+                                                            </div>
+                                                        </div>
+                                                        {(chatMessages[idx] || []).map((msg, mIdx) => (
+                                                            <div key={mIdx} className={`flex gap-2 ${msg.sender === 'student' ? 'flex-row-reverse' : ''}`}>
+                                                                <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 font-bold text-[10px] ${msg.sender === 'student' ? 'bg-indigo-105 text-indigo-600' : 'bg-purple-100 text-purple-600'}`}>
+                                                                    {msg.sender === 'student' ? 'ST' : 'AI'}
+                                                                </div>
+                                                                <div className={`p-2.5 rounded-2xl border shadow-sm max-w-[80%] font-medium ${msg.sender === 'student' ? 'bg-[#6F42C1] text-white border-purple-700 rounded-tr-none' : 'bg-white text-slate-700 border-slate-100 rounded-tl-none'}`}>
+                                                                    {msg.text}
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                    <div className="p-3 border-t border-slate-100 bg-white flex gap-2">
+                                                        <input
+                                                            type="text"
+                                                            disabled={!isEditable}
+                                                            placeholder="Type message to chat..."
+                                                            value={chatInput[idx] || ''}
+                                                            onChange={(e) => setChatInput(prev => ({ ...prev, [idx]: e.target.value }))}
+                                                            onKeyDown={(e) => {
+                                                                if (e.key === 'Enter') {
+                                                                    const val = e.target.value;
+                                                                    if (!val.trim()) return;
+                                                                    const newMessages = [...(chatMessages[idx] || []), { sender: 'student', text: val }];
+                                                                    setChatMessages(prev => ({ ...prev, [idx]: newMessages }));
+                                                                    setChatInput(prev => ({ ...prev, [idx]: '' }));
+                                                                    handleTextChange(idx, JSON.stringify(newMessages));
+                                                                    setTimeout(() => {
+                                                                        const aiReply = { sender: 'ai', text: `Got your message. This is a simulation response from ${q.agentName || 'AI Assistant'}.` };
+                                                                        const updatedMessages = [...newMessages, aiReply];
+                                                                        setChatMessages(prev => ({ ...prev, [idx]: updatedMessages }));
+                                                                        handleTextChange(idx, JSON.stringify(updatedMessages));
+                                                                    }, 1000);
+                                                                }
+                                                            }}
+                                                            className="flex-1 px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:border-[#6F42C1]"
+                                                        />
+                                                        <button
+                                                            type="button"
+                                                            disabled={!isEditable}
+                                                            onClick={() => {
+                                                                const val = chatInput[idx] || '';
+                                                                if (!val.trim()) return;
+                                                                const newMessages = [...(chatMessages[idx] || []), { sender: 'student', text: val }];
+                                                                setChatMessages(prev => ({ ...prev, [idx]: newMessages }));
+                                                                setChatInput(prev => ({ ...prev, [idx]: '' }));
+                                                                handleTextChange(idx, JSON.stringify(newMessages));
+                                                                setTimeout(() => {
+                                                                    const aiReply = { sender: 'ai', text: `Got your message. This is a simulation response from ${q.agentName || 'AI Assistant'}.` };
+                                                                    const updatedMessages = [...newMessages, aiReply];
+                                                                    setChatMessages(prev => ({ ...prev, [idx]: updatedMessages }));
+                                                                    handleTextChange(idx, JSON.stringify(updatedMessages));
+                                                                }, 1000);
+                                                            }}
+                                                            className="px-4 bg-[#6F42C1] hover:bg-purple-700 text-white rounded-xl text-xs font-bold transition-all shadow-md"
+                                                        >
+                                                            Send
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            )}
 
-                                             {/* Voice based AI Agent */}
-                                             {isVoiceAI && (
-                                                 <div className="mt-2 border border-slate-200 rounded-3xl p-6 bg-slate-900 text-white flex flex-col items-center justify-center gap-6 min-h-60 relative overflow-hidden text-center">
-                                                     <div className="absolute top-4 right-4 bg-white/10 px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase">Voice Call Sim</div>
-                                                     <div className="w-16 h-16 bg-purple-500/10 border border-purple-500/30 text-purple-400 rounded-full flex items-center justify-center animate-pulse">
-                                                         <Bot size={32} />
-                                                     </div>
-                                                     <div>
-                                                         <span className="font-extrabold text-sm block">{q.agentName || 'AI Voice Assistant'}</span>
-                                                         <span className="text-xs text-slate-400 mt-1 block">Voice Persona: {q.voicePersona || 'Alloy'}</span>
-                                                     </div>
-                                                     <button
-                                                         type="button"
-                                                         disabled={!isEditable}
-                                                         onClick={() => {
-                                                             handleTextChange(idx, "voice_call_established_" + Date.now());
-                                                             toast.success("Voice channel connected successfully!", { icon: '🎙️' });
-                                                         }}
-                                                         className="px-6 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold transition-all shadow-lg flex items-center gap-2"
-                                                     >
-                                                         <Mic size={14} /> {answers[idx] ? "Re-establish Voice Channel" : "Establish Voice Channel"}
-                                                     </button>
-                                                     {answers[idx] && (
-                                                         <span className="text-xs text-emerald-400 font-bold">✓ Connected: {answers[idx]}</span>
-                                                     )}
-                                                 </div>
-                                             )}
+                                            {/* Voice based AI Agent */}
+                                            {isVoiceAI && (
+                                                <div className="mt-2 border border-slate-200 rounded-3xl p-6 bg-slate-900 text-white flex flex-col items-center justify-center gap-6 min-h-60 relative overflow-hidden text-center">
+                                                    <div className="absolute top-4 right-4 bg-white/10 px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase">Voice Call Sim</div>
+                                                    <div className="w-16 h-16 bg-purple-500/10 border border-purple-500/30 text-purple-400 rounded-full flex items-center justify-center animate-pulse">
+                                                        <Bot size={32} />
+                                                    </div>
+                                                    <div>
+                                                        <span className="font-extrabold text-sm block">{q.agentName || 'AI Voice Assistant'}</span>
+                                                        <span className="text-xs text-slate-400 mt-1 block">Voice Persona: {q.voicePersona || 'Alloy'}</span>
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        disabled={!isEditable}
+                                                        onClick={() => {
+                                                            handleTextChange(idx, "voice_call_established_" + Date.now());
+                                                            toast.success("Voice channel connected successfully!", { icon: '🎙️' });
+                                                        }}
+                                                        className="px-6 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold transition-all shadow-lg flex items-center gap-2"
+                                                    >
+                                                        <Mic size={14} /> {answers[idx] ? "Re-establish Voice Channel" : "Establish Voice Channel"}
+                                                    </button>
+                                                    {answers[idx] && (
+                                                        <span className="text-xs text-emerald-400 font-bold">✓ Connected: {answers[idx]}</span>
+                                                    )}
+                                                </div>
+                                            )}
 
-                                             {/* Text/Short Answer input */}
-                                             {(isShortAnswer || isEmbeddedVideo) ? (
-                                                 <div className="space-y-4">
-                                                     {/* Supporting resources */}
-                                                     {qParticulars.supportingResources && qParticulars.supportingResources.length > 0 && (
-                                                         <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2.5">
-                                                             <span className="text-xs font-black text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-                                                                 <Paperclip size={13} className="text-[#6F42C1]" /> Supporting Resources ({qParticulars.supportingResources.length})
-                                                             </span>
-                                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
-                                                                 {qParticulars.supportingResources.map((res, rIdx) => (
-                                                                     <div key={rIdx} className="p-3 bg-white border border-slate-150 rounded-xl flex flex-col gap-1 shadow-sm">
-                                                                         <span className="font-extrabold text-slate-800">{res.name || `Resource ${rIdx + 1}`}</span>
-                                                                         {res.note && <span className="text-slate-500 italic font-semibold">{res.note}</span>}
-                                                                     </div>
-                                                                 ))}
-                                                             </div>
-                                                         </div>
-                                                     )}
+                                            {/* Text/Short Answer input */}
+                                            {(isShortAnswer || isEmbeddedVideo) ? (
+                                                <div className="space-y-4">
+                                                    {/* Supporting resources */}
+                                                    {qParticulars.supportingResources && qParticulars.supportingResources.length > 0 && (
+                                                        <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2.5">
+                                                            <span className="text-xs font-black text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                                                                <Paperclip size={13} className="text-[#6F42C1]" /> Supporting Resources ({qParticulars.supportingResources.length})
+                                                            </span>
+                                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+                                                                {qParticulars.supportingResources.map((res, rIdx) => (
+                                                                    <div key={rIdx} className="p-3 bg-white border border-slate-150 rounded-xl flex flex-col gap-1 shadow-sm">
+                                                                        <span className="font-extrabold text-slate-800">{res.name || `Resource ${rIdx + 1}`}</span>
+                                                                        {res.note && <span className="text-slate-500 italic font-semibold">{res.note}</span>}
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    )}
 
-                                                     {/* Text field if Text Mode is allowed */}
-                                                     {(!qParticulars.answerMode || qParticulars.answerMode.includes('Text')) && qParticulars.enableAnswerBox !== false && (() => {
-                                                         return (
-                                                             <div className="relative group">
-                                                                 {qParticulars.richTextEditor ? (
-                                                                     <div className="space-y-1">
-                                                                         <div className="flex gap-1.5 p-1.5 bg-slate-100 border border-slate-200 border-b-0 rounded-t-2xl">
-                                                                             <button
-                                                                                 type="button"
-                                                                                 onClick={(e) => {
-                                                                                     e.preventDefault();
-                                                                                     document.execCommand('bold', false, null);
-                                                                                 }}
-                                                                                 className="p-1 hover:bg-slate-200 rounded transition-all text-xs font-bold w-6 h-6 flex items-center justify-center text-slate-700"
-                                                                                 title="Bold"
-                                                                             >
-                                                                                 B
-                                                                             </button>
-                                                                             <button
-                                                                                 type="button"
-                                                                                 onClick={(e) => {
-                                                                                     e.preventDefault();
-                                                                                     document.execCommand('italic', false, null);
-                                                                                 }}
-                                                                                 className="p-1 hover:bg-slate-200 rounded transition-all text-xs italic w-6 h-6 flex items-center justify-center text-slate-700"
-                                                                                 title="Italic"
-                                                                             >
-                                                                                 I
-                                                                             </button>
-                                                                             <button
-                                                                                 type="button"
-                                                                                 onClick={(e) => {
-                                                                                     e.preventDefault();
-                                                                                     document.execCommand('underline', false, null);
-                                                                                 }}
-                                                                                 className="p-1 hover:bg-slate-200 rounded transition-all text-xs underline w-6 h-6 flex items-center justify-center text-slate-700"
-                                                                                 title="Underline"
-                                                                             >
-                                                                                 U
-                                                                             </button>
-                                                                         </div>
-                                                                         <div
-                                                                             contentEditable={isEditable}
-                                                                             suppressContentEditableWarning
-                                                                             onBlur={(e) => handleTextChange(idx, e.currentTarget.innerHTML)}
-                                                                             onInput={(e) => handleTextChange(idx, e.currentTarget.innerHTML)}
-                                                                             onCopy={(e) => handleCopyPasteBlock(e, q)}
-                                                                             onCut={(e) => handleCopyPasteBlock(e, q)}
-                                                                             onPaste={(e) => handleCopyPasteBlock(e, q)}
-                                                                             dangerouslySetInnerHTML={{ __html: answers[idx] || '' }}
-                                                                             className={`w-full p-4 border border-slate-200 rounded-b-2xl bg-white focus:ring-4 focus:ring-purple-100 focus:border-[#6F42C1] outline-none transition-all font-medium text-slate-700 min-h-[120px] text-left ${!isEditable ? 'opacity-60 cursor-not-allowed bg-slate-50/50' : ''}`}
-                                                                             placeholder={qParticulars.placeholderText || "Your answer..."}
-                                                                             style={qParticulars.enableTextStyle && qParticulars.style ? {
-                                                                                 fontSize: qParticulars.style.fontSize,
-                                                                                 fontWeight: qParticulars.style.fontWeight,
-                                                                                 color: qParticulars.style.textColor,
-                                                                                 backgroundColor: qParticulars.style.bgColor,
-                                                                                 borderStyle: qParticulars.style.borderStyle,
-                                                                                 borderColor: qParticulars.style.borderColor,
-                                                                                 borderWidth: '2px',
-                                                                                 width: qParticulars.inputWidth || '100%',
-                                                                             } : {}}
-                                                                         />
-                                                                     </div>
-                                                                 ) : qParticulars.singleLineMode ? (
-                                                                     <input
-                                                                         type="text"
-                                                                         disabled={!isEditable}
-                                                                         value={answers[idx] || ""}
-                                                                         onChange={(e) => handleTextChange(idx, e.target.value)}
-                                                                         onCopy={(e) => handleCopyPasteBlock(e, q)}
-                                                                         onCut={(e) => handleCopyPasteBlock(e, q)}
-                                                                         onPaste={(e) => handleCopyPasteBlock(e, q)}
-                                                                         style={qParticulars.enableTextStyle && qParticulars.style ? {
-                                                                             fontSize: qParticulars.style.fontSize,
-                                                                             fontWeight: qParticulars.style.fontWeight,
-                                                                             color: qParticulars.style.textColor,
-                                                                             backgroundColor: qParticulars.style.bgColor,
-                                                                             borderRadius: qParticulars.style.borderRadius,
-                                                                             borderStyle: qParticulars.style.borderStyle,
-                                                                             borderColor: qParticulars.style.borderColor,
-                                                                             borderWidth: '2px',
-                                                                             width: qParticulars.inputWidth || '100%',
-                                                                             padding: '12px 16px'
-                                                                         } : {}}
-                                                                         className={`w-full py-3 px-4 border border-slate-200 rounded-2xl bg-slate-50/50 focus:ring-4 focus:ring-purple-100 focus:border-[#6F42C1] transition-all font-medium text-slate-700 ${!isEditable ? 'opacity-60 cursor-not-allowed bg-slate-50/50' : ''}`}
-                                                                         placeholder={qParticulars.placeholderText || "Your answer"}
-                                                                     />
-                                                                 ) : (
-                                                                     <textarea rows={1}
-                                                                         disabled={!isEditable}
-                                                                         value={answers[idx] || ""}
-                                                                         onChange={(e) => {
-                                                                             handleTextChange(idx, e.target.value);
-                                                                             e.target.style.height = 'auto';
-                                                                             e.target.style.height = `${e.target.scrollHeight}px`;
-                                                                         }}
-                                                                         ref={(el) => {
-                                                                             if (el) {
-                                                                                 el.style.height = 'auto';
-                                                                                 el.style.height = `${el.scrollHeight}px`;
-                                                                             }
-                                                                         }}
-                                                                         onCopy={(e) => handleCopyPasteBlock(e, q)}
-                                                                         onCut={(e) => handleCopyPasteBlock(e, q)}
-                                                                         onPaste={(e) => handleCopyPasteBlock(e, q)}
-                                                                         style={qParticulars.enableTextStyle && qParticulars.style ? {
-                                                                             fontSize: qParticulars.style.fontSize,
-                                                                             fontWeight: qParticulars.style.fontWeight,
-                                                                             color: qParticulars.style.textColor,
-                                                                             backgroundColor: qParticulars.style.bgColor,
-                                                                             borderRadius: qParticulars.style.borderRadius,
-                                                                             borderStyle: qParticulars.style.borderStyle,
-                                                                             borderColor: qParticulars.style.borderColor,
-                                                                             borderWidth: '2px',
-                                                                             width: qParticulars.inputWidth || '100%',
-                                                                             padding: '16px'
-                                                                         } : {}}
-                                                                         className={`w-full py-3 px-4 border border-slate-200 rounded-2xl bg-slate-50/50 focus:ring-4 focus:ring-purple-100 focus:border-[#6F42C1] transition-all font-medium text-slate-700 resize-none overflow-hidden min-h-[46px] ${!isEditable ? 'opacity-60 cursor-not-allowed bg-slate-50/50' : ''}`}
-                                                                         placeholder={qParticulars.placeholderText || "Your answer"}
-                                                                     />
-                                                                 )}
+                                                    {/* Text field if Text Mode is allowed */}
+                                                    {(!qParticulars.answerMode || qParticulars.answerMode.includes('Text')) && qParticulars.enableAnswerBox !== false && (() => {
+                                                        return (
+                                                            <div className="relative group">
+                                                                {qParticulars.richTextEditor ? (
+                                                                    <div className="space-y-1">
+                                                                        <div className="flex gap-1.5 p-1.5 bg-slate-100 border border-slate-200 border-b-0 rounded-t-2xl">
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={(e) => {
+                                                                                    e.preventDefault();
+                                                                                    document.execCommand('bold', false, null);
+                                                                                }}
+                                                                                className="p-1 hover:bg-slate-200 rounded transition-all text-xs font-bold w-6 h-6 flex items-center justify-center text-slate-700"
+                                                                                title="Bold"
+                                                                            >
+                                                                                B
+                                                                            </button>
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={(e) => {
+                                                                                    e.preventDefault();
+                                                                                    document.execCommand('italic', false, null);
+                                                                                }}
+                                                                                className="p-1 hover:bg-slate-200 rounded transition-all text-xs italic w-6 h-6 flex items-center justify-center text-slate-700"
+                                                                                title="Italic"
+                                                                            >
+                                                                                I
+                                                                            </button>
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={(e) => {
+                                                                                    e.preventDefault();
+                                                                                    document.execCommand('underline', false, null);
+                                                                                }}
+                                                                                className="p-1 hover:bg-slate-200 rounded transition-all text-xs underline w-6 h-6 flex items-center justify-center text-slate-700"
+                                                                                title="Underline"
+                                                                            >
+                                                                                U
+                                                                            </button>
+                                                                        </div>
+                                                                        <div
+                                                                            contentEditable={isEditable}
+                                                                            suppressContentEditableWarning
+                                                                            onBlur={(e) => handleTextChange(idx, e.currentTarget.innerHTML)}
+                                                                            onInput={(e) => handleTextChange(idx, e.currentTarget.innerHTML)}
+                                                                            onCopy={(e) => handleCopyPasteBlock(e, q)}
+                                                                            onCut={(e) => handleCopyPasteBlock(e, q)}
+                                                                            onPaste={(e) => handleCopyPasteBlock(e, q)}
+                                                                            dangerouslySetInnerHTML={{ __html: answers[idx] || '' }}
+                                                                            className={`w-full p-4 border border-slate-200 rounded-b-2xl bg-white focus:ring-4 focus:ring-purple-100 focus:border-[#6F42C1] outline-none transition-all font-medium text-slate-700 min-h-[120px] text-left ${!isEditable ? 'opacity-60 cursor-not-allowed bg-slate-50/50' : ''}`}
+                                                                            placeholder={qParticulars.placeholderText || "Your answer..."}
+                                                                            style={qParticulars.enableTextStyle && qParticulars.style ? {
+                                                                                fontSize: qParticulars.style.fontSize,
+                                                                                fontWeight: qParticulars.style.fontWeight,
+                                                                                color: qParticulars.style.textColor,
+                                                                                backgroundColor: qParticulars.style.bgColor,
+                                                                                borderStyle: qParticulars.style.borderStyle,
+                                                                                borderColor: qParticulars.style.borderColor,
+                                                                                borderWidth: '2px',
+                                                                                width: qParticulars.inputWidth || '100%',
+                                                                            } : {}}
+                                                                        />
+                                                                    </div>
+                                                                ) : qParticulars.singleLineMode ? (
+                                                                    <input
+                                                                        type="text"
+                                                                        disabled={!isEditable}
+                                                                        value={answers[idx] || ""}
+                                                                        onChange={(e) => handleTextChange(idx, e.target.value)}
+                                                                        onCopy={(e) => handleCopyPasteBlock(e, q)}
+                                                                        onCut={(e) => handleCopyPasteBlock(e, q)}
+                                                                        onPaste={(e) => handleCopyPasteBlock(e, q)}
+                                                                        style={qParticulars.enableTextStyle && qParticulars.style ? {
+                                                                            fontSize: qParticulars.style.fontSize,
+                                                                            fontWeight: qParticulars.style.fontWeight,
+                                                                            color: qParticulars.style.textColor,
+                                                                            backgroundColor: qParticulars.style.bgColor,
+                                                                            borderRadius: qParticulars.style.borderRadius,
+                                                                            borderStyle: qParticulars.style.borderStyle,
+                                                                            borderColor: qParticulars.style.borderColor,
+                                                                            borderWidth: '2px',
+                                                                            width: qParticulars.inputWidth || '100%',
+                                                                            padding: '12px 16px'
+                                                                        } : {}}
+                                                                        className={`w-full py-3 px-4 border border-slate-200 rounded-2xl bg-slate-50/50 focus:ring-4 focus:ring-purple-100 focus:border-[#6F42C1] transition-all font-medium text-slate-700 ${!isEditable ? 'opacity-60 cursor-not-allowed bg-slate-50/50' : ''}`}
+                                                                        placeholder={qParticulars.placeholderText || "Your answer"}
+                                                                    />
+                                                                ) : (
+                                                                    <textarea rows={1}
+                                                                        disabled={!isEditable}
+                                                                        value={answers[idx] || ""}
+                                                                        onChange={(e) => {
+                                                                            handleTextChange(idx, e.target.value);
+                                                                            e.target.style.height = 'auto';
+                                                                            e.target.style.height = `${e.target.scrollHeight}px`;
+                                                                        }}
+                                                                        ref={(el) => {
+                                                                            if (el) {
+                                                                                el.style.height = 'auto';
+                                                                                el.style.height = `${el.scrollHeight}px`;
+                                                                            }
+                                                                        }}
+                                                                        onCopy={(e) => handleCopyPasteBlock(e, q)}
+                                                                        onCut={(e) => handleCopyPasteBlock(e, q)}
+                                                                        onPaste={(e) => handleCopyPasteBlock(e, q)}
+                                                                        style={qParticulars.enableTextStyle && qParticulars.style ? {
+                                                                            fontSize: qParticulars.style.fontSize,
+                                                                            fontWeight: qParticulars.style.fontWeight,
+                                                                            color: qParticulars.style.textColor,
+                                                                            backgroundColor: qParticulars.style.bgColor,
+                                                                            borderRadius: qParticulars.style.borderRadius,
+                                                                            borderStyle: qParticulars.style.borderStyle,
+                                                                            borderColor: qParticulars.style.borderColor,
+                                                                            borderWidth: '2px',
+                                                                            width: qParticulars.inputWidth || '100%',
+                                                                            padding: '16px'
+                                                                        } : {}}
+                                                                        className={`w-full py-3 px-4 border border-slate-200 rounded-2xl bg-slate-50/50 focus:ring-4 focus:ring-purple-100 focus:border-[#6F42C1] transition-all font-medium text-slate-700 resize-none overflow-hidden min-h-[46px] ${!isEditable ? 'opacity-60 cursor-not-allowed bg-slate-50/50' : ''}`}
+                                                                        placeholder={qParticulars.placeholderText || "Your answer"}
+                                                                    />
+                                                                )}
 
-                                                                 {qParticulars.languageRestriction && !validateLanguage(answers[idx] || '', qParticulars.languageRestriction) && (
-                                                                     <span className="text-[10px] text-red-500 font-bold block mt-1 text-left">
-                                                                         ⚠ Answer must be in {qParticulars.languageRestriction}
-                                                                     </span>
-                                                                 )}
+                                                                {qParticulars.languageRestriction && !validateLanguage(answers[idx] || '', qParticulars.languageRestriction) && (
+                                                                    <span className="text-[10px] text-red-500 font-bold block mt-1 text-left">
+                                                                        ⚠ Answer must be in {qParticulars.languageRestriction}
+                                                                    </span>
+                                                                )}
 
-                                                                 {/* Live character, word counters and text logic validation status */}
-                                                                 <div className="flex flex-wrap items-center justify-between gap-2 mt-2 px-1 text-[11px] font-bold text-slate-500">
-                                                                     {qParticulars.showWordCounter !== false && (
-                                                                         <div className="flex gap-4">
-                                                                             <span>Chars: {(answers[idx] || '').replace(/<[^>]*>/g, '').length} {qParticulars.maxChars && `/ ${qParticulars.maxChars}`}</span>
-                                                                             <span>Words: {(answers[idx] || '').replace(/<[^>]*>/g, '').trim().split(/\s+/).filter(Boolean).length} {qParticulars.maxWords && `/ ${qParticulars.maxWords}`}</span>
-                                                                         </div>
-                                                                     )}
+                                                                {/* Live character, word counters and text logic validation status */}
+                                                                <div className="flex flex-wrap items-center justify-between gap-2 mt-2 px-1 text-[11px] font-bold text-slate-500">
+                                                                    {qParticulars.showWordCounter !== false && (
+                                                                        <div className="flex gap-4">
+                                                                            <span>Chars: {(answers[idx] || '').replace(/<[^>]*>/g, '').length} {qParticulars.maxChars && `/ ${qParticulars.maxChars}`}</span>
+                                                                            <span>Words: {(answers[idx] || '').replace(/<[^>]*>/g, '').trim().split(/\s+/).filter(Boolean).length} {qParticulars.maxWords && `/ ${qParticulars.maxWords}`}</span>
+                                                                        </div>
+                                                                    )}
 
-                                                                     {/* Real-time Text Logic Indicators */}
-                                                                     {(() => {
-                                                                         const textVal = answers[idx] || '';
-                                                                         const logicMatches = [];
-                                                                         const tLogic = q.textLogic || {};
+                                                                    {/* Real-time Text Logic Indicators */}
+                                                                    {(() => {
+                                                                        const textVal = answers[idx] || '';
+                                                                        const logicMatches = [];
+                                                                        const tLogic = q.textLogic || {};
 
-                                                                         if (tLogic.contains && tLogic.contains.trim()) {
-                                                                             const ok = textVal.includes(tLogic.contains.trim());
-                                                                             logicMatches.push(
-                                                                                 <span key="contains" className={ok ? "text-emerald-600" : "text-amber-500"}>
-                                                                                     {ok ? "✓" : "✗"} Contains "{tLogic.contains}"
-                                                                                 </span>
-                                                                             );
-                                                                         }
-                                                                         if (tLogic.doesNotContain && tLogic.doesNotContain.trim()) {
-                                                                             const ok = !textVal.includes(tLogic.doesNotContain.trim());
-                                                                             logicMatches.push(
-                                                                                 <span key="notcontain" className={ok ? "text-emerald-600" : "text-amber-500"}>
-                                                                                     {ok ? "✓" : "✗"} No "{tLogic.doesNotContain}"
-                                                                                 </span>
-                                                                             );
-                                                                         }
-                                                                         if (tLogic.startsWith && tLogic.startsWith.trim()) {
-                                                                             const ok = textVal.startsWith(tLogic.startsWith.trim());
-                                                                             logicMatches.push(
-                                                                                 <span key="starts" className={ok ? "text-emerald-600" : "text-amber-500"}>
-                                                                                     {ok ? "✓" : "✗"} Starts with "{tLogic.startsWith}"
-                                                                                 </span>
-                                                                             );
-                                                                         }
-                                                                         if (tLogic.endsWith && tLogic.endsWith.trim()) {
-                                                                             const ok = textVal.endsWith(tLogic.endsWith.trim());
-                                                                             logicMatches.push(
-                                                                                 <span key="ends" className={ok ? "text-emerald-600" : "text-amber-500"}>
-                                                                                     {ok ? "✓" : "✗"} Ends with "{tLogic.endsWith}"
-                                                                                 </span>
-                                                                             );
-                                                                         }
-                                                                         if (tLogic.regexValidation && tLogic.regexValidation.trim()) {
-                                                                             let ok = false;
-                                                                             try {
-                                                                                 const reg = new RegExp(tLogic.regexValidation);
-                                                                                 ok = reg.test(textVal);
-                                                                             } catch (e) { }
-                                                                             logicMatches.push(
-                                                                                 <span key="regex" className={ok ? "text-emerald-600" : "text-amber-500"}>
-                                                                                     {ok ? "✓" : "✗"} Regex Match
-                                                                                 </span>
-                                                                             );
-                                                                         }
-                                                                         if (logicMatches.length === 0) return null;
-                                                                         return <div className="flex gap-3 flex-wrap">{logicMatches}</div>;
-                                                                     })()}
-                                                                 </div>
-                                                             </div>
-                                                         );
-                                                     })()}
+                                                                        if (tLogic.contains && tLogic.contains.trim()) {
+                                                                            const ok = textVal.includes(tLogic.contains.trim());
+                                                                            logicMatches.push(
+                                                                                <span key="contains" className={ok ? "text-emerald-600" : "text-amber-500"}>
+                                                                                    {ok ? "✓" : "✗"} Contains "{tLogic.contains}"
+                                                                                </span>
+                                                                            );
+                                                                        }
+                                                                        if (tLogic.doesNotContain && tLogic.doesNotContain.trim()) {
+                                                                            const ok = !textVal.includes(tLogic.doesNotContain.trim());
+                                                                            logicMatches.push(
+                                                                                <span key="notcontain" className={ok ? "text-emerald-600" : "text-amber-500"}>
+                                                                                    {ok ? "✓" : "✗"} No "{tLogic.doesNotContain}"
+                                                                                </span>
+                                                                            );
+                                                                        }
+                                                                        if (tLogic.startsWith && tLogic.startsWith.trim()) {
+                                                                            const ok = textVal.startsWith(tLogic.startsWith.trim());
+                                                                            logicMatches.push(
+                                                                                <span key="starts" className={ok ? "text-emerald-600" : "text-amber-500"}>
+                                                                                    {ok ? "✓" : "✗"} Starts with "{tLogic.startsWith}"
+                                                                                </span>
+                                                                            );
+                                                                        }
+                                                                        if (tLogic.endsWith && tLogic.endsWith.trim()) {
+                                                                            const ok = textVal.endsWith(tLogic.endsWith.trim());
+                                                                            logicMatches.push(
+                                                                                <span key="ends" className={ok ? "text-emerald-600" : "text-amber-500"}>
+                                                                                    {ok ? "✓" : "✗"} Ends with "{tLogic.endsWith}"
+                                                                                </span>
+                                                                            );
+                                                                        }
+                                                                        if (tLogic.regexValidation && tLogic.regexValidation.trim()) {
+                                                                            let ok = false;
+                                                                            try {
+                                                                                const reg = new RegExp(tLogic.regexValidation);
+                                                                                ok = reg.test(textVal);
+                                                                            } catch (e) { }
+                                                                            logicMatches.push(
+                                                                                <span key="regex" className={ok ? "text-emerald-600" : "text-amber-500"}>
+                                                                                    {ok ? "✓" : "✗"} Regex Match
+                                                                                </span>
+                                                                            );
+                                                                        }
+                                                                        if (logicMatches.length === 0) return null;
+                                                                        return <div className="flex gap-3 flex-wrap">{logicMatches}</div>;
+                                                                    })()}
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })()}
 
-                                                     {/* Professional Audio Recording Panel */}
-                                                     {showAudioRecorder[idx] && (
-                                                         <div className="p-5 border-2 border-[#6F42C1] rounded-2xl bg-[#6F42C1]/5 space-y-4 animate-fade-in">
-                                                             <div className="flex items-center justify-between border-b border-purple-150 pb-2">
-                                                                 <span className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                                                                     <Mic size={14} className="text-[#6F42C1]" /> Audio Recording
-                                                                 </span>
-                                                                 <div className="flex items-center gap-2 text-xs">
-                                                                     <span className="font-bold text-slate-500">Countdown:</span>
-                                                                     <select
-                                                                         value={countdownConfig[idx] || 0}
-                                                                         onChange={(e) => {
-                                                                             const val = parseInt(e.target.value);
-                                                                             setCountdownConfig(prev => ({ ...prev, [idx]: val }));
-                                                                         }}
-                                                                         disabled={recordingStatus[idx] === 'recording' || recordingStatus[idx] === 'paused'}
-                                                                         className="border border-purple-200 rounded-lg p-1 bg-white font-bold outline-none text-slate-700"
-                                                                     >
-                                                                         <option value={0}>None</option>
-                                                                         <option value={3}>3 Seconds</option>
-                                                                         <option value={5}>5 Seconds</option>
-                                                                         <option value={10}>10 Seconds</option>
-                                                                     </select>
-                                                                 </div>
-                                                             </div>
+                                                    {/* Professional Audio Recording Panel */}
+                                                    {showAudioRecorder[idx] && (
+                                                        <div className="p-5 border-2 border-[#6F42C1] rounded-2xl bg-[#6F42C1]/5 space-y-4 animate-fade-in">
+                                                            <div className="flex items-center justify-between border-b border-purple-150 pb-2">
+                                                                <span className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                                                                    <Mic size={14} className="text-[#6F42C1]" /> Audio Recording
+                                                                </span>
+                                                                <div className="flex items-center gap-2 text-xs">
+                                                                    <span className="font-bold text-slate-500">Countdown:</span>
+                                                                    <select
+                                                                        value={countdownConfig[idx] || 0}
+                                                                        onChange={(e) => {
+                                                                            const val = parseInt(e.target.value);
+                                                                            setCountdownConfig(prev => ({ ...prev, [idx]: val }));
+                                                                        }}
+                                                                        disabled={recordingStatus[idx] === 'recording' || recordingStatus[idx] === 'paused'}
+                                                                        className="border border-purple-200 rounded-lg p-1 bg-white font-bold outline-none text-slate-700"
+                                                                    >
+                                                                        <option value={0}>None</option>
+                                                                        <option value={3}>3 Seconds</option>
+                                                                        <option value={5}>5 Seconds</option>
+                                                                        <option value={10}>10 Seconds</option>
+                                                                    </select>
+                                                                </div>
+                                                            </div>
 
-                                                             {/* Countdown Display */}
-                                                             {countdownVal[idx] !== undefined && countdownVal[idx] > 0 ? (
-                                                                 <div className="flex flex-col items-center justify-center py-6 space-y-2">
-                                                                     <div className="w-16 h-16 rounded-full bg-[#6F42C1] text-white flex items-center justify-center text-3xl font-black animate-ping">
-                                                                         {countdownVal[idx]}
-                                                                     </div>
-                                                                     <span className="text-xs font-extrabold text-[#6F42C1] uppercase tracking-wider animate-pulse">Starting recording...</span>
-                                                                 </div>
-                                                             ) : (
-                                                                 /* Main Recorder Body */
-                                                                 <div className="flex flex-col items-center justify-center py-3 space-y-4">
-                                                                     <div className="flex items-center gap-3">
-                                                                         {/* Status & Flashing REC Indicator */}
-                                                                         {recordingStatus[idx] === 'recording' && (
-                                                                             <div className="flex items-center gap-1.5 px-2.5 py-1 bg-red-100 text-red-600 rounded-full font-bold text-[10px] uppercase tracking-widest animate-pulse border border-red-200">
-                                                                                 <span className="w-1.5 h-1.5 rounded-full bg-red-600"></span> Live REC
-                                                                             </div>
-                                                                         )}
-                                                                         {recordingStatus[idx] === 'paused' && (
-                                                                             <div className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-100 text-amber-600 rounded-full font-bold text-[10px] uppercase tracking-widest border border-amber-200">
-                                                                                 PAUSED
-                                                                             </div>
-                                                                         )}
+                                                            {/* Countdown Display */}
+                                                            {countdownVal[idx] !== undefined && countdownVal[idx] > 0 ? (
+                                                                <div className="flex flex-col items-center justify-center py-6 space-y-2">
+                                                                    <div className="w-16 h-16 rounded-full bg-[#6F42C1] text-white flex items-center justify-center text-3xl font-black animate-ping">
+                                                                        {countdownVal[idx]}
+                                                                    </div>
+                                                                    <span className="text-xs font-extrabold text-[#6F42C1] uppercase tracking-wider animate-pulse">Starting recording...</span>
+                                                                </div>
+                                                            ) : (
+                                                                /* Main Recorder Body */
+                                                                <div className="flex flex-col items-center justify-center py-3 space-y-4">
+                                                                    <div className="flex items-center gap-3">
+                                                                        {/* Status & Flashing REC Indicator */}
+                                                                        {recordingStatus[idx] === 'recording' && (
+                                                                            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-red-100 text-red-600 rounded-full font-bold text-[10px] uppercase tracking-widest animate-pulse border border-red-200">
+                                                                                <span className="w-1.5 h-1.5 rounded-full bg-red-600"></span> Live REC
+                                                                            </div>
+                                                                        )}
+                                                                        {recordingStatus[idx] === 'paused' && (
+                                                                            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-100 text-amber-600 rounded-full font-bold text-[10px] uppercase tracking-widest border border-amber-200">
+                                                                                PAUSED
+                                                                            </div>
+                                                                        )}
 
-                                                                         {/* Timer display */}
-                                                                         {(recordingStatus[idx] === 'recording' || recordingStatus[idx] === 'paused') && (
-                                                                             <span className="font-mono text-base font-black text-slate-800 tracking-wide">
-                                                                                 {(() => {
-                                                                                     const t = audioTimer[idx] || 0;
-                                                                                     const mins = String(Math.floor(t / 60)).padStart(2, '0');
-                                                                                     const secs = String(t % 60).padStart(2, '0');
-                                                                                     return `${mins}:${secs}`;
-                                                                                 })()}
-                                                                             </span>
-                                                                         )}
-                                                                     </div>
+                                                                        {/* Timer display */}
+                                                                        {(recordingStatus[idx] === 'recording' || recordingStatus[idx] === 'paused') && (
+                                                                            <span className="font-mono text-base font-black text-slate-800 tracking-wide">
+                                                                                {(() => {
+                                                                                    const t = audioTimer[idx] || 0;
+                                                                                    const mins = String(Math.floor(t / 60)).padStart(2, '0');
+                                                                                    const secs = String(t % 60).padStart(2, '0');
+                                                                                    return `${mins}:${secs}`;
+                                                                                })()}
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
 
-                                                                     {/* Simulated Waveform Visualization */}
-                                                                     {recordingStatus[idx] === 'recording' && (
-                                                                         <div className="flex items-center gap-1 h-8">
-                                                                             {[1, 2, 3, 4, 5, 6, 7, 8, 7, 6, 5, 4, 3, 2, 1].map((bar, bIdx) => {
-                                                                                 const randHeight = Math.floor(Math.random() * 24) + 6;
-                                                                                 return (
-                                                                                     <span
-                                                                                         key={bIdx}
-                                                                                         style={{ height: `${randHeight}px` }}
-                                                                                         className="w-1 bg-[#6F42C1] rounded-full transition-all duration-150 animate-bounce"
-                                                                                     ></span>
-                                                                                 );
-                                                                             })}
-                                                                         </div>
-                                                                     )}
+                                                                    {/* Simulated Waveform Visualization */}
+                                                                    {recordingStatus[idx] === 'recording' && (
+                                                                        <div className="flex items-center gap-1 h-8">
+                                                                            {[1, 2, 3, 4, 5, 6, 7, 8, 7, 6, 5, 4, 3, 2, 1].map((bar, bIdx) => {
+                                                                                const randHeight = Math.floor(Math.random() * 24) + 6;
+                                                                                return (
+                                                                                    <span
+                                                                                        key={bIdx}
+                                                                                        style={{ height: `${randHeight}px` }}
+                                                                                        className="w-1 bg-[#6F42C1] rounded-full transition-all duration-150 animate-bounce"
+                                                                                    ></span>
+                                                                                );
+                                                                            })}
+                                                                        </div>
+                                                                    )}
 
-                                                                     {/* Playback Preview */}
-                                                                     {recordedURLs[idx]?.type === 'audio' && (
-                                                                         <div className="w-full max-w-md bg-white rounded-xl p-3 border border-purple-100 shadow-sm flex flex-col gap-2">
-                                                                             <audio controls src={recordedURLs[idx].url} className="w-full h-8" />
-                                                                         </div>
-                                                                     )}
+                                                                    {/* Playback Preview */}
+                                                                    {recordedURLs[idx]?.type === 'audio' && (
+                                                                        <div className="w-full max-w-md bg-white rounded-xl p-3 border border-purple-100 shadow-sm flex flex-col gap-2">
+                                                                            <audio controls src={recordedURLs[idx].url} className="w-full h-8" />
+                                                                        </div>
+                                                                    )}
 
-                                                                     {/* Professional Controls Row */}
-                                                                     <div className="flex flex-wrap items-center gap-2 justify-center">
-                                                                         {(!recordingStatus[idx] || recordingStatus[idx] === 'idle' || recordingStatus[idx] === 'stopped') ? (
-                                                                             <button
-                                                                                 type="button"
-                                                                                 disabled={!!submittedAnswers[idx]}
-                                                                                 onClick={() => startAudioRecordingCountdown(idx)}
-                                                                                 className="px-5 py-2.5 bg-[#6F42C1] hover:bg-[#5a32a3] text-white font-extrabold rounded-xl text-xs flex items-center gap-1.5 shadow-md transition-colors"
-                                                                             >
-                                                                                 <Mic size={14} /> Start Recording
-                                                                             </button>
-                                                                         ) : null}
+                                                                    {/* Professional Controls Row */}
+                                                                    <div className="flex flex-wrap items-center gap-2 justify-center">
+                                                                        {(!recordingStatus[idx] || recordingStatus[idx] === 'idle' || recordingStatus[idx] === 'stopped') ? (
+                                                                            <button
+                                                                                type="button"
+                                                                                disabled={!!submittedAnswers[idx]}
+                                                                                onClick={() => startAudioRecordingCountdown(idx)}
+                                                                                className="px-5 py-2.5 bg-[#6F42C1] hover:bg-[#5a32a3] text-white font-extrabold rounded-xl text-xs flex items-center gap-1.5 shadow-md transition-colors"
+                                                                            >
+                                                                                <Mic size={14} /> Start Recording
+                                                                            </button>
+                                                                        ) : null}
 
-                                                                         {recordingStatus[idx] === 'recording' && (
-                                                                             <>
-                                                                                 <button
-                                                                                     type="button"
-                                                                                     onClick={() => pauseAudioRecording(idx)}
-                                                                                     className="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-extrabold rounded-xl text-xs flex items-center gap-1.5 shadow-md transition-colors"
-                                                                                 >
-                                                                                     <Pause size={14} /> Pause
-                                                                                 </button>
-                                                                                 <button
-                                                                                     type="button"
-                                                                                     onClick={() => stopAudioRecording(idx)}
-                                                                                     className="px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white font-extrabold rounded-xl text-xs flex items-center gap-1.5 shadow-md transition-colors"
-                                                                                 >
-                                                                                     <Square size={14} fill="currentColor" /> Stop
-                                                                                 </button>
-                                                                             </>
-                                                                         )}
+                                                                        {recordingStatus[idx] === 'recording' && (
+                                                                            <>
+                                                                                <button
+                                                                                    type="button"
+                                                                                    onClick={() => pauseAudioRecording(idx)}
+                                                                                    className="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-extrabold rounded-xl text-xs flex items-center gap-1.5 shadow-md transition-colors"
+                                                                                >
+                                                                                    <Pause size={14} /> Pause
+                                                                                </button>
+                                                                                <button
+                                                                                    type="button"
+                                                                                    onClick={() => stopAudioRecording(idx)}
+                                                                                    className="px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white font-extrabold rounded-xl text-xs flex items-center gap-1.5 shadow-md transition-colors"
+                                                                                >
+                                                                                    <Square size={14} fill="currentColor" /> Stop
+                                                                                </button>
+                                                                            </>
+                                                                        )}
 
-                                                                         {recordingStatus[idx] === 'paused' && (
-                                                                             <>
-                                                                                 <button
-                                                                                     type="button"
-                                                                                     onClick={() => resumeAudioRecording(idx)}
-                                                                                     className="px-4 py-2.5 bg-[#6F42C1] hover:bg-[#5a32a3] text-white font-extrabold rounded-xl text-xs flex items-center gap-1.5 shadow-md transition-colors"
-                                                                                 >
-                                                                                     <Play size={14} fill="currentColor" /> Resume
-                                                                                 </button>
-                                                                                 <button
-                                                                                     type="button"
-                                                                                     onClick={() => stopAudioRecording(idx)}
-                                                                                     className="px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white font-extrabold rounded-xl text-xs flex items-center gap-1.5 shadow-md transition-colors"
-                                                                                 >
-                                                                                     <Square size={14} fill="currentColor" /> Stop
-                                                                                 </button>
-                                                                             </>
-                                                                         )}
+                                                                        {recordingStatus[idx] === 'paused' && (
+                                                                            <>
+                                                                                <button
+                                                                                    type="button"
+                                                                                    onClick={() => resumeAudioRecording(idx)}
+                                                                                    className="px-4 py-2.5 bg-[#6F42C1] hover:bg-[#5a32a3] text-white font-extrabold rounded-xl text-xs flex items-center gap-1.5 shadow-md transition-colors"
+                                                                                >
+                                                                                    <Play size={14} fill="currentColor" /> Resume
+                                                                                </button>
+                                                                                <button
+                                                                                    type="button"
+                                                                                    onClick={() => stopAudioRecording(idx)}
+                                                                                    className="px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white font-extrabold rounded-xl text-xs flex items-center gap-1.5 shadow-md transition-colors"
+                                                                                >
+                                                                                    <Square size={14} fill="currentColor" /> Stop
+                                                                                </button>
+                                                                            </>
+                                                                        )}
 
-                                                                         {recordedURLs[idx]?.type === 'audio' && (
-                                                                             <button
-                                                                                 type="button"
-                                                                                 onClick={() => deleteAudioRecording(idx)}
-                                                                                 className="px-4 py-2.5 bg-slate-600 hover:bg-slate-700 text-white font-extrabold rounded-xl text-xs flex items-center gap-1.5 shadow-md transition-colors"
-                                                                             >
-                                                                                 <RotateCcw size={14} /> Re-record / Delete
-                                                                             </button>
-                                                                         )}
-                                                                     </div>
-                                                                 </div>
-                                                             )}
-                                                         </div>
-                                                     )}
-                                                 </div>
-                                             ) : (
-                                                 /* Textarea answer input for other standard types (assignment, activity, fallback) */
-                                                 (isTextType || isAssignment || isActivity || (!isMcq && !isCheckboxes && !isTrueFalse && !isFillBlanks && !isMatching && !isAudio && !isVideo && !isDropdown && !isDateTime && !isRating && !isUpload && !isImageDisplay && !isVideoDisplay && !isPdfDisplay && !isWebpageDisplay && !isEmbeddedVideo && !isEmbeddedSM && !isAudioListening && !isMultiFile && !isScreenshot && !isScreenRec && !isAudioCall && !isVideoCall && !isTextAI && !isVoiceAI && !isTabularData)) && (
-                                                     <div className="relative group">
-                                                         <textarea
-                                                             disabled={!isEditable}
-                                                             value={answers[idx] || ""}
-                                                             onChange={(e) => {
-                                                                 handleTextChange(idx, e.target.value);
-                                                                 e.target.style.height = 'auto';
-                                                                 e.target.style.height = `${e.target.scrollHeight}px`;
-                                                             }}
-                                                             ref={(el) => {
-                                                                 if (el) {
-                                                                     el.style.height = 'auto';
-                                                                     el.style.height = `${el.scrollHeight}px`;
-                                                                 }
-                                                             }}
-                                                             rows={1}
-                                                             className={`w-full py-3 px-4 border border-slate-200 rounded-2xl bg-slate-50/50 focus:ring-4 focus:ring-purple-100 focus:border-[#6F42C1] transition-all font-medium text-slate-700 resize-none overflow-hidden min-h-[46px] ${!isEditable ? 'opacity-60 cursor-not-allowed bg-slate-50/50' : ''}`}
-                                                             placeholder="Your answer"
-                                                         />
-                                                     </div>
-                                                 )
-                                             )}
+                                                                        {recordedURLs[idx]?.type === 'audio' && (
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => deleteAudioRecording(idx)}
+                                                                                className="px-4 py-2.5 bg-slate-600 hover:bg-slate-700 text-white font-extrabold rounded-xl text-xs flex items-center gap-1.5 shadow-md transition-colors"
+                                                                            >
+                                                                                <RotateCcw size={14} /> Re-record / Delete
+                                                                            </button>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ) : (
+                                                /* Textarea answer input for other standard types (assignment, activity, fallback) */
+                                                (isTextType || isAssignment || isActivity || (!isMcq && !isCheckboxes && !isTrueFalse && !isFillBlanks && !isMatching && !isAudio && !isVideo && !isDropdown && !isDateTime && !isRating && !isUpload && !isImageDisplay && !isVideoDisplay && !isPdfDisplay && !isWebpageDisplay && !isEmbeddedVideo && !isEmbeddedSM && !isAudioListening && !isMultiFile && !isScreenshot && !isScreenRec && !isAudioCall && !isVideoCall && !isTextAI && !isVoiceAI && !isTabularData)) && (
+                                                    <div className="relative group">
+                                                        <textarea
+                                                            disabled={!isEditable}
+                                                            value={answers[idx] || ""}
+                                                            onChange={(e) => {
+                                                                handleTextChange(idx, e.target.value);
+                                                                e.target.style.height = 'auto';
+                                                                e.target.style.height = `${e.target.scrollHeight}px`;
+                                                            }}
+                                                            ref={(el) => {
+                                                                if (el) {
+                                                                    el.style.height = 'auto';
+                                                                    el.style.height = `${el.scrollHeight}px`;
+                                                                }
+                                                            }}
+                                                            rows={1}
+                                                            className={`w-full py-3 px-4 border border-slate-200 rounded-2xl bg-slate-50/50 focus:ring-4 focus:ring-purple-100 focus:border-[#6F42C1] transition-all font-medium text-slate-700 resize-none overflow-hidden min-h-[46px] ${!isEditable ? 'opacity-60 cursor-not-allowed bg-slate-50/50' : ''}`}
+                                                            placeholder="Your answer"
+                                                        />
+                                                    </div>
+                                                )
+                                            )}
 
                                             {/* Recording zone */}
                                             {isAudio && (
@@ -2750,56 +2764,56 @@ const ShortAnswerTest = () => {
                                                         {collapsedExtras[idx] === false ? (
                                                             <div className="flex-1 flex items-center h-full">
 
-                                                        {/* ── EXAMPLE (15%) ── */}
-                                                        <div className="flex items-center gap-1.5 px-3 h-full border-r border-slate-200 bg-indigo-50/60 shrink-0 rounded-l-xl" style={{ width: '15%' }}>
-                                                            {q.uploadedResource ? (
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => {
-                                                                        if (q.uploadedResource?.url) {
-                                                                            const dataUrl = q.uploadedResource.url;
-                                                                            if (dataUrl.startsWith('data:')) {
-                                                                                try {
-                                                                                    const parts = dataUrl.split(',');
-                                                                                    const mime = parts[0].match(/:(.*?);/)[1];
-                                                                                    const bstr = atob(parts[1]);
-                                                                                    let n = bstr.length;
-                                                                                    const u8arr = new Uint8Array(n);
-                                                                                    while (n--) {
-                                                                                        u8arr[n] = bstr.charCodeAt(n);
-                                                                                    }
-                                                                                    const blob = new Blob([u8arr], { type: mime });
-                                                                                    const blobUrl = URL.createObjectURL(blob);
-                                                                                    window.open(blobUrl, '_blank');
-                                                                                } catch (e) {
-                                                                                    const newWindow = window.open();
-                                                                                    if (newWindow) {
-                                                                                        newWindow.document.write(`<iframe src="${dataUrl}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
+                                                                {/* ── EXAMPLE (15%) ── */}
+                                                                <div className="flex items-center gap-1.5 px-3 h-full border-r border-slate-200 bg-indigo-50/60 shrink-0 rounded-l-xl" style={{ width: '15%' }}>
+                                                                    {q.uploadedResource ? (
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => {
+                                                                                if (q.uploadedResource?.url) {
+                                                                                    const dataUrl = q.uploadedResource.url;
+                                                                                    if (dataUrl.startsWith('data:')) {
+                                                                                        try {
+                                                                                            const parts = dataUrl.split(',');
+                                                                                            const mime = parts[0].match(/:(.*?);/)[1];
+                                                                                            const bstr = atob(parts[1]);
+                                                                                            let n = bstr.length;
+                                                                                            const u8arr = new Uint8Array(n);
+                                                                                            while (n--) {
+                                                                                                u8arr[n] = bstr.charCodeAt(n);
+                                                                                            }
+                                                                                            const blob = new Blob([u8arr], { type: mime });
+                                                                                            const blobUrl = URL.createObjectURL(blob);
+                                                                                            window.open(blobUrl, '_blank');
+                                                                                        } catch (e) {
+                                                                                            const newWindow = window.open();
+                                                                                            if (newWindow) {
+                                                                                                newWindow.document.write(`<iframe src="${dataUrl}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
+                                                                                            }
+                                                                                        }
+                                                                                    } else {
+                                                                                        window.open(dataUrl, '_blank');
                                                                                     }
                                                                                 }
-                                                                            } else {
-                                                                                window.open(dataUrl, '_blank');
-                                                                            }
-                                                                        }
-                                                                    }}
-                                                                    className="px-2 py-0.5 rounded-md transition-all text-[10px] font-extrabold whitespace-nowrap shrink-0 bg-[#6F42C1]/15 hover:bg-[#6F42C1]/30 text-[#6F42C1]"
-                                                                    title={q.uploadedResource?.name || 'Uploaded File'}
-                                                                >
-                                                                    File 1 ↗
-                                                                </button>
-                                                            ) : (
-                                                                <span className="text-[9px] text-slate-400 italic truncate font-bold">No file</span>
-                                                            )}
-                                                        </div>
+                                                                            }}
+                                                                            className="px-2 py-0.5 rounded-md transition-all text-[10px] font-extrabold whitespace-nowrap shrink-0 bg-[#6F42C1]/15 hover:bg-[#6F42C1]/30 text-[#6F42C1]"
+                                                                            title={q.uploadedResource?.name || 'Uploaded File'}
+                                                                        >
+                                                                            File 1 ↗
+                                                                        </button>
+                                                                    ) : (
+                                                                        <span className="text-[9px] text-slate-400 italic truncate font-bold">No file</span>
+                                                                    )}
+                                                                </div>
 
-                                                        {/* ── NOTE (15%) ── */}
-                                                        <div className="flex items-center gap-1.5 px-3 h-full border-r border-slate-200 bg-amber-50/60 shrink-0" style={{ width: '15%' }}>
-                                                            {q.helperText ? (
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => {
-                                                                        const win = window.open('', '_blank');
-                                                                        win.document.write(`
+                                                                {/* ── NOTE (15%) ── */}
+                                                                <div className="flex items-center gap-1.5 px-3 h-full border-r border-slate-200 bg-amber-50/60 shrink-0" style={{ width: '15%' }}>
+                                                                    {q.helperText ? (
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => {
+                                                                                const win = window.open('', '_blank');
+                                                                                win.document.write(`
                                                                             <!DOCTYPE html>
                                                                             <html>
                                                                             <head>
@@ -2841,113 +2855,147 @@ const ShortAnswerTest = () => {
                                                                             </body>
                                                                             </html>
                                                                         `);
-                                                                        win.document.close();
-                                                                    }}
-                                                                    className="px-2 py-0.5 rounded-md transition-all text-[10px] font-extrabold whitespace-nowrap shrink-0 bg-amber-100 hover:bg-amber-200 text-amber-600"
-                                                                    title="Helping Notes Section"
-                                                                >
-                                                                    Note 1 ↗
-                                                                </button>
-                                                            ) : (
-                                                                <span className="text-[9px] text-slate-400 italic truncate font-bold">No notes</span>
-                                                            )}
-                                                        </div>
+                                                                                win.document.close();
+                                                                            }}
+                                                                            className="px-2 py-0.5 rounded-md transition-all text-[10px] font-extrabold whitespace-nowrap shrink-0 bg-amber-100 hover:bg-amber-200 text-amber-600"
+                                                                            title="Helping Notes Section"
+                                                                        >
+                                                                            Note 1 ↗
+                                                                        </button>
+                                                                    ) : (
+                                                                        <span className="text-[9px] text-slate-400 italic truncate font-bold">No notes</span>
+                                                                    )}
+                                                                </div>
 
-                                                        {/* ── WIDGET ASSIGNED (15%) ── */}
-                                                        <div className="flex items-center gap-1.5 justify-center px-3 h-full border-r border-slate-200 bg-sky-50/60 shrink-0" style={{ width: '15%' }}>
-                                                            {hasWidget ? (
-                                                                <div className="flex items-center gap-1.5">
-                                                                    {/* Upload Button */}
-                                                                    {q.moreSettings?.allowUpload === true && (() => {
-                                                                        const uploadEnabled = q.moreSettings?.allowUpload === true;
-                                                                        const hasFiles = attachedFiles[idx] && attachedFiles[idx].length > 0;
-                                                                        if (hasFiles) {
-                                                                            return (
-                                                                                <div className="relative">
-                                                                                    <button
-                                                                                        type="button"
-                                                                                        disabled={!isEditable}
-                                                                                        onClick={() => setShowUploadMenu(prev => ({ ...prev, [idx]: !prev[idx] }))}
-                                                                                        className="w-6 h-6 flex items-center justify-center rounded-md bg-blue-600 text-white hover:bg-blue-700 transition-all text-xs"
-                                                                                        title="Uploaded file(s). Click to manage."
-                                                                                    >
-                                                                                        <Paperclip size={12} />
-                                                                                    </button>
-                                                                                    {showUploadMenu[idx] && (
-                                                                                        <div className="absolute right-0 bottom-full mb-2 bg-white border border-slate-200 rounded-lg shadow-lg py-1 flex flex-col min-w-[130px] z-50 text-xs font-semibold text-slate-700">
+                                                                {/* ── WIDGET ASSIGNED (15%) ── */}
+                                                                <div className="flex items-center gap-1.5 justify-center px-3 h-full border-r border-slate-200 bg-sky-50/60 shrink-0" style={{ width: '15%' }}>
+                                                                    {hasWidget ? (
+                                                                        <div className="flex items-center gap-1.5">
+                                                                            {/* Upload Button */}
+                                                                            {q.moreSettings?.allowUpload === true && (() => {
+                                                                                const uploadEnabled = q.moreSettings?.allowUpload === true;
+                                                                                const hasFiles = attachedFiles[idx] && attachedFiles[idx].length > 0;
+                                                                                if (hasFiles) {
+                                                                                    return (
+                                                                                        <div className="relative">
                                                                                             <button
                                                                                                 type="button"
-                                                                                                onClick={() => {
-                                                                                                    setShowUploadMenu(prev => ({ ...prev, [idx]: false }));
-                                                                                                    const file = attachedFiles[idx] && attachedFiles[idx][0];
-                                                                                                    if (file && file.url) {
-                                                                                                        const dataUrl = file.url;
-                                                                                                        if (dataUrl.startsWith('data:')) {
-                                                                                                            try {
-                                                                                                                const parts = dataUrl.split(',');
-                                                                                                                const mime = parts[0].match(/:(.*?);/)[1];
-                                                                                                                const bstr = atob(parts[1]);
-                                                                                                                let n = bstr.length;
-                                                                                                                const u8arr = new Uint8Array(n);
-                                                                                                                while (n--) {
-                                                                                                                    u8arr[n] = bstr.charCodeAt(n);
-                                                                                                                }
-                                                                                                                const blob = new Blob([u8arr], { type: mime });
-                                                                                                                const blobUrl = URL.createObjectURL(blob);
-                                                                                                                window.open(blobUrl, '_blank');
-                                                                                                            } catch (e) {
-                                                                                                                const newWindow = window.open();
-                                                                                                                if (newWindow) {
-                                                                                                                    newWindow.document.write(`<iframe src="${dataUrl}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
+                                                                                                disabled={!isEditable}
+                                                                                                onClick={() => setShowUploadMenu(prev => ({ ...prev, [idx]: !prev[idx] }))}
+                                                                                                className="w-6 h-6 flex items-center justify-center rounded-md bg-blue-600 text-white hover:bg-blue-700 transition-all text-xs"
+                                                                                                title="Uploaded file(s). Click to manage."
+                                                                                            >
+                                                                                                <Paperclip size={12} />
+                                                                                            </button>
+                                                                                            {showUploadMenu[idx] && (
+                                                                                                <div className="absolute right-0 bottom-full mb-2 bg-white border border-slate-200 rounded-lg shadow-lg py-1 flex flex-col min-w-[130px] z-50 text-xs font-semibold text-slate-700">
+                                                                                                    <button
+                                                                                                        type="button"
+                                                                                                        onClick={() => {
+                                                                                                            setShowUploadMenu(prev => ({ ...prev, [idx]: false }));
+                                                                                                            const file = attachedFiles[idx] && attachedFiles[idx][0];
+                                                                                                            if (file && file.url) {
+                                                                                                                const dataUrl = file.url;
+                                                                                                                if (dataUrl.startsWith('data:')) {
+                                                                                                                    try {
+                                                                                                                        const parts = dataUrl.split(',');
+                                                                                                                        const mime = parts[0].match(/:(.*?);/)[1];
+                                                                                                                        const bstr = atob(parts[1]);
+                                                                                                                        let n = bstr.length;
+                                                                                                                        const u8arr = new Uint8Array(n);
+                                                                                                                        while (n--) {
+                                                                                                                            u8arr[n] = bstr.charCodeAt(n);
+                                                                                                                        }
+                                                                                                                        const blob = new Blob([u8arr], { type: mime });
+                                                                                                                        const blobUrl = URL.createObjectURL(blob);
+                                                                                                                        window.open(blobUrl, '_blank');
+                                                                                                                    } catch (e) {
+                                                                                                                        const newWindow = window.open();
+                                                                                                                        if (newWindow) {
+                                                                                                                            newWindow.document.write(`<iframe src="${dataUrl}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
+                                                                                                                        }
+                                                                                                                    }
+                                                                                                                } else {
+                                                                                                                    window.open(dataUrl, '_blank');
                                                                                                                 }
                                                                                                             }
-                                                                                                        } else {
-                                                                                                            window.open(dataUrl, '_blank');
-                                                                                                        }
-                                                                                                    }
-                                                                                                }}
-                                                                                                className="px-4 py-2 hover:bg-slate-50 text-left transition-colors flex items-center gap-2 font-bold"
-                                                                                            >
-                                                                                                <span>Preview File</span>
-                                                                                            </button>
-                                                                                            <button
-                                                                                                type="button"
-                                                                                                onClick={() => {
-                                                                                                    setShowUploadMenu(prev => ({ ...prev, [idx]: false }));
-                                                                                                    document.getElementById(`file-replace-main-${idx}`).click();
-                                                                                                }}
-                                                                                                className="px-4 py-2 hover:bg-slate-50 text-left transition-colors flex items-center gap-2 font-bold"
-                                                                                            >
-                                                                                                <span>Replace File</span>
-                                                                                            </button>
-                                                                                            <button
-                                                                                                type="button"
-                                                                                                onClick={() => {
-                                                                                                    setShowUploadMenu(prev => ({ ...prev, [idx]: false }));
-                                                                                                    setAttachedFiles(prev => ({ ...prev, [idx]: [] }));
-                                                                                                    toast.success("Attachment removed");
-                                                                                                }}
-                                                                                                className="px-4 py-2 hover:bg-slate-50 text-left text-red-600 transition-colors flex items-center gap-2 font-bold"
-                                                                                            >
-                                                                                                <span>Remove File</span>
-                                                                                            </button>
+                                                                                                        }}
+                                                                                                        className="px-4 py-2 hover:bg-slate-50 text-left transition-colors flex items-center gap-2 font-bold"
+                                                                                                    >
+                                                                                                        <span>Preview File</span>
+                                                                                                    </button>
+                                                                                                    <button
+                                                                                                        type="button"
+                                                                                                        onClick={() => {
+                                                                                                            setShowUploadMenu(prev => ({ ...prev, [idx]: false }));
+                                                                                                            document.getElementById(`file-replace-main-${idx}`).click();
+                                                                                                        }}
+                                                                                                        className="px-4 py-2 hover:bg-slate-50 text-left transition-colors flex items-center gap-2 font-bold"
+                                                                                                    >
+                                                                                                        <span>Replace File</span>
+                                                                                                    </button>
+                                                                                                    <button
+                                                                                                        type="button"
+                                                                                                        onClick={() => {
+                                                                                                            setShowUploadMenu(prev => ({ ...prev, [idx]: false }));
+                                                                                                            setAttachedFiles(prev => ({ ...prev, [idx]: [] }));
+                                                                                                            toast.success("Attachment removed");
+                                                                                                        }}
+                                                                                                        className="px-4 py-2 hover:bg-slate-50 text-left text-red-600 transition-colors flex items-center gap-2 font-bold"
+                                                                                                    >
+                                                                                                        <span>Remove File</span>
+                                                                                                    </button>
+                                                                                                </div>
+                                                                                            )}
+                                                                                            <input
+                                                                                                type="file"
+                                                                                                id={`file-replace-main-${idx}`}
+                                                                                                multiple
+                                                                                                className="hidden"
+                                                                                                onChange={(e) => handleFileUploadSimulated(idx, e.target.files)}
+                                                                                            />
                                                                                         </div>
-                                                                                    )}
-                                                                                    <input
-                                                                                        type="file"
-                                                                                        id={`file-replace-main-${idx}`}
-                                                                                        multiple
-                                                                                        className="hidden"
-                                                                                        onChange={(e) => handleFileUploadSimulated(idx, e.target.files)}
-                                                                                    />
-                                                                                </div>
-                                                                            );
-                                                                        }
-                                                                        return (
-                                                                            <div className="relative">
+                                                                                    );
+                                                                                }
+                                                                                return (
+                                                                                    <div className="relative">
+                                                                                        <button
+                                                                                            type="button"
+                                                                                            disabled={!isEditable}
+                                                                                            onClick={() => {
+                                                                                                if (!isEditable) {
+                                                                                                    if (questionTimes[idx] === 0) {
+                                                                                                        toast.error("⛔ Time is up for this question", { duration: 3000 });
+                                                                                                    } else {
+                                                                                                        toast.error("⛔ Cannot edit response after submit", { duration: 3000 });
+                                                                                                    }
+                                                                                                    return;
+                                                                                                }
+                                                                                                document.getElementById(`file-upload-main-${idx}`).click();
+                                                                                            }}
+                                                                                            className={`w-6 h-6 flex items-center justify-center rounded-md transition-all ${!isEditable
+                                                                                                ? 'bg-blue-100/40 text-blue-400/70 cursor-not-allowed'
+                                                                                                : 'bg-blue-100 text-blue-600 hover:bg-blue-200'
+                                                                                                }`}
+                                                                                            title="Upload File"
+                                                                                        >
+                                                                                            <Paperclip size={12} />
+                                                                                        </button>
+                                                                                        <input
+                                                                                            type="file"
+                                                                                            id={`file-upload-main-${idx}`}
+                                                                                            multiple
+                                                                                            className="hidden"
+                                                                                            onChange={(e) => handleFileUploadSimulated(idx, e.target.files)}
+                                                                                        />
+                                                                                    </div>
+                                                                                );
+                                                                            })()}
+
+                                                                            {/* Audio Recording Mic Button */}
+                                                                            {(q.moreSettings?.allowAudioAnswer === true || q.particulars?.enableAudio === true) && (
                                                                                 <button
                                                                                     type="button"
-                                                                                    disabled={!isEditable}
                                                                                     onClick={() => {
                                                                                         if (!isEditable) {
                                                                                             if (questionTimes[idx] === 0) {
@@ -2957,172 +3005,138 @@ const ShortAnswerTest = () => {
                                                                                             }
                                                                                             return;
                                                                                         }
-                                                                                        document.getElementById(`file-upload-main-${idx}`).click();
+                                                                                        setShowAudioRecorder(prev => ({ ...prev, [idx]: !prev[idx] }));
                                                                                     }}
                                                                                     className={`w-6 h-6 flex items-center justify-center rounded-md transition-all ${!isEditable
-                                                                                        ? 'bg-blue-100/40 text-blue-400/70 cursor-not-allowed'
-                                                                                        : 'bg-blue-100 text-blue-600 hover:bg-blue-200'
+                                                                                        ? 'bg-purple-100/40 text-[#6F42C1]/50 cursor-not-allowed'
+                                                                                        : (showAudioRecorder[idx]
+                                                                                            ? 'bg-[#6F42C1] text-white'
+                                                                                            : 'bg-purple-100 text-[#6F42C1] hover:bg-purple-200')
                                                                                         }`}
-                                                                                    title="Upload File"
+                                                                                    title="Audio Response"
                                                                                 >
-                                                                                    <Paperclip size={12} />
+                                                                                    <Mic size={12} />
                                                                                 </button>
-                                                                                <input
-                                                                                    type="file"
-                                                                                    id={`file-upload-main-${idx}`}
-                                                                                    multiple
-                                                                                    className="hidden"
-                                                                                    onChange={(e) => handleFileUploadSimulated(idx, e.target.files)}
-                                                                                />
-                                                                            </div>
-                                                                        );
-                                                                    })()}
+                                                                            )}
 
-                                                                    {/* Audio Recording Mic Button */}
-                                                                    {(q.moreSettings?.allowAudioAnswer === true || q.particulars?.enableAudio === true) && (
-                                                                        <button
-                                                                            type="button"
-                                                                            onClick={() => {
-                                                                                if (!isEditable) {
-                                                                                    if (questionTimes[idx] === 0) {
-                                                                                        toast.error("⛔ Time is up for this question", { duration: 3000 });
-                                                                                    } else {
-                                                                                        toast.error("⛔ Cannot edit response after submit", { duration: 3000 });
-                                                                                    }
-                                                                                    return;
-                                                                                }
-                                                                                setShowAudioRecorder(prev => ({ ...prev, [idx]: !prev[idx] }));
-                                                                            }}
-                                                                            className={`w-6 h-6 flex items-center justify-center rounded-md transition-all ${!isEditable
-                                                                                ? 'bg-purple-100/40 text-[#6F42C1]/50 cursor-not-allowed'
-                                                                                : (showAudioRecorder[idx]
-                                                                                    ? 'bg-[#6F42C1] text-white'
-                                                                                    : 'bg-purple-100 text-[#6F42C1] hover:bg-purple-200')
-                                                                                }`}
-                                                                            title="Audio Response"
-                                                                        >
-                                                                            <Mic size={12} />
-                                                                        </button>
-                                                                    )}
+                                                                            {/* Video Recording Button */}
+                                                                            {(q.moreSettings?.allowVideo === true || q.particulars?.enableVideo === true) && (
+                                                                                <button
+                                                                                    type="button"
+                                                                                    onClick={() => {
+                                                                                        if (!isEditable) {
+                                                                                            if (questionTimes[idx] === 0) {
+                                                                                                toast.error("⛔ Time is up for this question", { duration: 3000 });
+                                                                                            } else {
+                                                                                                toast.error("⛔ Cannot edit response after submit", { duration: 3000 });
+                                                                                            }
+                                                                                            return;
+                                                                                        }
+                                                                                        setShowVideoRecorder(prev => ({ ...prev, [idx]: !prev[idx] }));
+                                                                                    }}
+                                                                                    className={`w-6 h-6 flex items-center justify-center rounded-md transition-all ${!isEditable
+                                                                                        ? 'bg-pink-100/40 text-pink-400/50 cursor-not-allowed'
+                                                                                        : (showVideoRecorder[idx]
+                                                                                            ? 'bg-pink-600 text-white'
+                                                                                            : 'bg-pink-100 text-pink-600 hover:bg-pink-200')
+                                                                                        }`}
+                                                                                    title="Video Response"
+                                                                                >
+                                                                                    <Video size={12} />
+                                                                                </button>
+                                                                            )}
 
-                                                                    {/* Video Recording Button */}
-                                                                    {(q.moreSettings?.allowVideo === true || q.particulars?.enableVideo === true) && (
-                                                                        <button
-                                                                            type="button"
-                                                                            onClick={() => {
-                                                                                if (!isEditable) {
-                                                                                    if (questionTimes[idx] === 0) {
-                                                                                        toast.error("⛔ Time is up for this question", { duration: 3000 });
-                                                                                    } else {
-                                                                                        toast.error("⛔ Cannot edit response after submit", { duration: 3000 });
-                                                                                    }
-                                                                                    return;
-                                                                                }
-                                                                                setShowVideoRecorder(prev => ({ ...prev, [idx]: !prev[idx] }));
-                                                                            }}
-                                                                            className={`w-6 h-6 flex items-center justify-center rounded-md transition-all ${!isEditable
-                                                                                ? 'bg-pink-100/40 text-pink-400/50 cursor-not-allowed'
-                                                                                : (showVideoRecorder[idx]
-                                                                                    ? 'bg-pink-600 text-white'
-                                                                                    : 'bg-pink-100 text-pink-600 hover:bg-pink-200')
-                                                                                }`}
-                                                                            title="Video Response"
-                                                                        >
-                                                                            <Video size={12} />
-                                                                        </button>
-                                                                    )}
+                                                                            {/* Chat Button */}
+                                                                            {q.moreSettings?.allowChat === true && (
+                                                                                <button
+                                                                                    type="button"
+                                                                                    onClick={() => {
+                                                                                        const willOpen = showGlobalChat !== idx;
+                                                                                        setShowGlobalChat(willOpen ? idx : null);
+                                                                                        if (willOpen) {
+                                                                                            const qText = q.text ? q.text.replace(/<[^>]*>/g, '').trim() : '';
+                                                                                            if (qText && !(chatInput[idx])) {
+                                                                                                setChatInput(prev => ({ ...prev, [idx]: `Q: ${qText}` }));
+                                                                                            }
+                                                                                        }
+                                                                                    }}
+                                                                                    className={`w-6 h-6 flex items-center justify-center rounded-md transition-all ${showGlobalChat === idx
+                                                                                        ? 'bg-emerald-600 text-white'
+                                                                                        : 'bg-emerald-100 text-emerald-600 hover:bg-emerald-200'
+                                                                                        }`}
+                                                                                    title="Chat with Teacher"
+                                                                                >
+                                                                                    <MessageSquare size={12} />
+                                                                                </button>
+                                                                            )}
 
-                                                                    {/* Chat Button */}
-                                                                    {q.moreSettings?.allowChat === true && (
-                                                                        <button
-                                                                            type="button"
-                                                                            onClick={() => {
-                                                                                const willOpen = showGlobalChat !== idx;
-                                                                                setShowGlobalChat(willOpen ? idx : null);
-                                                                                if (willOpen) {
-                                                                                    const qText = q.text ? q.text.replace(/<[^>]*>/g, '').trim() : '';
-                                                                                    if (qText && !(chatInput[idx])) {
-                                                                                        setChatInput(prev => ({ ...prev, [idx]: `Q: ${qText}` }));
-                                                                                    }
-                                                                                }
-                                                                            }}
-                                                                            className={`w-6 h-6 flex items-center justify-center rounded-md transition-all ${showGlobalChat === idx
-                                                                                ? 'bg-emerald-600 text-white'
-                                                                                : 'bg-emerald-100 text-emerald-600 hover:bg-emerald-200'
-                                                                                }`}
-                                                                            title="Chat with Teacher"
-                                                                        >
-                                                                            <MessageSquare size={12} />
-                                                                        </button>
-                                                                    )}
+                                                                            {/* Submit & Finish Button */}
+                                                                            {q.moreSettings?.allowSubmitFinish === true && (
+                                                                                <button
+                                                                                    type="button"
+                                                                                    disabled={submitting}
+                                                                                    onClick={submitAll}
+                                                                                    className="w-6 h-6 flex items-center justify-center rounded-md bg-red-100 text-red-600 hover:bg-red-200 transition-all"
+                                                                                    title="Submit & Finish"
+                                                                                >
+                                                                                    <CheckCircle2 size={12} />
+                                                                                </button>
+                                                                            )}
 
-                                                                    {/* Submit & Finish Button */}
-                                                                    {q.moreSettings?.allowSubmitFinish === true && (
-                                                                        <button
-                                                                            type="button"
-                                                                            disabled={submitting}
-                                                                            onClick={submitAll}
-                                                                            className="w-6 h-6 flex items-center justify-center rounded-md bg-red-100 text-red-600 hover:bg-red-200 transition-all"
-                                                                            title="Submit & Finish"
-                                                                        >
-                                                                            <CheckCircle2 size={12} />
-                                                                        </button>
-                                                                    )}
-
-                                                                    {/* Reattempt Button */}
-                                                                    {submittedAnswers[idx] && qParticulars.allowEditing && questionTimes[idx] !== 0 && (
-                                                                        <button
-                                                                            type="button"
-                                                                            onClick={() => {
-                                                                                setSubmittedAnswers(prev => {
-                                                                                    const n = { ...prev };
-                                                                                    delete n[idx];
-                                                                                    return n;
-                                                                                });
-                                                                                toast.success("Reattempting question...");
-                                                                            }}
-                                                                            className="w-6 h-6 flex items-center justify-center rounded-md bg-green-100 text-[#28A745] hover:bg-green-200 transition-all animate-bounce"
-                                                                            title="Reattempt Question"
-                                                                        >
-                                                                            <RotateCcw size={12} />
-                                                                        </button>
+                                                                            {/* Reattempt Button */}
+                                                                            {submittedAnswers[idx] && qParticulars.allowEditing && questionTimes[idx] !== 0 && (
+                                                                                <button
+                                                                                    type="button"
+                                                                                    onClick={() => {
+                                                                                        setSubmittedAnswers(prev => {
+                                                                                            const n = { ...prev };
+                                                                                            delete n[idx];
+                                                                                            return n;
+                                                                                        });
+                                                                                        toast.success("Reattempting question...");
+                                                                                    }}
+                                                                                    className="w-6 h-6 flex items-center justify-center rounded-md bg-green-100 text-[#28A745] hover:bg-green-200 transition-all animate-bounce"
+                                                                                    title="Reattempt Question"
+                                                                                >
+                                                                                    <RotateCcw size={12} />
+                                                                                </button>
+                                                                            )}
+                                                                        </div>
+                                                                    ) : (
+                                                                        <span className="text-[9px] text-slate-400 italic truncate font-bold">No widget</span>
                                                                     )}
                                                                 </div>
-                                                            ) : (
-                                                                <span className="text-[9px] text-slate-400 italic truncate font-bold">No widget</span>
-                                                            )}
-                                                        </div>
 
-                                                        {/* ── ADDON (55%, right-aligned) ── */}
-                                                        <div className="flex items-center px-2 h-full bg-slate-50/60 shrink-0" style={{ width: '55%' }}>
-                                                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide flex items-center gap-0.5 shrink-0">
-                                                                <Sliders size={12} /> Addon
-                                                            </span>
-                                                            <div className="flex items-center gap-1 ml-auto">
-                                                                {hasAddon ? (
-                                                                    <>
-                                                                        {qAssistive.translation && (
-                                                                            <button type="button" onClick={() => setActiveQuestionTab(prev => ({ ...prev, [idx]: prev[idx] === 'translation' ? null : 'translation' }))} className={`w-6 h-6 flex items-center justify-center rounded-md text-[10px] font-bold font-sans transition-all border ${activeQuestionTab[idx] === 'translation' ? 'bg-[#007BFF] text-white border-[#007BFF]' : 'bg-white hover:bg-slate-100 text-[#007BFF] border-slate-200'}`} title="Translate">अ</button>
+                                                                {/* ── ADDON (55%, right-aligned) ── */}
+                                                                <div className="flex items-center px-2 h-full bg-slate-50/60 shrink-0" style={{ width: '55%' }}>
+                                                                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide flex items-center gap-0.5 shrink-0">
+                                                                        <Sliders size={12} /> Addon
+                                                                    </span>
+                                                                    <div className="flex items-center gap-1 ml-auto">
+                                                                        {hasAddon ? (
+                                                                            <>
+                                                                                {qAssistive.translation && (
+                                                                                    <button type="button" onClick={() => setActiveQuestionTab(prev => ({ ...prev, [idx]: prev[idx] === 'translation' ? null : 'translation' }))} className={`w-6 h-6 flex items-center justify-center rounded-md text-[10px] font-bold font-sans transition-all border ${activeQuestionTab[idx] === 'translation' ? 'bg-[#007BFF] text-white border-[#007BFF]' : 'bg-white hover:bg-slate-100 text-[#007BFF] border-slate-200'}`} title="Translate">अ</button>
+                                                                                )}
+                                                                                {(qAssistive.relevantInformation || qAssistive.temporaryFill) && (
+                                                                                    <button type="button" onClick={() => setActiveQuestionTab(prev => ({ ...prev, [idx]: prev[idx] === 'relevantInfo' ? null : 'relevantInfo' }))} className={`w-6 h-6 flex items-center justify-center rounded-md transition-all ${activeQuestionTab[idx] === 'relevantInfo' ? 'bg-[#0056b3] text-white' : 'bg-[#007BFF] text-white hover:bg-[#0056b3]'}`} title="Relevant Info"><ClipboardList size={11} /></button>
+                                                                                )}
+                                                                                {qAssistive.textToSpeech && (
+                                                                                    <button type="button" onClick={() => handleTTS(q.text)} className="w-6 h-6 flex items-center justify-center rounded-md bg-[#6F42C1] hover:bg-[#5a32a3] text-white transition-all text-[10px]" title="Read Aloud">🔤</button>
+                                                                                )}
+                                                                                {qAssistive.speechToText && (
+                                                                                    <button type="button" onClick={() => toggleVoiceTyping(idx)} className={`w-6 h-6 flex items-center justify-center rounded-md transition-all ${isListening === idx ? 'bg-red-500 text-white animate-pulse' : 'bg-emerald-500 hover:bg-emerald-600 text-white'}`} title={isListening === idx ? 'Listening...' : 'Dictate'}><Mic size={11} /></button>
+                                                                                )}
+                                                                                {qAssistive.calculator && (
+                                                                                    <button type="button" onClick={() => setActiveQuestionTab(prev => ({ ...prev, [idx]: prev[idx] === 'calculator' ? null : 'calculator' }))} className={`w-6 h-6 flex items-center justify-center rounded-md transition-all ${activeQuestionTab[idx] === 'calculator' ? 'bg-[#138496] text-white' : 'bg-[#17A2B8] hover:bg-[#138496] text-white'}`} title="Calculator"><Sliders size={11} /></button>
+                                                                                )}
+                                                                            </>
+                                                                        ) : (
+                                                                            <span className="text-[9px] text-slate-400 italic">No addon</span>
                                                                         )}
-                                                                        {(qAssistive.relevantInformation || qAssistive.temporaryFill) && (
-                                                                            <button type="button" onClick={() => setActiveQuestionTab(prev => ({ ...prev, [idx]: prev[idx] === 'relevantInfo' ? null : 'relevantInfo' }))} className={`w-6 h-6 flex items-center justify-center rounded-md transition-all ${activeQuestionTab[idx] === 'relevantInfo' ? 'bg-[#0056b3] text-white' : 'bg-[#007BFF] text-white hover:bg-[#0056b3]'}`} title="Relevant Info"><ClipboardList size={11} /></button>
-                                                                        )}
-                                                                        {qAssistive.textToSpeech && (
-                                                                            <button type="button" onClick={() => handleTTS(q.text)} className="w-6 h-6 flex items-center justify-center rounded-md bg-[#6F42C1] hover:bg-[#5a32a3] text-white transition-all text-[10px]" title="Read Aloud">🔤</button>
-                                                                        )}
-                                                                        {qAssistive.speechToText && (
-                                                                            <button type="button" onClick={() => toggleVoiceTyping(idx)} className={`w-6 h-6 flex items-center justify-center rounded-md transition-all ${isListening === idx ? 'bg-red-500 text-white animate-pulse' : 'bg-emerald-500 hover:bg-emerald-600 text-white'}`} title={isListening === idx ? 'Listening...' : 'Dictate'}><Mic size={11} /></button>
-                                                                        )}
-                                                                        {qAssistive.calculator && (
-                                                                            <button type="button" onClick={() => setActiveQuestionTab(prev => ({ ...prev, [idx]: prev[idx] === 'calculator' ? null : 'calculator' }))} className={`w-6 h-6 flex items-center justify-center rounded-md transition-all ${activeQuestionTab[idx] === 'calculator' ? 'bg-[#138496] text-white' : 'bg-[#17A2B8] hover:bg-[#138496] text-white'}`} title="Calculator"><Sliders size={11} /></button>
-                                                                        )}
-                                                                    </>
-                                                                ) : (
-                                                                    <span className="text-[9px] text-slate-400 italic">No addon</span>
-                                                                )}
 
-                                                            </div>
-                                                        </div>
+                                                                    </div>
+                                                                </div>
                                                             </div>
                                                         ) : (
                                                             /* Centered placeholder when collapsed */
@@ -3493,7 +3507,7 @@ const ShortAnswerTest = () => {
                             Save as Draft
                         </button>
 
-                                                <button
+                        <button
                             type="button"
                             onClick={() => setReportModalOpen(true)}
                             className="px-4 py-2 bg-[#6F42C1] hover:bg-[#5a32a3] text-white font-bold text-[11px] uppercase tracking-wider rounded-xl transition-all shadow-md active:scale-95"
@@ -3504,7 +3518,7 @@ const ShortAnswerTest = () => {
                 </div>
             </div>
 
-                        {/* ⚠️ Report Issue Modal */}
+            {/* ⚠️ Report Issue Modal */}
             {reportModalOpen && (
                 <div className="fixed inset-0 z-60 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
                     <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4 border border-slate-100 text-left">
@@ -3512,18 +3526,18 @@ const ShortAnswerTest = () => {
                             <h4 className="font-extrabold text-base text-slate-800 flex items-center gap-1.5">
                                 ⚠️ Report Issue to Teacher
                             </h4>
-                            <button 
+                            <button
                                 onClick={() => setReportModalOpen(false)}
                                 className="text-slate-400 hover:text-slate-600 font-bold"
                             >
                                 Close
                             </button>
                         </div>
-                        
+
                         <p className="text-xs text-slate-550 font-bold leading-relaxed">
                             You can choose to report the issue and submit your test now, or send the report and continue taking the test.
                         </p>
-                        
+
                         <div className="space-y-1.5">
                             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Describe the issue/difficulty</label>
                             <textarea
@@ -3632,7 +3646,7 @@ const ShortAnswerTest = () => {
 
 
 
-{/* 🎮 Tic-Tac-Toe Popup Game Modal */}
+            {/* 🎮 Tic-Tac-Toe Popup Game Modal */}
             {showGameModal && (
                 <div className="fixed inset-0 z-60 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
                     <div className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl text-center space-y-4 border border-slate-100">
@@ -3785,6 +3799,13 @@ const ShortAnswerTest = () => {
                     </div>
                 </div>
             )}
+            <style>{`
+                h3.font-extrabold a {
+                    color: #2563eb !important;
+                    text-decoration: underline !important;
+                    cursor: pointer !important;
+                }
+            `}</style>
         </div>
     );
 };

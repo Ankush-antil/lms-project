@@ -41,6 +41,7 @@ const TestsList = () => {
     }, [searchTerm]);
     const [filterSubject, setFilterSubject] = useState(() => sessionStorage.getItem('testsList_filterSubject') || 'All');
     const [filterCourse, setFilterCourse] = useState(() => sessionStorage.getItem('testsList_filterCourse') || 'All');
+    const [filterInbox, setFilterInbox] = useState(() => sessionStorage.getItem('testsList_filterInbox') || 'All');
     const [filterInstitute, setFilterInstitute] = useState(() => sessionStorage.getItem('testsList_filterInstitute') || 'All');
     const [activeTab, setActiveTab] = useState(() => sessionStorage.getItem('testsList_activeTab') || 'lms');
     const [currentPage, setCurrentPage] = useState(() => Number(sessionStorage.getItem('testsList_currentPage')) || 1);
@@ -62,7 +63,7 @@ const TestsList = () => {
             return;
         }
         setCurrentPage(1);
-    }, [debouncedSearchTerm, filterSubject, filterCourse, filterInstitute, activeTab]);
+    }, [debouncedSearchTerm, filterSubject, filterCourse, filterInbox, filterInstitute, activeTab]);
 
     const editorControls = userInfo?.editorProfile?.controls;
 
@@ -89,11 +90,54 @@ const TestsList = () => {
         sessionStorage.setItem('testsList_searchTerm', searchTerm);
         sessionStorage.setItem('testsList_filterSubject', filterSubject);
         sessionStorage.setItem('testsList_filterCourse', filterCourse);
+        sessionStorage.setItem('testsList_filterInbox', filterInbox);
         sessionStorage.setItem('testsList_filterInstitute', filterInstitute);
         sessionStorage.setItem('testsList_activeTab', activeTab);
         sessionStorage.setItem('testsList_currentPage', String(currentPage));
         sessionStorage.setItem('testsList_showFolderExplorer', String(showFolderExplorer));
-    }, [searchTerm, filterSubject, filterCourse, filterInstitute, activeTab, currentPage, showFolderExplorer]);
+    }, [searchTerm, filterSubject, filterCourse, filterInbox, filterInstitute, activeTab, currentPage, showFolderExplorer]);
+
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const expInst = params.get('exp_inst');
+        const expCourse = params.get('exp_course');
+        const expSubject = params.get('exp_subject');
+        const expInbox = params.get('exp_inbox');
+        const highlightId = params.get('highlightTestId');
+
+        if (expInst || expCourse || expSubject || expInbox) {
+            const cleanInst = expInst ? decodeURIComponent(expInst) : '';
+            const cleanCourse = expCourse ? decodeURIComponent(expCourse) : '';
+            const cleanSubject = expSubject ? decodeURIComponent(expSubject) : '';
+            const cleanInbox = expInbox ? decodeURIComponent(expInbox) : 'Inbox 1';
+            
+            const path = [];
+            if (cleanInst) {
+                path.push(cleanInst);
+                if (cleanCourse) {
+                    path.push(cleanCourse);
+                    if (cleanSubject) {
+                        path.push(cleanSubject);
+                        if (cleanInbox) {
+                            path.push(cleanInbox);
+                        }
+                    }
+                }
+            }
+
+            if (path.length > 0) {
+                sessionStorage.setItem('folderExplorer_explorerPath', JSON.stringify(path));
+                if (highlightId) {
+                    sessionStorage.setItem('folderExplorer_highlightTestId', highlightId);
+                }
+                setShowFolderExplorer(true);
+            }
+
+            // Silently clean URL
+            const cleanUrl = window.location.pathname;
+            window.history.replaceState({}, document.title, cleanUrl);
+        }
+    }, []);
 
     // Core tests data
     const [tests, setTests] = useState([]);
@@ -292,9 +336,9 @@ const TestsList = () => {
         });
     };
 
-    const fetchLmsTests = async () => {
+    const fetchLmsTests = async (quiet = false) => {
         try {
-            setLoading(true);
+            if (!quiet) setLoading(true);
             const res = await axios.get('/api/tests?limit=20&page=1');
             const filtered = Array.isArray(res.data) ? res.data.filter(t => t.publishMode !== 'public') : [];
             setTests(filtered);
@@ -333,7 +377,7 @@ const TestsList = () => {
                 }
             }
 
-            setLoading(false);
+            if (!quiet) setLoading(false);
 
             // Deferred background load for the remaining tests
             setTimeout(async () => {
@@ -347,21 +391,20 @@ const TestsList = () => {
             }, 1000);
         } catch (error) {
             console.error("Error fetching tests:", error);
-            toast.error("Error loading tests");
-            setLoading(false);
+            if (!quiet) toast.error("Error loading tests");
         }
     };
 
-    const fetchPublicTests = async () => {
+    const fetchPublicTests = async (quiet = false) => {
         try {
-            setLoadingPublic(true);
+            if (!quiet) setLoadingPublic(true);
             const res = await axios.get('/api/public-tests/admin/dashboard');
             setPublicTests(res.data);
         } catch (error) {
             console.error("Error fetching public tests dashboard:", error);
-            toast.error("Error loading public tests dashboard");
+            if (!quiet) toast.error("Error loading public tests dashboard");
         } finally {
-            setLoadingPublic(false);
+            if (!quiet) setLoadingPublic(false);
         }
     };
 
@@ -817,7 +860,8 @@ const TestsList = () => {
         const courseMatch = filterCourse === 'All' || 
             (test.course && test.course.split(',').map(c => c.trim().toLowerCase()).includes(filterCourse.toLowerCase()));
         const instituteMatch = filterInstitute === 'All' || test.institute === filterInstitute;
-        return titleMatch && subjectMatch && courseMatch && instituteMatch;
+        const inboxMatch = filterInbox === 'All' || test.index === filterInbox;
+        return titleMatch && subjectMatch && courseMatch && instituteMatch && inboxMatch;
     }).sort((a, b) => {
         const getNum = (s) => parseInt(s?.match(/\d+/)?.[0] || 0);
         const numA = getNum(a.index);
@@ -835,7 +879,8 @@ const TestsList = () => {
         const courseMatch = filterCourse === 'All' || 
             (test.course && test.course.split(',').map(c => c.trim().toLowerCase()).includes(filterCourse.toLowerCase()));
         const instituteMatch = filterInstitute === 'All' || test.institute === filterInstitute;
-        return titleMatch && subjectMatch && courseMatch && instituteMatch;
+        const inboxMatch = filterInbox === 'All' || test.index === filterInbox;
+        return titleMatch && subjectMatch && courseMatch && instituteMatch && inboxMatch;
     });
 
     const paginatedTests = filteredTests.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
@@ -1103,6 +1148,33 @@ const TestsList = () => {
         });
         return ['All', ...Array.from(subjects)];
     }, [currentTestsList, filterInstitute, filterCourse]);
+
+    const uniqueInboxes = useMemo(() => {
+        const testsFilteredByInstCrsAndSub = currentTestsList.filter(t =>
+            (filterInstitute === 'All' || t.institute === filterInstitute) &&
+            (filterCourse === 'All' || (t.course && t.course.split(',').map(c => c.trim().toLowerCase()).includes(filterCourse.toLowerCase()))) &&
+            (filterSubject === 'All' || (t.subject && t.subject.split(',').map(s => s.trim().toLowerCase()).includes(filterSubject.toLowerCase())))
+        );
+        const inboxes = new Set();
+        testsFilteredByInstCrsAndSub.forEach(t => {
+            if (t.index) {
+                const trimmed = t.index.trim();
+                if (trimmed) inboxes.add(trimmed);
+            }
+        });
+        
+        // Natural numeric sorting (e.g. Inbox 1, Inbox 2, ..., Inbox 10, Inbox 22)
+        const sortedInboxes = Array.from(inboxes).sort((a, b) => {
+            const numA = parseInt(a.replace(/\D/g, ''), 10);
+            const numB = parseInt(b.replace(/\D/g, ''), 10);
+            if (!isNaN(numA) && !isNaN(numB)) {
+                return numA - numB;
+            }
+            return a.localeCompare(b);
+        });
+        
+        return ['All', ...sortedInboxes];
+    }, [currentTestsList, filterInstitute, filterCourse, filterSubject]);
 
     // Aggregated tree: Institute -> Course -> Subject -> [Tests]
     const folderTree = (() => {
@@ -2421,7 +2493,7 @@ const TestsList = () => {
                     )}
                 </div>
 
-                {(activeTab === 'lms' || activeTab === 'public') && (
+                {(activeTab === 'lms' || activeTab === 'public' || activeTab === 'draft') && (
                     <button
                         onClick={() => setShowFolderExplorer(true)}
                         className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-[#0b1329] border border-slate-200 rounded-xl text-xs font-bold transition-all active:scale-95 shadow-sm shadow-sm"
@@ -2494,7 +2566,7 @@ const TestsList = () => {
                                 setItemsPerPage(10);
                             }
                         }}
-                        className="w-10 bg-slate-55 border border-slate-200 rounded-lg py-1 px-1.5 text-center text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-slate-350 transition-all h-[26px]"
+                        className="w-14 bg-slate-55 border border-slate-200 rounded-lg py-1 px-1.5 text-center text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-slate-350 transition-all h-[26px]"
                     />
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider select-none">entries</span>
                 </div>
@@ -2530,6 +2602,7 @@ const TestsList = () => {
                                 onChange={(e) => {
                                     setFilterCourse(e.target.value);
                                     setFilterSubject('All');
+                                    setFilterInbox('All');
                                 }}
                                 className="w-full pl-7 pr-6 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none appearance-none cursor-pointer font-semibold text-slate-700 focus:bg-white focus:border-indigo-500 transition-all h-full truncate"
                             >
@@ -2544,11 +2617,28 @@ const TestsList = () => {
                             <Filter className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={11} />
                             <select
                                 value={filterSubject}
-                                onChange={(e) => setFilterSubject(e.target.value)}
+                                onChange={(e) => {
+                                    setFilterSubject(e.target.value);
+                                    setFilterInbox('All');
+                                }}
                                 className="w-full pl-7 pr-6 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none appearance-none cursor-pointer font-semibold text-slate-700 focus:bg-white focus:border-indigo-500 transition-all h-full truncate"
                             >
                                 {uniqueSubjects.map(subject => (
                                     <option key={subject} value={subject}>{subject === 'All' ? 'All Subjects' : subject}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {/* Inbox Filter */}
+                        <div className="relative w-[130px] h-[32px]">
+                            <Filter className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={11} />
+                            <select
+                                value={filterInbox}
+                                onChange={(e) => setFilterInbox(e.target.value)}
+                                className="w-full pl-7 pr-6 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none appearance-none cursor-pointer font-semibold text-slate-700 focus:bg-white focus:border-indigo-500 transition-all h-full truncate"
+                            >
+                                {uniqueInboxes.map(inbox => (
+                                    <option key={inbox} value={inbox}>{inbox === 'All' ? 'All Inboxes' : inbox}</option>
                                 ))}
                             </select>
                         </div>
@@ -3234,9 +3324,13 @@ const TestsList = () => {
                 tests={activeTab === 'lms' ? tests : publicTests}
                 onOpenResponses={(test, type) => handleOpenResponses(test, type || 'connected')}
                 onDelete={handleDelete}
-                onImportSuccess={() => {
-                    if (typeof fetchLmsTests === 'function') fetchLmsTests();
-                    if (typeof fetchPublicTests === 'function') fetchPublicTests();
+                onImportSuccess={(quiet) => {
+                    if (typeof fetchLmsTests === 'function') fetchLmsTests(quiet);
+                    if (typeof fetchPublicTests === 'function') fetchPublicTests(quiet);
+                }}
+                onRenameSuccess={(testId, newTitle) => {
+                    setTests(prev => prev.map(t => t._id === testId ? { ...t, title: newTitle } : t));
+                    setPublicTests(prev => prev.map(t => t._id === testId ? { ...t, title: newTitle } : t));
                 }}
             />
 

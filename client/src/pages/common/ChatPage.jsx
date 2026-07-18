@@ -281,10 +281,25 @@ const ChatPage = () => {
 
     // Fetch contacts list
     const fetchContacts = async () => {
+        const cacheKey = user?._id ? `chat_contacts_${user._id}` : null;
         try {
-            setLoadingContacts(true);
+            if (cacheKey) {
+                const cached = localStorage.getItem(cacheKey);
+                if (cached) {
+                    setContacts(JSON.parse(cached));
+                    setLoadingContacts(false);
+                } else {
+                    setLoadingContacts(true);
+                }
+            } else {
+                setLoadingContacts(true);
+            }
+
             const { data } = await axios.get('/api/chat/contacts');
             setContacts(data);
+            if (cacheKey) {
+                localStorage.setItem(cacheKey, JSON.stringify(data));
+            }
             setLoadingContacts(false);
             // If navigated from a notification, auto-select the contact immediately
             // (no extra render cycle — eliminates blink)
@@ -309,10 +324,25 @@ const ChatPage = () => {
     };
 
     const fetchResearchContacts = async () => {
+        const cacheKey = user?._id ? `research_contacts_${user._id}` : null;
         try {
-            setLoadingResearchContacts(true);
+            if (cacheKey) {
+                const cached = localStorage.getItem(cacheKey);
+                if (cached) {
+                    setResearchContacts(JSON.parse(cached));
+                    setLoadingResearchContacts(false);
+                } else {
+                    setLoadingResearchContacts(true);
+                }
+            } else {
+                setLoadingResearchContacts(true);
+            }
+
             const { data } = await axios.get('/api/research/contacts');
             setResearchContacts(data);
+            if (cacheKey) {
+                localStorage.setItem(cacheKey, JSON.stringify(data));
+            }
             setLoadingResearchContacts(false);
         } catch (error) {
             console.error("Error loading research contacts:", error);
@@ -323,10 +353,25 @@ const ChatPage = () => {
 
     const fetchResearchMessages = async () => {
         if (!selectedResearchContact) return;
+        const cacheKey = user?._id ? `research_messages_${user._id}_${selectedResearchContact._id}` : null;
         try {
-            setLoadingResearchMessages(true);
+            if (cacheKey) {
+                const cached = localStorage.getItem(cacheKey);
+                if (cached) {
+                    setResearchMessages(JSON.parse(cached));
+                    setLoadingResearchMessages(false);
+                } else {
+                    setLoadingResearchMessages(true);
+                }
+            } else {
+                setLoadingResearchMessages(true);
+            }
+
             const { data } = await axios.get(`/api/research/messages/${selectedResearchContact._id}`);
             setResearchMessages(data);
+            if (cacheKey) {
+                localStorage.setItem(cacheKey, JSON.stringify(data));
+            }
         } catch (error) {
             console.error("Error fetching research messages:", error);
             toast.error("Failed to load messages");
@@ -931,12 +976,25 @@ const ChatPage = () => {
         if (chatRequest?.status !== 'accepted' && !chatRequest?.isBypassed) return;
 
         const fetchMessages = async () => {
+            const cacheKey = user?._id ? `chat_messages_${user._id}_${selectedContact._id}` : null;
             try {
                 const isInitial = limitDays === 3;
-                if (isInitial || searchKeyword || searchDate) {
-                    setLoadingMessages(true);
+                const useCache = isInitial && !searchKeyword && !searchDate && cacheKey;
+
+                if (useCache) {
+                    const cached = localStorage.getItem(cacheKey);
+                    if (cached) {
+                        setMessages(JSON.parse(cached));
+                        setLoadingMessages(false);
+                    } else {
+                        setLoadingMessages(true);
+                    }
                 } else {
-                    setIsFetchingMore(true);
+                    if (isInitial || searchKeyword || searchDate) {
+                        setLoadingMessages(true);
+                    } else {
+                        setIsFetchingMore(true);
+                    }
                 }
 
                 let url = `/api/chat/messages/${selectedContact._id}?limitDays=${limitDays}`;
@@ -946,6 +1004,10 @@ const ChatPage = () => {
                 const { data } = await axios.get(url);
 
                 setMessages(data);
+
+                if (useCache) {
+                    localStorage.setItem(cacheKey, JSON.stringify(data));
+                }
 
                 // Scroll to bottom on initial fetch or search update
                 if (limitDays === 3 || searchKeyword || searchDate) {
@@ -970,6 +1032,31 @@ const ChatPage = () => {
 
         fetchMessages();
     }, [selectedContact, limitDays, searchKeyword, searchDate, chatRequest]);
+
+    // Synchronize contacts and message state changes to namespaced localStorage cache in real-time
+    useEffect(() => {
+        if (user?._id && contacts && contacts.length > 0) {
+            localStorage.setItem(`chat_contacts_${user._id}`, JSON.stringify(contacts));
+        }
+    }, [contacts, user]);
+
+    useEffect(() => {
+        if (user?._id && researchContacts && researchContacts.length > 0) {
+            localStorage.setItem(`research_contacts_${user._id}`, JSON.stringify(researchContacts));
+        }
+    }, [researchContacts, user]);
+
+    useEffect(() => {
+        if (user?._id && selectedContact?._id && messages && messages.length > 0) {
+            localStorage.setItem(`chat_messages_${user._id}_${selectedContact._id}`, JSON.stringify(messages));
+        }
+    }, [messages, selectedContact, user]);
+
+    useEffect(() => {
+        if (user?._id && selectedResearchContact?._id && researchMessages && researchMessages.length > 0) {
+            localStorage.setItem(`research_messages_${user._id}_${selectedResearchContact._id}`, JSON.stringify(researchMessages));
+        }
+    }, [researchMessages, selectedResearchContact, user]);
 
     // Load student tests when "Test Relevant Chat" is enabled
     // Works for both Teacher (viewing student's tests) and Student (viewing their own tests)
@@ -1901,7 +1988,7 @@ const ChatPage = () => {
 
     // Combine core filters with custom lists
     const filterTabs = useMemo(() => {
-        const core = ['All', 'Teacher', 'Editor', 'Student'];
+        const core = ['All', 'Teacher', 'Editor', 'Student', 'Others'];
         const customItems = customLists.map(l => ({ id: l.id, name: l.name }));
         return [...core, ...customItems];
     }, [customLists]);
@@ -2032,7 +2119,14 @@ const ChatPage = () => {
             }
 
             // Otherwise, filter by core role
-            const matchesTab = activeFilterTab === 'All' || contact.role === activeFilterTab;
+            let matchesTab = false;
+            if (activeFilterTab === 'All') {
+                matchesTab = true;
+            } else if (activeFilterTab === 'Others') {
+                matchesTab = !['Teacher', 'Editor', 'Student'].includes(contact.role);
+            } else {
+                matchesTab = contact.role === activeFilterTab;
+            }
             return matchesSearch && matchesTab;
         });
     }, [allAvailableContacts, searchTerm, activeFilterTab, customLists]);
@@ -2365,7 +2459,7 @@ const ChatPage = () => {
                                         <div className="flex items-center gap-1.5 mt-3.5 overflow-x-auto pb-1 scrollbar-thin">
                                             {filterTabs.map((tab) => {
                                                 const tabId = typeof tab === 'object' ? tab.id : tab;
-                                                const tabLabel = typeof tab === 'object' ? tab.name : (tab === 'All' ? 'All' : `${tab}s`);
+                                                const tabLabel = typeof tab === 'object' ? tab.name : (tab === 'All' ? 'All' : (tab === 'Others' ? 'Others' : `${tab}s`));
                                                 const isActive = activeFilterTab === tabId;
                                                 return (
                                                     <button

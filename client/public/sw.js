@@ -34,7 +34,7 @@ self.addEventListener('activate', (event) => {
     );
 });
 
-// Fetch Event: Network-First falling back to Cache
+// Fetch Event: Optimized strategies (Stale-While-Revalidate for assets, Network-First for documents)
 self.addEventListener('fetch', (event) => {
     const requestUrl = new URL(event.request.url);
 
@@ -45,41 +45,67 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    event.respondWith(
-        fetch(event.request)
-            .then((response) => {
-                // If dynamic file fetched successfully, save a clone to the cache
-                if (response && response.status === 200 && response.type === 'basic') {
-                    const responseToCache = response.clone();
-                    caches.open(CACHE_NAME).then((cache) => {
-                        cache.put(event.request, responseToCache);
-                    });
-                }
-                return response;
-            })
-            .catch(() => {
-                // Fetch failed (offline) - return matching item in cache
-                return caches.match(event.request).then((cachedResponse) => {
-                    if (cachedResponse) {
-                        return cachedResponse;
-                    }
-                    // SPA Routing fallback: serve index.html for page navigation offline
-                    if (event.request.headers.get('accept')?.includes('text/html')) {
-                        return caches.match('/index.html').then((fallback) => {
-                            if (fallback) return fallback;
-                            return new Response('Offline: Page not cached.', {
-                                status: 503,
-                                statusText: 'Service Unavailable',
-                                headers: { 'Content-Type': 'text/html' }
+    const isStaticAsset = 
+        requestUrl.pathname.match(/\.(js|css|png|jpg|jpeg|svg|gif|ico|woff|woff2|ttf)$/) ||
+        requestUrl.pathname.includes('/assets/') ||
+        requestUrl.pathname.includes('/src/');
+
+    if (isStaticAsset) {
+        // Stale-While-Revalidate: Serve from cache instantly, fetch and update in background
+        event.respondWith(
+            caches.match(event.request).then((cachedResponse) => {
+                const fetchPromise = fetch(event.request)
+                    .then((networkResponse) => {
+                        if (networkResponse && networkResponse.status === 200) {
+                            const responseToCache = networkResponse.clone();
+                            caches.open(CACHE_NAME).then((cache) => {
+                                cache.put(event.request, responseToCache);
                             });
+                        }
+                        return networkResponse;
+                    })
+                    .catch(() => null); // Fail silently in background if offline
+
+                return cachedResponse || fetchPromise;
+            })
+        );
+    } else {
+        // Network-First: Fetch latest document from network, update cache, fallback to cache offline
+        event.respondWith(
+            fetch(event.request)
+                .then((response) => {
+                    if (response && response.status === 200) {
+                        const responseToCache = response.clone();
+                        caches.open(CACHE_NAME).then((cache) => {
+                            cache.put(event.request, responseToCache);
                         });
                     }
-                    return new Response('Offline: Network connection lost.', {
-                        status: 503,
-                        statusText: 'Service Unavailable',
-                        headers: { 'Content-Type': 'text/plain' }
+                    return response;
+                })
+                .catch(() => {
+                    // Fetch failed (offline) - return matching item in cache
+                    return caches.match(event.request).then((cachedResponse) => {
+                        if (cachedResponse) {
+                            return cachedResponse;
+                        }
+                        // SPA Routing fallback: serve index.html for page navigation offline
+                        if (event.request.headers.get('accept')?.includes('text/html')) {
+                            return caches.match('/index.html').then((fallback) => {
+                                if (fallback) return fallback;
+                                return new Response('Offline: Page not cached.', {
+                                    status: 503,
+                                    statusText: 'Service Unavailable',
+                                    headers: { 'Content-Type': 'text/html' }
+                                });
+                            });
+                        }
+                        return new Response('Offline: Network connection lost.', {
+                            status: 503,
+                            statusText: 'Service Unavailable',
+                            headers: { 'Content-Type': 'text/plain' }
+                        });
                     });
-                });
-            })
-    );
+                })
+        );
+    }
 });

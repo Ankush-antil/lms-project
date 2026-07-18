@@ -1083,6 +1083,15 @@ const UsersList = () => {
                     </p>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap justify-end">
+                    {/* Recycle Bin */}
+                    <button
+                        onClick={() => setIsTrashOpen(true)}
+                        className="px-3.5 py-2.5 text-slate-500 hover:text-red-500 hover:bg-red-50 bg-white border border-slate-200 rounded-2xl transition-all flex items-center gap-1.5 text-sm font-bold shadow-sm cursor-pointer"
+                        title="Recycle Bin"
+                    >
+                        <Trash2 size={16} className="text-red-500" /> Recycle Bin
+                    </button>
+
                     {/* Dynamic Export Dropdown */}
                     {(() => {
                         const exportConfig = {
@@ -1132,15 +1141,6 @@ const UsersList = () => {
                             </>
                         ) : null;
                     })()}
-
-                    {/* Recycle Bin */}
-                    <button
-                        onClick={() => setIsTrashOpen(true)}
-                        className="px-3.5 py-2.5 text-slate-500 hover:text-red-500 hover:bg-red-50 bg-white border border-slate-200 rounded-2xl transition-all flex items-center gap-1.5 text-sm font-bold shadow-sm cursor-pointer"
-                        title="Recycle Bin"
-                    >
-                        <Trash2 size={16} className="text-red-500" /> Recycle Bin
-                    </button>
                 </div>
             </div>
 

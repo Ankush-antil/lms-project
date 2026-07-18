@@ -378,11 +378,21 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData, disabledFields =
 
             setOptions(prev => ({ ...prev, subject: uniqueSubjects }));
 
-            // Adjust selected subject to only keep valid subjects
+            // Adjust selected subject to only keep valid subjects (case-insensitive and prefix-tolerant check)
             setFormData(prev => {
+                const cleanStr = (str) => (str || '').replace(/^\d+[\s.-]*/, '').trim().toLowerCase();
                 const currentSelected = prev.subject || '';
-                const isValid = uniqueSubjects.includes(currentSelected);
-                return { ...prev, subject: isValid ? currentSelected : '' };
+                const currentCleaned = cleanStr(currentSelected);
+                
+                // Try exact case-insensitive match first
+                let matchedSubject = uniqueSubjects.find(s => s.trim().toLowerCase() === currentSelected.trim().toLowerCase());
+                
+                // If not found, try matching by stripping numeric prefixes (e.g. "1. COMPUTER FUNDAMENTAL" matches "COMPUTER FUNDAMENTAL")
+                if (!matchedSubject && currentCleaned) {
+                    matchedSubject = uniqueSubjects.find(s => cleanStr(s) === currentCleaned);
+                }
+                
+                return { ...prev, subject: matchedSubject || '' };
             });
 
         } else {
@@ -423,24 +433,29 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData, disabledFields =
                 let currentDayIndex = 1;
                 const mapping = [];
 
-                if (durations && durations.length > 0) {
-                    durations.forEach(d => {
-                        const subName = d.subjectName;
-                        const subDur = Number(d.duration) || 0;
-                        const subDays = [];
-                        for (let i = 1; i <= subDur; i++) {
-                            subDays.push({
-                                dayNum: i,
-                                indexNum: currentDayIndex,
-                                id: `Inbox ${currentDayIndex}`
-                            });
-                            currentDayIndex++;
-                        }
-                        if (subDays.length > 0) {
-                            mapping.push({
-                                subjectName: subName,
-                                days: subDays
-                            });
+                // Sort and map durations chronologically according to subjects array
+                if (subjects && subjects.length > 0) {
+                    subjects.forEach(subjName => {
+                        const d = durations.find(dur => dur.subjectName?.toLowerCase() === subjName.toLowerCase());
+                        if (d) {
+                            const subDur = Number(d.duration) || 0;
+                            const subDays = [];
+                            for (let i = 1; i <= subDur; i++) {
+                                if (currentDayIndex <= totalDuration) {
+                                    subDays.push({
+                                        dayNum: i,
+                                        indexNum: currentDayIndex,
+                                        id: `Inbox ${currentDayIndex}`
+                                    });
+                                    currentDayIndex++;
+                                }
+                            }
+                            if (subDays.length > 0) {
+                                mapping.push({
+                                    subjectName: subjName,
+                                    days: subDays
+                                });
+                            }
                         }
                     });
                 }
@@ -476,12 +491,23 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData, disabledFields =
 
                 const matchedGroup = mapping.find(m => m.subjectName.toLowerCase() === firstSub.toLowerCase());
                 if (matchedGroup) {
-                    daysList = matchedGroup.days.map(d => d.id);
+                    // Check if current formData.index is course-wide (e.g., "Inbox 339") and convert it to subject-relative
+                    const currentInboxNorm = formData.index?.trim().toLowerCase();
+                    const foundDay = matchedGroup.days.find(d => d.id.trim().toLowerCase() === currentInboxNorm);
+                    
+                    let targetInbox = formData.index;
+                    if (foundDay) {
+                        targetInbox = `Inbox ${foundDay.dayNum}`;
+                        setFormData(prev => ({ ...prev, index: targetInbox }));
+                    }
+
+                    // Options list should be subject-relative, e.g., Inbox 1 to Inbox 26
+                    daysList = matchedGroup.days.map(d => `Inbox ${d.dayNum}`);
                     const dayMap = {};
                     matchedGroup.days.forEach(d => {
-                        dayMap[d.id] = d.dayNum;
-                        dayMap[d.id.toLowerCase()] = d.dayNum;
-                        dayMap[d.id.trim().toLowerCase()] = d.dayNum;
+                        dayMap[`Inbox ${d.dayNum}`] = d.dayNum;
+                        dayMap[`Inbox ${d.dayNum}`.toLowerCase()] = d.dayNum;
+                        dayMap[`Inbox ${d.dayNum}`.trim().toLowerCase()] = d.dayNum;
                     });
                     setDayNumberMap(dayMap);
                 }

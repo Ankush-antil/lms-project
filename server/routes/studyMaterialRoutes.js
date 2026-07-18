@@ -5,7 +5,8 @@ const {
     getStudyMaterials, 
     deleteStudyMaterial,
     updateStudyMaterialStatus,
-    recordStudyMaterialView
+    recordStudyMaterialView,
+    updateStudyMaterial
 } = require('../controllers/studyMaterialController');
 const { protect } = require('../middleware/authMiddleware');
 const uploadAttachment = require('../middleware/uploadAttachment');
@@ -16,7 +17,8 @@ router.route('/')
 
 router.route('/:id')
     .delete(protect, deleteStudyMaterial)
-    .patch(protect, updateStudyMaterialStatus);
+    .patch(protect, updateStudyMaterialStatus)
+    .put(protect, uploadAttachment.single('file'), updateStudyMaterial);
 
 router.route('/:id/view')
     .post(protect, recordStudyMaterialView);

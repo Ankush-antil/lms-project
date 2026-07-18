@@ -13,6 +13,11 @@ const studyMaterialSchema = new mongoose.Schema({
         type: String,
         required: true
     },
+    materialType: {
+        type: String,
+        enum: ['video', 'audio', 'pdf', 'web'],
+        default: 'pdf'
+    },
     inboxId: {
         type: String,
         required: true

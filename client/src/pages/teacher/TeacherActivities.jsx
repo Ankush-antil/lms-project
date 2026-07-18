@@ -3347,16 +3347,13 @@ const TeacherActivities = () => {
                                                                     </a>
                                                                 </div>
                                                             </div>
-                                                        </div>
                                                     ))}
                                                 </div>
-
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
-                        ) : (
+                                            )}
+                                        </div>
+                                    )}
+                                </>
+                            ) : (
                             /* --- STUDENT PERFORMANCE DASHBOARD --- */
                             <div className="animate-fade-in space-y-8 text-left">
                                 {/* ── HEADER ROW ───────────────────────────────────── */}

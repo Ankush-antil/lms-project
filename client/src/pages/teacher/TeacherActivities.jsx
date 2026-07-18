@@ -1171,29 +1171,26 @@ const TeacherActivities = () => {
         let currentDayIndex = 1;
         const mapping = [];
 
-        if (subjects && subjects.length > 0) {
-            subjects.forEach(subjName => {
-                const d = durations.find(dur => dur.subjectName?.toLowerCase() === subjName.toLowerCase());
-                if (d) {
-                    const subName = d.subjectName;
-                    const subDur = Number(d.duration) || 0;
-                    const daysList = [];
-                    for (let i = 1; i <= subDur; i++) {
-                        if (currentDayIndex <= totalDuration) {
-                            daysList.push({
-                                dayNum: i,
-                                indexNum: currentDayIndex,
-                                id: `Inbox ${currentDayIndex}`
-                            });
-                            currentDayIndex++;
-                        }
-                    }
-                    if (daysList.length > 0) {
-                        mapping.push({
-                            subjectName: subName,
-                            days: daysList
+        if (durations && durations.length > 0) {
+            durations.forEach(d => {
+                const subName = d.subjectName;
+                const subDur = Number(d.duration) || 0;
+                const daysList = [];
+                for (let i = 1; i <= subDur; i++) {
+                    if (currentDayIndex <= totalDuration) {
+                        daysList.push({
+                            dayNum: i,
+                            indexNum: currentDayIndex,
+                            id: `Inbox ${currentDayIndex}`
                         });
+                        currentDayIndex++;
                     }
+                }
+                if (daysList.length > 0) {
+                    mapping.push({
+                        subjectName: subName,
+                        days: daysList
+                    });
                 }
             });
         }
@@ -2733,12 +2730,12 @@ const TeacherActivities = () => {
                                                                         )}
                                                                     </div>
 
-                                                                    <div className="mt-2.5 pt-2 border-t border-slate-100 flex flex-col gap-2">
+                                                                    <div className="mt-2.5 pt-2 border-t border-slate-100 flex flex-col gap-1.5">
                                                                         <a
                                                                             href={mat.fileUrl}
                                                                             target="_blank"
                                                                             rel="noreferrer"
-                                                                            className="w-full py-1.5 bg-[#3E3ADD] hover:bg-indigo-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider shadow-sm transition-all text-center block"
+                                                                            className="w-full px-3.5 py-1.5 bg-[#3E3ADD] hover:bg-indigo-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider shadow-sm transition-all text-center"
                                                                         >
                                                                             {config.label === 'Web page' ? 'Open Link' : 'Open File'}
                                                                         </a>
@@ -2746,14 +2743,14 @@ const TeacherActivities = () => {
                                                                             <button
                                                                                 type="button"
                                                                                 onClick={() => handleDeleteStudyMaterial(mat._id)}
-                                                                                className="text-red-500 hover:text-red-700 text-[10px] font-bold transition-colors"
+                                                                                className="text-red-500 hover:text-red-700 text-[10px] font-bold"
                                                                             >
                                                                                 Delete
                                                                             </button>
                                                                             <button
                                                                                 type="button"
                                                                                 onClick={() => setSelectedMaterialForAnalytics(mat)}
-                                                                                className="text-indigo-600 hover:text-indigo-800 text-[10px] font-bold transition-colors cursor-pointer"
+                                                                                className="text-indigo-500 hover:text-indigo-700 text-[10px] font-bold transition-colors flex items-center gap-1 cursor-pointer"
                                                                             >
                                                                                 Analytics
                                                                             </button>
@@ -3187,6 +3184,7 @@ const TeacherActivities = () => {
                                                                         </button>
                                                                     )}
                                                                 </div>
+
                                                                 {/* Status badges */}
                                                                 {((!isActivityVisible) || isActivityDisabled) && (
                                                                     <div className="flex items-center gap-1 mt-1.5">
@@ -3268,376 +3266,16 @@ const TeacherActivities = () => {
                                                                 </p>
                                                                 <p className="text-[10px] text-slate-400">{new Date(mat.createdAt).toLocaleDateString()}</p>
                                                             </div>
-<<<<<<< HEAD
-                                                            <div className="space-y-1.5">
-                                                                <div className="flex justify-between items-center text-xs font-bold text-slate-700">
-                                                                    <span>Pending Evaluation Rate</span>
-                                                                    <span>{submittedPct}%</span>
-                                                                </div>
-                                                                <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
-                                                                    <div className="h-full bg-blue-500 rounded-full" style={{ width: `${submittedPct}%` }} />
-                                                                </div>
-                                                            </div>
-                                                            <div className="space-y-1.5">
-                                                                <div className="flex justify-between items-center text-xs font-bold text-slate-700">
-                                                                    <span>Unattempted Items Rate</span>
-                                                                    <span>{unattemptedPct}%</span>
-                                                                </div>
-                                                                <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
-                                                                    <div className="h-full bg-orange-500 rounded-full" style={{ width: `${unattemptedPct}%` }} />
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </>
-                                            );
-                                        })()}
-                                    </div>
-                                ) : (
-                                    /* --- DIRECT TESTS GRID --- */
-                                    <div className="animate-fade-in space-y-4">
-                                        {!activeTests.length && viewMode !== 'assign' && !(viewMode === 'pending' && studyMaterials.length > 0) ? (
-                                            <div className="py-12 text-center bg-white rounded-2xl border border-slate-100 shadow-sm max-w-md mx-auto">
-                                                <div className="text-4xl mb-2">🎉</div>
-                                                <p className="font-bold text-slate-700 text-sm">All caught up!</p>
-                                                <p className="text-slate-400 text-xs mt-1 font-medium">No {viewMode} activities exist in this Inbox for the student.</p>
-                                            </div>
-                                        ) : (
-                                            <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-                                                {activeTests.map(test => {
-                                                    const sub = submissionMap.get(test._id);
-                                                    const isEvaluated = sub && sub.status === 'evaluated';
-                                                    const config = activityConfigs.find(c => c.test === test._id);
-                                                    const isActivityVisible = config ? config.visible : true;
-                                                    const isActivityDisabled = config ? !!config.disabled : false;
-
-                                                    return (
-                                                        <div
-                                                            key={test._id}
-                                                            onClick={() => sub && navigate(`/student/test-result/${sub._id}`)}
-                                                            className={`bg-white p-2.5 rounded-xl border hover:shadow-md hover:border-[#3E3ADD] transition-all flex flex-col justify-between h-auto relative group ${!isActivityVisible ? 'opacity-60 border-slate-200' : ''} ${sub ? 'cursor-pointer' : ''}`}
-                                                        >
-                                                            <div className="flex items-start justify-between gap-2 min-w-0">
-                                                                <div className="flex items-center gap-2 min-w-0 flex-1">
-                                                                    <div className={`w-2 h-2 rounded-full flex-shrink-0 ${!sub ? 'bg-orange-500' : isEvaluated ? 'bg-emerald-500' : 'bg-blue-500'}`} />
-                                                                    <h3 className="font-extrabold text-slate-800 text-xs leading-snug group-hover:text-[#3E3ADD] transition-colors line-clamp-1 uppercase tracking-tight truncate min-w-0 flex-1">
-                                                                        {test.title}
-                                                                    </h3>
-                                                                </div>
-                                                                {/* Options menu or direct Eye button depending on tab */}
-                                                                {viewMode === 'pending' || viewMode === 'assign' || viewMode === 'expired' ? (
-                                                                    <div className="relative shrink-0" onClick={e => e.stopPropagation()}>
-                                                                        <button
-                                                                            onClick={(e) => {
-                                                                                e.stopPropagation();
-                                                                                setActiveDropdownTestId(activeDropdownTestId === test._id ? null : test._id);
-                                                                            }}
-                                                                            className="p-1 text-slate-400 hover:text-[#3E3ADD] hover:bg-slate-100 rounded-lg transition-all"
-                                                                            title="Options"
-                                                                        >
-                                                                            <MoreVertical size={14} />
-                                                                        </button>
-                                                                        {activeDropdownTestId === test._id && (
-                                                                            <div className="absolute right-0 top-7 z-50 bg-white border border-slate-200 rounded-xl shadow-xl py-1.5 w-52 animate-fade-in text-left">
-                                                                                {/* View Details */}
-                                                                                <button
-                                                                                    onClick={(e) => {
-                                                                                        e.stopPropagation();
-                                                                                        setActiveDropdownTestId(null);
-                                                                                        setInfoModalData(test);
-                                                                                    }}
-                                                                                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors text-left"
-                                                                                >
-                                                                                    <Eye size={13} className="text-slate-400" />
-                                                                                    View Details
-                                                                                </button>
-
-                                                                                {/* Student's Report */}
-                                                                                {sub && sub.status === 'reported' && (
-                                                                                    <button
-                                                                                        onClick={(e) => {
-                                                                                            e.stopPropagation();
-                                                                                            setActiveDropdownTestId(null);
-                                                                                            setActiveFeedbackChatSub(sub);
-                                                                                            loadFeedbackChatHistory(sub._id);
-                                                                                            setFeedbackChatModalOpen(true);
-                                                                                        }}
-                                                                                        className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors text-left border-b border-slate-100"
-                                                                                    >
-                                                                                        <MessageSquare size={13} className="text-slate-400" />
-                                                                                        Student's Report
-                                                                                    </button>
-                                                                                )}
-
-                                                                                {/* Edit Activity */}
-                                                                                {(viewMode === 'pending' || viewMode === 'assign') && (
-                                                                                    <button
-                                                                                        onClick={(e) => {
-                                                                                            e.stopPropagation();
-                                                                                            setActiveDropdownTestId(null);
-                                                                                            const isCreator = test.createdBy === user._id || test.createdBy?._id === user._id;
-                                                                                            if (isCreator || test.allowTeacherEdit) {
-                                                                                                navigate(`/teacher/activities-builder?id=${test._id}&studentId=${selectedStudent._id}&inboxId=${selectedInboxId}`);
-                                                                                            } else {
-                                                                                                toast.error("Permission Denied: Editor has not authorized editing for this activity.");
-                                                                                            }
-                                                                                        }}
-                                                                                        className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors text-left"
-                                                                                    >
-                                                                                        <Edit3 size={13} className="text-slate-400" />
-                                                                                        Edit Activity
-                                                                                    </button>
-                                                                                )}
-
-                                                                                {/* Edit Expiry */}
-                                                                                {(viewMode === 'pending' || viewMode === 'expired') && (
-                                                                                    <button
-                                                                                        onClick={(e) => {
-                                                                                            e.stopPropagation();
-                                                                                            setActiveDropdownTestId(null);
-                                                                                            openExpiryModal(test);
-                                                                                        }}
-                                                                                        className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors text-left"
-                                                                                    >
-                                                                                        <Clock size={13} className="text-slate-400" />
-                                                                                        Edit Expiry
-                                                                                    </button>
-                                                                                )}
-
-                                                                                {viewMode === 'pending' && (
-                                                                                    <>
-                                                                                        <div className="border-t border-slate-100 my-1" />
-
-                                                                                        {/* Visibility toggle */}
-                                                                                        <div
-                                                                                            className="w-full flex items-center justify-between px-3.5 py-2 hover:bg-slate-50 transition-colors cursor-pointer"
-                                                                                            onClick={(e) => {
-                                                                                                e.stopPropagation();
-                                                                                                openBulkConfigModal(test._id, !isActivityVisible, isActivityDisabled, 'hide');
-                                                                                            }}
-                                                                                        >
-                                                                                            <span className="text-xs font-bold text-slate-700">
-                                                                                                Visible to Student
-                                                                                            </span>
-                                                                                            <button
-                                                                                                className="w-8 h-4 rounded-full p-0.5 transition-colors duration-200 shrink-0 flex items-center"
-                                                                                                style={{ backgroundColor: isActivityVisible ? '#3E3ADD' : '#cbd5e1' }}
-                                                                                                onClick={(e) => {
-                                                                                                    e.stopPropagation();
-                                                                                                    openBulkConfigModal(test._id, !isActivityVisible, isActivityDisabled, 'hide');
-                                                                                                }}
-                                                                                            >
-                                                                                                <div className="w-3 h-3 bg-white rounded-full transition-transform duration-200" style={{ transform: isActivityVisible ? 'translateX(16px)' : 'translateX(0px)' }} />
-                                                                                            </button>
-                                                                                        </div>
-
-                                                                                        {/* Disable toggle */}
-                                                                                        <div
-                                                                                            className="w-full flex items-center justify-between px-3.5 py-2 hover:bg-slate-50 transition-colors cursor-pointer"
-                                                                                            onClick={(e) => {
-                                                                                                e.stopPropagation();
-                                                                                                openBulkConfigModal(test._id, isActivityVisible, !isActivityDisabled, 'disable');
-                                                                                            }}
-                                                                                        >
-                                                                                            <span className="text-xs font-bold text-slate-700">
-                                                                                                Enable Activity
-                                                                                            </span>
-                                                                                            <button
-                                                                                                className="w-8 h-4 rounded-full p-0.5 transition-colors duration-200 shrink-0 flex items-center"
-                                                                                                style={{ backgroundColor: !isActivityDisabled ? '#3E3ADD' : '#cbd5e1' }}
-                                                                                                onClick={(e) => {
-                                                                                                    e.stopPropagation();
-                                                                                                    openBulkConfigModal(test._id, isActivityVisible, !isActivityDisabled, 'disable');
-                                                                                                }}
-                                                                                            >
-                                                                                                <div className="w-3 h-3 bg-white rounded-full transition-transform duration-200" style={{ transform: !isActivityDisabled ? 'translateX(16px)' : 'translateX(0px)' }} />
-                                                                                            </button>
-                                                                                        </div>
-                                                                                    </>
-                                                                                )}
-                                                                            </div>
-                                                                        )}
-                                                                    </div>
-                                                                ) : (
-                                                                    <button
-                                                                        onClick={(e) => {
-                                                                            e.stopPropagation();
-                                                                            setInfoModalData(test);
-                                                                        }}
-                                                                        className="p-1 text-slate-450 hover:text-[#3E3ADD] hover:bg-slate-100 rounded-lg transition-all shrink-0"
-                                                                        title="View Details"
-                                                                    >
-                                                                        <Eye size={14} />
-                                                                    </button>
-                                                                )}
-                                                            </div>
-
-                                                            {/* Status badges */}
-                                                            {((!isActivityVisible) || isActivityDisabled) && (
-                                                                <div className="flex items-center gap-1 mt-1.5">
-                                                                    {!isActivityVisible && (
-                                                                        <span className="text-[8px] font-black uppercase text-red-500 bg-red-50 px-1.5 py-0.5 rounded-md border border-red-100">Hidden</span>
-                                                                    )}
-                                                                    {isActivityDisabled && (
-                                                                        <span className="text-[8px] font-black uppercase text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-md border border-amber-100">Disabled</span>
-                                                                    )}
-                                                                </div>
-                                                            )}
-
-                                                            <div className="flex flex-wrap items-center justify-between gap-2 mt-2 pt-2 border-t border-slate-100" onClick={e => e.stopPropagation()}>
-                                                                {/* Left Side: Expiry display */}
-                                                                {viewMode === 'pending' && (
-                                                                    <ActivityTimer endTime={getStudentSpecificEndTime(test, selectedStudent)} />
-                                                                )}
-
-                                                                {/* Right Side: Action Button */}
-                                                                <div className="flex-1 flex justify-end">
-                                                                    {viewMode === 'assign' ? (
-                                                                        <button
-                                                                            onClick={() => openExpiryModal(test)}
-                                                                            className="px-3.5 py-1.5 bg-[#3E3ADD] hover:bg-indigo-700 text-white rounded-lg text-[9px] font-black uppercase tracking-wider transition-all shadow-sm active:scale-95 shrink-0 border border-transparent"
-                                                                        >
-                                                                            Move to upcoming
-                                                                        </button>
-                                                                     ) : sub ? (
-                                                                        <button
-                                                                            onClick={(e) => {
-                                                                                e.stopPropagation();
-                                                                                navigate(`/teacher/evaluate/${sub._id}${viewMode === 'student-feedback' ? '?mode=feedback' : isEvaluated ? '?mode=reevaluate' : ''}`);
-                                                                            }}
-                                                                            className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all shadow-sm active:scale-95 shrink-0 border ${isEvaluated
-                                                                                ? 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'
-                                                                                : 'bg-[#3E3ADD] text-white hover:bg-indigo-700 border-transparent'
-                                                                                }`}
-                                                                        >
-                                                                            {viewMode === 'student-feedback' ? 'Feedback' : (isEvaluated ? 'Re-evaluate' : 'Evaluate Item')}
-                                                                        </button>
-                                                                    ) : null}
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    );
-                                                })}
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
-
-                                {/* Upcoming Materials Section (only on pending tab) */}
-                                {viewMode === 'pending' && (studyMaterials.length > 0 || loadingMaterials) && (
-                                    <div className="animate-fade-in mt-6 space-y-3">
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-6 h-6 rounded-lg bg-red-50 flex items-center justify-center">
-                                                <FileText size={12} className="text-red-500" />
-                                            </div>
-                                            <h3 className="font-extrabold text-slate-700 text-xs uppercase tracking-widest">Upcoming Materials</h3>
-                                            {studyMaterials.length > 0 && (
-                                                <span className="bg-red-50 text-red-500 border border-red-100 px-2 py-0.5 rounded-full text-[10px] font-black">{studyMaterials.length}</span>
-                                            )}
-                                        </div>
-                                        {loadingMaterials ? (
-                                            <div className="flex items-center gap-2 text-xs text-slate-400 font-semibold py-4">
-                                                <div className="animate-spin rounded-full h-4 w-4 border-2 border-slate-200 border-t-indigo-500"></div>
-                                                Loading materials...
-                                            </div>
-                                        ) : (
-                                            <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
-                                                {studyMaterials.map((mat) => (
-                                                    <div key={mat._id} className="bg-white p-4 rounded-2xl border border-slate-200 hover:shadow-md transition-all flex flex-col justify-between">
-                                                        <div className="space-y-1.5">
-                                                            <h4 className="font-extrabold text-slate-800 text-xs leading-snug line-clamp-1">{mat.title}</h4>
-                                                            <p className="text-[10px] text-slate-400 truncate">
-                                                                {mat.filename === 'Web Link' ? (
-                                                                    <span className="text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded text-[10px]">🔗 Web Link</span>
-                                                                ) : mat.filename}
-                                                            </p>
-                                                            <p className="text-[10px] text-slate-400">{new Date(mat.createdAt).toLocaleDateString()}</p>
-                                                        </div>
-                                                        <div className="mt-3 pt-2.5 border-t border-slate-100 flex justify-between items-center gap-1.5">
-                                                            <div className="flex items-center gap-2.5">
-=======
-                                                            <div className="mt-3 pt-2.5 border-t border-slate-100 flex justify-between items-center">
->>>>>>> testing
-                                                                <button
-                                                                    onClick={() => handleDeleteStudyMaterial(mat._id)}
-                                                                    className="text-red-400 hover:text-red-600 text-[10px] font-bold transition-colors"
+                                                            <div className="mt-3 pt-2.5 border-t border-slate-100 flex flex-col gap-1.5">
+                                                                <a
+                                                                    href={mat.fileUrl}
+                                                                    target="_blank"
+                                                                    rel="noreferrer"
+                                                                    className="w-full px-3 py-1.5 bg-[#EF4444] hover:bg-red-600 text-white rounded-xl text-[10px] font-black uppercase tracking-wider shadow-sm transition-all text-center"
                                                                 >
-                                                                    Delete
-                                                                </button>
-<<<<<<< HEAD
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => setSelectedMaterialForAnalytics(mat)}
-                                                                    className="text-indigo-500 hover:text-indigo-700 text-[10px] font-bold transition-colors flex items-center gap-1 cursor-pointer"
-                                                                >
-                                                                    Analytics
-                                                                </button>
-                                                            </div>
-                                                            <a
-                                                                href={mat.fileUrl}
-                                                                target="_blank"
-                                                                rel="noreferrer"
-                                                                className="px-3 py-1.5 bg-[#EF4444] hover:bg-red-600 text-white rounded-xl text-[10px] font-black uppercase tracking-wider shadow-sm transition-all whitespace-nowrap"
-                                                            >
-                                                                {mat.filename === 'Web Link' ? 'Open Link' : 'View File'}
-                                                            </a>
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
-
-                                {/* Assign Materials Section (only on assign tab) */}
-                                {viewMode === 'assign' && (studyMaterials.length > 0 || loadingMaterials) && (
-                                    <div className="animate-fade-in mt-6 space-y-3">
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-6 h-6 rounded-lg bg-indigo-50 flex items-center justify-center">
-                                                <FileText size={12} className="text-indigo-600" />
-                                            </div>
-                                            <h3 className="font-extrabold text-slate-700 text-xs uppercase tracking-widest">Assigned Materials</h3>
-                                            {studyMaterials.length > 0 && (
-                                                <span className="bg-indigo-50 text-indigo-600 border border-indigo-100 px-2 py-0.5 rounded-full text-[10px] font-black">{studyMaterials.length}</span>
-                                            )}
-                                        </div>
-                                        {loadingMaterials ? (
-                                            <div className="flex items-center gap-2 text-xs text-slate-400 font-semibold py-4">
-                                                <div className="animate-spin rounded-full h-4 w-4 border-2 border-slate-200 border-t-indigo-500"></div>
-                                                Loading materials...
-                                            </div>
-                                        ) : (
-                                            <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
-                                                {studyMaterials.map((mat) => (
-                                                    <div key={mat._id} className="bg-white p-4 rounded-2xl border border-slate-200 hover:shadow-md transition-all flex flex-col justify-between">
-                                                        <div className="space-y-1.5">
-                                                            <h4 className="font-extrabold text-slate-800 text-xs leading-snug line-clamp-1">{mat.title}</h4>
-                                                            <p className="text-[10px] text-slate-400 truncate">
-                                                                {mat.filename === 'Web Link' ? (
-                                                                    <span className="text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded text-[10px]">🔗 Web Link</span>
-                                                                ) : mat.filename}
-                                                            </p>
-                                                            <p className="text-[10px] text-slate-400">{new Date(mat.createdAt).toLocaleDateString()}</p>
-                                                        </div>
-                                                        <div className="mt-3 pt-2.5 border-t border-slate-100 flex flex-col gap-2">
-                                                            {/* Move to Upcoming */}
-                                                            <button
-                                                                onClick={async () => {
-                                                                    try {
-                                                                        await axios.patch(`/api/study-materials/${mat._id}`, { status: 'upcoming' });
-                                                                        setStudyMaterials(prev => prev.filter(m => m._id !== mat._id));
-                                                                        toast.success('Moved to Upcoming!');
-                                                                    } catch (err) {
-                                                                        toast.error('Failed to move material');
-                                                                    }
-                                                                }}
-                                                                className="w-full py-1.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-100 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5"
-                                                            >
-                                                                <Hourglass size={10} strokeWidth={3} />
-                                                                Move to Upcoming
-                                                            </button>
-                                                            <div className="flex justify-between items-center gap-1.5">
-                                                                <div className="flex items-center gap-2.5">
+                                                                    {mat.filename === 'Web Link' ? 'Open Link' : 'View File'}
+                                                                </a>
+                                                                <div className="flex justify-between items-center">
                                                                     <button
                                                                         onClick={() => handleDeleteStudyMaterial(mat._id)}
                                                                         className="text-red-400 hover:text-red-600 text-[10px] font-bold transition-colors"
@@ -3652,20 +3290,6 @@ const TeacherActivities = () => {
                                                                         Analytics
                                                                     </button>
                                                                 </div>
-=======
->>>>>>> testing
-                                                                <a
-                                                                    href={mat.fileUrl}
-                                                                    target="_blank"
-                                                                    rel="noreferrer"
-<<<<<<< HEAD
-                                                                    className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider shadow-sm transition-all whitespace-nowrap"
-=======
-                                                                    className="px-3 py-1.5 bg-[#EF4444] hover:bg-red-600 text-white rounded-xl text-[10px] font-black uppercase tracking-wider shadow-sm transition-all"
->>>>>>> testing
-                                                                >
-                                                                    {mat.filename === 'Web Link' ? 'Open Link' : 'View File'}
-                                                                </a>
                                                             </div>
                                                         </div>
                                                     ))}
@@ -3728,376 +3352,26 @@ const TeacherActivities = () => {
                                                                     >
                                                                         Delete
                                                                     </button>
-                                                                    <a
-                                                                        href={mat.fileUrl}
-                                                                        target="_blank"
-                                                                        rel="noreferrer"
-                                                                        className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider shadow-sm transition-all"
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => setSelectedMaterialForAnalytics(mat)}
+                                                                        className="text-indigo-500 hover:text-indigo-700 text-[10px] font-bold transition-colors flex items-center gap-1 cursor-pointer"
                                                                     >
-                                                                        {mat.filename === 'Web Link' ? 'Open Link' : 'View File'}
-                                                                    </a>
+                                                                        Analytics
+                                                                    </button>
                                                                 </div>
+                                                                <a
+                                                                    href={mat.fileUrl}
+                                                                    target="_blank"
+                                                                    rel="noreferrer"
+                                                                    className="w-full px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider shadow-sm transition-all text-center"
+                                                                >
+                                                                    {mat.filename === 'Web Link' ? 'Open Link' : 'View File'}
+                                                                </a>
                                                             </div>
                                                         </div>
                                                     ))}
                                                 </div>
-<<<<<<< HEAD
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
-                        ) : (
-                            /* --- STUDENT PERFORMANCE DASHBOARD --- */
-                            <div className="animate-fade-in space-y-8 text-left">
-                                {/* ── HEADER ROW ───────────────────────────────────── */}
-                                <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-white p-6 md:p-8 rounded-3xl border border-slate-200/80 shadow-sm gap-4">
-                                    <div>
-                                        <h1 className="text-2xl font-black text-slate-800 tracking-tight flex items-center gap-2.5 font-sans">
-                                            <Activity className="text-indigo-600 animate-pulse" size={26} />
-                                            Student Performance Dashboard
-                                        </h1>
-                                        <p className="text-slate-500 text-sm mt-1">
-                                            Track class attendance, academic progress, and official billing receipts for {selectedStudent.name}.
-                                        </p>
-                                    </div>
-                                    <div className="flex items-center gap-3">
-                                        <span className="px-4 py-2 bg-indigo-50 border border-indigo-150 text-indigo-700 rounded-2xl text-xs font-black shadow-sm">
-                                            Subject: {selectedStudent.studentProfile?.subject || 'N/A'}
-                                        </span>
-                                        <span className="px-4 py-2 bg-slate-50 border border-slate-200 text-slate-600 rounded-2xl text-xs font-bold shadow-sm">
-                                            Course: {selectedStudent.studentProfile?.course?.name || 'N/A'}
-                                        </span>
-                                    </div>
-                                </div>
-
-                                {/* ── METRICS GRID ─────────────────────────────────── */}
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-
-                                    {/* CARD 1: Attendance Rate */}
-                                    <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-sm flex flex-col justify-between relative overflow-hidden group">
-                                        <div className="absolute right-0 top-0 w-24 h-24 bg-indigo-500/5 rounded-bl-full pointer-events-none transition-all group-hover:scale-110" />
-
-                                        <div>
-                                            <div className="flex justify-between items-center mb-4">
-                                                <span className="text-slate-400 font-bold text-xs uppercase tracking-wider">LMS Attendance</span>
-                                                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black border uppercase tracking-wider ${performanceAttendanceStatus.color}`}>
-                                                    {performanceAttendanceStatus.label}
-                                                </span>
-                                            </div>
-
-                                            <div className="flex items-center gap-6 my-2">
-                                                {/* Circular SVG Indicator */}
-                                                <div className="relative w-20 h-20 shrink-0">
-                                                    <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
-                                                        <path
-                                                            className="text-slate-100"
-                                                            strokeWidth="3.5"
-                                                            stroke="currentColor"
-                                                            fill="transparent"
-                                                            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                                                        />
-                                                        <path
-                                                            className="text-indigo-600 transition-all duration-1000 ease-out"
-                                                            strokeWidth="3.5"
-                                                            strokeDasharray={`${performanceAttendancePercentage}, 100`}
-                                                            strokeLinecap="round"
-                                                            stroke="currentColor"
-                                                            fill="transparent"
-                                                            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                                                        />
-                                                    </svg>
-                                                    <div className="absolute inset-0 flex items-center justify-center">
-                                                        <span className="text-base font-black text-slate-800">{performanceAttendancePercentage}%</span>
-                                                    </div>
-                                                </div>
-                                                <div>
-                                                    <h4 className="text-2xl font-black text-slate-800">{activeDaysCount} Days</h4>
-                                                    <p className="text-slate-500 text-xs font-semibold uppercase mt-0.5">Active Workspace Logs</p>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div className="mt-4 pt-4 border-t border-slate-100 flex items-center gap-2">
-                                            <Info size={14} className="text-indigo-500 shrink-0" />
-                                            <p className="text-[11px] text-slate-500 font-medium">
-                                                Calculated from test submissions and workspace practice sessions.
-                                            </p>
-                                        </div>
-                                    </div>
-
-                                </div>
-
-                                {/* ── ERP FEE ACCOUNTING & LEDGER ────────────────── */}
-                                <div className="bg-white rounded-3xl border border-slate-200/80 shadow-sm overflow-hidden text-left animate-fade-in">
-                                    <div className="border-b border-slate-100 p-6 bg-slate-50/40 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center border border-purple-100 shadow-sm">
-                                                <CreditCard size={18} />
-                                            </div>
-                                            <div>
-                                                <h3 className="font-extrabold text-slate-800 text-sm tracking-tight">ERP Financial Ledger & Accounting</h3>
-                                                <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider mt-0.5">Semester fee transactions and official receipts</p>
-                                            </div>
-                                        </div>
-                                        <div className="flex items-center gap-3 bg-white px-3.5 py-1.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-655">
-                                            <span className="w-2 h-2 rounded-full bg-emerald-500" /> Account Status: <span className="text-emerald-700 font-black">CLEARED</span>
-                                        </div>
-                                    </div>
-
-                                    <div className="p-6 space-y-6">
-                                        {/* Summary Stats Row */}
-                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                                            <div className="p-4 bg-slate-50 border border-slate-100 rounded-2xl flex flex-col justify-between">
-                                                <span className="text-slate-450 text-[10px] font-bold uppercase tracking-wider">Total Semester Fee</span>
-                                                <h4 className="text-xl font-black text-slate-800 mt-2">₹48,500</h4>
-                                                <span className="text-[9px] text-slate-400 font-semibold mt-1">Course: {selectedStudent.studentProfile?.course?.name || 'N/A'}</span>
-                                            </div>
-                                            <div className="p-4 bg-emerald-50/40 border border-emerald-100 rounded-2xl flex flex-col justify-between">
-                                                <span className="text-emerald-600 text-[10px] font-bold uppercase tracking-wider">Total Amount Paid</span>
-                                                <h4 className="text-xl font-black text-emerald-800 mt-2">₹48,500</h4>
-                                                <span className="text-[9px] text-emerald-600/80 font-semibold mt-1">100% Cleared on 18 Jan 2026</span>
-                                            </div>
-                                            <div className="p-4 bg-slate-50 border border-slate-100 rounded-2xl flex flex-col justify-between">
-                                                <span className="text-slate-455 text-[10px] font-bold uppercase tracking-wider">Outstanding Dues</span>
-                                                <h4 className="text-xl font-black text-slate-800 mt-2">₹0</h4>
-                                                <span className="text-[9px] text-emerald-600 font-extrabold mt-1">No pending dues found</span>
-                                            </div>
-                                        </div>
-
-                                        {/* Fee Allocation Meter */}
-                                        <div className="space-y-2">
-                                            <div className="flex justify-between items-center text-[10px] font-bold text-slate-450 uppercase tracking-wider">
-                                                <span>Fee Structure breakdown</span>
-                                                <span>Total: ₹48,500</span>
-                                            </div>
-                                            <div className="h-3.5 bg-slate-100 rounded-full overflow-hidden flex">
-                                                <div className="h-full bg-indigo-500" style={{ width: '86.6%' }} title="Tuition Fee: ₹42,000 (86.6%)" />
-                                                <div className="h-full bg-teal-500" style={{ width: '7.2%' }} title="Lab & Internet Fee: ₹3,500 (7.2%)" />
-                                                <div className="h-full bg-purple-500" style={{ width: '6.2%' }} title="Exam & Library Fee: ₹3,000 (6.2%)" />
-                                            </div>
-                                            <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-[10px] font-bold text-slate-505 pt-1">
-                                                <div className="flex items-center gap-1.5">
-                                                    <span className="w-2.5 h-2.5 rounded-full bg-indigo-500" /> Tuition Fee (₹42,000)
-                                                </div>
-                                                <div className="flex items-center gap-1.5">
-                                                    <span className="w-2.5 h-2.5 rounded-full bg-teal-500" /> Lab & Internet Fee (₹3,500)
-                                                </div>
-                                                <div className="flex items-center gap-1.5">
-                                                    <span className="w-2.5 h-2.5 rounded-full bg-purple-500" /> Exam & Library Fee (₹3,000)
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {/* Transactions Ledger Table */}
-                                        <div className="space-y-3">
-                                            <h4 className="font-extrabold text-slate-800 text-xs uppercase tracking-wider border-b border-slate-100 pb-2">Official Receipts & Transactions</h4>
-                                            <div className="overflow-x-auto">
-                                                <table className="w-full min-w-[600px] border-collapse text-xs">
-                                                    <thead>
-                                                        <tr className="border-b border-slate-100 text-slate-400 font-bold uppercase text-[9px] tracking-wider text-left bg-slate-50/50">
-                                                            <th className="py-2.5 px-3">Receipt No</th>
-                                                            <th className="py-2.5 px-3">Date</th>
-                                                            <th className="py-2.5 px-3">Category</th>
-                                                            <th className="py-2.5 px-3 text-right">Amount</th>
-                                                            <th className="py-2.5 px-3">Payment Mode</th>
-                                                            <th className="py-2.5 px-3 text-center">Status</th>
-                                                            <th className="py-2.5 px-3 text-center">Receipt</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody className="divide-y divide-slate-100 font-semibold text-slate-700">
-                                                        {[
-                                                            { receipt: 'ERP/REC/2026/1024', date: '15 Jan 2026', category: 'Tuition Fee', amount: '₹42,000', mode: 'Net Banking', status: 'SUCCESS' },
-                                                            { receipt: 'ERP/REC/2026/1089', date: '16 Jan 2026', category: 'Lab & Internet Fee', amount: '₹3,500', mode: 'UPI / GPay', status: 'SUCCESS' },
-                                                            { receipt: 'ERP/REC/2026/1105', date: '18 Jan 2026', category: 'Exam & Library Fee', amount: '₹3,000', mode: 'Credit Card', status: 'SUCCESS' }
-                                                        ].map((tx, idx) => (
-                                                            <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
-                                                                <td className="py-3 px-3 font-mono text-[11px] text-slate-500">{tx.receipt}</td>
-                                                                <td className="py-3 px-3 text-slate-500">{tx.date}</td>
-                                                                <td className="py-3 px-3 text-slate-800">{tx.category}</td>
-                                                                <td className="py-3 px-3 text-right font-black text-slate-850">{tx.amount}</td>
-                                                                <td className="py-3 px-3 text-slate-500">{tx.mode}</td>
-                                                                <td className="py-3 px-3 text-center">
-                                                                    <span className="inline-block px-2 py-0.5 bg-emerald-50 border border-emerald-100 text-emerald-700 font-black rounded-lg text-[9px]">
-                                                                        {tx.status}
-                                                                    </span>
-                                                                </td>
-                                                                <td className="py-3 px-3 text-center">
-                                                                    <button
-                                                                        onClick={() => toast.success(`Downloading PDF Receipt ${tx.receipt}...`)}
-                                                                        className="text-[10px] font-black text-indigo-600 hover:text-indigo-850 underline uppercase tracking-wider"
-                                                                    >
-                                                                        Download
-                                                                    </button>
-                                                                </td>
-                                                            </tr>
-                                                        ))}
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Sticky bottom bar — Add More + Add Material (on pending and assign tabs) */}
-                    {selectedStudent && selectedInboxId && studentTab === 'tests' && (viewMode === 'pending' || viewMode === 'assign') && (
-                        <div className="shrink-0 border-t border-slate-200 bg-white px-6 py-3 flex justify-end gap-3 relative">
-                            <button
-                                type="button"
-                                onClick={() => setShowAddMenu(!showAddMenu)}
-                                className="inline-flex items-center gap-2 px-5 py-2.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-sm hover:shadow-md active:scale-95"
-                            >
-                                <Plus size={14} strokeWidth={3} />
-                                <span>Add Material</span>
-                            </button>
-                            <button
-                                onClick={() => {
-                                    const inst = selectedStudent?.institute?.name || selectedStudent?.institute || '';
-                                    const crs = selectedStudent?.studentProfile?.course?.name || '';
-                                    const subj = activeDayDetails?.subjectName || '';
-                                    const inbox = selectedInboxId || 'Inbox 1';
-                                    
-                                    navigate(`/teacher/activities-builder?studentId=${selectedStudent._id}&inboxId=${selectedInboxId}&institute=${encodeURIComponent(inst)}&course=${encodeURIComponent(crs)}&subject=${encodeURIComponent(subj)}&inbox=${encodeURIComponent(inbox)}&locked=true`);
-                                }}
-                                className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#3E3ADD] hover:bg-indigo-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md shadow-indigo-200 hover:shadow-indigo-300 active:scale-95"
-                            >
-                                <Plus size={14} strokeWidth={3} />
-                                <span>Add More</span>
-                            </button>
-
-                            {showAddMenu && (
-                                <>
-                                    <div className="fixed inset-0 z-40" onClick={() => setShowAddMenu(false)} />
-                                    <div className="absolute bottom-16 right-36 bg-white border border-slate-200/80 shadow-2xl rounded-2xl p-2.5 flex flex-col gap-1 min-w-[170px] z-50 animate-slide-up text-left">
-                                        <div className="px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-slate-400 border-b border-slate-100/70 mb-1">
-                                            Select Type
-                                        </div>
-                                        {[
-                                            { id: 'video', label: 'Video Material', icon: Video, color: 'text-blue-500 bg-blue-50' },
-                                            { id: 'audio', label: 'Audio Material', icon: Mic, color: 'text-purple-500 bg-purple-50' },
-                                            { id: 'pdf', label: 'PDF Document', icon: FileText, color: 'text-orange-500 bg-orange-50' },
-                                            { id: 'web', label: 'Web Page', icon: Link2, color: 'text-emerald-500 bg-emerald-50' }
-                                        ].map(item => {
-                                            const Icon = item.icon;
-                                            return (
-                                                <button
-                                                    key={item.id}
-                                                    type="button"
-                                                    onClick={() => {
-                                                        setSelectedUploadType(item.id);
-                                                        setShowAddMenu(false);
-                                                        setMatTitle('');
-                                                        setMatFile(null);
-                                                        setMatUrl('');
-                                                        setVideoAudioMode('upload');
-                                                        setWebMode('embedded');
-                                                        setPdfMode('upload');
-                                                        stopRecordingStream();
-                                                        setShowMatModal(true);
-                                                    }}
-                                                    className="flex items-center gap-3 w-full px-3 py-2.5 hover:bg-slate-50 text-slate-700 hover:text-slate-900 rounded-xl text-xs font-bold text-left transition-all"
-                                                >
-                                                    <div className={`w-6 h-6 rounded-lg flex items-center justify-center ${item.color}`}>
-                                                        <Icon size={12} />
-                                                    </div>
-                                                    <span>{item.label}</span>
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                </>
-                            )}
-                        </div>
-                    )}
-
-                    {/* Sticky bottom bar — Add Material (study-material tab) */}
-                    {selectedStudent && selectedInboxId && studentTab === 'tests' && viewMode === 'study-material' && (
-                        <div className="shrink-0 border-t border-slate-200 bg-white px-6 py-3 flex justify-end relative">
-                            <button
-                                type="button"
-                                onClick={() => setShowAddMenu(!showAddMenu)}
-                                className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#3E3ADD] hover:bg-indigo-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md shadow-indigo-200 hover:shadow-indigo-300 active:scale-95"
-                            >
-                                <Plus size={14} strokeWidth={3} />
-                                <span>Add Material</span>
-                            </button>
-
-                            {showAddMenu && (
-                                <>
-                                    <div className="fixed inset-0 z-40" onClick={() => setShowAddMenu(false)} />
-                                    <div className="absolute bottom-16 right-6 bg-white border border-slate-200/80 shadow-2xl rounded-2xl p-2.5 flex flex-col gap-1 min-w-[170px] z-50 animate-slide-up text-left">
-                                        <div className="px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-slate-400 border-b border-slate-100/70 mb-1">
-                                            Select Type
-                                        </div>
-                                        {[
-                                            { id: 'video', label: 'Video Material', icon: Video, color: 'text-blue-500 bg-blue-50' },
-                                            { id: 'audio', label: 'Audio Material', icon: Mic, color: 'text-purple-500 bg-purple-50' },
-                                            { id: 'pdf', label: 'PDF Document', icon: FileText, color: 'text-orange-500 bg-orange-50' },
-                                            { id: 'web', label: 'Web Page', icon: Link2, color: 'text-emerald-500 bg-emerald-50' }
-                                        ].map(item => {
-                                            const Icon = item.icon;
-                                            return (
-                                                <button
-                                                    key={item.id}
-                                                    type="button"
-                                                    onClick={() => {
-                                                        setSelectedUploadType(item.id);
-                                                        setShowAddMenu(false);
-                                                        setMatTitle('');
-                                                        setMatFile(null);
-                                                        setMatUrl('');
-                                                        setVideoAudioMode('upload');
-                                                        setWebMode('embedded');
-                                                        setPdfMode('upload');
-                                                        stopRecordingStream();
-                                                        setShowMatModal(true);
-                                                    }}
-                                                    className="flex items-center gap-3 w-full px-3 py-2.5 hover:bg-slate-50 text-slate-700 hover:text-slate-900 rounded-xl text-xs font-bold text-left transition-all"
-                                                >
-                                                    <div className={`w-6 h-6 rounded-lg flex items-center justify-center ${item.color}`}>
-                                                        <Icon size={12} />
-                                                    </div>
-                                                    <span>{item.label}</span>
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                </>
-                            )}
-                        </div>
-                    )}
-
-                    {/* Global Add Study Material Modal — renders on any tab */}
-                    {showMatModal && (
-                        <div
-                            className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
-                            style={{ backgroundColor: 'rgba(15,23,42,0.45)', backdropFilter: 'blur(4px)' }}
-                            onClick={() => {
-                                stopRecordingStream();
-                                setShowMatModal(false);
-                            }}
-                        >
-                            <div
-                                className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 animate-fade-in"
-                                onClick={(e) => e.stopPropagation()}
-                            >
-                                {/* Modal Header */}
-                                <div className="flex items-center justify-between mb-5">
-                                    <div className="flex items-center gap-2">
-                                        <div className="w-8 h-8 rounded-xl bg-indigo-100 flex items-center justify-center">
-                                            {selectedUploadType === 'video' ? (
-                                                <Video size={15} className="text-[#3E3ADD]" />
-                                            ) : selectedUploadType === 'audio' ? (
-                                                <Mic size={15} className="text-[#3E3ADD]" />
-                                            ) : selectedUploadType === 'web' ? (
-                                                <Link2 size={15} className="text-[#3E3ADD]" />
-                                            ) : (
-                                                <FileText size={15} className="text-[#3E3ADD]" />
-=======
->>>>>>> testing
                                             )}
                                         </div>
                                     )}
@@ -5984,77 +5258,72 @@ const TeacherActivities = () => {
                     </div>
                 </div>
             )}
-            {selectedMaterialForAnalytics && (
-                <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm animate-fade-in p-4">
-                    <div className="absolute inset-0" onClick={() => setSelectedMaterialForAnalytics(null)} />
-                    <div className="bg-white border border-slate-100 rounded-3xl shadow-2xl w-full max-w-lg max-h-[85vh] overflow-hidden flex flex-col relative z-50 animate-scale-up text-left">
-                        {/* Header */}
-                        <div className="flex justify-between items-center p-4 border-b border-slate-100 bg-slate-50/50 shrink-0">
-                            <div className="flex items-center gap-2">
-                                <BarChart3 size={18} className="text-indigo-650" />
-                                <h3 className="text-sm font-extrabold text-slate-800 tracking-tight">Material View Analytics</h3>
-                            </div>
-                            <button
-                                type="button"
-                                onClick={() => setSelectedMaterialForAnalytics(null)}
-                                className="w-8 h-8 flex items-center justify-center bg-slate-50 hover:bg-slate-100 text-slate-500 hover:text-slate-700 rounded-xl transition-all cursor-pointer font-bold text-lg"
-                            >
-                                ×
-                            </button>
+        {selectedMaterialForAnalytics && (
+            <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm animate-fade-in p-4">
+                <div className="absolute inset-0" onClick={() => setSelectedMaterialForAnalytics(null)} />
+                <div className="bg-white border border-slate-100 rounded-3xl shadow-2xl w-full max-w-lg max-h-[85vh] overflow-hidden flex flex-col relative z-50 animate-scale-up text-left">
+                    <div className="flex justify-between items-center p-4 border-b border-slate-100 bg-slate-50/50 shrink-0">
+                        <div className="flex items-center gap-2">
+                            <BarChart3 size={18} className="text-indigo-600" />
+                            <h3 className="text-sm font-extrabold text-slate-800 tracking-tight">Material View Analytics</h3>
                         </div>
-
-                        {/* Content */}
-                        <div className="p-5 flex-1 overflow-y-auto space-y-4">
-                            <div>
-                                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Material Title</h4>
-                                <p className="text-sm font-bold text-slate-800 mt-1">{selectedMaterialForAnalytics.title}</p>
-                                <p className="text-[10px] text-slate-500 font-mono mt-0.5">{selectedMaterialForAnalytics.filename}</p>
+                        <button
+                            type="button"
+                            onClick={() => setSelectedMaterialForAnalytics(null)}
+                            className="w-8 h-8 flex items-center justify-center bg-slate-50 hover:bg-slate-100 text-slate-500 hover:text-slate-700 rounded-xl transition-all cursor-pointer font-bold text-lg"
+                        >
+                            ×
+                        </button>
+                    </div>
+                    <div className="p-5 flex-1 overflow-y-auto space-y-4">
+                        <div>
+                            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Material Title</h4>
+                            <p className="text-sm font-bold text-slate-800 mt-1">{selectedMaterialForAnalytics.title}</p>
+                            <p className="text-[10px] text-slate-500 font-mono mt-0.5">{selectedMaterialForAnalytics.filename}</p>
+                        </div>
+                        <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-100 flex items-center justify-between">
+                            <div className="space-y-0.5">
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Views</span>
+                                <p className="text-2xl font-black text-indigo-600">
+                                    {selectedMaterialForAnalytics.views?.reduce((sum, v) => sum + (v.count || 0), 0) || 0}
+                                </p>
                             </div>
-
-                            <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-100 flex items-center justify-between">
-                                <div className="space-y-0.5">
-                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Views</span>
-                                    <p className="text-2xl font-black text-indigo-600">
-                                        {selectedMaterialForAnalytics.views?.reduce((sum, v) => sum + (v.count || 0), 0) || 0}
-                                    </p>
-                                </div>
-                                <div className="space-y-0.5 text-right">
-                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Unique Viewers</span>
-                                    <p className="text-2xl font-black text-slate-700">
-                                        {selectedMaterialForAnalytics.views?.length || 0}
-                                    </p>
-                                </div>
+                            <div className="space-y-0.5 text-right">
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Unique Viewers</span>
+                                <p className="text-2xl font-black text-slate-700">
+                                    {selectedMaterialForAnalytics.views?.length || 0}
+                                </p>
                             </div>
-
-                            <div className="space-y-2">
-                                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Viewer Details</h4>
-                                {!selectedMaterialForAnalytics.views || selectedMaterialForAnalytics.views.length === 0 ? (
-                                    <p className="text-xs text-slate-400 italic py-4 text-center">No views recorded yet.</p>
-                                ) : (
-                                    <div className="border border-slate-100 rounded-xl overflow-hidden divide-y divide-slate-100">
-                                        {selectedMaterialForAnalytics.views.map((v, index) => (
-                                            <div key={index} className="p-3 bg-white hover:bg-slate-50/50 flex items-center justify-between gap-3 text-xs">
-                                                <div className="min-w-0">
-                                                    <p className="font-bold text-slate-800 truncate">{v.student?.name || 'Unknown Student'}</p>
-                                                    <p className="text-[10px] text-slate-400 truncate">{v.student?.email || ''}</p>
-                                                </div>
-                                                <div className="text-right shrink-0">
-                                                    <span className="bg-indigo-50 border border-indigo-100 text-indigo-650 px-2 py-0.5 rounded-full text-[10px] font-black">
-                                                        {v.count} {v.count === 1 ? 'view' : 'views'}
-                                                    </span>
-                                                    <p className="text-[9px] text-slate-450 mt-1 font-semibold">
-                                                        {new Date(v.lastViewed).toLocaleDateString()} {new Date(v.lastViewed).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                                    </p>
-                                                </div>
+                        </div>
+                        <div className="space-y-2">
+                            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Viewer Details</h4>
+                            {!selectedMaterialForAnalytics.views || selectedMaterialForAnalytics.views.length === 0 ? (
+                                <p className="text-xs text-slate-400 italic py-4 text-center">No views recorded yet.</p>
+                            ) : (
+                                <div className="border border-slate-100 rounded-xl overflow-hidden divide-y divide-slate-100">
+                                    {selectedMaterialForAnalytics.views.map((v, index) => (
+                                        <div key={index} className="p-3 bg-white hover:bg-slate-50/50 flex items-center justify-between gap-3 text-xs">
+                                            <div className="min-w-0">
+                                                <p className="font-bold text-slate-800 truncate">{v.student?.name || 'Unknown Student'}</p>
+                                                <p className="text-[10px] text-slate-400 truncate">{v.student?.email || ''}</p>
                                             </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
+                                            <div className="text-right shrink-0">
+                                                <span className="bg-indigo-50 border border-indigo-100 text-indigo-600 px-2 py-0.5 rounded-full text-[10px] font-black">
+                                                    {v.count} {v.count === 1 ? 'view' : 'views'}
+                                                </span>
+                                                <p className="text-[9px] text-slate-400 mt-1 font-semibold">
+                                                    {new Date(v.lastViewed).toLocaleDateString()} {new Date(v.lastViewed).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
-            )}
+            </div>
+        )}
         </>
     );
 };

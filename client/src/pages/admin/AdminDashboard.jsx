@@ -673,8 +673,8 @@ const AdminDashboard = () => {
                                                 </td>
                                                 <td className="p-4 whitespace-nowrap">
                                                     <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${req.role === 'Teacher'
-                                                            ? 'bg-purple-50 text-purple-700 border border-purple-100'
-                                                            : 'bg-blue-50 text-blue-700 border border-blue-100'
+                                                        ? 'bg-purple-50 text-purple-700 border border-purple-100'
+                                                        : 'bg-blue-50 text-blue-700 border border-blue-100'
                                                         }`}>
                                                         {req.role}
                                                     </span>
@@ -837,9 +837,9 @@ const AdminDashboard = () => {
                                                 const courseName = (mat.course || '').trim().toLowerCase();
                                                 const subjectName = (mat.subject || '').trim().toLowerCase();
                                                 const inboxKey = mat.dayNum ? `day_${mat.dayNum}` : (mat.inboxId || '').trim().toLowerCase();
- 
+
                                                 const groupKey = `${studentId}_${courseName}_${subjectName}_${inboxKey}`;
- 
+
                                                 let group = groupedMaterialsMap.find(g => g.groupKey === groupKey);
                                                 if (!group) {
                                                     group = {
@@ -857,7 +857,7 @@ const AdminDashboard = () => {
                                                 }
                                                 group.items.push(mat);
                                             });
- 
+
                                             return groupedMaterialsMap.map((group) => {
                                                 const uploadDate = new Date(group.items[0].createdAt).toLocaleDateString(undefined, {
                                                     year: 'numeric',
@@ -870,9 +870,9 @@ const AdminDashboard = () => {
                                                     : group.status === 'assign'
                                                         ? 'bg-indigo-50 text-indigo-700 border border-indigo-100'
                                                         : 'bg-emerald-50 text-emerald-600 border border-emerald-100';
- 
+
                                                 const instructors = Array.from(new Set(group.items.map(i => i.uploadedBy?.name || 'Unknown')));
- 
+
                                                 return (
                                                     <tr key={group.groupKey} className="hover:bg-slate-50 transition-colors group">
                                                         <td className="p-4">
@@ -1362,7 +1362,7 @@ const AdminDashboard = () => {
                                 fd.append('dayNum', uploadDayNum ? parseInt(uploadDayNum, 10) : 1);
                                 fd.append('inboxId', uploadDayNum ? `Inbox ${uploadDayNum}` : 'Inbox 1');
                                 fd.append('materialType', selectedUploadType);
-                                
+
                                 if (uploadStudent && uploadStudent !== 'all') {
                                     fd.append('studentId', uploadStudent);
                                 }
@@ -1451,11 +1451,10 @@ const AdminDashboard = () => {
                             <div>
                                 <label className="block text-[11px] font-black text-slate-600 uppercase tracking-wider mb-1.5">Content Type</label>
                                 <div className="flex bg-slate-100 p-1 rounded-xl gap-1">
-                                    {[{id:'video',label:'Video',icon:Video},{id:'audio',label:'Audio',icon:Mic},{id:'pdf',label:'PDF/Doc',icon:FileText},{id:'web',label:'Web/HTML',icon:Link2}].map(t => (
+                                    {[{ id: 'video', label: 'Video', icon: Video }, { id: 'audio', label: 'Audio', icon: Mic }, { id: 'pdf', label: 'PDF/Doc', icon: FileText }, { id: 'web', label: 'Web/HTML', icon: Link2 }].map(t => (
                                         <button key={t.id} type="button" onClick={() => setSelectedUploadType(t.id)}
-                                            className={`flex-1 py-2 rounded-lg text-[10px] font-black flex items-center justify-center gap-1 transition-all cursor-pointer ${
-                                                selectedUploadType === t.id ? 'bg-[#0b1329] text-white shadow' : 'text-slate-600 hover:text-slate-900'
-                                            }`}>
+                                            className={`flex-1 py-2 rounded-lg text-[10px] font-black flex items-center justify-center gap-1 transition-all cursor-pointer ${selectedUploadType === t.id ? 'bg-[#0b1329] text-white shadow' : 'text-slate-600 hover:text-slate-900'
+                                                }`}>
                                             <t.icon size={11} /> {t.label}
                                         </button>
                                     ))}
@@ -1466,11 +1465,10 @@ const AdminDashboard = () => {
                             {(selectedUploadType === 'video' || selectedUploadType === 'audio') && (
                                 <div className="space-y-3">
                                     <div className="flex bg-slate-100 p-1 rounded-xl gap-1">
-                                        {['upload','embedded'].map(m => (
+                                        {['upload', 'embedded'].map(m => (
                                             <button key={m} type="button" onClick={() => setVideoAudioMode(m)}
-                                                className={`flex-1 py-1.5 rounded-lg text-[10px] font-black capitalize transition-all cursor-pointer ${
-                                                    videoAudioMode === m ? 'bg-white text-[#0b1329] shadow' : 'text-slate-500'
-                                                }`}>{m === 'upload' ? 'Upload File' : 'Embed URL'}
+                                                className={`flex-1 py-1.5 rounded-lg text-[10px] font-black capitalize transition-all cursor-pointer ${videoAudioMode === m ? 'bg-white text-[#0b1329] shadow' : 'text-slate-500'
+                                                    }`}>{m === 'upload' ? 'Upload File' : 'Embed URL'}
                                             </button>
                                         ))}
                                     </div>
@@ -1492,11 +1490,10 @@ const AdminDashboard = () => {
                             {selectedUploadType === 'pdf' && (
                                 <div className="space-y-3">
                                     <div className="flex bg-slate-100 p-1 rounded-xl gap-1">
-                                        {['upload','embedded'].map(m => (
+                                        {['upload', 'embedded'].map(m => (
                                             <button key={m} type="button" onClick={() => setPdfMode(m)}
-                                                className={`flex-1 py-1.5 rounded-lg text-[10px] font-black capitalize transition-all cursor-pointer ${
-                                                    pdfMode === m ? 'bg-white text-[#0b1329] shadow' : 'text-slate-500'
-                                                }`}>{m === 'upload' ? 'Upload File' : 'Embed URL'}
+                                                className={`flex-1 py-1.5 rounded-lg text-[10px] font-black capitalize transition-all cursor-pointer ${pdfMode === m ? 'bg-white text-[#0b1329] shadow' : 'text-slate-500'
+                                                    }`}>{m === 'upload' ? 'Upload File' : 'Embed URL'}
                                             </button>
                                         ))}
                                     </div>
@@ -1518,11 +1515,10 @@ const AdminDashboard = () => {
                             {selectedUploadType === 'web' && (
                                 <div className="space-y-3">
                                     <div className="flex bg-slate-100 p-1 rounded-xl gap-1">
-                                        {['embedded','code'].map(m => (
+                                        {['embedded', 'code'].map(m => (
                                             <button key={m} type="button" onClick={() => setWebMode(m)}
-                                                className={`flex-1 py-1.5 rounded-lg text-[10px] font-black capitalize transition-all cursor-pointer ${
-                                                    webMode === m ? 'bg-white text-[#0b1329] shadow' : 'text-slate-500'
-                                                }`}>{m === 'embedded' ? 'Embed URL' : 'HTML Code'}
+                                                className={`flex-1 py-1.5 rounded-lg text-[10px] font-black capitalize transition-all cursor-pointer ${webMode === m ? 'bg-white text-[#0b1329] shadow' : 'text-slate-500'
+                                                    }`}>{m === 'embedded' ? 'Embed URL' : 'HTML Code'}
                                             </button>
                                         ))}
                                     </div>
@@ -1545,7 +1541,6 @@ const AdminDashboard = () => {
                     </form>
                 </div>,
                 document.body
->>>>>>> testing
             )}
         </DashboardLayout>
     );

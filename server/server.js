@@ -45,6 +45,49 @@ app.use(cors({
     credentials: true
 }));
 
+// URL rewriting middleware to dynamically prepend /api to /uploads paths in JSON responses for DigitalOcean routing compatibility
+app.use((req, res, next) => {
+    const originalJson = res.json;
+    res.json = function (body) {
+        const rewriteUrl = (obj) => {
+            if (typeof obj === 'string') {
+                if (obj.startsWith('/uploads/')) {
+                    return '/api' + obj;
+                }
+                return obj;
+            }
+            if (Array.isArray(obj)) {
+                return obj.map(rewriteUrl);
+            }
+            if (obj !== null && typeof obj === 'object') {
+                let plainObj = obj;
+                if (typeof obj.toJSON === 'function') {
+                    plainObj = obj.toJSON();
+                }
+                if (Array.isArray(plainObj)) {
+                    return plainObj.map(rewriteUrl);
+                }
+                if (plainObj !== null && typeof plainObj === 'object') {
+                    const newObj = {};
+                    for (const key in plainObj) {
+                        if (Object.prototype.hasOwnProperty.call(plainObj, key)) {
+                            newObj[key] = rewriteUrl(plainObj[key]);
+                        }
+                    }
+                    return newObj;
+                }
+            }
+            return obj;
+        };
+
+        if (body) {
+            body = rewriteUrl(body);
+        }
+        return originalJson.call(this, body);
+    };
+    next();
+});
+
 // Prevent Cloudflare/CDN from caching API responses
 app.use('/api', (req, res, next) => {
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
@@ -64,6 +107,7 @@ app.get('/api/health', async (req, res) => {
 
 
 
+app.use('/api/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Routes

@@ -509,6 +509,7 @@ const TeacherActivities = () => {
     const [uploadType, setUploadType] = useState('url'); // 'file' or 'url'
     const [uploadingMaterial, setUploadingMaterial] = useState(false);
     const [showMatModal, setShowMatModal] = useState(false);
+    const [uploadTarget, setUploadTarget] = useState('student'); // 'student' or 'all'
 
     // Categorized study materials states
     const [selectedCategoryTab, setSelectedCategoryTab] = useState('all');
@@ -610,7 +611,11 @@ const TeacherActivities = () => {
                 try {
                     setLoadingMaterials(true);
                     const statusParam = viewMode === 'pending' ? 'upcoming' : viewMode === 'assign' ? 'assign' : 'study-material';
-                    const { data } = await axios.get(`/api/study-materials?inboxId=${selectedInboxId}&status=${statusParam}`);
+                    let url = `/api/study-materials?inboxId=${selectedInboxId}&status=${statusParam}`;
+                    if (selectedStudent) {
+                        url += `&studentId=${selectedStudent._id}`;
+                    }
+                    const { data } = await axios.get(url);
                     setStudyMaterials(data);
                 } catch (err) {
                     console.error("Error fetching study materials:", err);
@@ -621,7 +626,7 @@ const TeacherActivities = () => {
             };
             fetchMaterials();
         }
-    }, [viewMode, selectedInboxId]);
+    }, [viewMode, selectedInboxId, selectedStudent]);
 
     // ERP Fee Accounting & Ledger Mock States
     const [erpPresent, setErpPresent] = useState(42);
@@ -922,7 +927,7 @@ const TeacherActivities = () => {
             const matStatus = viewMode === 'pending' ? 'upcoming' : (viewMode === 'assign' ? 'assign' : 'study-material');
             formData.append('status', matStatus);
 
-            if (selectedStudent) {
+            if (selectedStudent && uploadTarget === 'student') {
                 formData.append('studentId', selectedStudent._id);
             }
             if (activeDayDetails) {
@@ -957,6 +962,7 @@ const TeacherActivities = () => {
             setMatFile(null);
             setMatUrl('');
             setHtmlCode('');
+            setUploadTarget('student');
             stopRecordingStream();
             setShowMatModal(false);
 
@@ -3956,6 +3962,29 @@ const TeacherActivities = () => {
                                                 autoFocus
                                             />
                                         </div>
+
+                                        {/* Visible To (Upload Target Selection) */}
+                                        {selectedStudent && (
+                                            <div className="space-y-1.5">
+                                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Visible To</label>
+                                                <div className="grid grid-cols-2 bg-slate-50 border border-slate-200/60 p-1 rounded-xl">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setUploadTarget('student')}
+                                                        className={`py-1.5 rounded-lg text-[10px] font-extrabold uppercase tracking-wider transition-all cursor-pointer ${uploadTarget === 'student' ? 'bg-white text-indigo-600 shadow-sm border border-slate-100' : 'text-slate-500 hover:text-slate-700'}`}
+                                                    >
+                                                        {selectedStudent.name} Only
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setUploadTarget('all')}
+                                                        className={`py-1.5 rounded-lg text-[10px] font-extrabold uppercase tracking-wider transition-all cursor-pointer ${uploadTarget === 'all' ? 'bg-white text-indigo-600 shadow-sm border border-slate-100' : 'text-slate-500 hover:text-slate-700'}`}
+                                                    >
+                                                        All Students (Subject)
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
 
                                         {/* Modal fields based on Type & Submode */}
                                         {/* 1. PDF Upload or Embedded Link */}

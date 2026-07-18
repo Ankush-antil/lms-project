@@ -102,7 +102,7 @@ const uploadStudyMaterial = asyncHandler(async (req, res) => {
 // @route   GET /api/study-materials
 // @access  Private
 const getStudyMaterials = asyncHandler(async (req, res) => {
-    const { inboxId, isPrivate, status } = req.query;
+    const { inboxId, isPrivate, status, studentId } = req.query;
 
     const user = await User.findById(req.user._id).populate('institute');
     const instituteName = user.institute?.name || '';
@@ -121,6 +121,21 @@ const getStudyMaterials = asyncHandler(async (req, res) => {
 
     if (status) {
         query.status = status;
+    }
+
+    // Filter by student if studentId is provided, or if the requester is a student
+    if (studentId) {
+        query.$or = [
+            { student: studentId },
+            { student: { $exists: false } },
+            { student: null }
+        ];
+    } else if (req.user.role === 'Student') {
+        query.$or = [
+            { student: req.user._id },
+            { student: { $exists: false } },
+            { student: null }
+        ];
     }
 
     // Role-based privacy filtering

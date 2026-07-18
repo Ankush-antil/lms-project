@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import toast from 'react-hot-toast';
 import axios from 'axios';
 import DashboardLayout from '../../components/layout/DashboardLayout';
-import { Users, BookOpen, FileText, CheckCircle, Plus, Building2, RefreshCw, UserCheck, UserMinus, UserX, GraduationCap, Edit, Briefcase, Calculator, Megaphone, Heart, FolderOpen, Settings, Check, Clock, X, Trash2, Search, Printer, Video, Mic, Link2, Loader2, Upload, Info, Eye } from 'lucide-react';
+import { Users, BookOpen, FileText, CheckCircle, Plus, Building2, RefreshCw, UserCheck, UserMinus, UserX, GraduationCap, Edit, Briefcase, Calculator, Megaphone, Heart, FolderOpen, Settings, Check, Clock, X, Trash2, Search, Printer, Video, Mic, Link2, Loader2, Upload, Info, Eye, ArrowLeft } from 'lucide-react';
 import AddUserModal from '../../components/AddUserModal';
 import EditUserModal from '../../components/EditUserModal';
 import { useUserProfile } from '../../components/common/UserProfileContext';
@@ -379,63 +379,65 @@ const AdminDashboard = () => {
     }; return (
         <DashboardLayout role="Admin">
             {/* Header section with actions */}
-            <div className="flex flex-col gap-4 mb-6">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div>
-                        <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">Analytics Dashboard</h1>
-                        <p className="text-slate-500 mt-1 text-sm">Real-time overview of your educational ecosystem.</p>
+            {activeTab !== 'study-material' && (
+                <div className="flex flex-col gap-4 mb-6">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div>
+                            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">Analytics Dashboard</h1>
+                            <p className="text-slate-500 mt-1 text-sm">Real-time overview of your educational ecosystem.</p>
+                        </div>
+                        <div className="relative w-full sm:w-auto flex justify-end" ref={dropdownRef}>
+                            <button
+                                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                                className="px-5 py-2.5 bg-[#0b1329] text-white rounded-2xl hover:bg-[#152244] hover:shadow-lg transition-all font-bold text-sm flex items-center justify-center gap-2 shadow-xl shadow-[#0b1329]/15 active:scale-95 w-full sm:w-auto z-25 cursor-pointer"
+                            >
+                                <Plus size={16} /> Add User
+                            </button>
+                            {isDropdownOpen && (
+                                <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-slate-100 rounded-2xl shadow-xl z-50 overflow-hidden py-1.5 transition-all duration-300">
+                                    {rolesList.map((item) => {
+                                        const Icon = item.icon;
+                                        return (
+                                            <button
+                                                key={item.label}
+                                                onClick={() => handleRoleClick(item)}
+                                                className="w-full text-left px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 transition-colors flex items-center gap-2.5 cursor-pointer"
+                                            >
+                                                <Icon size={15} className="text-slate-400 group-hover:text-indigo-600 transition-colors" />
+                                                {item.label}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
                     </div>
-                    <div className="relative w-full sm:w-auto flex justify-end" ref={dropdownRef}>
-                        <button
-                            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                            className="px-5 py-2.5 bg-[#0b1329] text-white rounded-2xl hover:bg-[#152244] hover:shadow-lg transition-all font-bold text-sm flex items-center justify-center gap-2 shadow-xl shadow-[#0b1329]/15 active:scale-95 w-full sm:w-auto z-25 cursor-pointer"
-                        >
-                            <Plus size={16} /> Add User
-                        </button>
-                        {isDropdownOpen && (
-                            <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-slate-100 rounded-2xl shadow-xl z-50 overflow-hidden py-1.5 transition-all duration-300">
-                                {rolesList.map((item) => {
-                                    const Icon = item.icon;
-                                    return (
-                                        <button
-                                            key={item.label}
-                                            onClick={() => handleRoleClick(item)}
-                                            className="w-full text-left px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 transition-colors flex items-center gap-2.5 cursor-pointer"
-                                        >
-                                            <Icon size={15} className="text-slate-400 group-hover:text-indigo-600 transition-colors" />
-                                            {item.label}
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        )}
-                    </div>
-                </div>
 
-                {/* Tab Switcher — scrollable on mobile */}
-                <div className="overflow-x-auto -mx-1 px-1">
-                    <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200 w-full sm:w-auto sm:inline-flex min-w-max">
-                        <button
-                            onClick={() => handleTabChange('overview')}
-                            className={`flex-1 sm:flex-none px-4 sm:px-5 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap ${activeTab === 'overview' ? 'bg-[#0b1329] text-white shadow-md' : 'text-slate-600 hover:text-slate-900'}`}
-                        >
-                            Overview
-                        </button>
-                        <button
-                            onClick={() => handleTabChange('applications')}
-                            className={`flex-1 sm:flex-none px-4 sm:px-5 py-2.5 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap ${activeTab === 'applications' ? 'bg-[#0b1329] text-white shadow-md' : 'text-slate-600 hover:text-slate-900'}`}
-                        >
-                            Applications
-                        </button>
-                        <button
-                            onClick={() => handleTabChange('role-requests')}
-                            className={`flex-1 sm:flex-none px-4 sm:px-5 py-2.5 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap ${activeTab === 'role-requests' ? 'bg-[#0b1329] text-white shadow-md' : 'text-slate-600 hover:text-slate-900'}`}
-                        >
-                            Staff Requests
-                        </button>
+                    {/* Tab Switcher — scrollable on mobile */}
+                    <div className="overflow-x-auto -mx-1 px-1">
+                        <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200 w-full sm:w-auto sm:inline-flex min-w-max">
+                            <button
+                                onClick={() => handleTabChange('overview')}
+                                className={`flex-1 sm:flex-none px-4 sm:px-5 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap ${activeTab === 'overview' ? 'bg-[#0b1329] text-white shadow-md' : 'text-slate-600 hover:text-slate-900'}`}
+                            >
+                                Overview
+                            </button>
+                            <button
+                                onClick={() => handleTabChange('applications')}
+                                className={`flex-1 sm:flex-none px-4 sm:px-5 py-2.5 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap ${activeTab === 'applications' ? 'bg-[#0b1329] text-white shadow-md' : 'text-slate-600 hover:text-slate-900'}`}
+                            >
+                                Applications
+                            </button>
+                            <button
+                                onClick={() => handleTabChange('role-requests')}
+                                className={`flex-1 sm:flex-none px-4 sm:px-5 py-2.5 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap ${activeTab === 'role-requests' ? 'bg-[#0b1329] text-white shadow-md' : 'text-slate-600 hover:text-slate-900'}`}
+                            >
+                                Staff Requests
+                            </button>
+                        </div>
                     </div>
                 </div>
-            </div>
+            )}
 
             {/* Conditional Views */}
             {activeTab === 'overview' && (
@@ -742,7 +744,16 @@ const AdminDashboard = () => {
                     <div className="bg-white rounded-[2rem] p-6 border border-slate-100 shadow-sm animate-fade-in text-left">
                         <div className="border-b border-slate-100 pb-4 mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                             <div>
-                                <h2 className="text-xl font-extrabold text-slate-900">Study Materials Repository</h2>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={() => setActiveTab('overview')}
+                                        className="p-1 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-slate-800 transition-all cursor-pointer mr-1 flex items-center justify-center border border-slate-150 shadow-sm bg-slate-50/50"
+                                        title="Back to Dashboard"
+                                    >
+                                        <ArrowLeft size={14} />
+                                    </button>
+                                    <h2 className="text-xl font-extrabold text-slate-900">Study Materials Repository</h2>
+                                </div>
                                 <p className="text-slate-500 text-xs mt-1">Monitor all PDF/Docs and Web Links uploaded by teachers for students</p>
                             </div>
                             <div className="flex flex-wrap sm:flex-nowrap items-center gap-2.5 w-full sm:w-auto">

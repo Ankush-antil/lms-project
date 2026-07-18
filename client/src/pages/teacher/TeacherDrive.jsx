@@ -512,25 +512,27 @@ const TeacherDrive = () => {
                                                     </p>
                                                     <p className="text-[10px] text-slate-400 font-semibold">Uploaded on {new Date(mat.createdAt).toLocaleDateString()}</p>
                                                 </div>
-                                                <div className="mt-4 pt-3 border-t border-slate-100 flex justify-between items-center">
-                                                    <button
-                                                        onClick={() => handleDelete(mat._id)}
-                                                        className="text-red-500 hover:text-red-700 text-[10px] font-bold"
-                                                    >
-                                                        Delete
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setSelectedMaterialForAnalytics(mat)}
-                                                        className="text-indigo-500 hover:text-indigo-750 text-[10px] font-bold transition-all cursor-pointer"
-                                                    >
-                                                        Analytics
-                                                    </button>
+                                                <div className="mt-4 pt-3 border-t border-slate-100 flex justify-between items-center gap-1.5">
+                                                    <div className="flex items-center gap-2.5">
+                                                        <button
+                                                            onClick={() => handleDelete(mat._id)}
+                                                            className="text-red-500 hover:text-red-750 text-[10px] font-bold transition-colors"
+                                                        >
+                                                            Delete
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setSelectedMaterialForAnalytics(mat)}
+                                                            className="text-indigo-655 hover:text-indigo-850 text-[10px] font-bold transition-colors cursor-pointer"
+                                                        >
+                                                            Analytics
+                                                        </button>
+                                                    </div>
                                                     <a
                                                         href={mat.fileUrl}
                                                         target="_blank"
                                                         rel="noreferrer"
-                                                        className="px-3.5 py-1.5 bg-[#3E3ADD] hover:bg-indigo-750 text-white rounded-xl text-[10px] font-black uppercase tracking-wider shadow-sm transition-all"
+                                                        className="px-3 py-1.5 bg-[#3E3ADD] hover:bg-indigo-750 text-white rounded-xl text-[10px] font-black uppercase tracking-wider shadow-sm transition-all whitespace-nowrap"
                                                     >
                                                         {mat.filename === 'Web Link' ? 'Open Link' : 'Open File'}
                                                     </a>

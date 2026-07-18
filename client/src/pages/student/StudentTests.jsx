@@ -2802,28 +2802,11 @@ const StudentTests = () => {
                     >
                         ×
                     </button>
-                    {(() => {
-                        const embedUrl = getEmbedVideoUrl(activeVideoModalUrl);
-                        const isIframe = embedUrl.includes('youtube.com/embed/') || embedUrl.includes('player.vimeo.com/video/');
-                        if (isIframe) {
-                            return (
-                                <iframe
-                                    src={`${embedUrl}?autoplay=1`}
-                                    frameBorder="0"
-                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                    allowFullScreen
-                                    className="w-full h-full"
-                                />
-                            );
-                        }
-                        return (
-                            <VideoTracker
-                                src={activeVideoModalUrl}
-                                material={activeVideoMaterial}
-                                className="w-full h-full object-contain"
-                            />
-                        );
-                    })()}
+                    <VideoTracker
+                        src={activeVideoModalUrl}
+                        material={activeVideoMaterial}
+                        className="w-full h-full object-contain"
+                    />
                 </div>
             </div>
         )}

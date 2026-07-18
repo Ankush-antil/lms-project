@@ -2,9 +2,20 @@ import React, { useRef, useEffect, useState } from 'react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 
+const getYoutubeId = (url) => {
+    if (!url) return null;
+    const reg = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
+    const match = url.match(reg);
+    return match ? match[1] : null;
+};
+
 const VideoTracker = ({ src, material, className }) => {
     const videoRef = useRef(null);
+    const iframeRef = useRef(null);
+    const playerRef = useRef(null);
     
+    const isYoutube = !!getYoutubeId(src);
+
     // Tracking references
     const prevTimeRef = useRef(0);
     const sessionIdRef = useRef(Math.random().toString(36).substring(2, 11));
@@ -26,9 +37,25 @@ const VideoTracker = ({ src, material, className }) => {
                 const { data } = await axios.get(`/api/video-analytics/details/${material._id}`);
                 if (data?.records && data.records.length > 0) {
                     const progress = data.records[0].progress;
-                    if (progress?.lastWatchedPosition > 2 && videoRef.current) {
-                        videoRef.current.currentTime = progress.lastWatchedPosition;
-                        toast.success(`Resumed playback from ${Math.floor(progress.lastWatchedPosition / 60)}m ${Math.floor(progress.lastWatchedPosition % 60)}s`);
+                    if (progress?.lastWatchedPosition > 2) {
+                        if (isYoutube) {
+                            // Resume for YouTube
+                            let tries = 0;
+                            const seekYT = () => {
+                                if (playerRef.current && typeof playerRef.current.seekTo === 'function') {
+                                    playerRef.current.seekTo(progress.lastWatchedPosition, true);
+                                    toast.success(`Resumed playback from ${Math.floor(progress.lastWatchedPosition / 60)}m ${Math.floor(progress.lastWatchedPosition % 60)}s`);
+                                } else if (tries < 10) {
+                                    tries++;
+                                    setTimeout(seekYT, 500);
+                                }
+                            };
+                            seekYT();
+                        } else if (videoRef.current) {
+                            // Resume for HTML5 video
+                            videoRef.current.currentTime = progress.lastWatchedPosition;
+                            toast.success(`Resumed playback from ${Math.floor(progress.lastWatchedPosition / 60)}m ${Math.floor(progress.lastWatchedPosition % 60)}s`);
+                        }
                     }
                 }
             } catch (err) {
@@ -39,7 +66,7 @@ const VideoTracker = ({ src, material, className }) => {
         if (material?._id) {
             fetchResumePosition();
         }
-    }, [material]);
+    }, [material, isYoutube]);
 
     // Handle tab focus / browser focus changes
     useEffect(() => {
@@ -75,20 +102,132 @@ const VideoTracker = ({ src, material, className }) => {
         };
     }, [isPlaying, isFocused]);
 
+    // Dynamic player script loader for YouTube
+    useEffect(() => {
+        if (!isYoutube) return;
+        if (!document.getElementById('youtube-iframe-api')) {
+            const tag = document.createElement('script');
+            tag.id = 'youtube-iframe-api';
+            tag.src = 'https://www.youtube.com/iframe_api';
+            const firstScriptTag = document.getElementsByTagName('script')[0];
+            firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+        }
+    }, [isYoutube]);
+
+    // Initialize YouTube Player API tracking
+    useEffect(() => {
+        if (!isYoutube) return;
+
+        let player = null;
+        let checkInterval = null;
+
+        const initPlayer = () => {
+            if (window.YT && window.YT.Player && iframeRef.current) {
+                player = new window.YT.Player(iframeRef.current, {
+                    events: {
+                        onStateChange: (event) => {
+                            if (event.data === window.YT.PlayerState.PLAYING) {
+                                setIsPlaying(true);
+                                prevTimeRef.current = player.getCurrentTime() || 0;
+                            } else {
+                                setIsPlaying(false);
+                            }
+                        },
+                        onPlaybackRateChange: (event) => {
+                            setPlaybackSpeed(String(event.data));
+                        }
+                    }
+                });
+                playerRef.current = player;
+            }
+        };
+
+        if (window.YT && window.YT.Player) {
+            initPlayer();
+        } else {
+            checkInterval = setInterval(() => {
+                if (window.YT && window.YT.Player) {
+                    initPlayer();
+                    clearInterval(checkInterval);
+                }
+            }, 500);
+        }
+
+        return () => {
+            if (checkInterval) clearInterval(checkInterval);
+        };
+    }, [isYoutube]);
+
+    const getPlaybackDetails = () => {
+        if (isYoutube && playerRef.current && typeof playerRef.current.getCurrentTime === 'function') {
+            return {
+                currentTime: playerRef.current.getCurrentTime() || 0,
+                duration: playerRef.current.getDuration() || 0,
+                paused: playerRef.current.getPlayerState ? playerRef.current.getPlayerState() !== window.YT.PlayerState.PLAYING : true
+            };
+        } else if (videoRef.current) {
+            return {
+                currentTime: videoRef.current.currentTime || 0,
+                duration: videoRef.current.duration || 0,
+                paused: videoRef.current.paused
+            };
+        }
+        return null;
+    };
+
+    // Playback state observer loop (500ms interval) to track seeks/rewinds and segments
+    useEffect(() => {
+        let interval = null;
+        if (isPlaying) {
+            interval = setInterval(() => {
+                const details = getPlaybackDetails();
+                if (!details) return;
+
+                const currentTime = details.currentTime;
+                const timeDiff = currentTime - prevTimeRef.current;
+
+                if (Math.abs(timeDiff) > 1.5) {
+                    if (timeDiff > 0) {
+                        skipsRef.current.push({
+                            skipStart: prevTimeRef.current,
+                            skipEnd: currentTime,
+                            skippedDuration: timeDiff
+                        });
+                    } else {
+                        replaysRef.current.push({
+                            replayStart: currentTime,
+                            replayEnd: prevTimeRef.current
+                        });
+                    }
+                } else {
+                    if (!details.paused) {
+                        const currentSegment = Math.floor(currentTime / 5);
+                        watchedSegmentsRef.current.add(currentSegment);
+                        sessionDurationRef.current += Math.max(0, timeDiff);
+                    }
+                }
+                prevTimeRef.current = currentTime;
+            }, 500);
+        }
+        return () => {
+            if (interval) clearInterval(interval);
+        };
+    }, [isPlaying, isYoutube]);
+
     // Batch analytics submission loop (5-second tick)
     useEffect(() => {
         let batchInterval = null;
         
         const sendBatchUpdate = async () => {
-            const video = videoRef.current;
-            if (!video) return;
+            const details = getPlaybackDetails();
+            if (!details) return;
 
             const payload = {
                 course: material.course || 'General',
                 lesson: material.inboxId || 'Inbox 1',
                 video: material._id,
-                totalDuration: video.duration || 0,
-                currentPosition: video.currentTime || 0,
+                totalDuration: details.duration || 0,
+                currentPosition: details.currentTime || 0,
                 sessionId: sessionIdRef.current,
                 sessionDurationIncrement: sessionDurationRef.current,
                 focusTimeIncrement: focusedTimeRef.current,
@@ -99,7 +238,6 @@ const VideoTracker = ({ src, material, className }) => {
                 replays: replaysRef.current
             };
 
-            // Only send update if student actually watched video or had events in this interval
             if (sessionDurationRef.current > 0 || watchedSegmentsRef.current.size > 0 || skipsRef.current.length > 0 || replaysRef.current.length > 0) {
                 try {
                     await axios.post('/api/video-analytics/track', payload);
@@ -124,39 +262,10 @@ const VideoTracker = ({ src, material, className }) => {
         return () => {
             if (batchInterval) {
                 clearInterval(batchInterval);
-                sendBatchUpdate(); // flush final state on unmount or pause
+                sendBatchUpdate(); // flush final state
             }
         };
     }, [isPlaying, material, playbackSpeed]);
-
-    const handleTimeUpdate = (e) => {
-        const video = e.target;
-        const currentTime = video.currentTime;
-        const timeDiff = currentTime - prevTimeRef.current;
-
-        // Skip / Replay seeking detection
-        if (Math.abs(timeDiff) > 1.5) {
-            if (timeDiff > 0) {
-                skipsRef.current.push({
-                    skipStart: prevTimeRef.current,
-                    skipEnd: currentTime,
-                    skippedDuration: timeDiff
-                });
-            } else {
-                replaysRef.current.push({
-                    replayStart: currentTime,
-                    replayEnd: prevTimeRef.current
-                });
-            }
-        } else {
-            if (!video.paused) {
-                const currentSegment = Math.floor(currentTime / 5);
-                watchedSegmentsRef.current.add(currentSegment);
-                sessionDurationRef.current += Math.max(0, timeDiff);
-            }
-        }
-        prevTimeRef.current = currentTime;
-    };
 
     const handlePlay = () => {
         setIsPlaying(true);
@@ -171,6 +280,22 @@ const VideoTracker = ({ src, material, className }) => {
         setPlaybackSpeed(String(e.target.playbackRate));
     };
 
+    if (isYoutube) {
+        const ytId = getYoutubeId(src);
+        const embedUrl = `https://www.youtube.com/embed/${ytId}?enablejsapi=1&origin=${window.location.origin}&autoplay=1`;
+        return (
+            <iframe
+                ref={iframeRef}
+                id="youtube-player"
+                src={embedUrl}
+                frameBorder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                className={className}
+            />
+        );
+    }
+
     return (
         <video
             ref={videoRef}
@@ -179,7 +304,6 @@ const VideoTracker = ({ src, material, className }) => {
             autoPlay
             onPlay={handlePlay}
             onPause={handlePause}
-            onTimeUpdate={handleTimeUpdate}
             onRateChange={handleRateChange}
             className={className}
         />

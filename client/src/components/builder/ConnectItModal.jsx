@@ -810,7 +810,7 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData, disabledFields =
                         </div>
 
                         {/* Student targeting control */}
-                        {(() => {
+                        {user?.role === 'Teacher' && (() => {
                             const urlParams = new URLSearchParams(window.location.search);
                             const queryStudentId = urlParams.get('studentId');
                             const targetStudentObj = queryStudentId ? allStudents.find(s => s._id === queryStudentId) : null;

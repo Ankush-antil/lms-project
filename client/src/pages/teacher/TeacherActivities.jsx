@@ -510,7 +510,7 @@ const TeacherActivities = () => {
     const [uploadingMaterial, setUploadingMaterial] = useState(false);
     const [showMatModal, setShowMatModal] = useState(false);
     const [uploadTarget, setUploadTarget] = useState('current'); // 'current', 'all', 'particular'
-    const [uploadStudentId, setUploadStudentId] = useState('');
+    const [uploadStudentIds, setUploadStudentIds] = useState([]);
 
     // Categorized study materials states
     const [selectedCategoryTab, setSelectedCategoryTab] = useState('all');
@@ -929,14 +929,14 @@ const TeacherActivities = () => {
             formData.append('status', matStatus);
 
             if (uploadTarget === 'current' && selectedStudent) {
-                formData.append('studentId', selectedStudent._id);
+                formData.append('studentIds', JSON.stringify([selectedStudent._id]));
             } else if (uploadTarget === 'particular') {
-                if (!uploadStudentId) {
-                    toast.error("Please select a student first");
+                if (uploadStudentIds.length === 0) {
+                    toast.error("Please select at least one student first");
                     setUploadingMaterial(false);
                     return;
                 }
-                formData.append('studentId', uploadStudentId);
+                formData.append('studentIds', JSON.stringify(uploadStudentIds));
             }
             if (activeDayDetails) {
                 formData.append('subject', activeDayDetails.subjectName || '');
@@ -963,7 +963,13 @@ const TeacherActivities = () => {
             });
 
             toast.success("Study material uploaded successfully!");
-            setStudyMaterials(prev => [data, ...prev]);
+            setStudyMaterials(prev => {
+                if (Array.isArray(data)) {
+                    const matched = data.filter(m => !m.student || (selectedStudent && m.student === selectedStudent._id));
+                    return [...matched, ...prev];
+                }
+                return [data, ...prev];
+            });
 
             // Cleanup states
             setMatTitle('');
@@ -971,7 +977,7 @@ const TeacherActivities = () => {
             setMatUrl('');
             setHtmlCode('');
             setUploadTarget('current');
-            setUploadStudentId('');
+            setUploadStudentIds([]);
             stopRecordingStream();
             setShowMatModal(false);
 
@@ -4019,21 +4025,50 @@ const TeacherActivities = () => {
                                                 </div>
                                             )}
 
-                                            {/* Particular Student Selection Dropdown */}
+                                            {/* Particular Student Selection Checkboxes */}
                                             {uploadTarget === 'particular' && (
-                                                <div className="pt-1.5">
-                                                    <select
-                                                        value={uploadStudentId}
-                                                        onChange={(e) => setUploadStudentId(e.target.value)}
-                                                        className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 bg-white"
-                                                    >
-                                                        <option value="">-- Choose Student --</option>
-                                                        {students.map(std => (
-                                                            <option key={std._id} value={std._id}>
-                                                                {std.name} {std.email ? `(${std.email})` : ''}
-                                                            </option>
-                                                        ))}
-                                                    </select>
+                                                <div className="pt-1.5 space-y-2">
+                                                    <div className="border border-slate-200 rounded-2xl p-3.5 bg-slate-50/50 max-h-40 overflow-y-auto space-y-2.5 custom-scrollbar text-left">
+                                                        <div className="flex items-center justify-between border-b border-slate-200/80 pb-1.5 mb-2 select-none">
+                                                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Select Students ({uploadStudentIds.length} selected)</span>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    if (uploadStudentIds.length === students.length) {
+                                                                        setUploadStudentIds([]);
+                                                                    } else {
+                                                                        setUploadStudentIds(students.map(s => s._id));
+                                                                    }
+                                                                }}
+                                                                className="text-[9px] font-black text-[#3E3ADD] hover:text-indigo-850 uppercase tracking-wider"
+                                                            >
+                                                                {uploadStudentIds.length === students.length ? 'Clear All' : 'Select All'}
+                                                            </button>
+                                                        </div>
+                                                        {students.map(std => {
+                                                            const isChecked = uploadStudentIds.includes(std._id);
+                                                            return (
+                                                                <label key={std._id} className="flex items-center gap-2.5 cursor-pointer select-none">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={isChecked}
+                                                                        onChange={() => {
+                                                                            if (isChecked) {
+                                                                                setUploadStudentIds(prev => prev.filter(id => id !== std._id));
+                                                                            } else {
+                                                                                setUploadStudentIds(prev => [...prev, std._id]);
+                                                                            }
+                                                                        }}
+                                                                        className="w-3.5 h-3.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                                                                    />
+                                                                    <div className="min-w-0 flex-1">
+                                                                        <p className="text-xs font-bold text-slate-750 truncate leading-snug">{std.name}</p>
+                                                                        {std.email && <p className="text-[10px] text-slate-400 truncate mt-0.5">{std.email}</p>}
+                                                                    </div>
+                                                                </label>
+                                                            );
+                                                        })}
+                                                    </div>
                                                 </div>
                                             )}
                                         </div>

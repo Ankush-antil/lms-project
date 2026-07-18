@@ -25,7 +25,7 @@ const uploadStudyMaterial = asyncHandler(async (req, res) => {
     } catch (logErr) {
         console.error("Failed to write upload log:", logErr);
     }
-    const { title, inboxId, fileUrl, isPrivate, status, studentId, subject, course, dayNum, materialType } = req.body;
+    const { title, inboxId, fileUrl, isPrivate, status, studentId, studentIds, subject, course, dayNum, materialType } = req.body;
 
     if (!req.file && !fileUrl) {
         res.status(400);
@@ -79,23 +79,56 @@ const uploadStudyMaterial = asyncHandler(async (req, res) => {
         }
     }
 
-    const material = await StudyMaterial.create({
-        title,
-        filename: finalFilename,
-        fileUrl: finalFileUrl,
-        materialType: detectedType,
-        inboxId,
-        institute: instituteName,
-        uploadedBy: req.user._id,
-        isPrivate: isPrivate === 'true' || isPrivate === true,
-        status: status || 'study-material',
-        student: studentId || null,
-        subject: subject || '',
-        course: course || '',
-        dayNum: dayNum ? parseInt(dayNum, 10) : null
-    });
+    let studentList = [];
+    if (studentIds) {
+        try {
+            studentList = JSON.parse(studentIds);
+        } catch (e) {
+            studentList = Array.isArray(studentIds) ? studentIds : [studentIds];
+        }
+    } else if (studentId) {
+        studentList = [studentId];
+    }
 
-    res.status(201).json(material);
+    if (studentList.length > 0) {
+        const createdMaterials = [];
+        for (const sId of studentList) {
+            const material = await StudyMaterial.create({
+                title,
+                filename: finalFilename,
+                fileUrl: finalFileUrl,
+                materialType: detectedType,
+                inboxId,
+                institute: instituteName,
+                uploadedBy: req.user._id,
+                isPrivate: isPrivate === 'true' || isPrivate === true,
+                status: status || 'study-material',
+                student: sId || null,
+                subject: subject || '',
+                course: course || '',
+                dayNum: dayNum ? parseInt(dayNum, 10) : null
+            });
+            createdMaterials.push(material);
+        }
+        res.status(201).json(createdMaterials);
+    } else {
+        const material = await StudyMaterial.create({
+            title,
+            filename: finalFilename,
+            fileUrl: finalFileUrl,
+            materialType: detectedType,
+            inboxId,
+            institute: instituteName,
+            uploadedBy: req.user._id,
+            isPrivate: isPrivate === 'true' || isPrivate === true,
+            status: status || 'study-material',
+            student: null,
+            subject: subject || '',
+            course: course || '',
+            dayNum: dayNum ? parseInt(dayNum, 10) : null
+        });
+        res.status(201).json(material);
+    }
 });
 
 // @desc    Get study materials for an inbox

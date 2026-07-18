@@ -11,7 +11,7 @@ import {
     Mic, Video, FileText, Star, MessageSquare,
     Menu, Bell, RotateCcw, User, Play, Check,
     Settings, Sparkles, Layers, GitBranch, SendHorizontal, MessageCircle, BarChart3, AlertCircle, Info, Eye,
-    Camera, MonitorPlay, Phone, Upload, ChevronLeft, ChevronRight, ChevronDown, Lock, Clock, Loader2
+    Camera, MonitorPlay, Phone, Upload, ChevronLeft, ChevronRight, ChevronDown, Lock, Clock, Loader2, Link2
 } from 'lucide-react';
 
 const isTestExpired = (test) => {
@@ -316,6 +316,9 @@ const StudentTests = () => {
 
     const [studyMaterials, setStudyMaterials] = useState([]);
     const [loadingMaterials, setLoadingMaterials] = useState(false);
+    const [selectedCategoryTab, setSelectedCategoryTab] = useState('all');
+    const [activeVideoModalUrl, setActiveVideoModalUrl] = useState(null);
+    const [activeMaterialInfo, setActiveMaterialInfo] = useState(null);
 
     // Practice counts states
     const [cloudFiles, setCloudFiles] = useState([]);
@@ -1368,8 +1371,79 @@ const StudentTests = () => {
         );
     }
 
+    const getEmbedVideoUrl = (url) => {
+        if (!url) return '';
+        const ytReg = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
+        const ytMatch = url.match(ytReg);
+        if (ytMatch && ytMatch[1]) {
+            return `https://www.youtube.com/embed/${ytMatch[1]}`;
+        }
+        const vimeoReg = /vimeo\.com\/(?:channels\/(?:\w+\/)?|groups\/([^\/]*)\/videos\/|album\/(\d+)\/video\/|video\/|)(\d+)(?:$|\/|\?)/;
+        const vimeoMatch = url.match(vimeoReg);
+        if (vimeoMatch && vimeoMatch[3]) {
+            return `https://player.vimeo.com/video/${vimeoMatch[3]}`;
+        }
+        return url;
+    };
+
+    const getMaterialTypeConfig = (mat) => {
+        let type = mat.materialType;
+        if (!type) {
+            if (mat.filename === 'Web Link') {
+                type = 'web';
+            } else {
+                const ext = (mat.filename || '').split('.').pop().toLowerCase();
+                if (['mp4', 'webm', 'ogg', 'mov', 'avi'].includes(ext)) {
+                    type = 'video';
+                } else if (['mp3', 'wav', 'ogg', 'm4a', 'aac'].includes(ext)) {
+                    type = 'audio';
+                } else if (['pdf'].includes(ext)) {
+                    type = 'pdf';
+                } else {
+                    type = 'pdf';
+                }
+            }
+        }
+        
+        switch(type) {
+            case 'video':
+                return { label: 'Video', icon: Video, color: 'text-blue-600 bg-blue-50 border-blue-100' };
+            case 'audio':
+                return { label: 'Audio', icon: Mic, color: 'text-purple-600 bg-purple-50 border-purple-100' };
+            case 'web':
+                return { label: 'Web page', icon: Link2, color: 'text-emerald-600 bg-emerald-50 border-emerald-100' };
+            case 'pdf':
+            default:
+                return { label: 'PDF', icon: FileText, color: 'text-orange-600 bg-orange-50 border-orange-100' };
+        }
+    };
+
+    const filteredMaterials = useMemo(() => {
+        return studyMaterials.filter(mat => {
+            let type = mat.materialType;
+            if (!type) {
+                if (mat.filename === 'Web Link') {
+                    type = 'web';
+                } else {
+                    const ext = (mat.filename || '').split('.').pop().toLowerCase();
+                    if (['mp4', 'webm', 'ogg', 'mov', 'avi'].includes(ext)) {
+                        type = 'video';
+                    } else if (['mp3', 'wav', 'ogg', 'm4a', 'aac'].includes(ext)) {
+                        type = 'audio';
+                    } else if (['pdf'].includes(ext)) {
+                        type = 'pdf';
+                    } else {
+                        type = 'pdf';
+                    }
+                }
+            }
+            return selectedCategoryTab === 'all' || type === selectedCategoryTab;
+        });
+    }, [studyMaterials, selectedCategoryTab]);
+
     return (
-        <DashboardLayout role="Student" fullWidth={true}>
+        <>
+            <DashboardLayout role="Student" fullWidth={true}>
             <div className="flex h-[calc(100vh-120px)] bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden relative">
 
                 {/* Left Sidebar backdrop */}
@@ -1777,53 +1851,155 @@ const StudentTests = () => {
                                 ) : viewMode === 'study-material' ? (
                                     /* --- STUDY MATERIAL TAB --- */
                                     <div className="animate-fade-in space-y-6 text-left">
-                                        <div className="flex justify-between items-center mb-4">
-                                            <h2 className="text-sm font-bold text-slate-800">Study Materials</h2>
-                                            <span className="text-xs bg-slate-100 text-slate-600 px-3 py-1 rounded-full font-bold">
-                                                Total Files: {studyMaterials.length}
-                                            </span>
+                                        <div className="flex justify-between items-center flex-wrap gap-4 border-b border-slate-100 pb-3">
+                                            <div>
+                                                <h2 className="text-sm font-bold text-slate-800">Study Materials</h2>
+                                                <p className="text-[10px] text-slate-400 font-medium mt-0.5">{filteredMaterials.length} material{filteredMaterials.length !== 1 ? 's' : ''} shown</p>
+                                            </div>
+
+                                            {/* Category Tabs */}
+                                            <div className="flex bg-slate-100 p-0.5 rounded-xl gap-0.5 border border-slate-200/50">
+                                                {[
+                                                    { id: 'all', label: 'All' },
+                                                    { id: 'video', label: 'Video' },
+                                                    { id: 'audio', label: 'Audio' },
+                                                    { id: 'pdf', label: 'PDF' },
+                                                    { id: 'web', label: 'Web page' }
+                                                ].map(tab => (
+                                                    <button
+                                                        key={tab.id}
+                                                        type="button"
+                                                        onClick={() => setSelectedCategoryTab(tab.id)}
+                                                        className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all ${
+                                                            selectedCategoryTab === tab.id
+                                                                ? 'bg-indigo-600 text-white shadow-sm'
+                                                                : 'text-slate-500 hover:text-slate-800'
+                                                        }`}
+                                                    >
+                                                        {tab.label}
+                                                    </button>
+                                                ))}
+                                            </div>
                                         </div>
+
                                         {loadingMaterials ? (
                                             <div className="flex flex-col items-center justify-center py-12 bg-white">
                                                 <div className="animate-spin rounded-full h-8 w-8 border-4 border-indigo-900/20 border-t-indigo-900 mb-2"></div>
-                                                <p className="text-xs text-slate-450 font-semibold">Loading materials...</p>
+                                                <p className="text-xs text-slate-455 font-semibold">Loading materials...</p>
                                             </div>
-                                        ) : studyMaterials.length === 0 ? (
+                                        ) : filteredMaterials.length === 0 ? (
                                             <div className="py-12 text-center bg-white rounded-2xl border border-slate-100 shadow-sm max-w-md mx-auto">
                                                 <div className="text-4xl mb-2">📚</div>
-                                                <p className="font-bold text-slate-700 text-sm">No Study Material Yet</p>
-                                                <p className="text-slate-450 text-xs mt-1 font-medium">Your instructor hasn't uploaded any study materials for this Inbox.</p>
+                                                <p className="font-bold text-slate-700 text-sm">No Materials Found</p>
+                                                <p className="text-slate-450 text-xs mt-1 font-semibold">No materials uploaded under this category yet.</p>
                                             </div>
                                         ) : (
-                                            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
-                                                {studyMaterials.map((mat) => (
-                                                    <div key={mat._id} className="bg-white p-5 rounded-2xl border border-slate-200 hover:shadow-md transition-all flex flex-col justify-between hover:-translate-y-0.5 duration-200">
-                                                        <div className="space-y-2">
-                                                            <h4 className="font-extrabold text-slate-800 text-sm leading-snug line-clamp-1">{mat.title}</h4>
-                                                            <p className="text-xs text-slate-450 truncate" title={mat.filename}>
-                                                                {mat.filename === 'Web Link' ? (
-                                                                    <span className="text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded text-[10px]">🔗 Web Link</span>
-                                                                ) : (
-                                                                    mat.filename
+                                            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+                                                {filteredMaterials.map((mat) => {
+                                                    const config = getMaterialTypeConfig(mat);
+                                                    const TypeIcon = config.icon;
+                                                    const isEmbed = mat.filename === 'Web Link';
+
+                                                    return (
+                                                        <div key={mat._id} className="bg-white p-3.5 rounded-xl border border-slate-200 hover:shadow-md transition-all flex flex-col justify-between hover:-translate-y-0.5 duration-200 max-w-[360px] w-full">
+                                                            <div className="space-y-2">
+                                                                <div className="flex items-center justify-between">
+                                                                    <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg border text-[9px] font-black uppercase tracking-wider ${config.color}`}>
+                                                                        <TypeIcon size={10} />
+                                                                        {config.label}
+                                                                    </span>
+                                                                    {isEmbed && (
+                                                                        <span className="text-slate-400 text-[9px] font-bold">Embedded</span>
+                                                                    )}
+                                                                </div>
+                                                                <div>
+                                                                    <h4 className="font-extrabold text-slate-800 text-sm leading-snug line-clamp-2" title={mat.title}>{mat.title}</h4>
+                                                                </div>
+
+                                                                {/* Inline Previews */}
+                                                                {config.label === 'Video' && (
+                                                                    <div
+                                                                        onClick={() => setActiveVideoModalUrl(mat.fileUrl)}
+                                                                        className="mt-2 rounded-xl overflow-hidden bg-slate-900 border border-slate-200 aspect-video flex items-center justify-center relative cursor-pointer group"
+                                                                    >
+                                                                        {/* Play button overlay */}
+                                                                        <div className="absolute inset-0 bg-black/20 group-hover:bg-black/35 transition-colors flex items-center justify-center z-10">
+                                                                            <div className="w-10 h-10 bg-white/95 group-hover:bg-white text-[#3E3ADD] rounded-full flex items-center justify-center shadow-md group-hover:scale-110 transition-all duration-200">
+                                                                                <Play size={16} fill="#3E3ADD" strokeWidth={0} className="ml-0.5" />
+                                                                            </div>
+                                                                        </div>
+                                                                        {/* Thumbnail image if YouTube */}
+                                                                        {(() => {
+                                                                            const embedUrl = getEmbedVideoUrl(mat.fileUrl);
+                                                                            const ytReg = /youtube\.com\/embed\/([^/]+)/;
+                                                                            const ytMatch = embedUrl.match(ytReg);
+                                                                            if (ytMatch && ytMatch[1]) {
+                                                                                return <img src={`https://img.youtube.com/vi/${ytMatch[1]}/hqdefault.jpg`} className="w-full h-full object-cover" alt="Video thumbnail" />;
+                                                                            }
+                                                                            return <Video size={24} className="text-slate-400" />;
+                                                                        })()}
+                                                                    </div>
                                                                 )}
-                                                            </p>
-                                                            <p className="text-[10px] text-slate-450">Uploaded on {new Date(mat.createdAt).toLocaleDateString()}</p>
+
+                                                                {config.label === 'Audio' && (
+                                                                    <div className="mt-2 bg-slate-50 p-2 border border-slate-100 rounded-xl">
+                                                                        {isEmbed ? (
+                                                                            <div className="flex items-center gap-2 py-1 justify-center">
+                                                                                <Mic size={12} className="text-slate-500" />
+                                                                                <a href={mat.fileUrl} target="_blank" rel="noreferrer" className="text-[10px] font-extrabold text-indigo-650 hover:underline">
+                                                                                    Listen Embed Audio
+                                                                                </a>
+                                                                            </div>
+                                                                        ) : (
+                                                                            <audio src={mat.fileUrl} controls className="w-full h-8" />
+                                                                        )}
+                                                                    </div>
+                                                                )}
+                                                                {config.label === 'Web page' && (
+                                                                    <div className="mt-2 rounded-xl overflow-hidden bg-slate-50 border border-slate-200 aspect-video relative flex flex-col group/web">
+                                                                            {/* Mini Browser Bar */}
+                                                                            <div className="bg-slate-100 px-2 py-1 border-b border-slate-200/60 flex items-center gap-1 select-none shrink-0">
+                                                                                <div className="w-1.5 h-1.5 rounded-full bg-slate-300" />
+                                                                                <div className="w-1.5 h-1.5 rounded-full bg-slate-300" />
+                                                                                <div className="w-1.5 h-1.5 rounded-full bg-slate-300" />
+                                                                                <div className="bg-white/80 text-[7px] font-semibold text-slate-400 px-2 py-0.5 rounded flex-1 truncate text-center border border-slate-200/40 font-mono">
+                                                                                    {mat.fileUrl}
+                                                                                </div>
+                                                                            </div>
+                                                                            {/* Mini Iframe Viewer */}
+                                                                            <div className="flex-1 overflow-hidden relative pointer-events-none">
+                                                                                <iframe
+                                                                                    src={mat.fileUrl}
+                                                                                    className="w-[143%] h-[143%] border-none origin-top-left scale-[0.7] pointer-events-none"
+                                                                                    scrolling="no"
+                                                                                    title="Web preview"
+                                                                                />
+                                                                                <div className="absolute inset-0 bg-transparent" />
+                                                                            </div>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            <div className="mt-2.5 pt-2 border-t border-slate-100 flex justify-between items-center">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => setActiveMaterialInfo(mat)}
+                                                                    className="w-7 h-7 rounded-full bg-slate-50 hover:bg-indigo-50 border border-slate-200/60 hover:border-indigo-200 text-slate-500 hover:text-[#3E3ADD] flex items-center justify-center transition-all cursor-pointer"
+                                                                    title="View Details"
+                                                                >
+                                                                    <Info size={12} />
+                                                                </button>
+                                                                <a
+                                                                    href={mat.fileUrl}
+                                                                    target="_blank"
+                                                                    rel="noreferrer"
+                                                                    className="px-3.5 py-1.5 bg-[#3E3ADD] hover:bg-indigo-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider shadow-sm transition-all"
+                                                                >
+                                                                    {config.label === 'Web page' ? 'Open Link' : 'Open File'}
+                                                                </a>
+                                                            </div>
                                                         </div>
-                                                        <div className="mt-4 pt-3 border-t border-slate-100 flex justify-between items-center">
-                                                            <span className="text-[10px] font-bold text-[#3E3ADD] bg-indigo-50 px-2.5 py-1 rounded-lg">
-                                                                By: {mat.uploadedBy?.name || 'Instructor'}
-                                                            </span>
-                                                            <a
-                                                                href={mat.fileUrl}
-                                                                target="_blank"
-                                                                rel="noreferrer"
-                                                                className="px-3.5 py-1.5 bg-[#3E3ADD] hover:bg-indigo-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider shadow-sm transition-all"
-                                                            >
-                                                                {mat.filename === 'Web Link' ? 'Open Link' : 'Open File'}
-                                                            </a>
-                                                        </div>
-                                                    </div>
-                                                ))}
+                                                    );
+                                                })}
                                             </div>
                                         )}
                                     </div>
@@ -2575,7 +2751,159 @@ const StudentTests = () => {
                 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
                 @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
             `}</style>
+            {activeVideoModalUrl && (
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/85 backdrop-blur-sm animate-fade-in">
+                    <div className="absolute inset-0" onClick={() => setActiveVideoModalUrl(null)} />
+                    <div className="bg-slate-955 border border-slate-800 rounded-3xl w-full max-w-3xl aspect-video relative z-50 overflow-hidden shadow-2xl animate-scale-up">
+                        <button
+                            type="button"
+                            onClick={() => setActiveVideoModalUrl(null)}
+                            className="absolute top-4 right-4 z-[60] w-8 h-8 rounded-full bg-black/60 hover:bg-black text-white hover:text-slate-200 flex items-center justify-center font-bold text-lg transition-all cursor-pointer border border-white/10"
+                        >
+                            ×
+                        </button>
+                        {(() => {
+                            const embedUrl = getEmbedVideoUrl(activeVideoModalUrl);
+                            const isIframe = embedUrl.includes('youtube.com/embed/') || embedUrl.includes('player.vimeo.com/video/');
+                            if (isIframe) {
+                                return (
+                                    <iframe
+                                        src={`${embedUrl}?autoplay=1`}
+                                        frameBorder="0"
+                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                        allowFullScreen
+                                        className="w-full h-full"
+                                    />
+                                );
+                            }
+                            return (
+                                <video
+                                    src={activeVideoModalUrl}
+                                    controls
+                                    autoPlay
+                                    className="w-full h-full object-contain"
+                                />
+                            );
+                        })()}
+                    </div>
+                </div>
+            )}
         </DashboardLayout>
+        {activeVideoModalUrl && (
+            <div className="fixed inset-0 z-[100000] flex items-center justify-center bg-white/75 backdrop-blur-md animate-fade-in p-4">
+                <div className="absolute inset-0" onClick={() => setActiveVideoModalUrl(null)} />
+                <div className="bg-slate-950 rounded-3xl w-full max-w-4xl aspect-video relative z-50 overflow-hidden shadow-2xl animate-scale-up border border-slate-200/60">
+                    <button
+                        type="button"
+                        onClick={() => setActiveVideoModalUrl(null)}
+                        className="absolute top-4 right-4 z-[60] w-9 h-9 rounded-full bg-white hover:bg-slate-100 text-slate-800 hover:text-black flex items-center justify-center font-black text-xl shadow-md border border-slate-200 transition-all cursor-pointer"
+                    >
+                        ×
+                    </button>
+                    {(() => {
+                        const embedUrl = getEmbedVideoUrl(activeVideoModalUrl);
+                        const isIframe = embedUrl.includes('youtube.com/embed/') || embedUrl.includes('player.vimeo.com/video/');
+                        if (isIframe) {
+                            return (
+                                <iframe
+                                    src={`${embedUrl}?autoplay=1`}
+                                    frameBorder="0"
+                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                    allowFullScreen
+                                    className="w-full h-full"
+                                />
+                            );
+                        }
+                        return (
+                            <video
+                                src={activeVideoModalUrl}
+                                controls
+                                autoPlay
+                                className="w-full h-full object-contain"
+                            />
+                        );
+                    })()}
+                </div>
+            </div>
+        )}
+        {activeMaterialInfo && (
+            <div className="fixed inset-0 z-[100000] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm animate-fade-in p-4">
+                <div className="absolute inset-0" onClick={() => setActiveMaterialInfo(null)} />
+                <div className="bg-white rounded-3xl w-full max-w-sm relative z-50 overflow-hidden shadow-2xl animate-scale-up border border-slate-100 p-6 text-left">
+                    <button
+                        type="button"
+                        onClick={() => setActiveMaterialInfo(null)}
+                        className="absolute top-4 right-4 w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center font-bold text-sm transition-all cursor-pointer"
+                    >
+                        ×
+                    </button>
+                    
+                    <div className="flex items-center gap-2 mb-4">
+                        <div className="w-8 h-8 rounded-xl bg-indigo-50 flex items-center justify-center text-[#3E3ADD]">
+                            <Info size={16} />
+                        </div>
+                        <div>
+                            <h3 className="font-extrabold text-slate-800 text-sm">Material Details</h3>
+                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Information Summary</p>
+                        </div>
+                    </div>
+
+                    <div className="space-y-3">
+                        <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Title</span>
+                            <span className="font-bold text-slate-800 text-xs">{activeMaterialInfo.title}</span>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Uploaded By</span>
+                                <span className="font-extrabold text-slate-700 text-xs">{activeMaterialInfo.uploadedBy?.name || 'Instructor'}</span>
+                            </div>
+                            
+                            <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Material Type</span>
+                                <span className="font-extrabold text-slate-700 text-xs uppercase tracking-wider">
+                                    {getMaterialTypeConfig(activeMaterialInfo).label}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Uploaded On</span>
+                            <span className="font-extrabold text-slate-700 text-xs">
+                                {new Date(activeMaterialInfo.createdAt).toLocaleString()}
+                            </span>
+                        </div>
+
+                        {activeMaterialInfo.filename && activeMaterialInfo.filename !== 'Web Link' && (
+                            <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">File Name</span>
+                                <span className="font-bold text-slate-650 text-xs break-all">{activeMaterialInfo.filename}</span>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="mt-5 flex gap-2.5">
+                        <button
+                            type="button"
+                            onClick={() => setActiveMaterialInfo(null)}
+                            className="flex-1 py-2.5 bg-slate-150 hover:bg-slate-200 text-slate-700 font-extrabold rounded-xl text-xs transition-all cursor-pointer uppercase tracking-wider"
+                        >
+                            Close
+                        </button>
+                        <a
+                            href={activeMaterialInfo.fileUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="flex-1 py-2.5 bg-[#3E3ADD] hover:bg-indigo-700 text-white font-extrabold rounded-xl text-xs transition-all text-center uppercase tracking-wider block shadow-md shadow-indigo-150"
+                        >
+                            Open Material
+                        </a>
+                    </div>
+                </div>
+            </div>
+        )}
+        </>
     );
 };
 

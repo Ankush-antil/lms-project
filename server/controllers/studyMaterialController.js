@@ -25,7 +25,7 @@ const uploadStudyMaterial = asyncHandler(async (req, res) => {
     } catch (logErr) {
         console.error("Failed to write upload log:", logErr);
     }
-    const { title, inboxId, fileUrl, isPrivate, status, studentId, subject, course, dayNum } = req.body;
+    const { title, inboxId, fileUrl, isPrivate, status, studentId, subject, course, dayNum, materialType } = req.body;
 
     if (!req.file && !fileUrl) {
         res.status(400);
@@ -59,10 +59,31 @@ const uploadStudyMaterial = asyncHandler(async (req, res) => {
     const finalFileUrl = req.file ? `/uploads/attachments/${req.file.filename}` : fileUrl;
     const finalFilename = req.file ? req.file.originalname : 'Web Link';
 
+    // Auto-detect materialType if not provided
+    let detectedType = materialType;
+    if (!detectedType) {
+        detectedType = 'pdf';
+        if (req.file) {
+            const ext = path.extname(req.file.originalname).toLowerCase();
+            if (['.mp4', '.webm', '.ogg', '.mov', '.avi'].includes(ext)) {
+                detectedType = 'video';
+            } else if (['.mp3', '.wav', '.ogg', '.m4a', '.aac'].includes(ext)) {
+                detectedType = 'audio';
+            } else if (['.pdf'].includes(ext)) {
+                detectedType = 'pdf';
+            } else if (['.html', '.htm'].includes(ext)) {
+                detectedType = 'web';
+            }
+        } else if (fileUrl) {
+            detectedType = 'web';
+        }
+    }
+
     const material = await StudyMaterial.create({
         title,
         filename: finalFilename,
         fileUrl: finalFileUrl,
+        materialType: detectedType,
         inboxId,
         institute: instituteName,
         uploadedBy: req.user._id,

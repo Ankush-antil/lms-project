@@ -511,6 +511,100 @@ const TeacherActivities = () => {
     const [uploadingMaterial, setUploadingMaterial] = useState(false);
     const [showMatModal, setShowMatModal] = useState(false);
 
+    // Categorized study materials states
+    const [selectedCategoryTab, setSelectedCategoryTab] = useState('all');
+    const [showAddMenu, setShowAddMenu] = useState(false);
+    const [selectedUploadType, setSelectedUploadType] = useState('pdf'); // 'video', 'audio', 'pdf', 'web'
+    const [videoAudioMode, setVideoAudioMode] = useState('upload'); // 'upload', 'record', 'embedded'
+    const [webMode, setWebMode] = useState('embedded'); // 'embedded', 'upload', 'code'
+    const [pdfMode, setPdfMode] = useState('upload'); // 'upload', 'embedded'
+    const [htmlCode, setHtmlCode] = useState('');
+    const [activeVideoModalUrl, setActiveVideoModalUrl] = useState(null);
+
+    // Recording states
+    const [isRecording, setIsRecording] = useState(false);
+    const [mediaStream, setMediaStream] = useState(null);
+    const [mediaRecorder, setMediaRecorder] = useState(null);
+    const [recordingUrl, setRecordingUrl] = useState('');
+    const [recordingTimer, setRecordingTimer] = useState(0);
+    const recordingTimerRef = useRef(null);
+    const videoPreviewRef = useRef(null);
+
+    const startRecording = async (type) => {
+        try {
+            setRecordingUrl('');
+            setMatFile(null);
+            
+            const constraints = type === 'video' 
+                ? { video: { width: 640, height: 480 }, audio: true }
+                : { audio: true };
+                
+            const stream = await navigator.mediaDevices.getUserMedia(constraints);
+            setMediaStream(stream);
+            
+            if (type === 'video' && videoPreviewRef.current) {
+                videoPreviewRef.current.srcObject = stream;
+            }
+            
+            const recorder = new MediaRecorder(stream);
+            setMediaRecorder(recorder);
+            
+            const chunks = [];
+            recorder.ondataavailable = (e) => {
+                if (e.data && e.data.size > 0) {
+                    chunks.push(e.data);
+                }
+            };
+            
+            recorder.onstop = () => {
+                const mimeType = type === 'video' ? 'video/webm' : 'audio/webm';
+                const blob = new Blob(chunks, { type: mimeType });
+                const previewUrl = URL.createObjectURL(blob);
+                setRecordingUrl(previewUrl);
+                
+                const extension = 'webm';
+                const fileName = `recorded-${type}-${Date.now()}.${extension}`;
+                const file = new File([blob], fileName, { type: mimeType });
+                setMatFile(file);
+            };
+            
+            recorder.start();
+            setIsRecording(true);
+            setRecordingTimer(0);
+            
+            if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+            recordingTimerRef.current = setInterval(() => {
+                setRecordingTimer(prev => prev + 1);
+            }, 1000);
+            
+        } catch (err) {
+            console.error("Recording access denied/failed:", err);
+            toast.error("Could not access camera/microphone. Please check permissions.");
+        }
+    };
+
+    const stopRecording = () => {
+        if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+            mediaRecorder.stop();
+        }
+        if (mediaStream) {
+            mediaStream.getTracks().forEach(track => track.stop());
+            setMediaStream(null);
+        }
+        setIsRecording(false);
+        if (recordingTimerRef.current) {
+            clearInterval(recordingTimerRef.current);
+            recordingTimerRef.current = null;
+        }
+    };
+
+    const stopRecordingStream = () => {
+        stopRecording();
+        setRecordingUrl('');
+        setMatFile(null);
+        setRecordingTimer(0);
+    };
+
     useEffect(() => {
         if ((viewMode === 'study-material' || viewMode === 'pending' || viewMode === 'assign') && selectedInboxId) {
             const fetchMaterials = async () => {
@@ -797,13 +891,24 @@ const TeacherActivities = () => {
             return;
         }
 
-        if (uploadType === 'file' && !matFile) {
-            toast.error("Please select a file to upload");
+        // Determine if it is a file upload or link
+        const isFileUpload = (selectedUploadType === 'pdf' && pdfMode === 'upload') ||
+                             (selectedUploadType === 'video' && videoAudioMode !== 'embedded') ||
+                             (selectedUploadType === 'audio' && videoAudioMode !== 'embedded') ||
+                             (selectedUploadType === 'web' && webMode !== 'embedded');
+
+        if (isFileUpload && !matFile && !(selectedUploadType === 'web' && webMode === 'code')) {
+            toast.error("Please select or record a file to upload");
             return;
         }
 
-        if (uploadType === 'url' && !matUrl.trim()) {
-            toast.error("Please provide a Web Link (URL)");
+        if (selectedUploadType === 'web' && webMode === 'code' && !htmlCode.trim()) {
+            toast.error("Please write or paste HTML code first");
+            return;
+        }
+
+        if (!isFileUpload && !matUrl.trim()) {
+            toast.error("Please provide a link URL");
             return;
         }
 
@@ -812,6 +917,8 @@ const TeacherActivities = () => {
             const formData = new FormData();
             formData.append('title', matTitle.trim());
             formData.append('inboxId', selectedInboxId);
+            formData.append('materialType', selectedUploadType);
+            
             // Send status based on current tab
             const matStatus = viewMode === 'pending' ? 'upcoming' : (viewMode === 'assign' ? 'assign' : 'study-material');
             formData.append('status', matStatus);
@@ -827,8 +934,14 @@ const TeacherActivities = () => {
                 formData.append('course', selectedStudentActiveCourseObj.name || '');
             }
 
-            if (uploadType === 'file') {
-                formData.append('file', matFile);
+            if (isFileUpload) {
+                if (selectedUploadType === 'web' && webMode === 'code') {
+                    const blob = new Blob([htmlCode], { type: 'text/html' });
+                    const file = new File([blob], `page-${Date.now()}.html`, { type: 'text/html' });
+                    formData.append('file', file);
+                } else {
+                    formData.append('file', matFile);
+                }
             } else {
                 formData.append('fileUrl', matUrl.trim());
             }
@@ -837,13 +950,18 @@ const TeacherActivities = () => {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
 
-            toast.success(uploadType === 'file' ? "Study material uploaded successfully!" : "Web Link added successfully!");
+            toast.success("Study material uploaded successfully!");
             setStudyMaterials(prev => [data, ...prev]);
+            
+            // Cleanup states
             setMatTitle('');
             setMatFile(null);
             setMatUrl('');
+            setHtmlCode('');
+            stopRecordingStream();
             setShowMatModal(false);
-            const fileInput = document.getElementById('study-material-file');
+            
+            const fileInput = document.getElementById('study-material-file-global');
             if (fileInput) fileInput.value = '';
         } catch (err) {
             console.error("Error uploading study material:", err);
@@ -1759,8 +1877,79 @@ const TeacherActivities = () => {
         );
     }
 
+    const getEmbedVideoUrl = (url) => {
+        if (!url) return '';
+        const ytReg = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
+        const ytMatch = url.match(ytReg);
+        if (ytMatch && ytMatch[1]) {
+            return `https://www.youtube.com/embed/${ytMatch[1]}`;
+        }
+        const vimeoReg = /vimeo\.com\/(?:channels\/(?:\w+\/)?|groups\/([^\/]*)\/videos\/|album\/(\d+)\/video\/|video\/|)(\d+)(?:$|\/|\?)/;
+        const vimeoMatch = url.match(vimeoReg);
+        if (vimeoMatch && vimeoMatch[3]) {
+            return `https://player.vimeo.com/video/${vimeoMatch[3]}`;
+        }
+        return url;
+    };
+
+    const getMaterialTypeConfig = (mat) => {
+        let type = mat.materialType;
+        if (!type) {
+            if (mat.filename === 'Web Link') {
+                type = 'web';
+            } else {
+                const ext = (mat.filename || '').split('.').pop().toLowerCase();
+                if (['mp4', 'webm', 'ogg', 'mov', 'avi'].includes(ext)) {
+                    type = 'video';
+                } else if (['mp3', 'wav', 'ogg', 'm4a', 'aac'].includes(ext)) {
+                    type = 'audio';
+                } else if (['pdf'].includes(ext)) {
+                    type = 'pdf';
+                } else {
+                    type = 'pdf';
+                }
+            }
+        }
+        
+        switch(type) {
+            case 'video':
+                return { label: 'Video', icon: Video, color: 'text-blue-600 bg-blue-50 border-blue-100' };
+            case 'audio':
+                return { label: 'Audio', icon: Mic, color: 'text-purple-600 bg-purple-50 border-purple-100' };
+            case 'web':
+                return { label: 'Web page', icon: Link2, color: 'text-emerald-600 bg-emerald-50 border-emerald-100' };
+            case 'pdf':
+            default:
+                return { label: 'PDF', icon: FileText, color: 'text-orange-600 bg-orange-50 border-orange-100' };
+        }
+    };
+
+    const filteredMaterials = useMemo(() => {
+        return studyMaterials.filter(mat => {
+            let type = mat.materialType;
+            if (!type) {
+                if (mat.filename === 'Web Link') {
+                    type = 'web';
+                } else {
+                    const ext = (mat.filename || '').split('.').pop().toLowerCase();
+                    if (['mp4', 'webm', 'ogg', 'mov', 'avi'].includes(ext)) {
+                        type = 'video';
+                    } else if (['mp3', 'wav', 'ogg', 'm4a', 'aac'].includes(ext)) {
+                        type = 'audio';
+                    } else if (['pdf'].includes(ext)) {
+                        type = 'pdf';
+                    } else {
+                        type = 'pdf';
+                    }
+                }
+            }
+            return selectedCategoryTab === 'all' || type === selectedCategoryTab;
+        });
+    }, [studyMaterials, selectedCategoryTab]);
+
     return (
-        <DashboardLayout role="Teacher" fullWidth={true}>
+        <>
+            <DashboardLayout role="Teacher" fullWidth={true}>
             <div className="flex h-[calc(100vh-120px)] bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
                 {/* --- Left Sidebar: Activities Inbox --- */}
                 {(!isSaDisabled('inbox') || saMode() === 'disable') && (
@@ -2415,10 +2604,34 @@ const TeacherActivities = () => {
                                     <div className="animate-fade-in space-y-6 text-left relative">
 
                                         <div className="space-y-4">
-                                            <div className="flex items-center">
+                                            <div className="flex items-center justify-between flex-wrap gap-4 border-b border-slate-100 pb-3">
                                                 <div>
                                                     <h3 className="font-extrabold text-slate-800 text-sm">Study Materials</h3>
-                                                    <p className="text-[10px] text-slate-400 font-medium mt-0.5">{studyMaterials.length} material{studyMaterials.length !== 1 ? 's' : ''} uploaded</p>
+                                                    <p className="text-[10px] text-slate-400 font-medium mt-0.5">{filteredMaterials.length} material{filteredMaterials.length !== 1 ? 's' : ''} shown</p>
+                                                </div>
+                                                
+                                                {/* Category Tabs */}
+                                                <div className="flex bg-slate-100/80 p-0.5 rounded-xl gap-0.5 border border-slate-200/50">
+                                                    {[
+                                                        { id: 'all', label: 'All' },
+                                                        { id: 'video', label: 'Video' },
+                                                        { id: 'audio', label: 'Audio' },
+                                                        { id: 'pdf', label: 'PDF' },
+                                                        { id: 'web', label: 'Web page' }
+                                                    ].map(tab => (
+                                                        <button
+                                                            key={tab.id}
+                                                            type="button"
+                                                            onClick={() => setSelectedCategoryTab(tab.id)}
+                                                            className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all ${
+                                                                selectedCategoryTab === tab.id
+                                                                    ? 'bg-[#3E3ADD] text-white shadow-sm'
+                                                                    : 'text-slate-500 hover:text-slate-800'
+                                                            }`}
+                                                        >
+                                                            {tab.label}
+                                                        </button>
+                                                    ))}
                                                 </div>
                                             </div>
 
@@ -2427,45 +2640,118 @@ const TeacherActivities = () => {
                                                     <div className="animate-spin rounded-full h-8 w-8 border-4 border-indigo-900/20 border-t-indigo-900 mb-2"></div>
                                                     <p className="text-xs text-slate-450 font-semibold">Loading materials...</p>
                                                 </div>
-                                            ) : studyMaterials.length === 0 ? (
+                                            ) : filteredMaterials.length === 0 ? (
                                                 <div className="py-12 text-center bg-white rounded-2xl border border-slate-100 shadow-sm max-w-md mx-auto">
                                                     <div className="text-4xl mb-2">📂</div>
-                                                    <p className="font-bold text-slate-700 text-sm">No Materials Uploaded</p>
-                                                    <p className="text-slate-450 text-xs mt-1 font-medium">Upload PDF/Docs above for this activities inbox.</p>
+                                                    <p className="font-bold text-slate-700 text-sm">No Materials Found</p>
+                                                    <p className="text-slate-455 text-xs mt-1 font-medium">No materials uploaded under this category yet.</p>
                                                 </div>
                                             ) : (
-                                                <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
-                                                    {studyMaterials.map((mat) => (
-                                                        <div key={mat._id} className="bg-white p-5 rounded-2xl border border-slate-200 hover:shadow-md transition-all flex flex-col justify-between hover:-translate-y-0.5 duration-200">
-                                                            <div className="space-y-2">
-                                                                <h4 className="font-extrabold text-slate-800 text-sm leading-snug line-clamp-1">{mat.title}</h4>
-                                                                <p className="text-xs text-slate-450 truncate" title={mat.filename}>
-                                                                    {mat.filename === 'Web Link' ? (
-                                                                        <span className="text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded text-[10px]">🔗 Web Link</span>
-                                                                    ) : (
-                                                                        mat.filename
+                                                <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+                                                    {filteredMaterials.map((mat) => {
+                                                        const config = getMaterialTypeConfig(mat);
+                                                        const TypeIcon = config.icon;
+                                                        const isEmbed = mat.filename === 'Web Link';
+                                                        
+                                                        return (
+                                                            <div key={mat._id} className="bg-white p-3.5 rounded-xl border border-slate-200 hover:shadow-md transition-all flex flex-col justify-between hover:-translate-y-0.5 duration-200 max-w-[360px] w-full">
+                                                                <div className="space-y-2">
+                                                                    <div className="flex items-center justify-between">
+                                                                        <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg border text-[9px] font-black uppercase tracking-wider ${config.color}`}>
+                                                                            <TypeIcon size={10} />
+                                                                            {config.label}
+                                                                        </span>
+                                                                        {isEmbed && (
+                                                                            <span className="text-slate-400 text-[9px] font-bold">Embedded</span>
+                                                                        )}
+                                                                    </div>
+                                                                    <div>
+                                                                        <h4 className="font-extrabold text-slate-800 text-sm leading-snug line-clamp-2" title={mat.title}>{mat.title}</h4>
+                                                                    </div>
+
+                                                                    {/* Inline Previews */}
+                                                                    {config.label === 'Video' && (
+                                                                        <div
+                                                                            onClick={() => setActiveVideoModalUrl(mat.fileUrl)}
+                                                                            className="mt-2 rounded-xl overflow-hidden bg-slate-900 border border-slate-200 aspect-video flex items-center justify-center relative cursor-pointer group"
+                                                                        >
+                                                                            {/* Play button overlay */}
+                                                                            <div className="absolute inset-0 bg-black/20 group-hover:bg-black/35 transition-colors flex items-center justify-center z-10">
+                                                                                <div className="w-10 h-10 bg-white/95 group-hover:bg-white text-[#3E3ADD] rounded-full flex items-center justify-center shadow-md group-hover:scale-110 transition-all duration-200">
+                                                                                    <Play size={16} fill="#3E3ADD" strokeWidth={0} className="ml-0.5" />
+                                                                                </div>
+                                                                            </div>
+                                                                            {/* Thumbnail image if YouTube */}
+                                                                            {(() => {
+                                                                                const embedUrl = getEmbedVideoUrl(mat.fileUrl);
+                                                                                const ytReg = /youtube\.com\/embed\/([^/]+)/;
+                                                                                const ytMatch = embedUrl.match(ytReg);
+                                                                                if (ytMatch && ytMatch[1]) {
+                                                                                    return <img src={`https://img.youtube.com/vi/${ytMatch[1]}/hqdefault.jpg`} className="w-full h-full object-cover" alt="Video thumbnail" />;
+                                                                                }
+                                                                                return <Video size={24} className="text-slate-400" />;
+                                                                            })()}
+                                                                        </div>
                                                                     )}
-                                                                </p>
-                                                                <p className="text-[10px] text-slate-400">Uploaded on {new Date(mat.createdAt).toLocaleDateString()}</p>
+
+                                                                    {config.label === 'Audio' && (
+                                                                        <div className="mt-2 bg-slate-50 p-2 border border-slate-100 rounded-xl">
+                                                                            {isEmbed ? (
+                                                                                <div className="flex items-center gap-2 py-1 justify-center">
+                                                                                    <Mic size={12} className="text-slate-500" />
+                                                                                    <a href={mat.fileUrl} target="_blank" rel="noreferrer" className="text-[10px] font-extrabold text-[#3E3ADD] hover:underline">
+                                                                                        Listen Embed Audio
+                                                                                    </a>
+                                                                                </div>
+                                                                            ) : (
+                                                                                <audio src={mat.fileUrl} controls className="w-full h-8" />
+                                                                            )}
+                                                                        </div>
+                                                                    {config.label === 'Web page' && (
+                                                                        <div className="mt-2 rounded-xl overflow-hidden bg-slate-50 border border-slate-200 aspect-video relative flex flex-col group/web">
+                                                                            {/* Mini Browser Bar */}
+                                                                            <div className="bg-slate-100 px-2 py-1 border-b border-slate-200/60 flex items-center gap-1 select-none shrink-0">
+                                                                                <div className="w-1.5 h-1.5 rounded-full bg-slate-300" />
+                                                                                <div className="w-1.5 h-1.5 rounded-full bg-slate-300" />
+                                                                                <div className="w-1.5 h-1.5 rounded-full bg-slate-300" />
+                                                                                <div className="bg-white/80 text-[7px] font-semibold text-slate-400 px-2 py-0.5 rounded flex-1 truncate text-center border border-slate-200/40 font-mono">
+                                                                                    {mat.fileUrl}
+                                                                                </div>
+                                                                            </div>
+                                                                            {/* Mini Iframe Viewer */}
+                                                                            <div className="flex-1 overflow-hidden relative pointer-events-none">
+                                                                                <iframe
+                                                                                    src={mat.fileUrl}
+                                                                                    className="w-[143%] h-[143%] border-none origin-top-left scale-[0.7] pointer-events-none"
+                                                                                    scrolling="no"
+                                                                                    title="Web preview"
+                                                                                />
+                                                                                <div className="absolute inset-0 bg-transparent" />
+                                                                            </div>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+
+                                                                <div className="mt-2.5 pt-2 border-t border-slate-100 flex justify-between items-center">
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => handleDeleteStudyMaterial(mat._id)}
+                                                                        className="text-red-500 hover:text-red-700 text-[10px] font-bold"
+                                                                    >
+                                                                        Delete
+                                                                    </button>
+                                                                    <a
+                                                                        href={mat.fileUrl}
+                                                                        target="_blank"
+                                                                        rel="noreferrer"
+                                                                        className="px-3.5 py-1.5 bg-[#3E3ADD] hover:bg-indigo-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider shadow-sm transition-all"
+                                                                    >
+                                                                        {config.label === 'Web page' ? 'Open Link' : 'Open File'}
+                                                                    </a>
+                                                                </div>
                                                             </div>
-                                                            <div className="mt-4 pt-3 border-t border-slate-100 flex justify-between items-center">
-                                                                <button
-                                                                    onClick={() => handleDeleteStudyMaterial(mat._id)}
-                                                                    className="text-red-500 hover:text-red-700 text-[10px] font-bold"
-                                                                >
-                                                                    Delete
-                                                                </button>
-                                                                <a
-                                                                    href={mat.fileUrl}
-                                                                    target="_blank"
-                                                                    rel="noreferrer"
-                                                                    className="px-3.5 py-1.5 bg-[#3E3ADD] hover:bg-indigo-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider shadow-sm transition-all"
-                                                                >
-                                                                    {mat.filename === 'Web Link' ? 'Open Link' : 'View File'}
-                                                                </a>
-                                                            </div>
-                                                        </div>
-                                                    ))}
+                                                        );
+                                                    })}
                                                 </div>
                                             )}
                                         </div>
@@ -3412,10 +3698,10 @@ const TeacherActivities = () => {
 
                     {/* Sticky bottom bar — Add More + Add Material (on pending and assign tabs) */}
                     {selectedStudent && selectedInboxId && studentTab === 'tests' && (viewMode === 'pending' || viewMode === 'assign') && (
-                        <div className="shrink-0 border-t border-slate-200 bg-white px-6 py-3 flex justify-end gap-3">
+                        <div className="shrink-0 border-t border-slate-200 bg-white px-6 py-3 flex justify-end gap-3 relative">
                             <button
                                 type="button"
-                                onClick={() => setShowMatModal(true)}
+                                onClick={() => setShowAddMenu(!showAddMenu)}
                                 className="inline-flex items-center gap-2 px-5 py-2.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-sm hover:shadow-md active:scale-95"
                             >
                                 <Plus size={14} strokeWidth={3} />
@@ -3428,20 +3714,106 @@ const TeacherActivities = () => {
                                 <Plus size={14} strokeWidth={3} />
                                 <span>Add More</span>
                             </button>
+
+                            {showAddMenu && (
+                                <>
+                                    <div className="fixed inset-0 z-40" onClick={() => setShowAddMenu(false)} />
+                                    <div className="absolute bottom-16 right-36 bg-white border border-slate-200/80 shadow-2xl rounded-2xl p-2.5 flex flex-col gap-1 min-w-[170px] z-50 animate-slide-up text-left">
+                                        <div className="px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-slate-400 border-b border-slate-100/70 mb-1">
+                                            Select Type
+                                        </div>
+                                        {[
+                                            { id: 'video', label: 'Video Material', icon: Video, color: 'text-blue-500 bg-blue-50' },
+                                            { id: 'audio', label: 'Audio Material', icon: Mic, color: 'text-purple-500 bg-purple-50' },
+                                            { id: 'pdf', label: 'PDF Document', icon: FileText, color: 'text-orange-500 bg-orange-50' },
+                                            { id: 'web', label: 'Web Page', icon: Link2, color: 'text-emerald-500 bg-emerald-50' }
+                                        ].map(item => {
+                                            const Icon = item.icon;
+                                            return (
+                                                <button
+                                                    key={item.id}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setSelectedUploadType(item.id);
+                                                        setShowAddMenu(false);
+                                                        setMatTitle('');
+                                                        setMatFile(null);
+                                                        setMatUrl('');
+                                                        setVideoAudioMode('upload');
+                                                        setWebMode('embedded');
+                                                        setPdfMode('upload');
+                                                        stopRecordingStream();
+                                                        setShowMatModal(true);
+                                                    }}
+                                                    className="flex items-center gap-3 w-full px-3 py-2.5 hover:bg-slate-50 text-slate-700 hover:text-slate-900 rounded-xl text-xs font-bold text-left transition-all"
+                                                >
+                                                    <div className={`w-6 h-6 rounded-lg flex items-center justify-center ${item.color}`}>
+                                                        <Icon size={12} />
+                                                    </div>
+                                                    <span>{item.label}</span>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </>
+                            )}
                         </div>
                     )}
 
                     {/* Sticky bottom bar — Add Material (study-material tab) */}
                     {selectedStudent && selectedInboxId && studentTab === 'tests' && viewMode === 'study-material' && (
-                        <div className="shrink-0 border-t border-slate-200 bg-white px-6 py-3 flex justify-end">
+                        <div className="shrink-0 border-t border-slate-200 bg-white px-6 py-3 flex justify-end relative">
                             <button
                                 type="button"
-                                onClick={() => setShowMatModal(true)}
+                                onClick={() => setShowAddMenu(!showAddMenu)}
                                 className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#3E3ADD] hover:bg-indigo-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md shadow-indigo-200 hover:shadow-indigo-300 active:scale-95"
                             >
                                 <Plus size={14} strokeWidth={3} />
                                 <span>Add Material</span>
                             </button>
+
+                            {showAddMenu && (
+                                <>
+                                    <div className="fixed inset-0 z-40" onClick={() => setShowAddMenu(false)} />
+                                    <div className="absolute bottom-16 right-6 bg-white border border-slate-200/80 shadow-2xl rounded-2xl p-2.5 flex flex-col gap-1 min-w-[170px] z-50 animate-slide-up text-left">
+                                        <div className="px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-slate-400 border-b border-slate-100/70 mb-1">
+                                            Select Type
+                                        </div>
+                                        {[
+                                            { id: 'video', label: 'Video Material', icon: Video, color: 'text-blue-500 bg-blue-50' },
+                                            { id: 'audio', label: 'Audio Material', icon: Mic, color: 'text-purple-500 bg-purple-50' },
+                                            { id: 'pdf', label: 'PDF Document', icon: FileText, color: 'text-orange-500 bg-orange-50' },
+                                            { id: 'web', label: 'Web Page', icon: Link2, color: 'text-emerald-500 bg-emerald-50' }
+                                        ].map(item => {
+                                            const Icon = item.icon;
+                                            return (
+                                                <button
+                                                    key={item.id}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setSelectedUploadType(item.id);
+                                                        setShowAddMenu(false);
+                                                        setMatTitle('');
+                                                        setMatFile(null);
+                                                        setMatUrl('');
+                                                        setVideoAudioMode('upload');
+                                                        setWebMode('embedded');
+                                                        setPdfMode('upload');
+                                                        stopRecordingStream();
+                                                        setShowMatModal(true);
+                                                    }}
+                                                    className="flex items-center gap-3 w-full px-3 py-2.5 hover:bg-slate-50 text-slate-700 hover:text-slate-900 rounded-xl text-xs font-bold text-left transition-all"
+                                                >
+                                                    <div className={`w-6 h-6 rounded-lg flex items-center justify-center ${item.color}`}>
+                                                        <Icon size={12} />
+                                                    </div>
+                                                    <span>{item.label}</span>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </>
+                            )}
                         </div>
                     )}
 
@@ -3450,7 +3822,10 @@ const TeacherActivities = () => {
                         <div
                             className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
                             style={{ backgroundColor: 'rgba(15,23,42,0.45)', backdropFilter: 'blur(4px)' }}
-                            onClick={() => setShowMatModal(false)}
+                            onClick={() => {
+                                stopRecordingStream();
+                                setShowMatModal(false);
+                            }}
                         >
                             <div
                                 className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 animate-fade-in"
@@ -3460,16 +3835,35 @@ const TeacherActivities = () => {
                                 <div className="flex items-center justify-between mb-5">
                                     <div className="flex items-center gap-2">
                                         <div className="w-8 h-8 rounded-xl bg-indigo-100 flex items-center justify-center">
-                                            <FileText size={15} className="text-[#3E3ADD]" />
+                                            {selectedUploadType === 'video' ? (
+                                                <Video size={15} className="text-[#3E3ADD]" />
+                                            ) : selectedUploadType === 'audio' ? (
+                                                <Mic size={15} className="text-[#3E3ADD]" />
+                                            ) : selectedUploadType === 'web' ? (
+                                                <Link2 size={15} className="text-[#3E3ADD]" />
+                                            ) : (
+                                                <FileText size={15} className="text-[#3E3ADD]" />
+                                            )}
                                         </div>
                                         <div>
-                                            <h3 className="font-extrabold text-slate-800 text-sm">Add Study Material</h3>
-                                            <p className="text-[10px] text-slate-400 font-medium">Upload a file or paste a web link</p>
+                                            <h3 className="font-extrabold text-slate-800 text-sm">
+                                                Add {selectedUploadType === 'video' ? 'Video' : selectedUploadType === 'audio' ? 'Audio' : selectedUploadType === 'web' ? 'Web page' : 'PDF'} Material
+                                            </h3>
+                                            <p className="text-[10px] text-slate-400 font-medium">
+                                                {selectedUploadType === 'video' || selectedUploadType === 'audio' 
+                                                    ? 'Upload, record, or embed media' 
+                                                    : selectedUploadType === 'web' 
+                                                        ? 'Paste link or upload HTML' 
+                                                        : 'Upload PDF or Document'}
+                                            </p>
                                         </div>
                                     </div>
                                     <button
                                         type="button"
-                                        onClick={() => setShowMatModal(false)}
+                                        onClick={() => {
+                                            stopRecordingStream();
+                                            setShowMatModal(false);
+                                        }}
                                         className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 transition-all cursor-pointer text-sm font-bold"
                                     >
                                         ×
@@ -3477,52 +3871,97 @@ const TeacherActivities = () => {
                                 </div>
 
                                 <form onSubmit={handleUploadStudyMaterial} className="space-y-4">
-                                    {/* Segmented Tab */}
-                                    <div className="grid grid-cols-2 bg-slate-50 border border-slate-200/60 p-1 rounded-xl">
-                                        <button
-                                            type="button"
-                                            onClick={() => setUploadType('url')}
-                                            className={`flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${uploadType === 'url' ? 'bg-white text-slate-800 shadow-sm border border-slate-100' : 'text-slate-500 hover:text-slate-700'}`}
-                                        >
-                                            <Link2 size={13} /> Paste Link
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => setUploadType('file')}
-                                            className={`flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${uploadType === 'file' ? 'bg-white text-slate-800 shadow-sm border border-slate-100' : 'text-slate-500 hover:text-slate-700'}`}
-                                        >
-                                            <Upload size={13} /> Upload File
-                                        </button>
-                                    </div>
+                                    {/* Segmented Sub-tabs for Media */}
+                                    {(selectedUploadType === 'video' || selectedUploadType === 'audio') && (
+                                        <div className="grid grid-cols-3 bg-slate-50 border border-slate-200/60 p-1 rounded-xl">
+                                            {[
+                                                { id: 'upload', label: 'Upload' },
+                                                { id: 'record', label: 'Record' },
+                                                { id: 'embedded', label: 'Embed Link' }
+                                            ].map(mode => (
+                                                <button
+                                                    key={mode.id}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setVideoAudioMode(mode.id);
+                                                        setMatFile(null);
+                                                        setMatUrl('');
+                                                        stopRecordingStream();
+                                                    }}
+                                                    className={`py-1.5 rounded-lg text-[10px] font-extrabold uppercase tracking-wider transition-all cursor-pointer ${videoAudioMode === mode.id ? 'bg-white text-slate-800 shadow-sm border border-slate-100' : 'text-slate-500 hover:text-slate-700'}`}
+                                                >
+                                                    {mode.label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
 
-                                    {/* Title */}
+                                    {/* Segmented Sub-tabs for Web */}
+                                    {selectedUploadType === 'web' && (
+                                        <div className="grid grid-cols-3 bg-slate-50 border border-slate-200/60 p-1 rounded-xl">
+                                            {[
+                                                { id: 'embedded', label: 'Paste Link' },
+                                                { id: 'upload', label: 'Upload HTML' },
+                                                { id: 'code', label: 'Write HTML' }
+                                            ].map(mode => (
+                                                <button
+                                                    key={mode.id}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setWebMode(mode.id);
+                                                        setMatFile(null);
+                                                        setMatUrl('');
+                                                        setHtmlCode('');
+                                                    }}
+                                                    className={`py-1.5 rounded-lg text-[10px] font-extrabold uppercase tracking-wider transition-all cursor-pointer ${webMode === mode.id ? 'bg-white text-slate-800 shadow-sm border border-slate-100' : 'text-slate-500 hover:text-slate-700'}`}
+                                                >
+                                                    {mode.label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {/* Segmented Sub-tabs for PDF */}
+                                    {selectedUploadType === 'pdf' && (
+                                        <div className="grid grid-cols-2 bg-slate-50 border border-slate-200/60 p-1 rounded-xl">
+                                            {[
+                                                { id: 'upload', label: 'Upload File' },
+                                                { id: 'embedded', label: 'Paste Link' }
+                                            ].map(mode => (
+                                                <button
+                                                    key={mode.id}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setPdfMode(mode.id);
+                                                        setMatFile(null);
+                                                        setMatUrl('');
+                                                    }}
+                                                    className={`py-1.5 rounded-lg text-[10px] font-extrabold uppercase tracking-wider transition-all cursor-pointer ${pdfMode === mode.id ? 'bg-white text-slate-800 shadow-sm border border-slate-100' : 'text-slate-500 hover:text-slate-700'}`}
+                                                >
+                                                    {mode.label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {/* Title input (Always shown) */}
                                     <div className="space-y-1.5">
                                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Material Title</label>
                                         <input
                                             type="text"
                                             value={matTitle}
                                             onChange={(e) => setMatTitle(e.target.value)}
-                                            placeholder="e.g. React Cheatsheet"
+                                            placeholder="e.g. Introduction video or Cheatsheet"
                                             className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 bg-white"
                                             autoFocus
                                         />
                                     </div>
 
-                                    {/* URL or File */}
-                                    {uploadType === 'url' ? (
+                                    {/* Modal fields based on Type & Submode */}
+                                    {/* 1. PDF Upload or Embedded Link */}
+                                    {selectedUploadType === 'pdf' && pdfMode === 'upload' && (
                                         <div className="space-y-1.5">
-                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Web Link (URL)</label>
-                                            <input
-                                                type="url"
-                                                value={matUrl}
-                                                onChange={(e) => setMatUrl(e.target.value)}
-                                                placeholder="https://drive.google.com/... or any URL"
-                                                className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 bg-white"
-                                            />
-                                        </div>
-                                    ) : (
-                                        <div className="space-y-1.5">
-                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Choose File</label>
+                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Choose Document</label>
                                             <div
                                                 className="border-2 border-dashed border-slate-200 hover:border-indigo-300 rounded-xl p-6 bg-slate-50/50 flex flex-col items-center justify-center gap-3 cursor-pointer transition-all"
                                                 onClick={() => document.getElementById('study-material-file-global').click()}
@@ -3530,6 +3969,7 @@ const TeacherActivities = () => {
                                                 <input
                                                     type="file"
                                                     id="study-material-file-global"
+                                                    accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
                                                     onChange={(e) => setMatFile(e.target.files[0])}
                                                     className="hidden"
                                                 />
@@ -3538,10 +3978,304 @@ const TeacherActivities = () => {
                                                 </div>
                                                 <div className="text-center">
                                                     <p className="text-xs font-bold text-slate-600">
-                                                        {matFile ? matFile.name : 'Click to choose a file'}
+                                                        {matFile ? matFile.name : 'Click to choose document'}
                                                     </p>
-                                                    {!matFile && <p className="text-[10px] text-slate-400 mt-0.5">PDF, DOC, PPT, Images supported</p>}
+                                                    {!matFile && <p className="text-[10px] text-slate-400 mt-0.5">PDF, DOC, PPT, XLS supported</p>}
                                                 </div>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {selectedUploadType === 'pdf' && pdfMode === 'embedded' && (
+                                        <div className="space-y-1.5">
+                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Document URL Link</label>
+                                            <input
+                                                type="url"
+                                                value={matUrl}
+                                                onChange={(e) => setMatUrl(e.target.value)}
+                                                placeholder="https://drive.google.com/... or any PDF link"
+                                                className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 bg-white"
+                                            />
+                                        </div>
+                                    )}
+
+                                    {/* 2. Web - Embedded Link or HTML Upload */}
+                                    {selectedUploadType === 'web' && webMode === 'embedded' && (
+                                        <div className="space-y-1.5">
+                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Web page Link (URL)</label>
+                                            <input
+                                                type="url"
+                                                value={matUrl}
+                                                onChange={(e) => setMatUrl(e.target.value)}
+                                                placeholder="https://wikipedia.org/... or any URL"
+                                                className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 bg-white"
+                                            />
+                                        </div>
+                                    )}
+
+                                    {selectedUploadType === 'web' && webMode === 'upload' && (
+                                        <div className="space-y-1.5">
+                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Upload HTML file</label>
+                                            <div
+                                                className="border-2 border-dashed border-slate-200 hover:border-indigo-300 rounded-xl p-6 bg-slate-50/50 flex flex-col items-center justify-center gap-3 cursor-pointer transition-all"
+                                                onClick={() => document.getElementById('study-material-file-global').click()}
+                                            >
+                                                <input
+                                                    type="file"
+                                                    id="study-material-file-global"
+                                                    accept=".html,.htm"
+                                                    onChange={(e) => setMatFile(e.target.files[0])}
+                                                    className="hidden"
+                                                />
+                                                <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center">
+                                                    <Upload size={18} className="text-[#3E3ADD]" />
+                                                </div>
+                                                <div className="text-center">
+                                                    <p className="text-xs font-bold text-slate-600">
+                                                        {matFile ? matFile.name : 'Click to choose HTML file'}
+                                                    </p>
+                                                    {!matFile && <p className="text-[10px] text-slate-400 mt-0.5">Only HTML/HTM supported</p>}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {selectedUploadType === 'web' && webMode === 'code' && (
+                                        <div className="space-y-2">
+                                            <div className="flex justify-between items-center">
+                                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Write or Paste HTML Code</label>
+                                                <span className="text-[9px] font-extrabold text-[#3E3ADD] bg-indigo-50 px-2 py-0.5 rounded-lg border border-indigo-100 uppercase tracking-wider">HTML Editor</span>
+                                            </div>
+                                            <div className="relative border border-slate-200 rounded-2xl overflow-hidden font-mono text-xs shadow-inner">
+                                                {/* Editor header */}
+                                                <div className="bg-slate-900 px-4 py-2 border-b border-slate-800 flex items-center justify-between text-slate-400 select-none">
+                                                    <div className="flex items-center gap-1.5">
+                                                        <div className="w-2 h-2 rounded-full bg-red-500" />
+                                                        <div className="w-2 h-2 rounded-full bg-amber-500" />
+                                                        <div className="w-2 h-2 rounded-full bg-green-500" />
+                                                        <span className="text-[9px] ml-1 font-bold tracking-wider text-slate-500">index.html</span>
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setHtmlCode(`<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { font-family: sans-serif; padding: 20px; color: #333; }
+        h1 { color: #3e3add; }
+    </style>
+</head>
+<body>
+    <h1>My Custom Web Page</h1>
+    <p>Write your content here...</p>
+</body>
+</html>`);
+                                                        }}
+                                                        className="text-[9px] font-extrabold bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded transition-all uppercase tracking-wider cursor-pointer"
+                                                    >
+                                                        Load Template
+                                                    </button>
+                                                </div>
+                                                {/* Textarea container */}
+                                                <div className="flex bg-slate-950">
+                                                    {/* Fake Line Numbers */}
+                                                    <div className="py-3 px-2 text-right bg-slate-900 text-slate-650 border-r border-slate-800/80 text-[10px] leading-[18px] select-none text-right flex flex-col font-bold w-8">
+                                                        {Array.from({ length: Math.max(12, htmlCode.split('\n').length) }).map((_, idx) => (
+                                                            <span key={idx}>{idx + 1}</span>
+                                                        ))}
+                                                    </div>
+                                                    <textarea
+                                                        value={htmlCode}
+                                                        onChange={(e) => setHtmlCode(e.target.value)}
+                                                        placeholder="<!DOCTYPE html>&#10;<html>&#10;  <body>&#10;    <h1>Hello World</h1>&#10;  </body>&#10;</html>"
+                                                        rows={12}
+                                                        className="flex-1 py-3 px-4 bg-slate-950 text-emerald-400 focus:outline-none resize-none font-mono text-xs leading-[18px] selection:bg-slate-800 placeholder-slate-700"
+                                                        style={{ caretColor: 'white' }}
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* 3. Video - Upload, Embed, or Record */}
+                                    {selectedUploadType === 'video' && videoAudioMode === 'upload' && (
+                                        <div className="space-y-1.5">
+                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Choose Video File</label>
+                                            <div
+                                                className="border-2 border-dashed border-slate-200 hover:border-indigo-300 rounded-xl p-6 bg-slate-50/50 flex flex-col items-center justify-center gap-3 cursor-pointer transition-all"
+                                                onClick={() => document.getElementById('study-material-file-global').click()}
+                                            >
+                                                <input
+                                                    type="file"
+                                                    id="study-material-file-global"
+                                                    accept="video/*"
+                                                    onChange={(e) => setMatFile(e.target.files[0])}
+                                                    className="hidden"
+                                                />
+                                                <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center">
+                                                    <Upload size={18} className="text-[#3E3ADD]" />
+                                                </div>
+                                                <div className="text-center">
+                                                    <p className="text-xs font-bold text-slate-600">
+                                                        {matFile ? matFile.name : 'Click to choose video'}
+                                                    </p>
+                                                    {!matFile && <p className="text-[10px] text-slate-400 mt-0.5">MP4, WebM, OGG etc. supported</p>}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {selectedUploadType === 'video' && videoAudioMode === 'embedded' && (
+                                        <div className="space-y-1.5">
+                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Video Embed / URL Link</label>
+                                            <input
+                                                type="url"
+                                                value={matUrl}
+                                                onChange={(e) => setMatUrl(e.target.value)}
+                                                placeholder="https://www.youtube.com/watch?v=... or any video link"
+                                                className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 bg-white"
+                                            />
+                                        </div>
+                                    )}
+
+                                    {selectedUploadType === 'video' && videoAudioMode === 'record' && (
+                                        <div className="space-y-3">
+                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Record Video</label>
+                                            <div className="relative rounded-2xl overflow-hidden bg-slate-950 aspect-video border border-slate-200 flex items-center justify-center">
+                                                {recordingUrl ? (
+                                                    <video src={recordingUrl} controls className="w-full h-full object-contain" />
+                                                ) : (
+                                                    <video ref={videoPreviewRef} autoPlay playsInline muted className="w-full h-full object-cover" />
+                                                )}
+                                                {isRecording && (
+                                                    <div className="absolute top-3 left-3 bg-red-600 text-white px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider flex items-center gap-1.5 animate-pulse">
+                                                        <span className="w-1.5 h-1.5 rounded-full bg-white"></span>
+                                                        <span>REC {new Date(recordingTimer * 1000).toISOString().substr(14, 5)}</span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <div className="flex gap-2">
+                                                {!isRecording && !recordingUrl && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => startRecording('video')}
+                                                        className="w-full py-2.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 border border-red-200 cursor-pointer"
+                                                    >
+                                                        <Video size={13} /> Start Recording
+                                                    </button>
+                                                )}
+                                                {isRecording && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={stopRecording}
+                                                        className="w-full py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 border border-red-700 cursor-pointer"
+                                                    >
+                                                        <div className="w-2.5 h-2.5 bg-white rounded-sm"></div> Stop Recording
+                                                    </button>
+                                                )}
+                                                {recordingUrl && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => startRecording('video')}
+                                                        className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 border border-slate-200 cursor-pointer"
+                                                    >
+                                                        <RotateCcw size={13} /> Re-record
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* 4. Audio - Upload, Embed, or Record */}
+                                    {selectedUploadType === 'audio' && videoAudioMode === 'upload' && (
+                                        <div className="space-y-1.5">
+                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Choose Audio File</label>
+                                            <div
+                                                className="border-2 border-dashed border-slate-200 hover:border-indigo-300 rounded-xl p-6 bg-slate-50/50 flex flex-col items-center justify-center gap-3 cursor-pointer transition-all"
+                                                onClick={() => document.getElementById('study-material-file-global').click()}
+                                            >
+                                                <input
+                                                    type="file"
+                                                    id="study-material-file-global"
+                                                    accept="audio/*"
+                                                    onChange={(e) => setMatFile(e.target.files[0])}
+                                                    className="hidden"
+                                                />
+                                                <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center">
+                                                    <Upload size={18} className="text-[#3E3ADD]" />
+                                                </div>
+                                                <div className="text-center">
+                                                    <p className="text-xs font-bold text-slate-600">
+                                                        {matFile ? matFile.name : 'Click to choose audio'}
+                                                    </p>
+                                                    {!matFile && <p className="text-[10px] text-slate-400 mt-0.5">MP3, WAV, AAC, M4A supported</p>}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {selectedUploadType === 'audio' && videoAudioMode === 'embedded' && (
+                                        <div className="space-y-1.5">
+                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Audio Embed / URL Link</label>
+                                            <input
+                                                type="url"
+                                                value={matUrl}
+                                                onChange={(e) => setMatUrl(e.target.value)}
+                                                placeholder="https://soundcloud.com/... or any audio url link"
+                                                className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 bg-white"
+                                            />
+                                        </div>
+                                    )}
+
+                                    {selectedUploadType === 'audio' && videoAudioMode === 'record' && (
+                                        <div className="space-y-3">
+                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Record Audio</label>
+                                            <div className="border border-slate-200 rounded-2xl p-6 bg-slate-50/50 flex flex-col items-center justify-center gap-3">
+                                                {recordingUrl ? (
+                                                    <audio src={recordingUrl} controls className="w-full" />
+                                                ) : (
+                                                    <div className={`w-14 h-14 rounded-full flex items-center justify-center border shadow-sm transition-all ${isRecording ? 'bg-red-50 text-red-605 border-red-200 animate-pulse' : 'bg-indigo-50 text-[#3E3ADD] border-indigo-100'}`}>
+                                                        <Mic size={24} />
+                                                    </div>
+                                                )}
+                                                {isRecording && (
+                                                    <span className="text-xs font-bold text-red-600 animate-pulse">
+                                                        Recording... {new Date(recordingTimer * 1000).toISOString().substr(14, 5)}
+                                                    </span>
+                                                )}
+                                                {!isRecording && !recordingUrl && (
+                                                    <p className="text-[10px] text-slate-400 font-semibold">Click button below to start audio recording</p>
+                                                )}
+                                            </div>
+                                            <div className="flex gap-2">
+                                                {!isRecording && !recordingUrl && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => startRecording('audio')}
+                                                        className="w-full py-2.5 bg-red-50 hover:bg-red-100 text-red-650 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 border border-red-200 cursor-pointer"
+                                                    >
+                                                        <Mic size={13} /> Start Recording
+                                                    </button>
+                                                )}
+                                                {isRecording && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={stopRecording}
+                                                        className="w-full py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 border border-red-700 cursor-pointer"
+                                                    >
+                                                        <div className="w-2.5 h-2.5 bg-white rounded-sm"></div> Stop Recording
+                                                    </button>
+                                                )}
+                                                {recordingUrl && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => startRecording('audio')}
+                                                        className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 border border-slate-200 cursor-pointer"
+                                                    >
+                                                        <RotateCcw size={13} /> Re-record
+                                                    </button>
+                                                )}
                                             </div>
                                         </div>
                                     )}
@@ -3550,7 +4284,10 @@ const TeacherActivities = () => {
                                     <div className="flex gap-3 pt-1">
                                         <button
                                             type="button"
-                                            onClick={() => setShowMatModal(false)}
+                                            onClick={() => {
+                                                stopRecordingStream();
+                                                setShowMatModal(false);
+                                            }}
                                             className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer"
                                         >
                                             Cancel
@@ -4468,6 +5205,44 @@ const TeacherActivities = () => {
                 </div>
             )}
         </DashboardLayout>
+        {activeVideoModalUrl && (
+            <div className="fixed inset-0 z-[100000] flex items-center justify-center bg-white/75 backdrop-blur-md animate-fade-in p-4">
+                <div className="absolute inset-0" onClick={() => setActiveVideoModalUrl(null)} />
+                <div className="bg-slate-950 rounded-3xl w-full max-w-4xl aspect-video relative z-50 overflow-hidden shadow-2xl animate-scale-up border border-slate-200/60">
+                    <button
+                        type="button"
+                        onClick={() => setActiveVideoModalUrl(null)}
+                        className="absolute top-4 right-4 z-[60] w-9 h-9 rounded-full bg-white hover:bg-slate-100 text-slate-800 hover:text-black flex items-center justify-center font-black text-xl shadow-md border border-slate-200 transition-all cursor-pointer"
+                    >
+                        ×
+                    </button>
+                    {(() => {
+                        const embedUrl = getEmbedVideoUrl(activeVideoModalUrl);
+                        const isIframe = embedUrl.includes('youtube.com/embed/') || embedUrl.includes('player.vimeo.com/video/');
+                        if (isIframe) {
+                            return (
+                                <iframe
+                                    src={`${embedUrl}?autoplay=1`}
+                                    frameBorder="0"
+                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                    allowFullScreen
+                                    className="w-full h-full"
+                                />
+                            );
+                        }
+                        return (
+                            <video
+                                src={activeVideoModalUrl}
+                                controls
+                                autoPlay
+                                className="w-full h-full object-contain"
+                            />
+                        );
+                    })()}
+                </div>
+            </div>
+        )}
+        </>
     );
 };
 

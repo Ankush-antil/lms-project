@@ -109,6 +109,7 @@ const AdminDashboard = () => {
     const [allCourses, setAllCourses] = useState([]);
     const [allStudents, setAllStudents] = useState([]);
     const [allInstitutes, setAllInstitutes] = useState([]);
+    const [allSubjects, setAllSubjects] = useState([]);
     const [uploadInst, setUploadInst] = useState('');
     const [uploadCourse, setUploadCourse] = useState('');
     const [uploadStudent, setUploadStudent] = useState('all');
@@ -355,8 +356,24 @@ const AdminDashboard = () => {
         }
     };
 
+    const fetchSetupData = async () => {
+        try {
+            const [instRes, courseRes, subjRes] = await Promise.all([
+                axios.get('/api/setup/institutes'),
+                axios.get('/api/setup/courses'),
+                axios.get('/api/setup/subjects')
+            ]);
+            setAllInstitutes(instRes.data || []);
+            setAllCourses(courseRes.data || []);
+            setAllSubjects(subjRes.data || []);
+        } catch (err) {
+            console.error("Error fetching setup data:", err);
+        }
+    };
+
     useEffect(() => {
         fetchDashboardData();
+        fetchSetupData();
     }, []);
 
     const openUserModal = (role) => {
@@ -1357,11 +1374,38 @@ const AdminDashboard = () => {
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
                                     <label className="block text-[11px] font-black text-slate-600 uppercase tracking-wider mb-1.5">Institute</label>
-                                    <input type="text" value={uploadInst} onChange={e => setUploadInst(e.target.value)} placeholder="Leave blank for all" className="w-full h-10 px-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-[#3E3ADD] focus:ring-2 focus:ring-indigo-100 transition-all text-slate-800 font-semibold" />
+                                    <select
+                                        value={uploadInst}
+                                        onChange={e => {
+                                            setUploadInst(e.target.value);
+                                            setUploadCourse('');
+                                            setUploadSubject('');
+                                        }}
+                                        className="w-full h-10 px-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-[#3E3ADD] focus:ring-2 focus:ring-indigo-100 transition-all text-slate-800 font-semibold cursor-pointer"
+                                    >
+                                        <option value="">Leave blank for all</option>
+                                        {allInstitutes.map(inst => (
+                                            <option key={inst._id} value={inst.name}>{inst.name}</option>
+                                        ))}
+                                    </select>
                                 </div>
                                 <div>
                                     <label className="block text-[11px] font-black text-slate-600 uppercase tracking-wider mb-1.5">Course</label>
-                                    <input type="text" value={uploadCourse} onChange={e => setUploadCourse(e.target.value)} placeholder="Leave blank for all" className="w-full h-10 px-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-[#3E3ADD] focus:ring-2 focus:ring-indigo-100 transition-all text-slate-800 font-semibold" />
+                                    <select
+                                        value={uploadCourse}
+                                        onChange={e => {
+                                            setUploadCourse(e.target.value);
+                                            setUploadSubject('');
+                                        }}
+                                        className="w-full h-10 px-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-[#3E3ADD] focus:ring-2 focus:ring-indigo-100 transition-all text-slate-800 font-semibold cursor-pointer"
+                                    >
+                                        <option value="">Leave blank for all</option>
+                                        {allCourses
+                                            .filter(c => !uploadInst || (c.institute && c.institute.name === uploadInst))
+                                            .map(c => (
+                                                <option key={c._id} value={c.name}>{c.name}</option>
+                                            ))}
+                                    </select>
                                 </div>
                             </div>
 
@@ -1369,7 +1413,22 @@ const AdminDashboard = () => {
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
                                     <label className="block text-[11px] font-black text-slate-600 uppercase tracking-wider mb-1.5">Subject</label>
-                                    <input type="text" value={uploadSubject} onChange={e => setUploadSubject(e.target.value)} placeholder="e.g. Biology" className="w-full h-10 px-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-[#3E3ADD] focus:ring-2 focus:ring-indigo-100 transition-all text-slate-800 font-semibold" />
+                                    {(() => {
+                                        const selectedCourseObj = allCourses.find(c => c.name === uploadCourse);
+                                        const subjectsList = selectedCourseObj ? (selectedCourseObj.subjects || []) : Array.from(new Set(allSubjects.map(s => s.name)));
+                                        return (
+                                            <select
+                                                value={uploadSubject}
+                                                onChange={e => setUploadSubject(e.target.value)}
+                                                className="w-full h-10 px-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-[#3E3ADD] focus:ring-2 focus:ring-indigo-100 transition-all text-slate-800 font-semibold cursor-pointer"
+                                            >
+                                                <option value="">Select a subject</option>
+                                                {subjectsList.map((sub, index) => (
+                                                    <option key={index} value={sub}>{sub}</option>
+                                                ))}
+                                            </select>
+                                        );
+                                    })()}
                                 </div>
                                 <div>
                                     <label className="block text-[11px] font-black text-slate-600 uppercase tracking-wider mb-1.5">Inbox (Day No.)</label>

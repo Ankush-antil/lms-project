@@ -112,9 +112,11 @@ const AdminDashboard = () => {
     const [allSubjects, setAllSubjects] = useState([]);
     const [uploadInst, setUploadInst] = useState('');
     const [uploadCourse, setUploadCourse] = useState('');
-    const [uploadStudent, setUploadStudent] = useState('all');
+    const [uploadTarget, setUploadTarget] = useState('all'); // 'all', 'particular'
+    const [uploadStudentIds, setUploadStudentIds] = useState([]);
     const [uploadSubject, setUploadSubject] = useState('');
     const [uploadDayNum, setUploadDayNum] = useState(1);
+    const [studentSearchQuery, setStudentSearchQuery] = useState('');
     const [matTitle, setMatTitle] = useState('');
     const [selectedUploadType, setSelectedUploadType] = useState('video');
     const [videoAudioMode, setVideoAudioMode] = useState('upload');
@@ -358,14 +360,16 @@ const AdminDashboard = () => {
 
     const fetchSetupData = async () => {
         try {
-            const [instRes, courseRes, subjRes] = await Promise.all([
+            const [instRes, courseRes, subjRes, studRes] = await Promise.all([
                 axios.get('/api/setup/institutes'),
                 axios.get('/api/setup/courses'),
-                axios.get('/api/setup/subjects')
+                axios.get('/api/setup/subjects'),
+                axios.get('/api/users?role=Student')
             ]);
             setAllInstitutes(instRes.data || []);
             setAllCourses(courseRes.data || []);
             setAllSubjects(subjRes.data || []);
+            setAllStudents(studRes.data || []);
         } catch (err) {
             console.error("Error fetching setup data:", err);
         }
@@ -783,7 +787,8 @@ const AdminDashboard = () => {
                                         setHtmlCode('');
                                         setUploadInst('');
                                         setUploadCourse('');
-                                        setUploadStudent('all');
+                                        setUploadTarget('all');
+                                        setUploadStudentIds([]);
                                         setUploadSubject('');
                                         setUploadDayNum(1);
                                         setSelectedUploadType('video');
@@ -1241,7 +1246,13 @@ const AdminDashboard = () => {
                                                 setUploadCourse(item.course || '');
                                                 setUploadSubject(item.subject || '');
                                                 setUploadDayNum(item.dayNum || 1);
-                                                setUploadStudent(item.student?._id || 'all');
+                                                if (item.student) {
+                                                    setUploadTarget('particular');
+                                                    setUploadStudentIds([item.student._id || item.student]);
+                                                } else {
+                                                    setUploadTarget('all');
+                                                    setUploadStudentIds([]);
+                                                }
                                                 setSelectedUploadType(item.materialType || 'pdf');
                                                 setMatFile(null);
                                                 setHtmlCode(item.htmlContent || '');
@@ -1310,8 +1321,13 @@ const AdminDashboard = () => {
                                 fd.append('inboxId', uploadDayNum ? `Inbox ${uploadDayNum}` : 'Inbox 1');
                                 fd.append('materialType', selectedUploadType);
                                 
-                                if (uploadStudent && uploadStudent !== 'all') {
-                                    fd.append('studentId', uploadStudent);
+                                if (uploadTarget === 'particular') {
+                                    if (uploadStudentIds.length === 0) {
+                                        toast.error('Please select at least one student');
+                                        setUploadingMaterial(false);
+                                        return;
+                                    }
+                                    fd.append('studentIds', JSON.stringify(uploadStudentIds));
                                 }
 
                                 if (selectedUploadType === 'web' && webMode === 'code') {
@@ -1434,6 +1450,109 @@ const AdminDashboard = () => {
                                     <label className="block text-[11px] font-black text-slate-600 uppercase tracking-wider mb-1.5">Inbox (Day No.)</label>
                                     <input type="number" min={1} value={uploadDayNum} onChange={e => setUploadDayNum(Number(e.target.value))} className="w-full h-10 px-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-[#3E3ADD] focus:ring-2 focus:ring-indigo-100 transition-all text-slate-800 font-semibold" />
                                 </div>
+                            </div>
+
+                            {/* Visible To (Upload Target Selection) */}
+                            <div className="space-y-1.5">
+                                <label className="block text-[11px] font-black text-slate-600 uppercase tracking-wider">Visible To</label>
+                                <div className="grid grid-cols-2 bg-slate-50 border border-slate-200/60 p-1 rounded-xl">
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setUploadTarget('all');
+                                            setUploadStudentIds([]);
+                                            setStudentSearchQuery('');
+                                        }}
+                                        className={`py-1.5 rounded-lg text-[10px] font-extrabold uppercase tracking-wider transition-all cursor-pointer truncate ${uploadTarget === 'all' ? 'bg-white text-indigo-600 shadow-sm border border-slate-100' : 'text-slate-500 hover:text-slate-700'}`}
+                                    >
+                                        All Students
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setUploadTarget('particular')}
+                                        className={`py-1.5 rounded-lg text-[10px] font-extrabold uppercase tracking-wider transition-all cursor-pointer truncate ${uploadTarget === 'particular' ? 'bg-white text-indigo-600 shadow-sm border border-slate-100' : 'text-slate-500 hover:text-slate-700'}`}
+                                    >
+                                        Select Student(s)
+                                    </button>
+                                </div>
+
+                                {/* Particular Student Selection Checkboxes */}
+                                {uploadTarget === 'particular' && (() => {
+                                    const filteredStudents = allStudents.filter(std => {
+                                        const instMatch = !uploadInst || (std.institute && std.institute.name === uploadInst);
+                                        const courseMatch = !uploadCourse || (
+                                            (std.studentProfile?.course && std.studentProfile.course.name === uploadCourse) ||
+                                            (std.studentProfile?.coursesList && std.studentProfile.coursesList.some(cItem => cItem.course && cItem.course.name === uploadCourse))
+                                        );
+                                        const nameMatch = !studentSearchQuery || std.name.toLowerCase().includes(studentSearchQuery.toLowerCase()) || (std.email && std.email.toLowerCase().includes(studentSearchQuery.toLowerCase()));
+                                        return instMatch && courseMatch && nameMatch;
+                                    });
+
+                                    return (
+                                        <div className="pt-1.5 space-y-2">
+                                            {/* Search input for students */}
+                                            <input
+                                                type="text"
+                                                placeholder="Search student by name or email..."
+                                                value={studentSearchQuery}
+                                                onChange={e => setStudentSearchQuery(e.target.value)}
+                                                className="w-full h-8 px-3 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-[#3E3ADD]"
+                                            />
+                                            <div className="border border-slate-200 rounded-2xl p-3.5 bg-slate-50/50 max-h-40 overflow-y-auto space-y-2.5 custom-scrollbar text-left">
+                                                <div className="flex items-center justify-between border-b border-slate-200/80 pb-1.5 mb-2 select-none">
+                                                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Select Students ({uploadStudentIds.length} selected)</span>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            if (uploadStudentIds.length === filteredStudents.length) {
+                                                                    setUploadStudentIds([]);
+                                                            } else {
+                                                                    setUploadStudentIds(filteredStudents.map(s => s._id));
+                                                            }
+                                                        }}
+                                                        className="text-[9px] font-black text-[#3E3ADD] hover:text-indigo-850 uppercase tracking-wider"
+                                                    >
+                                                        {uploadStudentIds.length === filteredStudents.length ? 'Clear All' : 'Select All'}
+                                                    </button>
+                                                </div>
+                                                {filteredStudents.length === 0 ? (
+                                                    <p className="text-xs text-slate-400 text-center py-4">No matching students found</p>
+                                                ) : (
+                                                    filteredStudents.map(std => {
+                                                        const isChecked = uploadStudentIds.includes(std._id);
+                                                        return (
+                                                            <label key={std._id} className="flex items-center gap-2.5 cursor-pointer select-none">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={isChecked}
+                                                                    onChange={() => {
+                                                                        if (isChecked) {
+                                                                            setUploadStudentIds(prev => prev.filter(id => id !== std._id));
+                                                                        } else {
+                                                                            setUploadStudentIds(prev => [...prev, std._id]);
+                                                                        }
+                                                                    }}
+                                                                    className="w-3.5 h-3.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                                                                />
+                                                                <div className="min-w-0 flex-1">
+                                                                    <p className="text-xs font-bold text-slate-750 truncate leading-snug">{std.name}</p>
+                                                                    <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5">
+                                                                        {std.email && <span className="text-[10px] text-slate-400 truncate">{std.email}</span>}
+                                                                        {std.studentProfile?.course?.name && (
+                                                                            <span className="text-[9px] bg-slate-100 text-slate-550 px-1.5 py-0.2 rounded-md font-extrabold uppercase border border-slate-205">
+                                                                                {std.studentProfile.course.name}
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            </label>
+                                                        );
+                                                    })
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
                             </div>
 
                             {/* Content Type Tabs */}

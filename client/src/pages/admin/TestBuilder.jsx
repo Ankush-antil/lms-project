@@ -3829,8 +3829,8 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                         activity: data?.activity || 'Quiz',
                         publishMode: currentMode,
                         discussionActivity: discussionActivity,
-                        assignmentType: 'all',
-                        assignedStudents: [],
+                        assignmentType: data?.assignmentType || 'all',
+                        assignedStudents: data?.assignedStudents || [],
                         allowTeacherEdit: allowTeacherEdit,
                         isAssigned: data?.isAssigned || false
                     },
@@ -4193,8 +4193,8 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                     activity: connectData?.activity || 'Quiz',
                     publishMode: currentMode,
                     discussionActivity: discussionActivity,
-                    assignmentType: 'all',
-                    assignedStudents: [],
+                    assignmentType: connectData?.assignmentType || 'all',
+                    assignedStudents: connectData?.assignedStudents || [],
                     allowTeacherEdit: allowTeacherEdit,
                     isAssigned: connectData?.isAssigned || false
                 },
@@ -6168,8 +6168,8 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                                                         activity: connectData.activity || 'Quiz',
                                                         publishMode: currentMode,
                                                         discussionActivity: discussionActivity,
-                                                        assignmentType: 'all',
-                                                        assignedStudents: [],
+                                                        assignmentType: connectData.assignmentType || 'all',
+                                                        assignedStudents: connectData.assignedStudents || [],
                                                         allowTeacherEdit: allowTeacherEdit,
                                                         isAssigned: connectData.isAssigned || false
                                                     },

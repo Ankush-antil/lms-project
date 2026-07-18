@@ -203,8 +203,21 @@ const deleteStudyMaterial = asyncHandler(async (req, res) => {
         throw new Error('Study material not found');
     }
 
-    // Check ownership or admin
-    if (material.uploadedBy.toString() !== req.user._id.toString() && req.user.role !== 'Admin') {
+    // Check ownership, admin status, or same-institute teacher access
+    const isUploadedByCurrentUser = material.uploadedBy && material.uploadedBy.toString() === req.user._id.toString();
+    const isAdmin = req.user.role === 'Admin';
+
+    let isTeacherOfSameInst = false;
+    if (req.user.role === 'Teacher') {
+        const userWithInst = await User.findById(req.user._id).populate('institute');
+        const userInstName = userWithInst?.institute?.name?.trim().toLowerCase();
+        const matInstName = material.institute?.trim().toLowerCase();
+        if (userInstName && matInstName && userInstName === matInstName) {
+            isTeacherOfSameInst = true;
+        }
+    }
+
+    if (!isUploadedByCurrentUser && !isAdmin && !isTeacherOfSameInst) {
         res.status(403);
         throw new Error('Not authorized to delete this study material');
     }
@@ -234,7 +247,19 @@ const updateStudyMaterialStatus = asyncHandler(async (req, res) => {
         throw new Error('Study material not found');
     }
 
-    if (material.uploadedBy.toString() !== req.user._id.toString() && req.user.role !== 'Admin') {
+    const isUploadedByCurrentUser = material.uploadedBy && material.uploadedBy.toString() === req.user._id.toString();
+    const isAdmin = req.user.role === 'Admin';
+    let isTeacherOfSameInst = false;
+    if (req.user.role === 'Teacher') {
+        const userWithInst = await User.findById(req.user._id).populate('institute');
+        const userInstName = userWithInst?.institute?.name?.trim().toLowerCase();
+        const matInstName = material.institute?.trim().toLowerCase();
+        if (userInstName && matInstName && userInstName === matInstName) {
+            isTeacherOfSameInst = true;
+        }
+    }
+
+    if (!isUploadedByCurrentUser && !isAdmin && !isTeacherOfSameInst) {
         res.status(403);
         throw new Error('Not authorized to update this study material');
     }
@@ -300,7 +325,19 @@ const updateStudyMaterial = asyncHandler(async (req, res) => {
         throw new Error('Study material not found');
     }
 
-    if (material.uploadedBy.toString() !== req.user._id.toString() && req.user.role !== 'Admin') {
+    const isUploadedByCurrentUser = material.uploadedBy && material.uploadedBy.toString() === req.user._id.toString();
+    const isAdmin = req.user.role === 'Admin';
+    let isTeacherOfSameInst = false;
+    if (req.user.role === 'Teacher') {
+        const userWithInst = await User.findById(req.user._id).populate('institute');
+        const userInstName = userWithInst?.institute?.name?.trim().toLowerCase();
+        const matInstName = material.institute?.trim().toLowerCase();
+        if (userInstName && matInstName && userInstName === matInstName) {
+            isTeacherOfSameInst = true;
+        }
+    }
+
+    if (!isUploadedByCurrentUser && !isAdmin && !isTeacherOfSameInst) {
         res.status(403);
         throw new Error('Not authorized to update this study material');
     }

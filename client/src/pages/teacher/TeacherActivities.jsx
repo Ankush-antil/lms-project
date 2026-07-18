@@ -5393,50 +5393,139 @@ const TeacherActivities = () => {
                         </button>
                     </div>
                     <div className="p-5 flex-1 overflow-y-auto space-y-4">
-                        <div>
-                            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Material Title</h4>
-                            <p className="text-sm font-bold text-slate-800 mt-1">{selectedMaterialForAnalytics.title}</p>
-                            <p className="text-[10px] text-slate-500 font-mono mt-0.5">{selectedMaterialForAnalytics.filename}</p>
-                        </div>
-                        <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-100 flex items-center justify-between">
-                            <div className="space-y-0.5">
-                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Views</span>
-                                <p className="text-2xl font-black text-indigo-600">
-                                    {selectedMaterialForAnalytics.views?.reduce((sum, v) => sum + (v.count || 0), 0) || 0}
-                                </p>
+
+                        {/* Material Info */}
+                        <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Material</h4>
+                                <p className="text-sm font-bold text-slate-800 mt-0.5 leading-snug">{selectedMaterialForAnalytics.title}</p>
+                                <p className="text-[10px] text-slate-500 font-mono mt-0.5 truncate">{selectedMaterialForAnalytics.filename}</p>
                             </div>
-                            <div className="space-y-0.5 text-right">
-                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Unique Viewers</span>
-                                <p className="text-2xl font-black text-slate-700">
-                                    {selectedMaterialForAnalytics.views?.length || 0}
-                                </p>
-                            </div>
+                            <span className={`shrink-0 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border ${
+                                selectedMaterialForAnalytics.materialType === 'video' ? 'bg-blue-50 text-blue-600 border-blue-100' :
+                                selectedMaterialForAnalytics.materialType === 'audio' ? 'bg-purple-50 text-purple-600 border-purple-100' :
+                                selectedMaterialForAnalytics.materialType === 'web'   ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
+                                'bg-orange-50 text-orange-600 border-orange-100'
+                            }`}>
+                                {selectedMaterialForAnalytics.materialType || 'pdf'}
+                            </span>
                         </div>
-                        <div className="space-y-2">
-                            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Viewer Details</h4>
-                            {!selectedMaterialForAnalytics.views || selectedMaterialForAnalytics.views.length === 0 ? (
-                                <p className="text-xs text-slate-400 italic py-4 text-center">No views recorded yet.</p>
-                            ) : (
-                                <div className="border border-slate-100 rounded-xl overflow-hidden divide-y divide-slate-100">
-                                    {selectedMaterialForAnalytics.views.map((v, index) => (
-                                        <div key={index} className="p-3 bg-white hover:bg-slate-50/50 flex items-center justify-between gap-3 text-xs">
-                                            <div className="min-w-0">
-                                                <p className="font-bold text-slate-800 truncate">{v.student?.name || 'Unknown Student'}</p>
-                                                <p className="text-[10px] text-slate-400 truncate">{v.student?.email || ''}</p>
+
+                        {/* All computed analytics */}
+                        {(() => {
+                            const views = selectedMaterialForAnalytics.views || [];
+                            const totalViews = views.reduce((s, v) => s + (v.count || 0), 0);
+                            const uniqueViewers = views.length;
+                            const avgViews = uniqueViewers > 0 ? (totalViews / uniqueViewers).toFixed(1) : 0;
+                            const maxCount = views.length > 0 ? Math.max(...views.map(v => v.count || 0)) : 1;
+                            const topViewer = views.reduce((top, v) => (!top || v.count > top.count) ? v : top, null);
+                            const allDates = views.map(v => new Date(v.lastViewed)).filter(d => !isNaN(d));
+                            const firstViewed = allDates.length > 0 ? new Date(Math.min(...allDates)) : null;
+                            const lastViewed  = allDates.length > 0 ? new Date(Math.max(...allDates)) : null;
+                            const sortedViews = [...views].sort((a, b) => (b.count || 0) - (a.count || 0));
+                            return (
+                                <>
+                                    {/* 4-stat grid */}
+                                    <div className="grid grid-cols-2 gap-2.5">
+                                        <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-3.5">
+                                            <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Total Views</span>
+                                            <p className="text-2xl font-black text-indigo-700 mt-0.5">{totalViews}</p>
+                                        </div>
+                                        <div className="bg-slate-50 border border-slate-100 rounded-2xl p-3.5">
+                                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Unique Viewers</span>
+                                            <p className="text-2xl font-black text-slate-700 mt-0.5">{uniqueViewers}</p>
+                                        </div>
+                                        <div className="bg-teal-50 border border-teal-100 rounded-2xl p-3.5">
+                                            <span className="text-[10px] font-black text-teal-500 uppercase tracking-widest">Avg Views / Student</span>
+                                            <p className="text-2xl font-black text-teal-700 mt-0.5">{avgViews}</p>
+                                        </div>
+                                        <div className="bg-amber-50 border border-amber-100 rounded-2xl p-3.5">
+                                            <span className="text-[10px] font-black text-amber-500 uppercase tracking-widest">Most Active</span>
+                                            <p className="text-sm font-black text-amber-700 mt-0.5 truncate">
+                                                {topViewer ? (topViewer.student?.name?.split(' ')[0] || '—') : '—'}
+                                            </p>
+                                            {topViewer && <p className="text-[10px] text-amber-500 font-bold">{topViewer.count} views</p>}
+                                        </div>
+                                    </div>
+
+                                    {/* First / Last Viewed */}
+                                    {(firstViewed || lastViewed) && (
+                                        <div className="flex gap-2.5">
+                                            <div className="flex-1 bg-slate-50 border border-slate-100 rounded-2xl p-3 text-xs">
+                                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">First Viewed</span>
+                                                <span className="font-bold text-slate-700">{firstViewed.toLocaleDateString()}</span>
+                                                <span className="text-slate-400 ml-1.5 text-[10px]">{firstViewed.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                                             </div>
-                                            <div className="text-right shrink-0">
-                                                <span className="bg-indigo-50 border border-indigo-100 text-indigo-600 px-2 py-0.5 rounded-full text-[10px] font-black">
-                                                    {v.count} {v.count === 1 ? 'view' : 'views'}
-                                                </span>
-                                                <p className="text-[9px] text-slate-400 mt-1 font-semibold">
-                                                    {new Date(v.lastViewed).toLocaleDateString()} {new Date(v.lastViewed).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                                </p>
+                                            <div className="flex-1 bg-slate-50 border border-slate-100 rounded-2xl p-3 text-xs">
+                                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Last Viewed</span>
+                                                <span className="font-bold text-slate-700">{lastViewed.toLocaleDateString()}</span>
+                                                <span className="text-slate-400 ml-1.5 text-[10px]">{lastViewed.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                                             </div>
                                         </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
+                                    )}
+
+                                    {/* Viewer Details with relative bars */}
+                                    <div className="space-y-2">
+                                        <div className="flex items-center justify-between">
+                                            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Viewer Breakdown</h4>
+                                            {sortedViews.length > 0 && (
+                                                <span className="text-[10px] text-slate-300 font-semibold">sorted by views ↓</span>
+                                            )}
+                                        </div>
+                                        {sortedViews.length === 0 ? (
+                                            <div className="bg-slate-50 border border-slate-100 rounded-2xl py-8 text-center">
+                                                <BarChart3 size={28} className="mx-auto text-slate-200 mb-2" />
+                                                <p className="text-xs text-slate-400 italic">No views recorded yet.</p>
+                                                <p className="text-[10px] text-slate-300 mt-1">Students haven't opened this material.</p>
+                                            </div>
+                                        ) : (
+                                            <div className="border border-slate-100 rounded-2xl overflow-hidden divide-y divide-slate-50">
+                                                {sortedViews.map((v, index) => {
+                                                    const barPct = maxCount > 0 ? Math.round(((v.count || 0) / maxCount) * 100) : 0;
+                                                    return (
+                                                        <div key={index} className="p-3 bg-white hover:bg-slate-50/40 transition-colors">
+                                                            <div className="flex items-center justify-between gap-3 text-xs mb-2">
+                                                                <div className="min-w-0 flex items-center gap-2">
+                                                                    <div className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-[10px] font-black shrink-0">
+                                                                        {index + 1}
+                                                                    </div>
+                                                                    <div className="min-w-0">
+                                                                        <p className="font-bold text-slate-800 truncate">{v.student?.name || 'Unknown'}</p>
+                                                                        <p className="text-[10px] text-slate-400 truncate">{v.student?.email || ''}</p>
+                                                                    </div>
+                                                                </div>
+                                                                <div className="text-right shrink-0">
+                                                                    <span className="bg-indigo-50 border border-indigo-100 text-indigo-600 px-2 py-0.5 rounded-full text-[10px] font-black">
+                                                                        {v.count} {v.count === 1 ? 'view' : 'views'}
+                                                                    </span>
+                                                                    <p className="text-[9px] text-slate-400 mt-1 font-semibold">
+                                                                        Last: {new Date(v.lastViewed).toLocaleDateString()} {new Date(v.lastViewed).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                                    </p>
+                                                                </div>
+                                                            </div>
+                                                            {/* Relative progress bar */}
+                                                            <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                                                <div
+                                                                    className="h-full bg-gradient-to-r from-indigo-400 to-indigo-600 rounded-full transition-all duration-700"
+                                                                    style={{ width: `${barPct}%` }}
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Upload date footer */}
+                                    {selectedMaterialForAnalytics.createdAt && (
+                                        <p className="text-[10px] text-slate-300 font-semibold text-center pb-1">
+                                            Uploaded on {new Date(selectedMaterialForAnalytics.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                        </p>
+                                    )}
+                                </>
+                            );
+                        })()}
                     </div>
                 </div>
             </div>

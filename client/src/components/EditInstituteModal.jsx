@@ -487,7 +487,7 @@ const [formData, setFormData] = useState({
                                                 <Upload size={12} /> Upload Doc (PDF/Word)
                                             </button>
                                             {docUploading && <div className="w-3.5 h-3.5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />}
-                                            {formData.termsAndPolicies && (formData.termsAndPolicies.startsWith('http') || formData.termsAndPolicies.startsWith('/uploads')) && (
+                                            {formData.termsAndPolicies && (formData.termsAndPolicies.startsWith('http') || formData.termsAndPolicies.startsWith('/uploads') || formData.termsAndPolicies.startsWith('/api/uploads')) && (
                                                 <div className="flex items-center gap-1 text-[11px] text-emerald-600 font-bold flex-shrink-0">
                                                     <Check size={12} />
                                                     <a href={formData.termsAndPolicies} target="_blank" rel="noreferrer" className="underline hover:text-emerald-700 truncate max-w-[120px]">

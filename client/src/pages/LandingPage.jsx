@@ -2364,7 +2364,7 @@ const LandingPage = () => {
                                                                 </div>
                                                                 <div className="text-xs text-slate-600 leading-relaxed max-h-60 overflow-y-auto whitespace-pre-wrap pr-1">
                                                                     {activePolicyText ? (
-                                                                        (activePolicyText.startsWith('http') || activePolicyText.startsWith('/uploads')) ? (
+                                                                        (activePolicyText.startsWith('http') || activePolicyText.startsWith('/uploads') || activePolicyText.startsWith('/api/uploads')) ? (
                                                                             <div className="flex flex-col items-center justify-center p-6 border border-slate-100 rounded-2xl bg-slate-50 space-y-3 my-1">
                                                                                 <FileText size={40} className="text-indigo-600 animate-pulse" />
                                                                                 <span className="font-bold text-slate-700 text-center">Terms & Admission Policies Document</span>

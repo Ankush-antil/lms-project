@@ -6805,7 +6805,7 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                 {/* AI Question Generator Modal */}
                 {isAiGeneratorOpen && (
                     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm animate-fade-in">
-                        <div className="bg-white border border-slate-100 rounded-3xl shadow-2xl w-full max-w-lg h-[600px] mx-4 transform scale-100 transition-all duration-300 animate-slide-up flex flex-col overflow-hidden">
+                        <div className="bg-white border border-slate-100 rounded-3xl shadow-2xl w-full max-w-md h-[500px] mx-4 transform scale-100 transition-all duration-300 animate-slide-up flex flex-col overflow-hidden">
 
                             {/* Modal Header */}
                             <div className="flex justify-between items-center p-4 border-b border-slate-100 shrink-0">
@@ -7096,6 +7096,7 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
                                     </button>
                                     <input
                                         type="text"
+                                        autoFocus
                                         value={aiChatInput}
                                         onChange={(e) => setAiChatInput(e.target.value)}
                                         placeholder="Ask AI (e.g. 'make 5 questions from this')"

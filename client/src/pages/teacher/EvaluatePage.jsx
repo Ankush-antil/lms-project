@@ -766,7 +766,7 @@ If they are just asking a general question, answer it in a friendly, conversatio
 
     const aiAssistantModalComponent = isAiAssistantOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 animate-fade-in">
-            <div className="bg-white w-full max-w-lg rounded-[2rem] border border-slate-100/80 shadow-2xl overflow-hidden flex flex-col h-[85vh] max-h-[600px] text-left">
+            <div className="bg-white w-full max-w-md rounded-[2rem] border border-slate-100/80 shadow-2xl overflow-hidden flex flex-col h-[85vh] max-h-[500px] text-left">
                 {/* Modal Header */}
                 <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50 shrink-0">
                     <div className="flex items-center gap-3">
@@ -924,6 +924,7 @@ If they are just asking a general question, answer it in a friendly, conversatio
                 <div className="p-3 border-t border-slate-100 flex gap-2 bg-white shrink-0">
                     <input
                         type="text"
+                        autoFocus
                         value={aiAssistantInput}
                         onChange={e => setAiAssistantInput(e.target.value)}
                         onKeyDown={e => {

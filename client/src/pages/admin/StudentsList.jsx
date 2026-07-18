@@ -742,11 +742,11 @@ const StudentsList = () => {
                             <button
                                 type="button"
                                 onClick={() => handleToggleFlag('admissionOpen')}
-                                className={`w-11 h-6 rounded-full transition-all duration-300 relative flex-shrink-0 ${instituteDetails?.admissionOpen ? 'bg-indigo-650' : 'bg-slate-300'}`}
+                                className={`w-11 h-6 rounded-full transition-all duration-300 flex items-center p-1 border border-transparent focus:outline-none flex-shrink-0 ${instituteDetails?.admissionOpen ? 'bg-indigo-500' : 'bg-purple-200'}`}
                             >
-                                <span className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-all duration-300 ${instituteDetails?.admissionOpen ? 'translate-x-5' : 'translate-x-0'}`} />
+                                <span className={`bg-white w-4 h-4 rounded-full shadow-sm transition-all duration-300 ${instituteDetails?.admissionOpen ? 'translate-x-5' : 'translate-x-0'}`} />
                             </button>
-                            <span className={`text-[11px] font-extrabold uppercase tracking-wide ${instituteDetails?.admissionOpen ? 'text-indigo-650' : 'text-slate-400'}`}>
+                            <span className={`text-[11px] font-extrabold uppercase tracking-wide ${instituteDetails?.admissionOpen ? 'text-indigo-500' : 'text-purple-400'}`}>
                                 {instituteDetails?.admissionOpen ? 'Open' : 'Closed'}
                             </span>
                         </div>

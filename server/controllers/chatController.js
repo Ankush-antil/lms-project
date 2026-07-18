@@ -74,6 +74,19 @@ const getContacts = asyncHandler(async (req, res) => {
         if (receiverStr !== userId.toString()) contactIds.add(receiverStr);
     });
 
+    // 4. Admin & Institute bypass: load all users in the same institute
+    if (userRole === 'Institute' || userRole === 'Admin') {
+        const query = {
+            _id: { $ne: userId },
+            isDeleted: { $ne: true }
+        };
+        if (req.user.institute) {
+            query.institute = req.user.institute;
+        }
+        const instituteUsers = await User.find(query).select('_id');
+        instituteUsers.forEach(u => contactIds.add(u._id.toString()));
+    }
+
     const contactIdArray = Array.from(contactIds).map(id => new mongoose.Types.ObjectId(id));
 
     const contacts = await User.find({

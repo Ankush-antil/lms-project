@@ -3347,6 +3347,7 @@ const TeacherActivities = () => {
                                                                     </a>
                                                                 </div>
                                                             </div>
+                                                        </div>
                                                     ))}
                                                 </div>
                                             )}

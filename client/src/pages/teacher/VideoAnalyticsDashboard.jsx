@@ -202,7 +202,7 @@ const VideoAnalyticsDashboard = ({ videoId, onClose }) => {
                         >
                             <option value="all">All Viewers</option>
                             <option value="completed">Completed (>=95%)</option>
-                            <option value="inprogress">In Progress (<95%)</option>
+                            <option value="inprogress">{"In Progress (<95%)"}</option>
                         </select>
                     </div>
                 </div>

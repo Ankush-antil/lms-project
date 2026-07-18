@@ -138,6 +138,7 @@ const getStudyMaterials = asyncHandler(async (req, res) => {
     const materials = await StudyMaterial.find(query)
         .populate('uploadedBy', 'name email role')
         .populate('student', 'name email')
+        .populate('views.student', 'name email')
         .sort({ createdAt: -1 });
 
     res.json(materials);
@@ -202,9 +203,48 @@ const updateStudyMaterialStatus = asyncHandler(async (req, res) => {
     res.json(material);
 });
 
+// @desc    Record study material view by student
+// @route   POST /api/study-materials/:id/view
+// @access  Private (Student)
+const recordStudyMaterialView = asyncHandler(async (req, res) => {
+    // Only record views for students
+    if (req.user.role !== 'Student') {
+        return res.json({ message: 'View not recorded (not a student)' });
+    }
+
+    const material = await StudyMaterial.findById(req.params.id);
+
+    if (!material) {
+        res.status(404);
+        throw new Error('Study material not found');
+    }
+
+    if (!material.views) {
+        material.views = [];
+    }
+
+    const studentId = req.user._id.toString();
+    const existingViewIdx = material.views.findIndex(v => v.student.toString() === studentId);
+
+    if (existingViewIdx > -1) {
+        material.views[existingViewIdx].count += 1;
+        material.views[existingViewIdx].lastViewed = new Date();
+    } else {
+        material.views.push({
+            student: req.user._id,
+            count: 1,
+            lastViewed: new Date()
+        });
+    }
+
+    await material.save();
+    res.json({ message: 'View recorded successfully', totalViews: material.views.reduce((acc, v) => acc + v.count, 0) });
+});
+
 module.exports = {
     uploadStudyMaterial,
     getStudyMaterials,
     deleteStudyMaterial,
-    updateStudyMaterialStatus
+    updateStudyMaterialStatus,
+    recordStudyMaterialView
 };

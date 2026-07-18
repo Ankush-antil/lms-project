@@ -52,6 +52,14 @@ const studyMaterialSchema = new mongoose.Schema({
     },
     dayNum: {
         type: Number
+    },
+    views: {
+        type: [{
+            student: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+            count: { type: Number, default: 1 },
+            lastViewed: { type: Date, default: Date.now }
+        }],
+        default: []
     }
 }, {
     timestamps: true

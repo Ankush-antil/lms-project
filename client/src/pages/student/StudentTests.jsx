@@ -2016,14 +2016,20 @@ const StudentTests = () => {
                                                                 >
                                                                     <Info size={12} />
                                                                 </button>
-                                                                <a
-                                                                    href={mat.fileUrl}
-                                                                    target="_blank"
-                                                                    rel="noreferrer"
-                                                                    className="px-3.5 py-1.5 bg-[#3E3ADD] hover:bg-indigo-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider shadow-sm transition-all"
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={async () => {
+                                                                        try {
+                                                                            axios.post(`/api/study-materials/${mat._id}/view`);
+                                                                        } catch (e) {
+                                                                            console.error("Failed to log view", e);
+                                                                        }
+                                                                        window.open(mat.fileUrl, '_blank');
+                                                                    }}
+                                                                    className="px-3.5 py-1.5 bg-[#3E3ADD] hover:bg-indigo-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider shadow-sm transition-all cursor-pointer"
                                                                 >
                                                                     {config.label === 'Web page' ? 'Open Link' : 'Open File'}
-                                                                </a>
+                                                                </button>
                                                             </div>
                                                         </div>
                                                     );

@@ -4,7 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import axios from 'axios';
 import DashboardLayout from '../../components/layout/DashboardLayout';
-import { Users, BookOpen, FileText, CheckCircle, Plus, Building2, RefreshCw, UserCheck, UserMinus, UserX, GraduationCap, Edit, Briefcase, Calculator, Megaphone, Heart, FolderOpen, Settings, Check, Clock, X, Trash2, Search, Printer } from 'lucide-react';
+import { Users, BookOpen, FileText, CheckCircle, Plus, Building2, RefreshCw, UserCheck, UserMinus, UserX, GraduationCap, Edit, Briefcase, Calculator, Megaphone, Heart, FolderOpen, Settings, Check, Clock, X, Trash2, Search, Printer, BarChart3 } from 'lucide-react';
 import AddUserModal from '../../components/AddUserModal';
 import EditUserModal from '../../components/EditUserModal';
 import { useUserProfile } from '../../components/common/UserProfileContext';
@@ -99,6 +99,7 @@ const AdminDashboard = () => {
     const [loadingMaterials, setLoadingMaterials] = useState(false);
     const [searchMaterialQuery, setSearchMaterialQuery] = useState('');
     const [deletingMaterialId, setDeletingMaterialId] = useState(null);
+    const [selectedMaterialForAnalytics, setSelectedMaterialForAnalytics] = useState(null);
 
     const fetchStudyMaterials = async () => {
         try {
@@ -945,6 +946,13 @@ const AdminDashboard = () => {
                                                                     RI
                                                                 </button>
                                                             )}
+                                                            <button
+                                                                onClick={() => setSelectedMaterialForAnalytics(mat)}
+                                                                className="p-1.5 rounded-lg border border-indigo-200 text-[#3E3ADD] bg-indigo-50 hover:bg-[#3E3ADD] hover:text-white transition-all flex items-center justify-center shadow-xs cursor-pointer"
+                                                                title="View Material Analytics"
+                                                            >
+                                                                <BarChart3 size={13} />
+                                                            </button>
                                                             <a
                                                                 href={mat.fileUrl}
                                                                 target="_blank"
@@ -1223,6 +1231,78 @@ const AdminDashboard = () => {
             <AddUserModal isOpen={isUserModalOpen} onClose={() => { setIsUserModalOpen(false); setQuickAddRole(null); }} role={quickAddRole || modalRole} onSuccess={fetchDashboardData} />
             <AddInstituteModal isOpen={isInstituteModalOpen} onClose={() => setIsInstituteModalOpen(false)} refreshData={fetchDashboardData} />
             <AddCourseModal isOpen={isCourseModalOpen} onClose={() => setIsCourseModalOpen(false)} refreshData={fetchDashboardData} />
+
+            {selectedMaterialForAnalytics && (
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm animate-fade-in p-4">
+                    <div className="absolute inset-0" onClick={() => setSelectedMaterialForAnalytics(null)} />
+                    <div className="bg-white border border-slate-100 rounded-3xl shadow-2xl w-full max-w-lg max-h-[85vh] overflow-hidden flex flex-col relative z-50 animate-scale-up text-left">
+                        {/* Header */}
+                        <div className="flex justify-between items-center p-4 border-b border-slate-100 bg-slate-50/50 shrink-0">
+                            <div className="flex items-center gap-2">
+                                <BarChart3 size={18} className="text-indigo-650" />
+                                <h3 className="text-sm font-extrabold text-slate-800 tracking-tight">Material View Analytics</h3>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setSelectedMaterialForAnalytics(null)}
+                                className="w-8 h-8 flex items-center justify-center bg-slate-50 hover:bg-slate-100 text-slate-500 hover:text-slate-700 rounded-xl transition-all cursor-pointer font-bold text-lg"
+                            >
+                                ×
+                            </button>
+                        </div>
+
+                        {/* Content */}
+                        <div className="p-5 flex-1 overflow-y-auto space-y-4">
+                            <div>
+                                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Material Title</h4>
+                                <p className="text-sm font-bold text-slate-800 mt-1">{selectedMaterialForAnalytics.title}</p>
+                                <p className="text-[10px] text-slate-500 font-mono mt-0.5">{selectedMaterialForAnalytics.filename}</p>
+                            </div>
+
+                            <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-100 flex items-center justify-between">
+                                <div className="space-y-0.5">
+                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Views</span>
+                                    <p className="text-2xl font-black text-indigo-600">
+                                        {selectedMaterialForAnalytics.views?.reduce((sum, v) => sum + (v.count || 0), 0) || 0}
+                                    </p>
+                                </div>
+                                <div className="space-y-0.5 text-right">
+                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Unique Viewers</span>
+                                    <p className="text-2xl font-black text-slate-700">
+                                        {selectedMaterialForAnalytics.views?.length || 0}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Viewer Details</h4>
+                                {!selectedMaterialForAnalytics.views || selectedMaterialForAnalytics.views.length === 0 ? (
+                                    <p className="text-xs text-slate-400 italic py-4 text-center">No views recorded yet.</p>
+                                ) : (
+                                    <div className="border border-slate-100 rounded-xl overflow-hidden divide-y divide-slate-100">
+                                        {selectedMaterialForAnalytics.views.map((v, index) => (
+                                            <div key={index} className="p-3 bg-white hover:bg-slate-50/50 flex items-center justify-between gap-3 text-xs">
+                                                <div className="min-w-0">
+                                                    <p className="font-bold text-slate-800 truncate">{v.student?.name || 'Unknown Student'}</p>
+                                                    <p className="text-[10px] text-slate-400 truncate">{v.student?.email || ''}</p>
+                                                </div>
+                                                <div className="text-right shrink-0">
+                                                    <span className="bg-indigo-50 border border-indigo-100 text-indigo-650 px-2 py-0.5 rounded-full text-[10px] font-black">
+                                                        {v.count} {v.count === 1 ? 'view' : 'views'}
+                                                    </span>
+                                                    <p className="text-[9px] text-slate-450 mt-1 font-semibold">
+                                                        {new Date(v.lastViewed).toLocaleDateString()} {new Date(v.lastViewed).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </DashboardLayout>
     );
 };

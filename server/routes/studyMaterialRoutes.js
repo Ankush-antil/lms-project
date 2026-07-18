@@ -4,7 +4,8 @@ const {
     uploadStudyMaterial, 
     getStudyMaterials, 
     deleteStudyMaterial,
-    updateStudyMaterialStatus
+    updateStudyMaterialStatus,
+    updateStudyMaterial
 } = require('../controllers/studyMaterialController');
 const { protect } = require('../middleware/authMiddleware');
 const uploadAttachment = require('../middleware/uploadAttachment');
@@ -15,6 +16,7 @@ router.route('/')
 
 router.route('/:id')
     .delete(protect, deleteStudyMaterial)
-    .patch(protect, updateStudyMaterialStatus);
+    .patch(protect, updateStudyMaterialStatus)
+    .put(protect, uploadAttachment.single('file'), updateStudyMaterial);
 
 module.exports = router;

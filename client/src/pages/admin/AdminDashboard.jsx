@@ -1,10 +1,11 @@
 import { useAuth } from '../../context/AuthContext';
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { createPortal } from 'react-dom';
 import toast from 'react-hot-toast';
 import axios from 'axios';
 import DashboardLayout from '../../components/layout/DashboardLayout';
-import { Users, BookOpen, FileText, CheckCircle, Plus, Building2, RefreshCw, UserCheck, UserMinus, UserX, GraduationCap, Edit, Briefcase, Calculator, Megaphone, Heart, FolderOpen, Settings, Check, Clock, X, Trash2, Search, Printer } from 'lucide-react';
+import { Users, BookOpen, FileText, CheckCircle, Plus, Building2, RefreshCw, UserCheck, UserMinus, UserX, GraduationCap, Edit, Briefcase, Calculator, Megaphone, Heart, FolderOpen, Settings, Check, Clock, X, Trash2, Search, Printer, Video, Mic, Link2, Loader2, Upload, Info, Eye } from 'lucide-react';
 import AddUserModal from '../../components/AddUserModal';
 import EditUserModal from '../../components/EditUserModal';
 import { useUserProfile } from '../../components/common/UserProfileContext';
@@ -99,6 +100,29 @@ const AdminDashboard = () => {
     const [loadingMaterials, setLoadingMaterials] = useState(false);
     const [searchMaterialQuery, setSearchMaterialQuery] = useState('');
     const [deletingMaterialId, setDeletingMaterialId] = useState(null);
+    const [selectedCourseFilter, setSelectedCourseFilter] = useState('All');
+    const [selectedInstituteFilter, setSelectedInstituteFilter] = useState('All');
+
+    // Admin upload modal states
+    const [adminUploadModalOpen, setAdminUploadModalOpen] = useState(false);
+    const [editingMaterial, setEditingMaterial] = useState(null);
+    const [allCourses, setAllCourses] = useState([]);
+    const [allStudents, setAllStudents] = useState([]);
+    const [allInstitutes, setAllInstitutes] = useState([]);
+    const [uploadInst, setUploadInst] = useState('');
+    const [uploadCourse, setUploadCourse] = useState('');
+    const [uploadStudent, setUploadStudent] = useState('all');
+    const [uploadSubject, setUploadSubject] = useState('');
+    const [uploadDayNum, setUploadDayNum] = useState(1);
+    const [matTitle, setMatTitle] = useState('');
+    const [selectedUploadType, setSelectedUploadType] = useState('video');
+    const [videoAudioMode, setVideoAudioMode] = useState('upload');
+    const [webMode, setWebMode] = useState('embedded');
+    const [pdfMode, setPdfMode] = useState('upload');
+    const [htmlCode, setHtmlCode] = useState('');
+    const [matFile, setMatFile] = useState(null);
+    const [matUrl, setMatUrl] = useState('');
+    const [uploadingMaterial, setUploadingMaterial] = useState(false);
 
     const fetchStudyMaterials = async () => {
         try {
@@ -128,9 +152,8 @@ const AdminDashboard = () => {
         }
     };
 
-    const [selectedCourseFilter, setSelectedCourseFilter] = useState('All');
-    const [selectedInstituteFilter, setSelectedInstituteFilter] = useState('All');
     const [isRiModalOpen, setIsRiModalOpen] = useState(false);
+    const [activeMaterialsGroup, setActiveMaterialsGroup] = useState(null);
     const [riData, setRiData] = useState(null);
     const [loadingRi, setLoadingRi] = useState(false);
 
@@ -143,138 +166,41 @@ const AdminDashboard = () => {
         try {
             setLoadingRi(true);
             setIsRiModalOpen(true);
-            setRiData({
-                student: mat.student,
-                subject: mat.subject || 'General',
-                inboxId: mat.inboxId || 'N/A',
-                dayNum: mat.dayNum,
-                course: mat.course || 'N/A',
-                tests: [],
-                submissionMap: new Map(),
-                stats: { total: 0, completed: 0, avg: 0 }
+
+            // Filter study materials matching this inbox, course, subject
+            const targetCourse = (mat.course || '').trim().toLowerCase();
+            const targetSubject = (mat.subject || '').trim().toLowerCase();
+            const targetDayNum = mat.dayNum;
+            const targetInboxId = (mat.inboxId || '').trim().toLowerCase();
+
+            const inboxMaterials = studyMaterials.filter(m => {
+                const mCourse = (m.course || '').toLowerCase();
+                const mSubject = (m.subject || '').toLowerCase();
+                const mInboxId = (m.inboxId || '').toLowerCase();
+
+                const courseMatch = !targetCourse || mCourse.includes(targetCourse) || targetCourse.includes(mCourse);
+                const subjectMatch = !targetSubject || mSubject.includes(targetSubject) || targetSubject.includes(mSubject);
+                const inboxMatch = mInboxId === targetInboxId || (targetDayNum && mInboxId.includes(String(targetDayNum)));
+
+                return courseMatch && subjectMatch && inboxMatch;
             });
-
-            // 1. Fetch student profile to get the course ID
-            const { data: studentUser } = await axios.get(`/api/users/${mat.student._id}`);
-            const coursesList = studentUser.studentProfile?.coursesList || [];
-
-            // Match course by name
-            let courseId = null;
-            if (mat.course) {
-                const matchedCourse = coursesList.find(c => (c.course?.name || '').trim().toLowerCase() === mat.course.trim().toLowerCase());
-                courseId = matchedCourse?.course?._id || matchedCourse?.course || studentUser.studentProfile?.course?._id || studentUser.studentProfile?.course;
-            } else {
-                courseId = studentUser.studentProfile?.course?._id || studentUser.studentProfile?.course;
-            }
-
-            if (!courseId) {
-                throw new Error("Could not determine student course ID");
-            }
-
-            // 2. Fetch all assigned tests for the student's course
-            const { data: assignedTests } = await axios.get(`/api/tests/student/${mat.student._id}/assigned?courseId=${courseId}`);
-
-            // 3. Fetch submissions
-            const { data: submissions } = await axios.get(`/api/test-submissions/student/${mat.student._id}`);
-
-            // 4. Load the course object to get the durations/inbox mapping
-            const { data: courseObj } = await axios.get(`/api/courses/${courseId}`);
-
-            // Build the subjectDaysMapping for the course to resolve which tests belong to this inboxId!
-            const subjects = courseObj.subjects || [];
-            const durations = courseObj.subjectDurations || [];
-            const totalDuration = courseObj.duration || 5;
-
-            let currentDayIndex = 1;
-            const mapping = [];
-
-            if (durations && durations.length > 0) {
-                durations.forEach(d => {
-                    const subName = d.subjectName;
-                    const subDur = Number(d.duration) || 0;
-                    const daysList = [];
-                    for (let i = 1; i <= subDur; i++) {
-                        if (currentDayIndex <= totalDuration) {
-                            daysList.push({
-                                dayNum: i,
-                                indexNum: currentDayIndex,
-                                id: `Inbox ${currentDayIndex}`
-                            });
-                            currentDayIndex++;
-                        }
-                    }
-                    if (daysList.length > 0) {
-                        mapping.push({ subjectName: subName, days: daysList });
-                    }
-                });
-            }
-
-            // Group tests by matched global inbox IDs
-            const getMatchingInboxIdsForTest = (test, subjectDays) => {
-                if (!test.index) return [];
-                const matches = [];
-                const parts = test.index.split(',').map(p => p.trim());
-                parts.forEach(part => {
-                    const match = part.match(/day_(\d+)/i) || part.match(/inbox_(\d+)/i) || part.match(/day\s*(\d+)/i) || part.match(/inbox\s*(\d+)/i);
-                    if (match) {
-                        const dayNum = parseInt(match[1]);
-                        const found = subjectDays.flatMap(g => g.days).find(d => d.indexNum === dayNum);
-                        if (found) matches.push(found.id);
-                    }
-                });
-                return matches;
-            };
-
-            const inboxTests = assignedTests.filter(test => {
-                const matchedInboxIds = getMatchingInboxIdsForTest(test, mapping);
-                return matchedInboxIds.some(id => id.trim().toLowerCase() === mat.inboxId.trim().toLowerCase());
-            });
-
-            // Submission map for this inbox
-            const submissionMap = new Map();
-            submissions.forEach(sub => {
-                const testId = sub.test?._id || sub.test;
-                submissionMap.set(String(testId), sub);
-            });
-
-            // Calculate stats
-            let completedCount = 0;
-            let totalScoreSum = 0;
-            let evaluatedCount = 0;
-
-            inboxTests.forEach(test => {
-                const sub = submissionMap.get(String(test._id));
-                if (sub && sub.status === 'evaluated') {
-                    completedCount++;
-                    evaluatedCount++;
-                    const maxMarks = sub.test?.questions?.reduce((sum, q) => sum + (q.marks || 0), 0) || 100;
-                    const pct = Math.round((sub.totalMarks / maxMarks) * 100);
-                    totalScoreSum += pct;
-                } else if (sub && (sub.status === 'submitted' || sub.status === 'returned')) {
-                    completedCount++;
-                }
-            });
-
-            const avgPercentage = evaluatedCount > 0 ? Math.round(totalScoreSum / evaluatedCount) : 0;
 
             setRiData({
                 student: mat.student,
+                materialTitle: mat.title || 'Study Material',
                 subject: mat.subject || 'General',
-                inboxId: mat.inboxId,
+                inboxId: mat.inboxId || `Inbox ${mat.dayNum}` || 'N/A',
                 dayNum: mat.dayNum,
                 course: mat.course || 'N/A',
-                tests: inboxTests,
-                submissionMap,
+                materials: inboxMaterials,
                 stats: {
-                    total: inboxTests.length,
-                    completed: completedCount,
-                    avg: avgPercentage
+                    total: inboxMaterials.length
                 }
             });
 
         } catch (err) {
             console.error("Error generating RI report:", err);
-            toast.error("Failed to generate RI performance metrics");
+            toast.error("Failed to load RI study materials");
             setIsRiModalOpen(false);
         } finally {
             setLoadingRi(false);
@@ -820,6 +746,28 @@ const AdminDashboard = () => {
                                 <p className="text-slate-500 text-xs mt-1">Monitor all PDF/Docs and Web Links uploaded by teachers for students</p>
                             </div>
                             <div className="flex flex-wrap sm:flex-nowrap items-center gap-2.5 w-full sm:w-auto">
+                                <button
+                                    onClick={() => {
+                                        setEditingMaterial(null);
+                                        setMatTitle('');
+                                        setMatFile(null);
+                                        setMatUrl('');
+                                        setHtmlCode('');
+                                        setUploadInst('');
+                                        setUploadCourse('');
+                                        setUploadStudent('all');
+                                        setUploadSubject('');
+                                        setUploadDayNum(1);
+                                        setSelectedUploadType('video');
+                                        setVideoAudioMode('upload');
+                                        setWebMode('embedded');
+                                        setPdfMode('upload');
+                                        setAdminUploadModalOpen(true);
+                                    }}
+                                    className="h-9 px-4 bg-[#0b1329] hover:bg-[#1b2a53] text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-sm shadow-[#0b1329]/10 shrink-0"
+                                >
+                                    <Plus size={14} /> Upload Material
+                                </button>
                                 {/* Courses Filter */}
                                 <select
                                     value={selectedCourseFilter}
@@ -873,100 +821,112 @@ const AdminDashboard = () => {
                                 <table className="min-w-full text-left border-collapse">
                                     <thead>
                                         <tr className="bg-slate-50 border-b border-slate-150 text-slate-500 text-[10px] font-black uppercase tracking-wider">
-                                            <th className="p-4 font-semibold">Student & Course</th>
-                                            <th className="p-4 font-semibold">Subject & Inbox</th>
-                                            <th className="p-4 font-semibold">Material Detail</th>
+                                            <th className="p-4 font-semibold">Title of SM</th>
+                                            <th className="p-4 font-semibold">Course</th>
+                                            <th className="p-4 font-semibold">Subject</th>
                                             <th className="p-4 font-semibold">Uploaded By</th>
                                             <th className="p-4 font-semibold text-center">Status</th>
-                                            <th className="p-4 font-semibold text-right">Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-100 text-slate-700 text-xs font-semibold">
-                                        {filteredMaterials.map((mat) => {
-                                            const uploadDate = new Date(mat.createdAt).toLocaleDateString(undefined, {
-                                                year: 'numeric',
-                                                month: 'short',
-                                                day: 'numeric'
+                                        {(() => {
+                                            const groupedMaterialsMap = [];
+                                            filteredMaterials.forEach(mat => {
+                                                const studentId = mat.student?._id || 'all';
+                                                const courseName = (mat.course || '').trim().toLowerCase();
+                                                const subjectName = (mat.subject || '').trim().toLowerCase();
+                                                const inboxKey = mat.dayNum ? `day_${mat.dayNum}` : (mat.inboxId || '').trim().toLowerCase();
+ 
+                                                const groupKey = `${studentId}_${courseName}_${subjectName}_${inboxKey}`;
+ 
+                                                let group = groupedMaterialsMap.find(g => g.groupKey === groupKey);
+                                                if (!group) {
+                                                    group = {
+                                                        groupKey,
+                                                        student: mat.student,
+                                                        course: mat.course,
+                                                        institute: mat.institute,
+                                                        subject: mat.subject,
+                                                        dayNum: mat.dayNum,
+                                                        inboxId: mat.inboxId,
+                                                        status: mat.status,
+                                                        items: []
+                                                    };
+                                                    groupedMaterialsMap.push(group);
+                                                }
+                                                group.items.push(mat);
                                             });
-                                            const statusLabel = mat.status === 'upcoming' ? 'Upcoming' : mat.status === 'assign' ? 'Assigned' : 'General';
-                                            const statusBadgeColor = mat.status === 'upcoming'
-                                                ? 'bg-rose-50 text-rose-600 border border-rose-100'
-                                                : mat.status === 'assign'
-                                                    ? 'bg-indigo-50 text-indigo-700 border border-indigo-100'
-                                                    : 'bg-emerald-50 text-emerald-600 border border-emerald-100';
-
-                                            return (
-                                                <tr key={mat._id} className="hover:bg-slate-50 transition-colors group">
-                                                    <td className="p-4">
-                                                        <div className="flex flex-col">
-                                                            <span className="font-bold text-slate-800">{mat.student?.name || <span className="italic text-slate-400">All Students</span>}</span>
-                                                            <span className="text-slate-400 text-[10px] font-semibold">{mat.student?.email || ''}</span>
-                                                            <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
-                                                                {mat.course && <span className="text-[10px] text-indigo-600 font-extrabold uppercase">{mat.course}</span>}
-                                                                {mat.course && mat.institute && <span className="text-slate-300 text-[9px]">•</span>}
-                                                                {mat.institute && <span className="text-[10px] text-emerald-600 font-black uppercase">{mat.institute}</span>}
-                                                            </div>
-                                                        </div>
-                                                    </td>
-                                                    <td className="p-4 whitespace-nowrap">
-                                                        <div className="flex flex-col">
-                                                            <span className="font-bold text-slate-800">{mat.subject || <span className="italic text-slate-400">General</span>}</span>
-                                                            <span className="text-slate-400 text-[10px] font-semibold uppercase">{mat.dayNum ? `Inbox ${mat.dayNum}` : (mat.inboxId || 'N/A')}</span>
-                                                        </div>
-                                                    </td>
-                                                    <td className="p-4">
-                                                        <div className="flex flex-col">
-                                                            <span className="font-bold text-slate-800">{mat.title}</span>
-                                                            <span className="text-slate-400 text-[10px] font-mono truncate max-w-[180px]" title={mat.filename}>
-                                                                {mat.filename}
-                                                            </span>
-                                                            <span className="text-slate-400 text-[9px] mt-0.5">{uploadDate}</span>
-                                                        </div>
-                                                    </td>
-                                                    <td className="p-4 whitespace-nowrap">
-                                                        <div className="flex flex-col">
-                                                            <span className="font-bold text-slate-800">{mat.uploadedBy?.name || 'Unknown'}</span>
-                                                            <span className="text-slate-400 text-[10px] font-semibold">{mat.uploadedBy?.role || 'Instructor'}</span>
-                                                        </div>
-                                                    </td>
-                                                    <td className="p-4 whitespace-nowrap text-center">
-                                                        <span className={`px-2.5 py-1 border rounded-full text-[9px] font-black uppercase tracking-wider ${statusBadgeColor}`}>
-                                                            {statusLabel}
-                                                        </span>
-                                                    </td>
-                                                    <td className="p-4 text-right whitespace-nowrap">
-                                                        <div className="flex justify-end gap-1.5">
-                                                            {mat.student && (
+ 
+                                            return groupedMaterialsMap.map((group) => {
+                                                const uploadDate = new Date(group.items[0].createdAt).toLocaleDateString(undefined, {
+                                                    year: 'numeric',
+                                                    month: 'short',
+                                                    day: 'numeric'
+                                                });
+                                                const statusLabel = group.status === 'upcoming' ? 'Upcoming' : group.status === 'assign' ? 'Assigned' : 'General';
+                                                const statusBadgeColor = group.status === 'upcoming'
+                                                    ? 'bg-rose-50 text-rose-600 border border-rose-100'
+                                                    : group.status === 'assign'
+                                                        ? 'bg-indigo-50 text-indigo-700 border border-indigo-100'
+                                                        : 'bg-emerald-50 text-emerald-600 border border-emerald-100';
+ 
+                                                const instructors = Array.from(new Set(group.items.map(i => i.uploadedBy?.name || 'Unknown')));
+ 
+                                                return (
+                                                    <tr key={group.groupKey} className="hover:bg-slate-50 transition-colors group">
+                                                        <td className="p-4">
+                                                            <div className="flex flex-col gap-1.5">
+                                                                <div className="flex flex-col gap-0.5">
+                                                                    <span className="text-xs font-bold text-slate-800 truncate max-w-[220px]" title={group.items[0].title}>
+                                                                        {group.items[0].title}
+                                                                    </span>
+                                                                    {group.items.length > 1 && (
+                                                                        <span className="text-[10px] text-slate-400 italic">
+                                                                            + {group.items.length - 1} more file{group.items.length > 2 ? 's' : ''}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
                                                                 <button
-                                                                    onClick={() => handleOpenRiReport(mat)}
-                                                                    className="px-2.5 py-1 rounded-lg border border-indigo-200 text-[#3E3ADD] bg-indigo-50 hover:bg-[#3E3ADD] hover:text-white transition-all flex items-center justify-center shadow-xs cursor-pointer font-black text-[9px] uppercase tracking-wider active:scale-95"
-                                                                    title="View Student RI Performance Report"
+                                                                    type="button"
+                                                                    onClick={() => setActiveMaterialsGroup(group)}
+                                                                    className="flex items-center gap-1 px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-[#3E3ADD] border border-indigo-100 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer shadow-xs active:scale-95 text-left w-fit mt-1"
                                                                 >
-                                                                    RI
+                                                                    <span>📂 View Files ({group.items.length})</span>
                                                                 </button>
-                                                            )}
-                                                            <a
-                                                                href={mat.fileUrl}
-                                                                target="_blank"
-                                                                rel="noreferrer"
-                                                                className="p-1.5 rounded-lg border border-slate-200 text-slate-650 bg-slate-50 hover:bg-slate-100 transition-all flex items-center justify-center shadow-xs"
-                                                                title="View file/link"
-                                                            >
-                                                                <FolderOpen size={13} />
-                                                            </a>
-                                                            <button
-                                                                onClick={() => handleDeleteMaterial(mat._id)}
-                                                                disabled={deletingMaterialId === mat._id}
-                                                                className="p-1.5 rounded-lg border text-rose-600 bg-rose-50 border-rose-100 hover:bg-rose-100 transition-all flex items-center justify-center shadow-xs cursor-pointer"
-                                                                title="Delete Study Material"
-                                                            >
-                                                                <Trash2 size={13} />
-                                                            </button>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            );
-                                        })}
+                                                                {group.student && (
+                                                                    <div className="text-[9px] text-slate-400 font-semibold mt-0.5">
+                                                                        For student: <span className="text-slate-650 font-bold">{group.student.name}</span>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </td>
+                                                        <td className="p-4">
+                                                            <div className="flex flex-col">
+                                                                <span className="font-bold text-slate-800 text-xs">{group.course || <span className="italic text-slate-400">All Courses</span>}</span>
+                                                                {group.institute && <span className="text-[10px] text-emerald-600 font-black uppercase mt-0.5">{group.institute}</span>}
+                                                            </div>
+                                                        </td>
+                                                        <td className="p-4">
+                                                            <div className="flex flex-col">
+                                                                <span className="font-bold text-slate-800 text-xs">{group.subject || <span className="italic text-slate-450">General</span>}</span>
+                                                                <span className="text-slate-400 text-[10px] font-semibold uppercase mt-0.5">{group.dayNum ? `Inbox ${group.dayNum}` : (group.inboxId || 'N/A')}</span>
+                                                            </div>
+                                                        </td>
+                                                        <td className="p-4 whitespace-nowrap">
+                                                            <div className="flex flex-col">
+                                                                <span className="font-bold text-slate-800 text-xs">{instructors.join(', ')}</span>
+                                                                <span className="text-slate-400 text-[9px] font-semibold mt-0.5">{uploadDate}</span>
+                                                            </div>
+                                                        </td>
+                                                        <td className="p-4 whitespace-nowrap text-center">
+                                                            <span className={`px-2.5 py-1 border rounded-full text-[9px] font-black uppercase tracking-wider ${statusBadgeColor}`}>
+                                                                {statusLabel}
+                                                            </span>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            });
+                                        })()}
                                     </tbody>
                                 </table>
                             </div>
@@ -976,10 +936,9 @@ const AdminDashboard = () => {
             })()}
 
             {/* Student RI Report Modal */}
-            {isRiModalOpen && riData && (
+            {isRiModalOpen && riData && createPortal(
                 <div
-                    className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
-                    style={{ backgroundColor: 'rgba(15,23,42,0.45)', backdropFilter: 'blur(4px)' }}
+                    className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md"
                     onClick={() => setIsRiModalOpen(false)}
                 >
                     <div
@@ -1014,25 +973,18 @@ const AdminDashboard = () => {
                             <div className="space-y-4">
                                 {/* Metadata Grid */}
                                 <div className="grid grid-cols-2 gap-3 bg-slate-50 p-4 rounded-2xl border border-slate-200/50 text-xs font-semibold text-slate-700">
+                                    <div className="col-span-2"><span className="text-[9px] uppercase tracking-wider text-slate-400 block font-black mb-0.5">Study Material Title</span>{riData.materialTitle}</div>
+                                    <div><span className="text-[9px] uppercase tracking-wider text-slate-400 block font-black mb-0.5">Course</span>{riData.course}</div>
                                     <div><span className="text-[9px] uppercase tracking-wider text-slate-400 block font-black mb-0.5">Subject Name</span>{riData.subject}</div>
                                     <div><span className="text-[9px] uppercase tracking-wider text-slate-400 block font-black mb-0.5">Inbox / Day</span>{riData.dayNum ? `Inbox ${riData.dayNum}` : riData.inboxId}</div>
-                                    <div><span className="text-[9px] uppercase tracking-wider text-slate-400 block font-black mb-0.5">Course</span>{riData.course}</div>
-                                    <div><span className="text-[9px] uppercase tracking-wider text-slate-400 block font-black mb-0.5">Email</span>{riData.student?.email}</div>
+                                    <div><span className="text-[9px] uppercase tracking-wider text-slate-400 block font-black mb-0.5">Student</span>{riData.student?.name} ({riData.student?.email})</div>
                                 </div>
 
                                 {/* Stats Row */}
-                                <div className="grid grid-cols-3 gap-3">
+                                <div className="grid grid-cols-1 gap-3">
                                     <div className="bg-indigo-50/50 border border-indigo-100/80 p-3.5 rounded-2xl text-center">
                                         <div className="text-xl font-extrabold text-[#3E3ADD]">{riData.stats.total}</div>
-                                        <div className="text-[9px] font-black text-indigo-400 uppercase tracking-wider mt-0.5">Total Activities</div>
-                                    </div>
-                                    <div className="bg-emerald-50/50 border border-emerald-100/80 p-3.5 rounded-2xl text-center">
-                                        <div className="text-xl font-extrabold text-emerald-600">{riData.stats.completed} / {riData.stats.total}</div>
-                                        <div className="text-[9px] font-black text-emerald-400 uppercase tracking-wider mt-0.5">Completed</div>
-                                    </div>
-                                    <div className="bg-purple-50/50 border border-purple-100/80 p-3.5 rounded-2xl text-center">
-                                        <div className="text-xl font-extrabold text-purple-600">{riData.stats.avg}%</div>
-                                        <div className="text-[9px] font-black text-purple-400 uppercase tracking-wider mt-0.5">Average Score</div>
+                                        <div className="text-[9px] font-black text-indigo-400 uppercase tracking-wider mt-0.5">Total Study Materials</div>
                                     </div>
                                 </div>
 
@@ -1041,49 +993,39 @@ const AdminDashboard = () => {
                                     <table className="min-w-full text-left text-xs font-semibold">
                                         <thead className="bg-slate-50 border-b border-slate-100 text-[10px] text-slate-450 uppercase">
                                             <tr>
-                                                <th className="p-3">Activity</th>
-                                                <th className="p-3 text-center">Status</th>
-                                                <th className="p-3 text-right">Marks</th>
+                                                <th className="p-3">Study Material Title</th>
+                                                <th className="p-3 text-center">Type of Content</th>
+                                                <th className="p-3 text-right">Action</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-slate-100 text-slate-700">
-                                            {riData.tests.map((test, idx) => {
-                                                const sub = riData.submissionMap?.get(String(test._id));
-                                                const isEvaluated = sub && sub.status === 'evaluated';
-                                                const isSubmitted = sub && sub.status === 'submitted';
-                                                const isReturned = sub && sub.status === 'returned';
-
-                                                let statusLabel = 'Pending';
-                                                let badgeColor = 'bg-slate-50 text-slate-500 border-slate-100';
-                                                if (isEvaluated) {
-                                                    statusLabel = 'Evaluated';
-                                                    badgeColor = 'bg-emerald-50 text-emerald-600 border-emerald-100';
-                                                } else if (isSubmitted) {
-                                                    statusLabel = 'Submitted';
-                                                    badgeColor = 'bg-blue-50 text-blue-600 border-blue-100';
-                                                } else if (isReturned) {
-                                                    statusLabel = 'Returned';
-                                                    badgeColor = 'bg-amber-50 text-amber-600 border-amber-100';
-                                                }
-
-                                                const maxMarks = sub?.test?.questions?.reduce((sum, q) => sum + (q.marks || 0), 0) || 100;
-                                                const marksObtained = isEvaluated ? `${sub.totalMarks} / ${maxMarks}` : '-';
+                                            {riData.materials?.map((mat, idx) => {
+                                                const typeLabel = mat.materialType ? mat.materialType.toUpperCase() : 'PDF';
 
                                                 return (
-                                                    <tr key={test._id} className="hover:bg-slate-50/50">
-                                                        <td className="p-3 font-bold">{idx + 1}. {test.title}</td>
+                                                    <tr key={mat._id} className="hover:bg-slate-50/50">
+                                                        <td className="p-3 font-bold">{idx + 1}. {mat.title}</td>
                                                         <td className="p-3 text-center">
-                                                            <span className={`px-2 py-0.5 border rounded-full text-[9px] font-black uppercase tracking-wider ${badgeColor}`}>
-                                                                {statusLabel}
+                                                            <span className="px-2 py-0.5 border rounded-full text-[9px] font-black uppercase tracking-wider bg-indigo-50 text-indigo-650 border-indigo-100">
+                                                                {typeLabel}
                                                             </span>
                                                         </td>
-                                                        <td className="p-3 text-right font-mono font-bold text-slate-800">{marksObtained}</td>
+                                                        <td className="p-3 text-right">
+                                                            <a
+                                                                href={mat.fileUrl}
+                                                                target="_blank"
+                                                                rel="noreferrer"
+                                                                className="px-2.5 py-1 bg-[#3E3ADD] hover:bg-indigo-700 text-white rounded-lg text-[9px] font-black uppercase tracking-wider shadow-sm transition-all"
+                                                            >
+                                                                View
+                                                            </a>
+                                                        </td>
                                                     </tr>
                                                 );
                                             })}
-                                            {riData.tests.length === 0 && (
+                                            {(!riData.materials || riData.materials.length === 0) && (
                                                 <tr>
-                                                    <td colSpan="3" className="p-4 text-center text-slate-400">No activities found for this inbox.</td>
+                                                    <td colSpan="3" className="p-4 text-center text-slate-400">No study materials found for this inbox.</td>
                                                 </tr>
                                             )}
                                         </tbody>
@@ -1115,34 +1057,17 @@ const AdminDashboard = () => {
                                                 return;
                                             }
 
-                                            const tableRowsHtml = riData.tests.map((test, idx) => {
-                                                const sub = riData.submissionMap?.get(String(test._id));
-                                                const isEvaluated = sub && sub.status === 'evaluated';
-                                                const isSubmitted = sub && sub.status === 'submitted';
-                                                const isReturned = sub && sub.status === 'returned';
-
-                                                let statusLabel = 'Pending';
-                                                let badgeClass = 'badge-pend';
-                                                if (isEvaluated) { statusLabel = 'Evaluated'; badgeClass = 'badge-eval'; }
-                                                else if (isSubmitted) { statusLabel = 'Submitted'; badgeClass = 'badge-sub'; }
-                                                else if (isReturned) { statusLabel = 'Returned'; badgeClass = 'badge-ret'; }
-
-                                                const maxMarks = sub?.test?.questions?.reduce((sum, q) => sum + (q.marks || 0), 0) || 100;
-                                                const marksObtained = isEvaluated ? sub.totalMarks : '-';
-                                                const displayPercentage = isEvaluated ? `${Math.round((sub.totalMarks / maxMarks) * 105)}%` : '-';
-                                                const displayMaxMarks = isEvaluated ? maxMarks : '-';
+                                            const tableRowsHtml = riData.materials?.map((mat, idx) => {
+                                                const typeLabel = mat.materialType ? mat.materialType.toUpperCase() : 'PDF';
 
                                                 return `
                                                     <tr>
-                                                        <td>${idx + 1}. ${test.title}</td>
-                                                        <td>${test.activity ? test.activity.toUpperCase() : 'TEST'}</td>
-                                                        <td><span class="badge ${badgeClass}">${statusLabel}</span></td>
-                                                        <td style="text-align: center; font-weight: bold;">${marksObtained}</td>
-                                                        <td style="text-align: center; font-weight: bold;">${displayMaxMarks}</td>
-                                                        <td style="text-align: center; font-weight: bold; color: ${isEvaluated ? '#4f46e5' : '#475569'};">${displayPercentage}</td>
+                                                        <td>${idx + 1}. ${mat.title}</td>
+                                                        <td>${typeLabel}</td>
+                                                        <td><a href="${mat.fileUrl}" target="_blank" style="color: #3e3add; text-decoration: none; font-weight: bold; font-size: 11px;">VIEW / OPEN</a></td>
                                                     </tr>
                                                 `;
-                                            }).join('') || '<tr><td colspan="6" style="text-align: center; color: #64748b;">No activities found in this inbox.</td></tr>';
+                                            }).join('') || '<tr><td colspan="3" style="text-align: center; color: #64748b; padding: 15px;">No study materials found in this inbox.</td></tr>';
 
                                             printWindow.document.write(`
                                                 <html>
@@ -1156,7 +1081,7 @@ const AdminDashboard = () => {
                                                         .meta-item { display: flex; flex-direction: column; }
                                                         .meta-label { font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 2px; }
                                                         .meta-value { font-size: 13px; font-weight: 700; color: #1e293b; }
-                                                        .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 30px; }
+                                                        .stats-row { display: grid; grid-template-columns: 1fr; gap: 16px; margin-bottom: 30px; }
                                                         .stat-card { border: 1px solid #e2e8f0; padding: 16px; border-radius: 12px; text-align: center; background: #ffffff; }
                                                         .stat-num { font-size: 20px; font-weight: 800; color: #3e3add; }
                                                         .stat-label { font-size: 10px; font-weight: 600; color: #64748b; text-transform: uppercase; margin-top: 4px; }
@@ -1164,10 +1089,6 @@ const AdminDashboard = () => {
                                                         th { background: #f1f5f9; padding: 10px 12px; text-align: left; font-size: 11px; font-weight: bold; color: #475569; text-transform: uppercase; border-bottom: 2px solid #e2e8f0; }
                                                         td { padding: 12px; border-bottom: 1px solid #e2e8f0; font-size: 12px; color: #334155; }
                                                         .badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; text-transform: uppercase; }
-                                                        .badge-eval { background: #dcfce7; color: #15803d; }
-                                                        .badge-sub { background: #dbeafe; color: #1d4ed8; }
-                                                        .badge-ret { background: #ffedd5; color: #c2410c; }
-                                                        .badge-pend { background: #f1f5f9; color: #475569; }
                                                         h3 { font-size: 15px; font-weight: bold; color: #0b1329; margin-top: 25px; margin-bottom: 10px; }
                                                     </style>
                                                 </head>
@@ -1177,26 +1098,22 @@ const AdminDashboard = () => {
                                                         <div class="header-subtitle">${inboxName} — ${subjectName}</div>
                                                     </div>
                                                     <div class="meta-grid">
-                                                        <div class="meta-item"><span class="meta-label">Student Name</span><span class="meta-value">${studentName}</span></div>
-                                                        <div class="meta-item"><span class="meta-label">Course</span><span class="meta-value">${courseName}</span></div>
-                                                        <div class="meta-item"><span class="meta-label">Report Date</span><span class="meta-value">${reportDate}</span></div>
-                                                        <div class="meta-item"><span class="meta-label">Email</span><span class="meta-value">${studentEmail}</span></div>
-                                                    </div>
+                                                         <div class="meta-item" style="grid-column: span 2;"><span class="meta-label">Study Material Title</span><span class="meta-value">${riData.materialTitle || 'N/A'}</span></div>
+                                                         <div class="meta-item"><span class="meta-label">Course</span><span class="meta-value">${courseName}</span></div>
+                                                         <div class="meta-item"><span class="meta-label">Subject Name</span><span class="meta-value">${subjectName}</span></div>
+                                                         <div class="meta-item"><span class="meta-label">Inbox / Day</span><span class="meta-value">${inboxName}</span></div>
+                                                         <div class="meta-item"><span class="meta-label">Student</span><span class="meta-value">${studentName} (${studentEmail})</span></div>
+                                                     </div>
                                                     <div class="stats-row">
-                                                        <div class="stat-card"><div class="stat-num">${riData.tests.length}</div><div class="stat-label">Total Activities</div></div>
-                                                        <div class="stat-card"><div class="stat-num">${riData.stats.completed} / ${riData.tests.length}</div><div class="stat-label">Completed</div></div>
-                                                        <div class="stat-card"><div class="stat-num">${riData.stats.avg}%</div><div class="stat-label">Average Score</div></div>
+                                                        <div class="stat-card"><div class="stat-num">${riData.materials?.length || 0}</div><div class="stat-label">Total Study Materials</div></div>
                                                     </div>
-                                                    <h3>Activity details</h3>
+                                                    <h3>Study Material details</h3>
                                                     <table>
                                                         <thead>
                                                             <tr>
-                                                                <th>Activity Title</th>
-                                                                <th>Category</th>
-                                                                <th>Status</th>
-                                                                <th style="text-align: center;">Obtained</th>
-                                                                <th style="text-align: center;">Max Marks</th>
-                                                                <th style="text-align: center;">Percentage</th>
+                                                                <th>Study Material Title</th>
+                                                                <th>Type of Content</th>
+                                                                <th>Action</th>
                                                             </tr>
                                                         </thead>
                                                         <tbody>
@@ -1217,12 +1134,337 @@ const AdminDashboard = () => {
                             </div>
                         )}
                     </div>
-                </div>
+                </div>,
+                document.body
+            )}
+
+            {/* Centered Study Materials Popup Modal (White Smoke Bg) */}
+            {activeMaterialsGroup && createPortal(
+                <div
+                    className="fixed inset-0 z-[99999] bg-[#F5F5F5] flex flex-col p-6 md:p-10 animate-fade-in text-left overflow-hidden"
+                >
+                    <div
+                        className="w-full max-w-4xl mx-auto flex-1 flex flex-col"
+                    >
+                        {/* Header */}
+                        <div className="flex items-center justify-between mb-5 border-b border-slate-250 pb-3">
+                            <div className="flex items-center gap-2.5">
+                                <div className="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center">
+                                    <FolderOpen className="text-[#3E3ADD]" size={18} />
+                                </div>
+                                <div>
+                                    <h3 className="font-extrabold text-slate-800 text-sm">Study Materials</h3>
+                                    <p className="text-[10px] text-slate-450 font-semibold uppercase">
+                                        {activeMaterialsGroup.student?.name || 'All Students'} • {activeMaterialsGroup.subject} • {activeMaterialsGroup.dayNum ? `Inbox ${activeMaterialsGroup.dayNum}` : (activeMaterialsGroup.inboxId || 'N/A')}
+                                    </p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => setActiveMaterialsGroup(null)}
+                                className="w-7 h-7 rounded-full bg-slate-200/60 hover:bg-slate-200 flex items-center justify-center text-slate-650 transition-all cursor-pointer text-sm font-bold shadow-xs"
+                            >
+                                ×
+                            </button>
+                        </div>
+
+                        {/* List Grid */}
+                        <div className="flex-1 overflow-y-auto space-y-3.5 pr-1">
+                            {activeMaterialsGroup.items.map((item, idx) => (
+                                <div key={item._id} className="bg-white border border-slate-200/60 rounded-2xl p-4 flex items-center justify-between gap-4 shadow-sm hover:shadow-md transition-all duration-200">
+                                    <div className="flex flex-col min-w-0 flex-1">
+                                        <span className="font-extrabold text-slate-800 text-xs truncate" title={item.title}>
+                                            {idx + 1}. {item.title}
+                                        </span>
+                                        <span className="text-slate-400 text-[10px] font-mono mt-0.5 truncate" title={item.filename}>
+                                            {item.filename || 'No file attached'}
+                                        </span>
+                                        <span className="text-[9px] text-indigo-500 font-extrabold uppercase mt-1 tracking-wider">
+                                            {item.materialType || 'pdf'}
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center gap-2 shrink-0">
+                                        {item.student && (
+                                            <button
+                                                onClick={() => {
+                                                    setActiveMaterialsGroup(null);
+                                                    handleOpenRiReport(item);
+                                                }}
+                                                className="px-2.5 py-1 bg-indigo-50 hover:bg-[#3E3ADD] text-[#3E3ADD] hover:text-white border border-indigo-150 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer shadow-xs active:scale-95"
+                                                title="View RI Report"
+                                            >
+                                                RI
+                                            </button>
+                                        )}
+                                        <a
+                                            href={item.fileUrl}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="p-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 rounded-xl transition-all cursor-pointer shadow-xs active:scale-95 flex items-center justify-center"
+                                            title="View file/link"
+                                        >
+                                            <FolderOpen size={13} />
+                                        </a>
+                                        <button
+                                            onClick={() => {
+                                                setEditingMaterial(item);
+                                                setMatTitle(item.title || '');
+                                                setMatUrl(item.fileUrl || '');
+                                                setUploadInst(item.institute || '');
+                                                setUploadCourse(item.course || '');
+                                                setUploadSubject(item.subject || '');
+                                                setUploadDayNum(item.dayNum || 1);
+                                                setUploadStudent(item.student?._id || 'all');
+                                                setSelectedUploadType(item.materialType || 'pdf');
+                                                setMatFile(null);
+                                                setHtmlCode(item.htmlContent || '');
+                                                setAdminUploadModalOpen(true);
+                                            }}
+                                            className="p-2 bg-indigo-50/50 hover:bg-indigo-100 border border-indigo-100 text-[#3E3ADD] rounded-xl transition-all cursor-pointer shadow-xs active:scale-95 flex items-center justify-center"
+                                            title="Edit info"
+                                        >
+                                            <Edit size={13} />
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                handleDeleteMaterial(item._id);
+                                                setActiveMaterialsGroup(prev => {
+                                                    if (!prev) return null;
+                                                    const updatedItems = prev.items.filter(i => i._id !== item._id);
+                                                    if (updatedItems.length === 0) return null;
+                                                    return { ...prev, items: updatedItems };
+                                                });
+                                            }}
+                                            disabled={deletingMaterialId === item._id}
+                                            className="p-2 bg-rose-50 hover:bg-rose-100 border border-rose-100 text-rose-600 rounded-xl transition-all disabled:opacity-50 cursor-pointer shadow-xs active:scale-95 flex items-center justify-center"
+                                            title="Delete study material"
+                                        >
+                                            <Trash2 size={13} />
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Footer */}
+                        <div className="flex justify-end pt-3.5 border-t border-slate-250 mt-4.5">
+                            <button
+                                type="button"
+                                onClick={() => setActiveMaterialsGroup(null)}
+                                className="px-4.5 py-2 bg-slate-200/85 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer shadow-sm active:scale-95"
+                            >
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>,
+                document.body
             )}
 
             <AddUserModal isOpen={isUserModalOpen} onClose={() => { setIsUserModalOpen(false); setQuickAddRole(null); }} role={quickAddRole || modalRole} onSuccess={fetchDashboardData} />
             <AddInstituteModal isOpen={isInstituteModalOpen} onClose={() => setIsInstituteModalOpen(false)} refreshData={fetchDashboardData} />
             <AddCourseModal isOpen={isCourseModalOpen} onClose={() => setIsCourseModalOpen(false)} refreshData={fetchDashboardData} />
+
+            {/* Admin Upload / Edit Material Modal */}
+            {adminUploadModalOpen && createPortal(
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex justify-center items-center overflow-y-auto z-[100000] p-4 animate-fade-in text-left">
+                    <form
+                        onSubmit={async (e) => {
+                            e.preventDefault();
+                            if (!matTitle.trim()) { toast.error('Title is required'); return; }
+                            try {
+                                setUploadingMaterial(true);
+                                const fd = new FormData();
+                                fd.append('title', matTitle.trim());
+                                fd.append('subject', uploadSubject.trim());
+                                fd.append('course', uploadCourse.trim());
+                                fd.append('institute', uploadInst.trim());
+                                fd.append('dayNum', uploadDayNum ? parseInt(uploadDayNum, 10) : 1);
+                                fd.append('inboxId', uploadDayNum ? `Inbox ${uploadDayNum}` : 'Inbox 1');
+                                fd.append('materialType', selectedUploadType);
+                                
+                                if (uploadStudent && uploadStudent !== 'all') {
+                                    fd.append('studentId', uploadStudent);
+                                }
+
+                                if (selectedUploadType === 'web' && webMode === 'code') {
+                                    if (!htmlCode.trim()) {
+                                        toast.error('Please write or paste HTML code first');
+                                        setUploadingMaterial(false);
+                                        return;
+                                    }
+                                    const blob = new Blob([htmlCode], { type: 'text/html' });
+                                    const file = new File([blob], `page-${Date.now()}.html`, { type: 'text/html' });
+                                    fd.append('file', file);
+                                } else if (matFile) {
+                                    fd.append('file', matFile);
+                                } else if (matUrl.trim()) {
+                                    fd.append('fileUrl', matUrl.trim());
+                                }
+
+                                const headers = { 'Content-Type': 'multipart/form-data' };
+
+                                if (editingMaterial) {
+                                    await axios.put(`/api/study-materials/${editingMaterial._id}`, fd, { headers });
+                                    toast.success('Material updated!');
+                                } else {
+                                    await axios.post('/api/study-materials', fd, { headers });
+                                    toast.success('Material uploaded!');
+                                }
+                                setAdminUploadModalOpen(false);
+                                fetchStudyMaterials();
+                            } catch (err) {
+                                toast.error(err.response?.data?.message || 'Upload failed');
+                            } finally {
+                                setUploadingMaterial(false);
+                            }
+                        }}
+                        className="bg-white rounded-3xl w-full max-w-2xl border border-slate-100 shadow-2xl overflow-hidden flex flex-col my-auto max-h-[85vh]"
+                    >
+                        {/* Modal Header */}
+                        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50 shrink-0">
+                            <div className="flex items-center gap-2">
+                                <div className="w-8 h-8 rounded-xl bg-[#0b1329] flex items-center justify-center">
+                                    <Upload size={14} className="text-white" />
+                                </div>
+                                <div>
+                                    <h3 className="font-extrabold text-slate-800 text-sm">{editingMaterial ? 'Edit Study Material' : 'Upload Study Material'}</h3>
+                                    <p className="text-[10px] text-slate-400 font-medium">Configure resource access and file uploads</p>
+                                </div>
+                            </div>
+                            <button type="button" onClick={() => setAdminUploadModalOpen(false)} className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-all cursor-pointer"><X size={16} /></button>
+                        </div>
+
+                        {/* Modal Body - scrollable */}
+                        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+                            {/* Title */}
+                            <div>
+                                <label className="block text-[11px] font-black text-slate-600 uppercase tracking-wider mb-1.5">Material Title <span className="text-rose-500">*</span></label>
+                                <input type="text" value={matTitle} onChange={e => setMatTitle(e.target.value)} placeholder="e.g. Chapter 3 - Cell Biology Notes" className="w-full h-10 px-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-[#3E3ADD] focus:ring-2 focus:ring-indigo-100 transition-all text-slate-800 font-semibold" required />
+                            </div>
+
+                            {/* Target: Institute + Course */}
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="block text-[11px] font-black text-slate-600 uppercase tracking-wider mb-1.5">Institute</label>
+                                    <input type="text" value={uploadInst} onChange={e => setUploadInst(e.target.value)} placeholder="Leave blank for all" className="w-full h-10 px-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-[#3E3ADD] focus:ring-2 focus:ring-indigo-100 transition-all text-slate-800 font-semibold" />
+                                </div>
+                                <div>
+                                    <label className="block text-[11px] font-black text-slate-600 uppercase tracking-wider mb-1.5">Course</label>
+                                    <input type="text" value={uploadCourse} onChange={e => setUploadCourse(e.target.value)} placeholder="Leave blank for all" className="w-full h-10 px-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-[#3E3ADD] focus:ring-2 focus:ring-indigo-100 transition-all text-slate-800 font-semibold" />
+                                </div>
+                            </div>
+
+                            {/* Subject + Inbox */}
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="block text-[11px] font-black text-slate-600 uppercase tracking-wider mb-1.5">Subject</label>
+                                    <input type="text" value={uploadSubject} onChange={e => setUploadSubject(e.target.value)} placeholder="e.g. Biology" className="w-full h-10 px-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-[#3E3ADD] focus:ring-2 focus:ring-indigo-100 transition-all text-slate-800 font-semibold" />
+                                </div>
+                                <div>
+                                    <label className="block text-[11px] font-black text-slate-600 uppercase tracking-wider mb-1.5">Inbox (Day No.)</label>
+                                    <input type="number" min={1} value={uploadDayNum} onChange={e => setUploadDayNum(Number(e.target.value))} className="w-full h-10 px-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-[#3E3ADD] focus:ring-2 focus:ring-indigo-100 transition-all text-slate-800 font-semibold" />
+                                </div>
+                            </div>
+
+                            {/* Content Type Tabs */}
+                            <div>
+                                <label className="block text-[11px] font-black text-slate-600 uppercase tracking-wider mb-1.5">Content Type</label>
+                                <div className="flex bg-slate-100 p-1 rounded-xl gap-1">
+                                    {[{id:'video',label:'Video',icon:Video},{id:'audio',label:'Audio',icon:Mic},{id:'pdf',label:'PDF/Doc',icon:FileText},{id:'web',label:'Web/HTML',icon:Link2}].map(t => (
+                                        <button key={t.id} type="button" onClick={() => setSelectedUploadType(t.id)}
+                                            className={`flex-1 py-2 rounded-lg text-[10px] font-black flex items-center justify-center gap-1 transition-all cursor-pointer ${
+                                                selectedUploadType === t.id ? 'bg-[#0b1329] text-white shadow' : 'text-slate-600 hover:text-slate-900'
+                                            }`}>
+                                            <t.icon size={11} /> {t.label}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Video / Audio */}
+                            {(selectedUploadType === 'video' || selectedUploadType === 'audio') && (
+                                <div className="space-y-3">
+                                    <div className="flex bg-slate-100 p-1 rounded-xl gap-1">
+                                        {['upload','embedded'].map(m => (
+                                            <button key={m} type="button" onClick={() => setVideoAudioMode(m)}
+                                                className={`flex-1 py-1.5 rounded-lg text-[10px] font-black capitalize transition-all cursor-pointer ${
+                                                    videoAudioMode === m ? 'bg-white text-[#0b1329] shadow' : 'text-slate-500'
+                                                }`}>{m === 'upload' ? 'Upload File' : 'Embed URL'}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    {videoAudioMode === 'upload' ? (
+                                        <div className="border-2 border-dashed border-slate-200 rounded-xl p-4 text-center hover:border-indigo-300 transition-all">
+                                            <input type="file" id="adminMatFile" accept={selectedUploadType === 'video' ? 'video/*' : 'audio/*'} onChange={e => setMatFile(e.target.files[0])} className="hidden" />
+                                            <label htmlFor="adminMatFile" className="cursor-pointer flex flex-col items-center gap-2">
+                                                <Upload size={20} className="text-slate-400" />
+                                                <span className="text-xs font-bold text-slate-500">{matFile ? matFile.name : `Click to upload ${selectedUploadType} file`}</span>
+                                            </label>
+                                        </div>
+                                    ) : (
+                                        <input type="url" value={matUrl} onChange={e => setMatUrl(e.target.value)} placeholder="https://youtube.com/embed/..." className="w-full h-10 px-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-[#3E3ADD] focus:ring-2 focus:ring-indigo-100 transition-all text-slate-800 font-semibold" />
+                                    )}
+                                </div>
+                            )}
+
+                            {/* PDF */}
+                            {selectedUploadType === 'pdf' && (
+                                <div className="space-y-3">
+                                    <div className="flex bg-slate-100 p-1 rounded-xl gap-1">
+                                        {['upload','embedded'].map(m => (
+                                            <button key={m} type="button" onClick={() => setPdfMode(m)}
+                                                className={`flex-1 py-1.5 rounded-lg text-[10px] font-black capitalize transition-all cursor-pointer ${
+                                                    pdfMode === m ? 'bg-white text-[#0b1329] shadow' : 'text-slate-500'
+                                                }`}>{m === 'upload' ? 'Upload File' : 'Embed URL'}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    {pdfMode === 'upload' ? (
+                                        <div className="border-2 border-dashed border-slate-200 rounded-xl p-4 text-center hover:border-indigo-300 transition-all">
+                                            <input type="file" id="adminPdfFile" accept=".pdf,.doc,.docx,.ppt,.pptx" onChange={e => setMatFile(e.target.files[0])} className="hidden" />
+                                            <label htmlFor="adminPdfFile" className="cursor-pointer flex flex-col items-center gap-2">
+                                                <Upload size={20} className="text-slate-400" />
+                                                <span className="text-xs font-bold text-slate-500">{matFile ? matFile.name : 'Click to upload PDF/Doc file'}</span>
+                                            </label>
+                                        </div>
+                                    ) : (
+                                        <input type="url" value={matUrl} onChange={e => setMatUrl(e.target.value)} placeholder="https://drive.google.com/..." className="w-full h-10 px-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-[#3E3ADD] focus:ring-2 focus:ring-indigo-100 transition-all text-slate-800 font-semibold" />
+                                    )}
+                                </div>
+                            )}
+
+                            {/* Web / HTML */}
+                            {selectedUploadType === 'web' && (
+                                <div className="space-y-3">
+                                    <div className="flex bg-slate-100 p-1 rounded-xl gap-1">
+                                        {['embedded','code'].map(m => (
+                                            <button key={m} type="button" onClick={() => setWebMode(m)}
+                                                className={`flex-1 py-1.5 rounded-lg text-[10px] font-black capitalize transition-all cursor-pointer ${
+                                                    webMode === m ? 'bg-white text-[#0b1329] shadow' : 'text-slate-500'
+                                                }`}>{m === 'embedded' ? 'Embed URL' : 'HTML Code'}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    {webMode === 'embedded' ? (
+                                        <input type="url" value={matUrl} onChange={e => setMatUrl(e.target.value)} placeholder="https://example.com/page" className="w-full h-10 px-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-[#3E3ADD] focus:ring-2 focus:ring-indigo-100 transition-all text-slate-800 font-semibold" />
+                                    ) : (
+                                        <textarea value={htmlCode} onChange={e => setHtmlCode(e.target.value)} rows={6} placeholder="<!DOCTYPE html>..." className="w-full px-3.5 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono focus:outline-none focus:border-[#3E3ADD] focus:ring-2 focus:ring-indigo-100 transition-all text-slate-800 resize-none" />
+                                    )}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Modal Footer */}
+                        <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-end gap-3 bg-slate-50/50 shrink-0">
+                            <button type="button" onClick={() => setAdminUploadModalOpen(false)} className="px-5 py-2.5 rounded-xl border border-slate-200 text-slate-600 text-xs font-black hover:bg-slate-100 transition-all cursor-pointer">Cancel</button>
+                            <button type="submit" disabled={uploadingMaterial} className="px-6 py-2.5 rounded-xl bg-[#0b1329] hover:bg-[#1b2a53] text-white text-xs font-black transition-all cursor-pointer flex items-center gap-2 shadow-sm disabled:opacity-60">
+                                {uploadingMaterial ? <><Loader2 size={12} className="animate-spin" /> Uploading...</> : (editingMaterial ? 'Save Changes' : 'Upload Material')}
+                            </button>
+                        </div>
+                    </form>
+                </div>,
+                document.body
+            )}
         </DashboardLayout>
     );
 };

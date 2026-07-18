@@ -202,9 +202,43 @@ const updateStudyMaterialStatus = asyncHandler(async (req, res) => {
     res.json(material);
 });
 
+// @desc    Update study material details (Title, URL/file, etc.)
+// @route   PUT /api/study-materials/:id
+// @access  Private (Teacher/Admin)
+const updateStudyMaterial = asyncHandler(async (req, res) => {
+    const material = await StudyMaterial.findById(req.params.id);
+
+    if (!material) {
+        res.status(404);
+        throw new Error('Study material not found');
+    }
+
+    if (material.uploadedBy.toString() !== req.user._id.toString() && req.user.role !== 'Admin') {
+        res.status(403);
+        throw new Error('Not authorized to update this study material');
+    }
+
+    const { title, materialType, fileUrl, filename } = req.body;
+    
+    if (title) material.title = title;
+    if (materialType) material.materialType = materialType;
+    if (fileUrl) material.fileUrl = fileUrl;
+    if (filename) material.filename = filename;
+    
+    if (req.file) {
+        const url = `${req.protocol}://${req.get('host')}/uploads/attachments/${req.file.filename}`;
+        material.fileUrl = url;
+        material.filename = req.file.originalname;
+    }
+
+    await material.save();
+    res.json(material);
+});
+
 module.exports = {
     uploadStudyMaterial,
     getStudyMaterials,
     deleteStudyMaterial,
-    updateStudyMaterialStatus
+    updateStudyMaterialStatus,
+    updateStudyMaterial
 };

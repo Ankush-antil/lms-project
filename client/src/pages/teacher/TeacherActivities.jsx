@@ -2737,13 +2737,20 @@ const TeacherActivities = () => {
                                                                     )}
                                                                 </div>
 
-                                                                <div className="mt-2.5 pt-2 border-t border-slate-100 flex justify-between items-center">
+                                                                 <div className="mt-2.5 pt-2 border-t border-slate-100 flex justify-between items-center">
                                                                     <button
                                                                         type="button"
                                                                         onClick={() => handleDeleteStudyMaterial(mat._id)}
                                                                         className="text-red-500 hover:text-red-700 text-[10px] font-bold"
                                                                     >
                                                                         Delete
+                                                                    </button>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => setSelectedMaterialForAnalytics(mat)}
+                                                                        className="text-indigo-500 hover:text-indigo-750 text-[10px] font-bold transition-all cursor-pointer"
+                                                                    >
+                                                                        Analytics
                                                                     </button>
                                                                     <a
                                                                         href={mat.fileUrl}

@@ -510,6 +510,8 @@ const TeacherActivities = () => {
     const [uploadingMaterial, setUploadingMaterial] = useState(false);
     const [showMatModal, setShowMatModal] = useState(false);
     const [selectedMaterialForAnalytics, setSelectedMaterialForAnalytics] = useState(null);
+    const [uploadTarget, setUploadTarget] = useState('current'); // 'current', 'all', 'particular'
+    const [uploadStudentIds, setUploadStudentIds] = useState([]);
 
     // Categorized study materials states
     const [selectedCategoryTab, setSelectedCategoryTab] = useState('all');
@@ -611,7 +613,11 @@ const TeacherActivities = () => {
                 try {
                     setLoadingMaterials(true);
                     const statusParam = viewMode === 'pending' ? 'upcoming' : viewMode === 'assign' ? 'assign' : 'study-material';
-                    const { data } = await axios.get(`/api/study-materials?inboxId=${selectedInboxId}&status=${statusParam}`);
+                    let url = `/api/study-materials?inboxId=${selectedInboxId}&status=${statusParam}`;
+                    if (selectedStudent) {
+                        url += `&studentId=${selectedStudent._id}`;
+                    }
+                    const { data } = await axios.get(url);
                     setStudyMaterials(data);
                 } catch (err) {
                     console.error("Error fetching study materials:", err);
@@ -622,7 +628,7 @@ const TeacherActivities = () => {
             };
             fetchMaterials();
         }
-    }, [viewMode, selectedInboxId]);
+    }, [viewMode, selectedInboxId, selectedStudent]);
 
     // ERP Fee Accounting & Ledger Mock States
     const [erpPresent, setErpPresent] = useState(42);
@@ -923,8 +929,15 @@ const TeacherActivities = () => {
             const matStatus = viewMode === 'pending' ? 'upcoming' : (viewMode === 'assign' ? 'assign' : 'study-material');
             formData.append('status', matStatus);
 
-            if (selectedStudent) {
-                formData.append('studentId', selectedStudent._id);
+            if (uploadTarget === 'current' && selectedStudent) {
+                formData.append('studentIds', JSON.stringify([selectedStudent._id]));
+            } else if (uploadTarget === 'particular') {
+                if (uploadStudentIds.length === 0) {
+                    toast.error("Please select at least one student first");
+                    setUploadingMaterial(false);
+                    return;
+                }
+                formData.append('studentIds', JSON.stringify(uploadStudentIds));
             }
             if (activeDayDetails) {
                 formData.append('subject', activeDayDetails.subjectName || '');
@@ -951,13 +964,21 @@ const TeacherActivities = () => {
             });
 
             toast.success("Study material uploaded successfully!");
-            setStudyMaterials(prev => [data, ...prev]);
+            setStudyMaterials(prev => {
+                if (Array.isArray(data)) {
+                    const matched = data.filter(m => !m.student || (selectedStudent && m.student === selectedStudent._id));
+                    return [...matched, ...prev];
+                }
+                return [data, ...prev];
+            });
 
             // Cleanup states
             setMatTitle('');
             setMatFile(null);
             setMatUrl('');
             setHtmlCode('');
+            setUploadTarget('current');
+            setUploadStudentIds([]);
             stopRecordingStream();
             setShowMatModal(false);
 
@@ -2662,6 +2683,8 @@ const TeacherActivities = () => {
                                                                                 <span className="text-slate-400 text-[9px] font-bold">Embedded</span>
                                                                             )}
                                                                         </div>
+
+
                                                                         <div>
                                                                             <h4 className="font-extrabold text-slate-800 text-sm leading-snug line-clamp-2" title={mat.title}>{mat.title}</h4>
                                                                         </div>
@@ -3375,7 +3398,6 @@ const TeacherActivities = () => {
                                             )}
                                         </div>
                                     )}
-
                                 </>
                             ) : studentTab === 'practice' ? (
                                 /* --- PRACTICE WORKSPACE REVIEW --- */
@@ -3978,6 +4000,101 @@ const TeacherActivities = () => {
                                                 className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 bg-white"
                                                 autoFocus
                                             />
+                                        </div>
+
+                                        {/* Visible To (Upload Target Selection) */}
+                                        <div className="space-y-1.5">
+                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Visible To</label>
+                                            {selectedStudent ? (
+                                                <div className="grid grid-cols-3 bg-slate-50 border border-slate-200/60 p-1 rounded-xl">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setUploadTarget('current')}
+                                                        className={`py-1.5 rounded-lg text-[10px] font-extrabold uppercase tracking-wider transition-all cursor-pointer truncate ${uploadTarget === 'current' ? 'bg-white text-indigo-600 shadow-sm border border-slate-100' : 'text-slate-500 hover:text-slate-700'}`}
+                                                        title={`${selectedStudent.name} Only`}
+                                                    >
+                                                        {selectedStudent.name.split(' ')[0]} Only
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setUploadTarget('particular')}
+                                                        className={`py-1.5 rounded-lg text-[10px] font-extrabold uppercase tracking-wider transition-all cursor-pointer truncate ${uploadTarget === 'particular' ? 'bg-white text-indigo-600 shadow-sm border border-slate-100' : 'text-slate-500 hover:text-slate-700'}`}
+                                                    >
+                                                        Select Student
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setUploadTarget('all')}
+                                                        className={`py-1.5 rounded-lg text-[10px] font-extrabold uppercase tracking-wider transition-all cursor-pointer truncate ${uploadTarget === 'all' ? 'bg-white text-indigo-600 shadow-sm border border-slate-100' : 'text-slate-500 hover:text-slate-700'}`}
+                                                    >
+                                                        All Students
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <div className="grid grid-cols-2 bg-slate-50 border border-slate-200/60 p-1 rounded-xl">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setUploadTarget('all')}
+                                                        className={`py-1.5 rounded-lg text-[10px] font-extrabold uppercase tracking-wider transition-all cursor-pointer truncate ${uploadTarget === 'all' ? 'bg-white text-indigo-600 shadow-sm border border-slate-100' : 'text-slate-500 hover:text-slate-700'}`}
+                                                    >
+                                                        All Students
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setUploadTarget('particular')}
+                                                        className={`py-1.5 rounded-lg text-[10px] font-extrabold uppercase tracking-wider transition-all cursor-pointer truncate ${uploadTarget === 'particular' ? 'bg-white text-indigo-600 shadow-sm border border-slate-100' : 'text-slate-500 hover:text-slate-700'}`}
+                                                    >
+                                                        Select Student
+                                                    </button>
+                                                </div>
+                                            )}
+
+                                            {/* Particular Student Selection Checkboxes */}
+                                            {uploadTarget === 'particular' && (
+                                                <div className="pt-1.5 space-y-2">
+                                                    <div className="border border-slate-200 rounded-2xl p-3.5 bg-slate-50/50 max-h-40 overflow-y-auto space-y-2.5 custom-scrollbar text-left">
+                                                        <div className="flex items-center justify-between border-b border-slate-200/80 pb-1.5 mb-2 select-none">
+                                                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Select Students ({uploadStudentIds.length} selected)</span>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    if (uploadStudentIds.length === students.length) {
+                                                                        setUploadStudentIds([]);
+                                                                    } else {
+                                                                        setUploadStudentIds(students.map(s => s._id));
+                                                                    }
+                                                                }}
+                                                                className="text-[9px] font-black text-[#3E3ADD] hover:text-indigo-850 uppercase tracking-wider"
+                                                            >
+                                                                {uploadStudentIds.length === students.length ? 'Clear All' : 'Select All'}
+                                                            </button>
+                                                        </div>
+                                                        {students.map(std => {
+                                                            const isChecked = uploadStudentIds.includes(std._id);
+                                                            return (
+                                                                <label key={std._id} className="flex items-center gap-2.5 cursor-pointer select-none">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={isChecked}
+                                                                        onChange={() => {
+                                                                            if (isChecked) {
+                                                                                setUploadStudentIds(prev => prev.filter(id => id !== std._id));
+                                                                            } else {
+                                                                                setUploadStudentIds(prev => [...prev, std._id]);
+                                                                            }
+                                                                        }}
+                                                                        className="w-3.5 h-3.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                                                                    />
+                                                                    <div className="min-w-0 flex-1">
+                                                                        <p className="text-xs font-bold text-slate-750 truncate leading-snug">{std.name}</p>
+                                                                        {std.email && <p className="text-[10px] text-slate-400 truncate mt-0.5">{std.email}</p>}
+                                                                    </div>
+                                                                </label>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
 
                                         {/* Modal fields based on Type & Submode */}

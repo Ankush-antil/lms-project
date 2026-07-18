@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import toast from 'react-hot-toast';
 import axios from 'axios';
 import DashboardLayout from '../../components/layout/DashboardLayout';
-import { Users, BookOpen, FileText, CheckCircle, Plus, Building2, RefreshCw, UserCheck, UserMinus, UserX, GraduationCap, Edit, Briefcase, Calculator, Megaphone, Heart, FolderOpen, Settings, Check, Clock, X, Trash2, Search, Printer, BarChart3, Video, Mic, Link2, Loader2, Upload, Info, Eye } from 'lucide-react';
+import { Users, BookOpen, FileText, CheckCircle, Plus, Building2, RefreshCw, UserCheck, UserMinus, UserX, GraduationCap, Edit, Briefcase, Calculator, Megaphone, Heart, FolderOpen, Settings, Check, Clock, X, Trash2, Search, Printer, BarChart3, Video, Mic, Link2, Loader2, Upload, Info, Eye, ArrowLeft } from 'lucide-react';
 import AddUserModal from '../../components/AddUserModal';
 import EditUserModal from '../../components/EditUserModal';
 import { useUserProfile } from '../../components/common/UserProfileContext';
@@ -110,11 +110,14 @@ const AdminDashboard = () => {
     const [allCourses, setAllCourses] = useState([]);
     const [allStudents, setAllStudents] = useState([]);
     const [allInstitutes, setAllInstitutes] = useState([]);
+    const [allSubjects, setAllSubjects] = useState([]);
     const [uploadInst, setUploadInst] = useState('');
     const [uploadCourse, setUploadCourse] = useState('');
-    const [uploadStudent, setUploadStudent] = useState('all');
+    const [uploadTarget, setUploadTarget] = useState('all'); // 'all', 'particular'
+    const [uploadStudentIds, setUploadStudentIds] = useState([]);
     const [uploadSubject, setUploadSubject] = useState('');
     const [uploadDayNum, setUploadDayNum] = useState(1);
+    const [studentSearchQuery, setStudentSearchQuery] = useState('');
     const [matTitle, setMatTitle] = useState('');
     const [selectedUploadType, setSelectedUploadType] = useState('video');
     const [videoAudioMode, setVideoAudioMode] = useState('upload');
@@ -356,8 +359,26 @@ const AdminDashboard = () => {
         }
     };
 
+    const fetchSetupData = async () => {
+        try {
+            const [instRes, courseRes, subjRes, studRes] = await Promise.all([
+                axios.get('/api/setup/institutes'),
+                axios.get('/api/setup/courses'),
+                axios.get('/api/setup/subjects'),
+                axios.get('/api/users?role=Student')
+            ]);
+            setAllInstitutes(instRes.data || []);
+            setAllCourses(courseRes.data || []);
+            setAllSubjects(subjRes.data || []);
+            setAllStudents(studRes.data || []);
+        } catch (err) {
+            console.error("Error fetching setup data:", err);
+        }
+    };
+
     useEffect(() => {
         fetchDashboardData();
+        fetchSetupData();
     }, []);
 
     const openUserModal = (role) => {
@@ -380,63 +401,65 @@ const AdminDashboard = () => {
     }; return (
         <DashboardLayout role="Admin">
             {/* Header section with actions */}
-            <div className="flex flex-col gap-4 mb-6">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div>
-                        <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">Analytics Dashboard</h1>
-                        <p className="text-slate-500 mt-1 text-sm">Real-time overview of your educational ecosystem.</p>
+            {activeTab !== 'study-material' && (
+                <div className="flex flex-col gap-4 mb-6">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div>
+                            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">Analytics Dashboard</h1>
+                            <p className="text-slate-500 mt-1 text-sm">Real-time overview of your educational ecosystem.</p>
+                        </div>
+                        <div className="relative w-full sm:w-auto flex justify-end" ref={dropdownRef}>
+                            <button
+                                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                                className="px-5 py-2.5 bg-[#0b1329] text-white rounded-2xl hover:bg-[#152244] hover:shadow-lg transition-all font-bold text-sm flex items-center justify-center gap-2 shadow-xl shadow-[#0b1329]/15 active:scale-95 w-full sm:w-auto z-25 cursor-pointer"
+                            >
+                                <Plus size={16} /> Add User
+                            </button>
+                            {isDropdownOpen && (
+                                <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-slate-100 rounded-2xl shadow-xl z-50 overflow-hidden py-1.5 transition-all duration-300">
+                                    {rolesList.map((item) => {
+                                        const Icon = item.icon;
+                                        return (
+                                            <button
+                                                key={item.label}
+                                                onClick={() => handleRoleClick(item)}
+                                                className="w-full text-left px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 transition-colors flex items-center gap-2.5 cursor-pointer"
+                                            >
+                                                <Icon size={15} className="text-slate-400 group-hover:text-indigo-600 transition-colors" />
+                                                {item.label}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
                     </div>
-                    <div className="relative w-full sm:w-auto flex justify-end" ref={dropdownRef}>
-                        <button
-                            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                            className="px-5 py-2.5 bg-[#0b1329] text-white rounded-2xl hover:bg-[#152244] hover:shadow-lg transition-all font-bold text-sm flex items-center justify-center gap-2 shadow-xl shadow-[#0b1329]/15 active:scale-95 w-full sm:w-auto z-25 cursor-pointer"
-                        >
-                            <Plus size={16} /> Add User
-                        </button>
-                        {isDropdownOpen && (
-                            <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-slate-100 rounded-2xl shadow-xl z-50 overflow-hidden py-1.5 transition-all duration-300">
-                                {rolesList.map((item) => {
-                                    const Icon = item.icon;
-                                    return (
-                                        <button
-                                            key={item.label}
-                                            onClick={() => handleRoleClick(item)}
-                                            className="w-full text-left px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 transition-colors flex items-center gap-2.5 cursor-pointer"
-                                        >
-                                            <Icon size={15} className="text-slate-400 group-hover:text-indigo-600 transition-colors" />
-                                            {item.label}
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        )}
-                    </div>
-                </div>
 
-                {/* Tab Switcher — scrollable on mobile */}
-                <div className="overflow-x-auto -mx-1 px-1">
-                    <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200 w-full sm:w-auto sm:inline-flex min-w-max">
-                        <button
-                            onClick={() => handleTabChange('overview')}
-                            className={`flex-1 sm:flex-none px-4 sm:px-5 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap ${activeTab === 'overview' ? 'bg-[#0b1329] text-white shadow-md' : 'text-slate-600 hover:text-slate-900'}`}
-                        >
-                            Overview
-                        </button>
-                        <button
-                            onClick={() => handleTabChange('applications')}
-                            className={`flex-1 sm:flex-none px-4 sm:px-5 py-2.5 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap ${activeTab === 'applications' ? 'bg-[#0b1329] text-white shadow-md' : 'text-slate-600 hover:text-slate-900'}`}
-                        >
-                            Applications
-                        </button>
-                        <button
-                            onClick={() => handleTabChange('role-requests')}
-                            className={`flex-1 sm:flex-none px-4 sm:px-5 py-2.5 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap ${activeTab === 'role-requests' ? 'bg-[#0b1329] text-white shadow-md' : 'text-slate-600 hover:text-slate-900'}`}
-                        >
-                            Staff Requests
-                        </button>
+                    {/* Tab Switcher — scrollable on mobile */}
+                    <div className="overflow-x-auto -mx-1 px-1">
+                        <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200 w-full sm:w-auto sm:inline-flex min-w-max">
+                            <button
+                                onClick={() => handleTabChange('overview')}
+                                className={`flex-1 sm:flex-none px-4 sm:px-5 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap ${activeTab === 'overview' ? 'bg-[#0b1329] text-white shadow-md' : 'text-slate-600 hover:text-slate-900'}`}
+                            >
+                                Overview
+                            </button>
+                            <button
+                                onClick={() => handleTabChange('applications')}
+                                className={`flex-1 sm:flex-none px-4 sm:px-5 py-2.5 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap ${activeTab === 'applications' ? 'bg-[#0b1329] text-white shadow-md' : 'text-slate-600 hover:text-slate-900'}`}
+                            >
+                                Applications
+                            </button>
+                            <button
+                                onClick={() => handleTabChange('role-requests')}
+                                className={`flex-1 sm:flex-none px-4 sm:px-5 py-2.5 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap ${activeTab === 'role-requests' ? 'bg-[#0b1329] text-white shadow-md' : 'text-slate-600 hover:text-slate-900'}`}
+                            >
+                                Staff Requests
+                            </button>
+                        </div>
                     </div>
                 </div>
-            </div>
+            )}
 
             {/* Conditional Views */}
             {activeTab === 'overview' && (
@@ -743,7 +766,16 @@ const AdminDashboard = () => {
                     <div className="bg-white rounded-[2rem] p-6 border border-slate-100 shadow-sm animate-fade-in text-left">
                         <div className="border-b border-slate-100 pb-4 mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                             <div>
-                                <h2 className="text-xl font-extrabold text-slate-900">Study Materials Repository</h2>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={() => setActiveTab('overview')}
+                                        className="p-1 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-slate-800 transition-all cursor-pointer mr-1 flex items-center justify-center border border-slate-150 shadow-sm bg-slate-50/50"
+                                        title="Back to Dashboard"
+                                    >
+                                        <ArrowLeft size={14} />
+                                    </button>
+                                    <h2 className="text-xl font-extrabold text-slate-900">Study Materials Repository</h2>
+                                </div>
                                 <p className="text-slate-500 text-xs mt-1">Monitor all PDF/Docs and Web Links uploaded by teachers for students</p>
                             </div>
                             <div className="flex flex-wrap sm:flex-nowrap items-center gap-2.5 w-full sm:w-auto">
@@ -756,7 +788,8 @@ const AdminDashboard = () => {
                                         setHtmlCode('');
                                         setUploadInst('');
                                         setUploadCourse('');
-                                        setUploadStudent('all');
+                                        setUploadTarget('all');
+                                        setUploadStudentIds([]);
                                         setUploadSubject('');
                                         setUploadDayNum(1);
                                         setSelectedUploadType('video');
@@ -1222,7 +1255,13 @@ const AdminDashboard = () => {
                                                 setUploadCourse(item.course || '');
                                                 setUploadSubject(item.subject || '');
                                                 setUploadDayNum(item.dayNum || 1);
-                                                setUploadStudent(item.student?._id || 'all');
+                                                if (item.student) {
+                                                    setUploadTarget('particular');
+                                                    setUploadStudentIds([item.student._id || item.student]);
+                                                } else {
+                                                    setUploadTarget('all');
+                                                    setUploadStudentIds([]);
+                                                }
                                                 setSelectedUploadType(item.materialType || 'pdf');
                                                 setMatFile(null);
                                                 setHtmlCode(item.htmlContent || '');
@@ -1363,8 +1402,13 @@ const AdminDashboard = () => {
                                 fd.append('inboxId', uploadDayNum ? `Inbox ${uploadDayNum}` : 'Inbox 1');
                                 fd.append('materialType', selectedUploadType);
 
-                                if (uploadStudent && uploadStudent !== 'all') {
-                                    fd.append('studentId', uploadStudent);
+                                if (uploadTarget === 'particular') {
+                                    if (uploadStudentIds.length === 0) {
+                                        toast.error('Please select at least one student');
+                                        setUploadingMaterial(false);
+                                        return;
+                                    }
+                                    fd.append('studentIds', JSON.stringify(uploadStudentIds));
                                 }
 
                                 if (selectedUploadType === 'web' && webMode === 'code') {
@@ -1427,11 +1471,38 @@ const AdminDashboard = () => {
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
                                     <label className="block text-[11px] font-black text-slate-600 uppercase tracking-wider mb-1.5">Institute</label>
-                                    <input type="text" value={uploadInst} onChange={e => setUploadInst(e.target.value)} placeholder="Leave blank for all" className="w-full h-10 px-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-[#3E3ADD] focus:ring-2 focus:ring-indigo-100 transition-all text-slate-800 font-semibold" />
+                                    <select
+                                        value={uploadInst}
+                                        onChange={e => {
+                                            setUploadInst(e.target.value);
+                                            setUploadCourse('');
+                                            setUploadSubject('');
+                                        }}
+                                        className="w-full h-10 px-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-[#3E3ADD] focus:ring-2 focus:ring-indigo-100 transition-all text-slate-800 font-semibold cursor-pointer"
+                                    >
+                                        <option value="">Leave blank for all</option>
+                                        {allInstitutes.map(inst => (
+                                            <option key={inst._id} value={inst.name}>{inst.name}</option>
+                                        ))}
+                                    </select>
                                 </div>
                                 <div>
                                     <label className="block text-[11px] font-black text-slate-600 uppercase tracking-wider mb-1.5">Course</label>
-                                    <input type="text" value={uploadCourse} onChange={e => setUploadCourse(e.target.value)} placeholder="Leave blank for all" className="w-full h-10 px-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-[#3E3ADD] focus:ring-2 focus:ring-indigo-100 transition-all text-slate-800 font-semibold" />
+                                    <select
+                                        value={uploadCourse}
+                                        onChange={e => {
+                                            setUploadCourse(e.target.value);
+                                            setUploadSubject('');
+                                        }}
+                                        className="w-full h-10 px-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-[#3E3ADD] focus:ring-2 focus:ring-indigo-100 transition-all text-slate-800 font-semibold cursor-pointer"
+                                    >
+                                        <option value="">Leave blank for all</option>
+                                        {allCourses
+                                            .filter(c => !uploadInst || (c.institute && c.institute.name === uploadInst))
+                                            .map(c => (
+                                                <option key={c._id} value={c.name}>{c.name}</option>
+                                            ))}
+                                    </select>
                                 </div>
                             </div>
 
@@ -1439,12 +1510,130 @@ const AdminDashboard = () => {
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
                                     <label className="block text-[11px] font-black text-slate-600 uppercase tracking-wider mb-1.5">Subject</label>
-                                    <input type="text" value={uploadSubject} onChange={e => setUploadSubject(e.target.value)} placeholder="e.g. Biology" className="w-full h-10 px-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-[#3E3ADD] focus:ring-2 focus:ring-indigo-100 transition-all text-slate-800 font-semibold" />
+                                    {(() => {
+                                        const selectedCourseObj = allCourses.find(c => c.name === uploadCourse);
+                                        const subjectsList = selectedCourseObj ? (selectedCourseObj.subjects || []) : Array.from(new Set(allSubjects.map(s => s.name)));
+                                        return (
+                                            <select
+                                                value={uploadSubject}
+                                                onChange={e => setUploadSubject(e.target.value)}
+                                                className="w-full h-10 px-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-[#3E3ADD] focus:ring-2 focus:ring-indigo-100 transition-all text-slate-800 font-semibold cursor-pointer"
+                                            >
+                                                <option value="">Select a subject</option>
+                                                {subjectsList.map((sub, index) => (
+                                                    <option key={index} value={sub}>{sub}</option>
+                                                ))}
+                                            </select>
+                                        );
+                                    })()}
                                 </div>
                                 <div>
                                     <label className="block text-[11px] font-black text-slate-600 uppercase tracking-wider mb-1.5">Inbox (Day No.)</label>
                                     <input type="number" min={1} value={uploadDayNum} onChange={e => setUploadDayNum(Number(e.target.value))} className="w-full h-10 px-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-[#3E3ADD] focus:ring-2 focus:ring-indigo-100 transition-all text-slate-800 font-semibold" />
                                 </div>
+                            </div>
+
+                            {/* Visible To (Upload Target Selection) */}
+                            <div className="space-y-1.5">
+                                <label className="block text-[11px] font-black text-slate-600 uppercase tracking-wider">Visible To</label>
+                                <div className="grid grid-cols-2 bg-slate-50 border border-slate-200/60 p-1 rounded-xl">
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setUploadTarget('all');
+                                            setUploadStudentIds([]);
+                                            setStudentSearchQuery('');
+                                        }}
+                                        className={`py-1.5 rounded-lg text-[10px] font-extrabold uppercase tracking-wider transition-all cursor-pointer truncate ${uploadTarget === 'all' ? 'bg-white text-indigo-600 shadow-sm border border-slate-100' : 'text-slate-500 hover:text-slate-700'}`}
+                                    >
+                                        All Students
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setUploadTarget('particular')}
+                                        className={`py-1.5 rounded-lg text-[10px] font-extrabold uppercase tracking-wider transition-all cursor-pointer truncate ${uploadTarget === 'particular' ? 'bg-white text-indigo-600 shadow-sm border border-slate-100' : 'text-slate-500 hover:text-slate-700'}`}
+                                    >
+                                        Select Student(s)
+                                    </button>
+                                </div>
+
+                                {/* Particular Student Selection Checkboxes */}
+                                {uploadTarget === 'particular' && (() => {
+                                    const filteredStudents = allStudents.filter(std => {
+                                        const instMatch = !uploadInst || (std.institute && std.institute.name === uploadInst);
+                                        const courseMatch = !uploadCourse || (
+                                            (std.studentProfile?.course && std.studentProfile.course.name === uploadCourse) ||
+                                            (std.studentProfile?.coursesList && std.studentProfile.coursesList.some(cItem => cItem.course && cItem.course.name === uploadCourse))
+                                        );
+                                        const nameMatch = !studentSearchQuery || std.name.toLowerCase().includes(studentSearchQuery.toLowerCase()) || (std.email && std.email.toLowerCase().includes(studentSearchQuery.toLowerCase()));
+                                        return instMatch && courseMatch && nameMatch;
+                                    });
+
+                                    return (
+                                        <div className="pt-1.5 space-y-2">
+                                            {/* Search input for students */}
+                                            <input
+                                                type="text"
+                                                placeholder="Search student by name or email..."
+                                                value={studentSearchQuery}
+                                                onChange={e => setStudentSearchQuery(e.target.value)}
+                                                className="w-full h-8 px-3 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-[#3E3ADD]"
+                                            />
+                                            <div className="border border-slate-200 rounded-2xl p-3.5 bg-slate-50/50 max-h-40 overflow-y-auto space-y-2.5 custom-scrollbar text-left">
+                                                <div className="flex items-center justify-between border-b border-slate-200/80 pb-1.5 mb-2 select-none">
+                                                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Select Students ({uploadStudentIds.length} selected)</span>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            if (uploadStudentIds.length === filteredStudents.length) {
+                                                                    setUploadStudentIds([]);
+                                                            } else {
+                                                                    setUploadStudentIds(filteredStudents.map(s => s._id));
+                                                            }
+                                                        }}
+                                                        className="text-[9px] font-black text-[#3E3ADD] hover:text-indigo-850 uppercase tracking-wider"
+                                                    >
+                                                        {uploadStudentIds.length === filteredStudents.length ? 'Clear All' : 'Select All'}
+                                                    </button>
+                                                </div>
+                                                {filteredStudents.length === 0 ? (
+                                                    <p className="text-xs text-slate-400 text-center py-4">No matching students found</p>
+                                                ) : (
+                                                    filteredStudents.map(std => {
+                                                        const isChecked = uploadStudentIds.includes(std._id);
+                                                        return (
+                                                            <label key={std._id} className="flex items-center gap-2.5 cursor-pointer select-none">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={isChecked}
+                                                                    onChange={() => {
+                                                                        if (isChecked) {
+                                                                            setUploadStudentIds(prev => prev.filter(id => id !== std._id));
+                                                                        } else {
+                                                                            setUploadStudentIds(prev => [...prev, std._id]);
+                                                                        }
+                                                                    }}
+                                                                    className="w-3.5 h-3.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                                                                />
+                                                                <div className="min-w-0 flex-1">
+                                                                    <p className="text-xs font-bold text-slate-750 truncate leading-snug">{std.name}</p>
+                                                                    <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5">
+                                                                        {std.email && <span className="text-[10px] text-slate-400 truncate">{std.email}</span>}
+                                                                        {std.studentProfile?.course?.name && (
+                                                                            <span className="text-[9px] bg-slate-100 text-slate-550 px-1.5 py-0.2 rounded-md font-extrabold uppercase border border-slate-205">
+                                                                                {std.studentProfile.course.name}
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            </label>
+                                                        );
+                                                    })
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
                             </div>
 
                             {/* Content Type Tabs */}

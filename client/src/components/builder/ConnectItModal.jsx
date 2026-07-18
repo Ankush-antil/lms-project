@@ -144,10 +144,14 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData, disabledFields =
         isAssigned: false,
         duration: '',
         passingMarks: '',
-        description: ''
+        description: '',
+        assignmentType: 'all', // 'all', 'particular', 'selected'
+        assignedStudents: []
     });
 
     const [allCourses, setAllCourses] = useState([]);
+    const [allStudents, setAllStudents] = useState([]);
+    const [studentSearchQuery, setStudentSearchQuery] = useState('');
     const [options, setOptions] = useState({
         institute: [],
         course: [],
@@ -260,13 +264,16 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData, disabledFields =
         if (isOpen) {
             const fetchData = async () => {
                 try {
-                    const [instRes, courseRes, actTypesRes] = await Promise.all([
+                    const studentsUrl = user?.role === 'Teacher' ? '/api/users/teacher-students' : '/api/users?role=Student';
+                    const [instRes, courseRes, actTypesRes, studRes] = await Promise.all([
                         axios.get('/api/setup/institutes'),
                         axios.get('/api/setup/courses'),
-                        axios.get('/api/setup/activity-types')
+                        axios.get('/api/setup/activity-types'),
+                        axios.get(studentsUrl).catch(() => ({ data: [] }))
                     ]);
 
                     setAllCourses(courseRes.data);
+                    setAllStudents(studRes.data || []);
                     
                     const defaults = [
                         { name: 'Viva', isDefault: true },
@@ -329,9 +336,13 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData, disabledFields =
                     isAssigned: initialData.isAssigned !== undefined ? initialData.isAssigned : false,
                     duration: initialData.duration || '',
                     passingMarks: initialData.passingMarks || '',
-                    description: initialData.description || ''
+                    description: initialData.description || '',
+                    assignmentType: initialData.assignmentType || 'all',
+                    assignedStudents: initialData.assignedStudents || []
                 });
             } else {
+                const urlParams = new URLSearchParams(window.location.search);
+                const queryStudentId = urlParams.get('studentId');
                 setFormData({
                     institute: defaultInstName,
                     course: [],
@@ -343,7 +354,9 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData, disabledFields =
                     isAssigned: false,
                     duration: '',
                     passingMarks: '',
-                    description: ''
+                    description: '',
+                    assignmentType: queryStudentId ? 'selected' : 'all',
+                    assignedStudents: queryStudentId ? [queryStudentId] : []
                 });
             }
         }
@@ -796,6 +809,139 @@ const ConnectItModal = ({ isOpen, onClose, onSave, initialData, disabledFields =
                             </div>
                         </div>
 
+                        {/* Student targeting control */}
+                        {user?.role === 'Teacher' && (() => {
+                            const urlParams = new URLSearchParams(window.location.search);
+                            const queryStudentId = urlParams.get('studentId');
+                            const targetStudentObj = queryStudentId ? allStudents.find(s => s._id === queryStudentId) : null;
+
+                            return (
+                                <div className="space-y-3 pt-2">
+                                    <label className="text-sm font-bold text-slate-700 block">Assign Test To</label>
+                                    {/* Tab selection */}
+                                    <div className={`grid gap-1.5 p-1 bg-slate-50 border border-slate-200/60 rounded-xl ${queryStudentId ? 'grid-cols-3' : 'grid-cols-2'}`}>
+                                        {queryStudentId && (
+                                            <button
+                                                type="button"
+                                                onClick={() => setFormData(prev => ({
+                                                    ...prev,
+                                                    assignmentType: 'selected',
+                                                    assignedStudents: [queryStudentId]
+                                                }))}
+                                                className={`py-2 rounded-lg text-[10px] font-extrabold uppercase tracking-wider transition-all cursor-pointer truncate ${formData.assignmentType === 'selected' ? 'bg-[#3E3ADD] text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                            >
+                                                {targetStudentObj ? `${targetStudentObj.name.split(' ')[0]} Only` : 'This Student Only'}
+                                            </button>
+                                        )}
+                                        <button
+                                            type="button"
+                                            onClick={() => setFormData(prev => ({
+                                                ...prev,
+                                                assignmentType: 'particular',
+                                                assignedStudents: prev.assignedStudents.filter(id => id !== queryStudentId)
+                                            }))}
+                                            className={`py-2 rounded-lg text-[10px] font-extrabold uppercase tracking-wider transition-all cursor-pointer truncate ${formData.assignmentType === 'particular' ? 'bg-[#3E3ADD] text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                        >
+                                            Select Student(s)
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setFormData(prev => ({
+                                                ...prev,
+                                                assignmentType: 'all',
+                                                assignedStudents: []
+                                            }))}
+                                            className={`py-2 rounded-lg text-[10px] font-extrabold uppercase tracking-wider transition-all cursor-pointer truncate ${formData.assignmentType === 'all' ? 'bg-[#3E3ADD] text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                        >
+                                            All Students
+                                        </button>
+                                    </div>
+
+                                    {/* Student checkbox checklist */}
+                                    {formData.assignmentType === 'particular' && (() => {
+                                        // Filter students by selected course names (if any)
+                                        const filteredStudents = allStudents.filter(std => {
+                                            const courseMatch = !formData.course || formData.course.length === 0 || (
+                                                (std.studentProfile?.course && formData.course.includes(std.studentProfile.course.name)) ||
+                                                (std.studentProfile?.coursesList && std.studentProfile.coursesList.some(cItem => cItem.course && formData.course.includes(cItem.course.name)))
+                                            );
+                                            const nameMatch = !studentSearchQuery || std.name.toLowerCase().includes(studentSearchQuery.toLowerCase()) || (std.email && std.email.toLowerCase().includes(studentSearchQuery.toLowerCase()));
+                                            return courseMatch && nameMatch;
+                                        });
+
+                                        return (
+                                            <div className="space-y-2 border border-slate-200 rounded-2xl p-3 bg-slate-50/50">
+                                                <input
+                                                    type="text"
+                                                    placeholder="Search student by name or email..."
+                                                    value={studentSearchQuery}
+                                                    onChange={e => setStudentSearchQuery(e.target.value)}
+                                                    className="w-full h-8 px-3 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-indigo-500"
+                                                />
+                                                <div className="max-h-40 overflow-y-auto space-y-2.5 custom-scrollbar text-left">
+                                                    <div className="flex items-center justify-between border-b border-slate-200/80 pb-1.5 mb-2 select-none">
+                                                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Select Students ({formData.assignedStudents.length} selected)</span>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                if (formData.assignedStudents.length === filteredStudents.length) {
+                                                                    setFormData(prev => ({ ...prev, assignedStudents: [] }));
+                                                                } else {
+                                                                    setFormData(prev => ({ ...prev, assignedStudents: filteredStudents.map(s => s._id) }));
+                                                                }
+                                                            }}
+                                                            className="text-[9px] font-black text-[#3E3ADD] hover:text-indigo-850 uppercase tracking-wider cursor-pointer"
+                                                        >
+                                                            {formData.assignedStudents.length === filteredStudents.length ? 'Clear All' : 'Select All'}
+                                                        </button>
+                                                    </div>
+                                                    {filteredStudents.length === 0 ? (
+                                                        <p className="text-xs text-slate-400 text-center py-4">No matching students found</p>
+                                                    ) : (
+                                                        filteredStudents.map(std => {
+                                                            const isChecked = formData.assignedStudents.includes(std._id);
+                                                            return (
+                                                                <label key={std._id} className="flex items-center gap-2.5 cursor-pointer select-none">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={isChecked}
+                                                                        onChange={() => {
+                                                                            if (isChecked) {
+                                                                                setFormData(prev => ({
+                                                                                    ...prev,
+                                                                                    assignedStudents: prev.assignedStudents.filter(id => id !== std._id)
+                                                                                }));
+                                                                            } else {
+                                                                                setFormData(prev => ({
+                                                                                    ...prev,
+                                                                                    assignedStudents: [...prev.assignedStudents, std._id]
+                                                                                }));
+                                                                            }
+                                                                        }}
+                                                                        className="w-3.5 h-3.5 rounded border-slate-300 text-[#3E3ADD] focus:ring-indigo-500 cursor-pointer"
+                                                                    />
+                                                                    <div className="min-w-0 flex-1">
+                                                                        <p className="text-xs font-bold text-slate-750 truncate leading-snug">{std.name}</p>
+                                                                        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5">
+                                                                            {std.email && <span className="text-[10px] text-slate-400 truncate">{std.email}</span>}
+                                                                            {std.studentProfile?.course?.name && (
+                                                                                <span className="text-[9px] bg-slate-100 text-slate-500 px-1.5 py-0.2 rounded-md font-extrabold uppercase border border-slate-200">
+                                                                                    {std.studentProfile.course.name}
+                                                                                </span>
+                                                                            )}
+                                                                        </div>
+                                                                    </div>
+                                                                </label>
+                                                            );
+                                                        })
+                                                    )}
+                                                </div>
+                                            </div>
+                                        );
+                                    })()}
+                                </div>
+                            );
+                        })()}
 
                         {/* Visibility Mode (Assign / Upcoming) */}
                         <div className="space-y-3 pt-2">

@@ -6,6 +6,7 @@ import axios from 'axios';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import LoadingPlaceholder from '../../components/common/LoadingPlaceholder';
 import toast from 'react-hot-toast';
+import VideoTracker from '../../components/analytics/VideoTracker';
 import {
     Search, CheckCircle, Hourglass, MoreVertical, BookOpen,
     Mic, Video, FileText, Star, MessageSquare,
@@ -327,6 +328,7 @@ const StudentTests = () => {
     const [loadingMaterials, setLoadingMaterials] = useState(false);
     const [selectedCategoryTab, setSelectedCategoryTab] = useState('all');
     const [activeVideoModalUrl, setActiveVideoModalUrl] = useState(null);
+    const [activeVideoMaterial, setActiveVideoMaterial] = useState(null);
     const [activeMaterialInfo, setActiveMaterialInfo] = useState(null);
 
     // Practice counts states
@@ -1947,7 +1949,10 @@ const StudentTests = () => {
                                                                 {/* Inline Previews */}
                                                                 {config.label === 'Video' && (
                                                                     <div
-                                                                        onClick={() => setActiveVideoModalUrl(mat.fileUrl)}
+                                                                        onClick={() => {
+                                                                            setActiveVideoModalUrl(mat.fileUrl);
+                                                                            setActiveVideoMaterial(mat);
+                                                                        }}
                                                                         className="mt-2 rounded-xl overflow-hidden bg-slate-900 border border-slate-200 aspect-video flex items-center justify-center relative cursor-pointer group"
                                                                     >
                                                                         {/* Play button overlay */}
@@ -2811,10 +2816,9 @@ const StudentTests = () => {
                                 );
                             }
                             return (
-                                <video
+                                <VideoTracker
                                     src={activeVideoModalUrl}
-                                    controls
-                                    autoPlay
+                                    material={activeVideoMaterial}
                                     className="w-full h-full object-contain"
                                 />
                             );
@@ -2849,10 +2853,9 @@ const StudentTests = () => {
                             );
                         }
                         return (
-                            <video
+                            <VideoTracker
                                 src={activeVideoModalUrl}
-                                controls
-                                autoPlay
+                                material={activeVideoMaterial}
                                 className="w-full h-full object-contain"
                             />
                         );

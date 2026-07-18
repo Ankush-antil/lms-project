@@ -128,6 +128,7 @@ app.use('/api/ai', require('./routes/common/aiRoutes'));
 app.use('/api/messages', require('./routes/common/messageRoutes'));
 app.use('/api/practice-files', require('./routes/student/practiceFileRoutes'));
 app.use('/api/study-materials', require('./routes/studyMaterialRoutes'));
+app.use('/api/video-analytics', require('./routes/videoAnalyticsRoutes'));
 app.use('/api/notes', require('./routes/noteRoutes'));
 app.use('/api/registration-requests', require('./routes/registrationRequestRoutes'));
 app.use('/api/attendance', require('./routes/common/attendanceRoutes'));

@@ -14,6 +14,7 @@ import {
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import LoadingPlaceholder from '../../components/common/LoadingPlaceholder';
 import { useUserProfile } from '../../components/common/UserProfileContext';
+import VideoAnalyticsDashboard from './VideoAnalyticsDashboard';
 
 const isTestExpired = (test, student) => {
     if (!test) return false;
@@ -5375,7 +5376,14 @@ const TeacherActivities = () => {
                     </div>
                 </div>
             )}
-        {selectedMaterialForAnalytics && (
+        {selectedMaterialForAnalytics && selectedMaterialForAnalytics.materialType === 'video' ? (
+            <div className="fixed inset-0 z-[9999] bg-slate-50 overflow-y-auto">
+                <VideoAnalyticsDashboard
+                    videoId={selectedMaterialForAnalytics._id}
+                    onClose={() => setSelectedMaterialForAnalytics(null)}
+                />
+            </div>
+        ) : selectedMaterialForAnalytics && (
             <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm animate-fade-in p-4">
                 <div className="absolute inset-0" onClick={() => setSelectedMaterialForAnalytics(null)} />
                 <div className="bg-white border border-slate-100 rounded-3xl shadow-2xl w-full max-w-lg max-h-[85vh] overflow-hidden flex flex-col relative z-50 animate-scale-up text-left">

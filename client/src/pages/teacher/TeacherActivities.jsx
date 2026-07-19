@@ -2341,17 +2341,6 @@ const TeacherActivities = () => {
                                                 <span className="font-extrabold text-slate-850">{studentSubmissions.filter(s => s.status === 'evaluated').length}</span>
                                             </div>
                                         </div>
-
-                                        <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm space-y-3">
-                                            <div className="flex justify-between">
-                                                <span className="text-slate-400">Total Practice Files</span>
-                                                <span className="font-extrabold text-slate-850">{studentPracticeFiles.length}</span>
-                                            </div>
-                                            <div className="flex justify-between">
-                                                <span className="text-slate-400">Practice Days Active</span>
-                                                <span className="font-extrabold text-slate-850">{activeDaysCount} Days</span>
-                                            </div>
-                                        </div>
                                     </div>
                                 </>
                             )}

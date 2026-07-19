@@ -526,7 +526,6 @@ const AdminDashboard = () => {
                     <StatCard title="Subjects" value={stats.subjects || 0} icon={FolderOpen} color="bg-violet-500 text-violet-500" onClick={() => navigate('/admin/subjects')} />
                     <StatCard title="Activities" value={stats.tests || 0} icon={FileText} color="bg-purple-500 text-purple-500" onClick={() => navigate('/admin/activities')} />
                     <StatCard title="Services" value={stats.services || 0} icon={Settings} color="bg-lime-600 text-lime-600" onClick={() => navigate('/admin/drive')} />
-                    <StatCard title="Study Material" value={studyMaterials.length} icon={BookOpen} color="bg-emerald-500 text-emerald-500" onClick={() => handleTabChange('study-material')} />
                 </div>
             )}
 

@@ -5383,6 +5383,7 @@ const TeacherActivities = () => {
             <div className="fixed inset-0 z-[9999] bg-slate-50 overflow-y-auto">
                 <VideoAnalyticsDashboard
                     videoId={selectedMaterialForAnalytics._id}
+                    studentId={selectedStudent ? selectedStudent._id : null}
                     onClose={() => setSelectedMaterialForAnalytics(null)}
                 />
             </div>

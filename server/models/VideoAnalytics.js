@@ -56,7 +56,16 @@ const videoAnalyticsSchema = new mongoose.Schema({
         sessionId: { type: String, required: true },
         sessionStart: { type: Date, required: true },
         sessionEnd: { type: Date, required: true },
-        sessionDuration: { type: Number, required: true }
+        sessionDuration: { type: Number, required: true },
+        lastWatchedPosition: { type: Number, default: 0 },
+        totalPauses: { type: Number, default: 0 },
+        totalResumed: { type: Number, default: 0 },
+        totalReturned: { type: Number, default: 0 },
+        totalForward: { type: Number, default: 0 },
+        totalRewind: { type: Number, default: 0 },
+        tabSwitch: { type: Number, default: 0 },
+        leftVideo: { type: Number, default: 0 },
+        completionAttempts: { type: Number, default: 0 }
     }],
     focusAnalytics: {
         focusedTime: { type: Number, default: 0 },
@@ -71,6 +80,14 @@ const videoAnalyticsSchema = new mongoose.Schema({
         speed_2x: { type: Number, default: 0 }
     },
     learningScore: {
+        type: Number,
+        default: 0
+    },
+    totalWatchTime: {
+        type: Number,
+        default: 0
+    },
+    completionAttempts: {
         type: Number,
         default: 0
     }

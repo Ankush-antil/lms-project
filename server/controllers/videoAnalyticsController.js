@@ -73,19 +73,41 @@ const trackVideoProgress = asyncHandler(async (req, res) => {
     }
 
     // 4. Session tracking
-    if (sessionId && sessionDurationIncrement > 0) {
+    if (sessionId) {
         const existingSession = analytics.sessions.find(s => s.sessionId === sessionId);
         if (existingSession) {
-            existingSession.sessionDuration += Number(sessionDurationIncrement);
+            existingSession.sessionDuration += Number(sessionDurationIncrement || 0);
             existingSession.sessionEnd = new Date();
+            existingSession.lastWatchedPosition = currentPosition || 0;
+            if (req.body.totalPauses !== undefined) existingSession.totalPauses = Number(req.body.totalPauses);
+            if (req.body.totalResumed !== undefined) existingSession.totalResumed = Number(req.body.totalResumed);
+            if (req.body.totalReturned !== undefined) existingSession.totalReturned = Number(req.body.totalReturned);
+            if (req.body.totalForward !== undefined) existingSession.totalForward = Number(req.body.totalForward);
+            if (req.body.totalRewind !== undefined) existingSession.totalRewind = Number(req.body.totalRewind);
+            if (req.body.tabSwitch !== undefined) existingSession.tabSwitch = Number(req.body.tabSwitch);
+            if (req.body.leftVideo !== undefined) existingSession.leftVideo = Number(req.body.leftVideo);
+            if (req.body.completionAttempts !== undefined) existingSession.completionAttempts = Number(req.body.completionAttempts);
         } else {
             analytics.sessions.push({
                 sessionId,
-                sessionStart: new Date(Date.now() - Number(sessionDurationIncrement) * 1000),
+                sessionStart: new Date(Date.now() - Number(sessionDurationIncrement || 0) * 1000),
                 sessionEnd: new Date(),
-                sessionDuration: Number(sessionDurationIncrement)
+                sessionDuration: Number(sessionDurationIncrement || 0),
+                lastWatchedPosition: currentPosition || 0,
+                totalPauses: Number(req.body.totalPauses || 0),
+                totalResumed: Number(req.body.totalResumed || 0),
+                totalReturned: Number(req.body.totalReturned || 0),
+                totalForward: Number(req.body.totalForward || 0),
+                totalRewind: Number(req.body.totalRewind || 0),
+                tabSwitch: Number(req.body.tabSwitch || 0),
+                leftVideo: Number(req.body.leftVideo || 0),
+                completionAttempts: Number(req.body.completionAttempts || 0)
             });
         }
+
+        // Recalculate main aggregates
+        analytics.completionAttempts = analytics.sessions.reduce((sum, s) => sum + (s.completionAttempts || 0), 0);
+        analytics.totalWatchTime = analytics.sessions.reduce((sum, s) => sum + (s.sessionDuration || 0), 0);
     }
 
     // 5. Skips and Replays

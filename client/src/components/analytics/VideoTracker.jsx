@@ -25,6 +25,18 @@ const VideoTracker = ({ src, material, className }) => {
     const watchedSegmentsRef = useRef(new Set());
     const skipsRef = useRef([]);
     const replaysRef = useRef([]);
+
+    // Advanced event counts for click session details
+    const hasStartedRef = useRef(false);
+    const pausesRef = useRef(0);
+    const resumesRef = useRef(0);
+    const returnedRef = useRef(0);
+    const forwardRef = useRef(0);
+    const rewindRef = useRef(0);
+    const tabSwitchRef = useRef(0);
+    const leftVideoRef = useRef(0);
+    const completedAttemptsRef = useRef(0);
+    const hasCompletedCurrentAttemptRef = useRef(false);
     
     const [playbackSpeed, setPlaybackSpeed] = useState('1');
     const [isFocused, setIsFocused] = useState(true);
@@ -70,18 +82,32 @@ const VideoTracker = ({ src, material, className }) => {
 
     // Handle tab focus / browser focus changes
     useEffect(() => {
-        const handleFocus = () => setIsFocused(true);
-        const handleBlur = () => setIsFocused(false);
+        const handleFocus = () => {
+            setIsFocused(true);
+            returnedRef.current += 1;
+        };
+        const handleBlur = () => {
+            setIsFocused(false);
+            leftVideoRef.current += 1;
+        };
+        const handleVisibility = () => {
+            const isVisible = document.visibilityState === 'visible';
+            setIsFocused(isVisible);
+            if (isVisible) {
+                returnedRef.current += 1;
+            } else {
+                tabSwitchRef.current += 1;
+            }
+        };
 
         window.addEventListener('focus', handleFocus);
         window.addEventListener('blur', handleBlur);
-        document.addEventListener('visibilitychange', () => {
-            setIsFocused(document.visibilityState === 'visible');
-        });
+        document.addEventListener('visibilitychange', handleVisibility);
 
         return () => {
             window.removeEventListener('focus', handleFocus);
             window.removeEventListener('blur', handleBlur);
+            document.removeEventListener('visibilitychange', handleVisibility);
         };
     }, []);
 
@@ -114,6 +140,20 @@ const VideoTracker = ({ src, material, className }) => {
         }
     }, [isYoutube]);
 
+    const logPlay = () => {
+        if (!hasStartedRef.current) {
+            hasStartedRef.current = true;
+        } else {
+            resumesRef.current += 1;
+        }
+        setIsPlaying(true);
+    };
+
+    const logPause = () => {
+        pausesRef.current += 1;
+        setIsPlaying(false);
+    };
+
     // Initialize YouTube Player API tracking
     useEffect(() => {
         if (!isYoutube) return;
@@ -127,10 +167,10 @@ const VideoTracker = ({ src, material, className }) => {
                     events: {
                         onStateChange: (event) => {
                             if (event.data === window.YT.PlayerState.PLAYING) {
-                                setIsPlaying(true);
+                                logPlay();
                                 prevTimeRef.current = player.getCurrentTime() || 0;
-                            } else {
-                                setIsPlaying(false);
+                            } else if (event.data === window.YT.PlayerState.PAUSED) {
+                                logPause();
                             }
                         },
                         onPlaybackRateChange: (event) => {
@@ -188,12 +228,14 @@ const VideoTracker = ({ src, material, className }) => {
 
                 if (Math.abs(timeDiff) > 1.5) {
                     if (timeDiff > 0) {
+                        forwardRef.current += 1;
                         skipsRef.current.push({
                             skipStart: prevTimeRef.current,
                             skipEnd: currentTime,
                             skippedDuration: timeDiff
                         });
                     } else {
+                        rewindRef.current += 1;
                         replaysRef.current.push({
                             replayStart: currentTime,
                             replayEnd: prevTimeRef.current
@@ -206,6 +248,22 @@ const VideoTracker = ({ src, material, className }) => {
                         sessionDurationRef.current += Math.max(0, timeDiff);
                     }
                 }
+
+                // Track completion attempts (95% to 100%)
+                const duration = details.duration || 0;
+                if (duration > 0) {
+                    const ratio = currentTime / duration;
+                    if (ratio >= 0.95) {
+                        if (!hasCompletedCurrentAttemptRef.current) {
+                            completedAttemptsRef.current += 1;
+                            hasCompletedCurrentAttemptRef.current = true;
+                        }
+                    } else if (ratio < 0.30) {
+                        // Reset when user rewinds/restarts below 30%
+                        hasCompletedCurrentAttemptRef.current = false;
+                    }
+                }
+
                 prevTimeRef.current = currentTime;
             }, 500);
         }
@@ -235,10 +293,32 @@ const VideoTracker = ({ src, material, className }) => {
                 playbackSpeed: playbackSpeed,
                 watchedSegments: Array.from(watchedSegmentsRef.current),
                 skips: skipsRef.current,
-                replays: replaysRef.current
+                replays: replaysRef.current,
+
+                // Event detail counts
+                totalPauses: pausesRef.current,
+                totalResumed: resumesRef.current,
+                totalReturned: returnedRef.current,
+                totalForward: forwardRef.current,
+                totalRewind: rewindRef.current,
+                tabSwitch: tabSwitchRef.current,
+                leftVideo: leftVideoRef.current,
+                completionAttempts: completedAttemptsRef.current
             };
 
-            if (sessionDurationRef.current > 0 || watchedSegmentsRef.current.size > 0 || skipsRef.current.length > 0 || replaysRef.current.length > 0) {
+            const hasActivity = sessionDurationRef.current > 0 ||
+                                watchedSegmentsRef.current.size > 0 ||
+                                skipsRef.current.length > 0 ||
+                                replaysRef.current.length > 0 ||
+                                pausesRef.current > 0 ||
+                                resumesRef.current > 0 ||
+                                returnedRef.current > 0 ||
+                                forwardRef.current > 0 ||
+                                rewindRef.current > 0 ||
+                                tabSwitchRef.current > 0 ||
+                                leftVideoRef.current > 0;
+
+            if (hasActivity) {
                 try {
                     await axios.post('/api/video-analytics/track', payload);
                     
@@ -268,12 +348,12 @@ const VideoTracker = ({ src, material, className }) => {
     }, [isPlaying, material, playbackSpeed]);
 
     const handlePlay = () => {
-        setIsPlaying(true);
+        logPlay();
         if (videoRef.current) prevTimeRef.current = videoRef.current.currentTime;
     };
 
     const handlePause = () => {
-        setIsPlaying(false);
+        logPause();
     };
 
     const handleRateChange = (e) => {

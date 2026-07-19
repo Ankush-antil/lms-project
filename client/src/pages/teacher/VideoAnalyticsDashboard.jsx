@@ -1,12 +1,44 @@
 import React, { useState, useEffect } from 'react';
 import {
     Search, ArrowLeft, Play, Info, Clock,
-    BarChart3, Star, Users, CheckCircle, Calendar, Eye
+    BarChart3, Star, Users, CheckCircle, Calendar, Eye, X
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Cell, Tooltip } from 'recharts';
 import axios from 'axios';
 
-const VideoAnalyticsDashboard = ({ videoId, onClose }) => {
+const formatDuration = (seconds) => {
+    if (seconds === undefined || seconds === null || isNaN(seconds)) return '0s';
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    if (mins > 0) {
+        return `${mins}m ${secs}s`;
+    }
+    return `${secs}s`;
+};
+
+const getReturnGap = (currentSession, prevSession) => {
+    if (!prevSession) return null;
+    const diffMs = new Date(currentSession.sessionStart) - new Date(prevSession.sessionEnd);
+    if (diffMs <= 0) return null;
+    
+    const diffSecs = Math.floor(diffMs / 1000);
+    const diffMins = Math.floor(diffSecs / 60);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+    
+    if (diffDays > 0) {
+        return `${diffDays}d ${diffHours % 24}h`;
+    }
+    if (diffHours > 0) {
+        return `${diffHours}h ${diffMins % 60}m`;
+    }
+    if (diffMins > 0) {
+        return `${diffMins}m ${diffSecs % 60}s`;
+    }
+    return `${diffSecs}s`;
+};
+
+const VideoAnalyticsDashboard = ({ videoId, studentId, onClose }) => {
     const [loading, setLoading] = useState(true);
     const [material, setMaterial] = useState(null);
     const [records, setRecords] = useState([]);
@@ -15,15 +47,24 @@ const VideoAnalyticsDashboard = ({ videoId, onClose }) => {
     const [searchQuery, setSearchQuery] = useState('');
     const [completionFilter, setCompletionFilter] = useState('all');
 
-    // Selected student detail view (Drawer)
+    // Selected student detail view
     const [selectedRecord, setSelectedRecord] = useState(null);
+
+    // Active detail tab
+    const [activeTab, setActiveTab] = useState('clicks'); // 'clicks' | 'attempts' | 'watchtime' | 'dropoff' | 'gaps'
 
     const fetchAnalytics = async () => {
         setLoading(true);
         try {
-            const { data } = await axios.get(`/api/video-analytics/details/${videoId}`);
+            const url = studentId
+                ? `/api/video-analytics/details/${videoId}?studentId=${studentId}`
+                : `/api/video-analytics/details/${videoId}`;
+            const { data } = await axios.get(url);
             setMaterial(data.material);
             setRecords(data.records || []);
+            if (data.records && data.records.length > 0) {
+                setSelectedRecord(data.records[0]);
+            }
         } catch (err) {
             console.error("Failed to load video analytics:", err);
         } finally {
@@ -35,45 +76,58 @@ const VideoAnalyticsDashboard = ({ videoId, onClose }) => {
         if (videoId) {
             fetchAnalytics();
         }
-    }, [videoId]);
+    }, [videoId, studentId]);
 
-    // Computed total metrics
-    const totalRecords = records.length;
-    const avgCompletion = totalRecords > 0
-        ? Math.round(records.reduce((sum, r) => sum + (r.progress?.completionPercentage || 0), 0) / totalRecords)
-        : 0;
-    const avgLearningScore = totalRecords > 0
-        ? Math.round(records.reduce((sum, r) => sum + (r.learningScore || 0), 0) / totalRecords)
-        : 0;
-    const totalSecondsWatched = records.reduce((sum, r) => sum + (r.progress?.watchedDuration || 0), 0);
-    const formattedWatchTime = `${Math.floor(totalSecondsWatched / 3600)}h ${Math.floor((totalSecondsWatched % 3600) / 60)}m`;
-    const avgFocus = totalRecords > 0
-        ? Math.round(records.reduce((sum, r) => sum + (r.focusAnalytics?.focusPercentage || 100), 0) / totalRecords)
-        : 100;
+    // Helper functions
+    const getTotalClicks = (record) => {
+        if (!record || !record.sessions) return 0;
+        return record.sessions.reduce((sum, s) => {
+            return sum + 
+                (s.totalPauses || 0) + 
+                (s.totalResumed || 0) + 
+                (s.totalReturned || 0) + 
+                (s.totalForward || 0) + 
+                (s.totalRewind || 0) + 
+                (s.tabSwitch || 0) + 
+                (s.leftVideo || 0);
+        }, 0);
+    };
 
-    // Filtered records for table
-    const filteredRecords = records.filter(r => {
-        const studentName = r.student?.name || '';
-        const studentEmail = r.student?.email || '';
-        const matchesSearch = studentName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            studentEmail.toLowerCase().includes(searchQuery.toLowerCase());
+    const getDropOffChartData = (record) => {
+        if (!record || !record.sessions) return [];
+        return [...record.sessions]
+            .sort((a, b) => new Date(a.sessionStart) - new Date(b.sessionStart))
+            .map((s, idx) => {
+                const date = new Date(s.sessionStart);
+                return {
+                    name: `S${idx + 1}`,
+                    dateStr: date.toLocaleDateString(),
+                    timeStr: date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                    position: Math.round(s.lastWatchedPosition || 0),
+                    positionFormatted: formatDuration(s.lastWatchedPosition),
+                    completion: Math.round(((s.lastWatchedPosition || 0) / (record.progress?.videoDuration || 1)) * 100)
+                };
+            });
+    };
 
-        if (completionFilter === 'completed') {
-            return matchesSearch && r.progress?.isCompleted;
+    const getReturnGapsList = (record) => {
+        if (!record || !record.sessions || record.sessions.length < 2) return [];
+        const sorted = [...record.sessions].sort((a, b) => new Date(a.sessionStart) - new Date(b.sessionStart));
+        const gaps = [];
+        for (let i = 1; i < sorted.length; i++) {
+            const gapStr = getReturnGap(sorted[i], sorted[i - 1]);
+            if (gapStr) {
+                gaps.push({
+                    fromSession: i,
+                    toSession: i + 1,
+                    fromTime: new Date(sorted[i - 1].sessionEnd).toLocaleString(),
+                    toTime: new Date(sorted[i].sessionStart).toLocaleString(),
+                    gap: gapStr
+                });
+            }
         }
-        if (completionFilter === 'inprogress') {
-            return matchesSearch && !r.progress?.isCompleted;
-        }
-        return matchesSearch;
-    });
-
-    // Chart data for completion brackets
-    const chartData = [
-        { name: '0-25%', count: records.filter(r => (r.progress?.completionPercentage || 0) <= 25).length },
-        { name: '26-50%', count: records.filter(r => (r.progress?.completionPercentage || 0) > 25 && (r.progress?.completionPercentage || 0) <= 50).length },
-        { name: '51-75%', count: records.filter(r => (r.progress?.completionPercentage || 0) > 50 && (r.progress?.completionPercentage || 0) <= 75).length },
-        { name: '76-100%', count: records.filter(r => (r.progress?.completionPercentage || 0) > 75).length }
-    ];
+        return gaps;
+    };
 
     if (loading) {
         return (
@@ -96,420 +150,377 @@ const VideoAnalyticsDashboard = ({ videoId, onClose }) => {
                         <ArrowLeft size={16} />
                     </button>
                     <div>
-                        <h2 className="text-xl font-bold text-slate-800">Video Learning Analytics</h2>
+                        <h2 className="text-xl font-bold text-slate-800">Student Video Performance Analytics</h2>
                         {material && <p className="text-xs text-slate-400 mt-0.5">{material.title} ({material.course} - {material.subject})</p>}
                     </div>
                 </div>
             </div>
 
-            {/* Dashboard metrics cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-                <div className="bg-white border border-slate-100 rounded-3xl p-5 shadow-sm flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-[#3E3ADD]">
-                        <Users size={20} />
-                    </div>
-                    <div>
-                        <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider block">Total Viewers</span>
-                        <p className="text-2xl font-black text-slate-800 mt-0.5">{totalRecords}</p>
-                    </div>
-                </div>
-
-                <div className="bg-white border border-slate-100 rounded-3xl p-5 shadow-sm flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-emerald-50 flex items-center justify-center text-emerald-500">
-                        <Play size={20} />
-                    </div>
-                    <div>
-                        <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider block">Avg Completion</span>
-                        <p className="text-2xl font-black text-emerald-600 mt-0.5">{avgCompletion}%</p>
-                    </div>
-                </div>
-
-                <div className="bg-white border border-slate-100 rounded-3xl p-5 shadow-sm flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-amber-50 flex items-center justify-center text-amber-500">
-                        <Star size={20} />
-                    </div>
-                    <div>
-                        <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider block">Avg Learning Score</span>
-                        <p className="text-2xl font-black text-amber-600 mt-0.5">{avgLearningScore}/100</p>
-                    </div>
-                </div>
-
-                <div className="bg-white border border-slate-100 rounded-3xl p-5 shadow-sm flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-purple-50 flex items-center justify-center text-purple-500">
-                        <BarChart3 size={20} />
-                    </div>
-                    <div>
-                        <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider block">Avg Focus Time</span>
-                        <p className="text-2xl font-black text-purple-600 mt-0.5">{avgFocus}%</p>
-                    </div>
-                </div>
-            </div>
-
-            {/* Graphical Section */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                <div className="md:col-span-2 bg-white border border-slate-100 rounded-3xl p-5 shadow-sm">
-                    <h3 className="text-sm font-extrabold text-slate-800 mb-4">Completion Distribution</h3>
-                    <div className="h-64">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={chartData}>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                                <XAxis dataKey="name" />
-                                <YAxis allowDecimals={false} />
-                                <Tooltip />
-                                <Bar dataKey="count" fill="#3E3ADD" radius={[8, 8, 0, 0]}>
-                                    {chartData.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={index === 3 ? '#10b981' : '#3E3ADD'} />
-                                    ))}
-                                </Bar>
-                            </BarChart>
-                        </ResponsiveContainer>
-                    </div>
-                </div>
-                <div className="bg-white border border-slate-100 rounded-3xl p-5 shadow-sm flex flex-col justify-between">
-                    <div>
-                        <h3 className="text-sm font-extrabold text-slate-800 mb-4">Cumulative Watch Time</h3>
-                        <div className="text-center py-6">
-                            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Cumulative Watch Time</h4>
-                            <p className="text-5xl font-black text-[#3E3ADD] tracking-tight">{formattedWatchTime}</p>
-                            <p className="text-xs text-slate-400 mt-2">Across all student sessions registered in this cohort.</p>
-                        </div>
-                    </div>
-                    <div className="border-t border-slate-100 pt-4 text-xs text-slate-500 flex items-center justify-center gap-1.5">
-                        <Info size={14} className="text-slate-400" /> Auto-updates dynamically from real-time events.
-                    </div>
-                </div>
-            </div>
-
-            {/* Table layout with filtering */}
-            <div className="bg-white border border-slate-100 rounded-3xl p-5 shadow-sm">
-                <div className="flex flex-col md:flex-row gap-4 justify-between items-center mb-5">
-                    <h3 className="text-base font-extrabold text-slate-800">Student Progress Breakdown</h3>
-                    <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto">
-                        <div className="relative w-full md:w-64">
-                            <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                            <input
-                                type="text"
-                                placeholder="Search by student name..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full h-10 pl-10 pr-4 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-indigo-500 transition-all font-semibold"
-                            />
-                        </div>
-                        <select
-                            value={completionFilter}
-                            onChange={(e) => setCompletionFilter(e.target.value)}
-                            className="h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-indigo-500 transition-all font-semibold cursor-pointer w-full md:w-44"
+            {selectedRecord ? (
+                <div className="space-y-6 text-left">
+                    {/* The 5 custom cards */}
+                    <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
+                        {/* 1. Total Click */}
+                        <div 
+                            onClick={() => setActiveTab('clicks')}
+                            className={`bg-white border rounded-3xl p-5 shadow-sm flex flex-col justify-between h-40 cursor-pointer transition-all duration-200 ${
+                                activeTab === 'clicks' 
+                                    ? 'border-[#3E3ADD] ring-2 ring-indigo-50 bg-indigo-50/10' 
+                                    : 'border-slate-100 hover:border-slate-200'
+                            }`}
                         >
-                            <option value="all">All Viewers</option>
-                            <option value="completed">{"Completed (>=95%)"}</option>
-                            <option value="inprogress">{"In Progress (<95%)"}</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div className="overflow-x-auto">
-                    <table className="w-full border-collapse text-left">
-                        <thead>
-                            <tr className="border-b border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-wider">
-                                <th className="pb-3 pl-3">Student Name</th>
-                                <th className="pb-3">Completion %</th>
-                                <th className="pb-3">Learning Score</th>
-                                <th className="pb-3">Focus Ratio</th>
-                                <th className="pb-3">Last Position</th>
-                                <th className="pb-3">Last Active</th>
-                                <th className="pb-3 pr-3 text-right">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-50 text-slate-700">
-                            {filteredRecords.length === 0 ? (
-                                <tr>
-                                    <td colSpan="7" className="text-center py-8 text-slate-400 italic">No matching student analytics found</td>
-                                </tr>
-                            ) : (
-                                filteredRecords.map((record) => (
-                                    <tr key={record._id} className="hover:bg-slate-50/50 transition-colors">
-                                        <td className="py-3.5 pl-3">
-                                            <p className="font-bold text-slate-800 text-sm mb-0.5">{record.student?.name || 'Unknown'}</p>
-                                            <p className="text-[10px] text-slate-400 font-mono mb-0">{record.student?.email || ''}</p>
-                                        </td>
-                                        <td className="py-3.5">
-                                            <div className="flex items-center gap-2">
-                                                <div className="w-24 bg-slate-100 h-2 rounded-full overflow-hidden">
-                                                    <div
-                                                        className="bg-[#3E3ADD] h-full rounded-full"
-                                                        style={{ width: `${record.progress?.completionPercentage || 0}%` }}
-                                                    />
-                                                </div>
-                                                <span className="text-xs font-bold text-slate-700">{record.progress?.completionPercentage || 0}%</span>
-                                            </div>
-                                        </td>
-                                        <td className="py-3.5">
-                                            <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black border uppercase tracking-wider ${
-                                                record.learningScore >= 80 ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
-                                                record.learningScore >= 50 ? 'bg-indigo-50 text-[#3E3ADD] border-indigo-100' :
-                                                'bg-orange-50 text-orange-600 border-orange-100'
-                                            }`}>
-                                                {record.learningScore || 0}
-                                            </span>
-                                        </td>
-                                        <td className="py-3.5 font-semibold text-slate-750">{record.focusAnalytics?.focusPercentage || 100}%</td>
-                                        <td className="py-3.5 font-mono text-xs text-slate-600">
-                                            {(() => {
-                                                const val = record.progress?.lastWatchedPosition || 0;
-                                                return `${Math.floor(val / 60)}m ${Math.floor(val % 60)}s`;
-                                            })()}
-                                        </td>
-                                        <td className="py-3.5 text-xs text-slate-500 font-medium">
-                                            {record.progress?.lastWatchedDate ? new Date(record.progress.lastWatchedDate).toLocaleDateString() : '—'}
-                                        </td>
-                                        <td className="py-3.5 pr-3 text-right">
-                                            <button
-                                                onClick={() => setSelectedRecord(record)}
-                                                className="px-3.5 py-1.5 bg-[#3E3ADD] hover:bg-indigo-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider shadow-sm transition-all cursor-pointer"
-                                            >
-                                                Details
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            {/* Custom Right-side Slider Drawer */}
-            {selectedRecord && (
-                <div className="fixed inset-0 z-[100000] flex justify-end">
-                    {/* Backdrop */}
-                    <div
-                        className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-all"
-                        onClick={() => setSelectedRecord(null)}
-                    />
-
-                    {/* Drawer Content */}
-                    <div className="bg-white border-l border-slate-100 w-full max-w-2xl h-full shadow-2xl relative z-50 flex flex-col overflow-hidden animate-slide-left">
-                        {/* Header */}
-                        <div className="flex justify-between items-center p-5 border-b border-slate-100 shrink-0">
-                            <h3 className="text-base font-extrabold text-slate-800">Student Video Performance</h3>
+                            <div>
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Total Click</span>
+                                <span className="text-3xl font-black text-[#3E3ADD] block mt-2">{getTotalClicks(selectedRecord)}</span>
+                            </div>
                             <button
-                                onClick={() => setSelectedRecord(null)}
-                                className="w-8 h-8 flex items-center justify-center bg-slate-50 hover:bg-slate-100 rounded-xl text-slate-500 text-xl font-bold transition-all cursor-pointer"
+                                type="button"
+                                className={`w-full py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all text-center ${
+                                    activeTab === 'clicks' ? 'bg-[#3E3ADD] text-white' : 'bg-indigo-50 text-[#3E3ADD]'
+                                }`}
                             >
-                                ×
+                                See Details
                             </button>
                         </div>
 
-                        {/* Body */}
-                        <div className="p-6 overflow-y-auto flex-1 space-y-6 bg-slate-50/50">
-                            {/* Profile details */}
-                            <div className="bg-white border border-slate-100 rounded-3xl p-5 shadow-sm">
-                                <h3 className="text-base font-black text-slate-800">{selectedRecord.student?.name}</h3>
-                                <p className="text-xs text-slate-400 font-mono mt-0.5">{selectedRecord.student?.email}</p>
-                                <div className="border-t border-slate-100 my-4" />
-                                <div className="grid grid-cols-3 gap-4 text-center">
-                                    <div>
-                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Completion %</span>
-                                        <span className="text-lg font-black text-[#3E3ADD] block mt-0.5">{selectedRecord.progress?.completionPercentage}%</span>
-                                    </div>
-                                    <div>
-                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Learning Score</span>
-                                        <span className="text-lg font-black text-emerald-600 block mt-0.5">{selectedRecord.learningScore} / 100</span>
-                                    </div>
-                                    <div>
-                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Total Sessions</span>
-                                        <span className="text-lg font-black text-purple-600 block mt-0.5">{selectedRecord.sessions?.length || 0}</span>
-                                    </div>
-                                </div>
+                        {/* 2. Completion Attempts Count */}
+                        <div 
+                            onClick={() => setActiveTab('attempts')}
+                            className={`bg-white border rounded-3xl p-5 shadow-sm flex flex-col justify-between h-40 cursor-pointer transition-all duration-200 ${
+                                activeTab === 'attempts' 
+                                    ? 'border-emerald-500 ring-2 ring-emerald-50 bg-emerald-50/10' 
+                                    : 'border-slate-100 hover:border-slate-200'
+                            }`}
+                        >
+                            <div>
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Completion Attempt Count</span>
+                                <span className="text-3xl font-black text-emerald-600 block mt-2">{selectedRecord.completionAttempts || 0}</span>
                             </div>
+                            <button
+                                type="button"
+                                className={`w-full py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all text-center ${
+                                    activeTab === 'attempts' ? 'bg-emerald-600 text-white' : 'bg-emerald-50 text-emerald-600'
+                                }`}
+                            >
+                                See Details
+                            </button>
+                        </div>
 
-                            {/* Timeline visualization */}
-                            <div className="bg-white border border-slate-100 rounded-3xl p-5 shadow-sm">
-                                <h4 className="text-sm font-extrabold text-slate-800 mb-3">Video Timeline (5-sec Segments)</h4>
-                                <div className="flex flex-wrap gap-1 bg-slate-50 p-2.5 rounded-2xl border border-slate-100">
+                        {/* 3. Total Watch Time */}
+                        <div 
+                            onClick={() => setActiveTab('watchtime')}
+                            className={`bg-white border rounded-3xl p-5 shadow-sm flex flex-col justify-between h-40 cursor-pointer transition-all duration-200 ${
+                                activeTab === 'watchtime' 
+                                    ? 'border-purple-500 ring-2 ring-purple-50 bg-purple-50/10' 
+                                    : 'border-slate-100 hover:border-slate-200'
+                            }`}
+                        >
+                            <div>
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Total Watch Time</span>
+                                <span className="text-2xl font-black text-purple-600 block mt-2">
+                                    {formatDuration(selectedRecord.totalWatchTime || selectedRecord.sessions?.reduce((sum, s) => sum + s.sessionDuration, 0))}
+                                </span>
+                            </div>
+                            <button
+                                type="button"
+                                className={`w-full py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all text-center ${
+                                    activeTab === 'watchtime' ? 'bg-purple-600 text-white' : 'bg-purple-50 text-purple-600'
+                                }`}
+                            >
+                                See Details
+                            </button>
+                        </div>
+
+                        {/* 4. Drop-off Point */}
+                        <div 
+                            onClick={() => setActiveTab('dropoff')}
+                            className={`bg-white border rounded-3xl p-5 shadow-sm flex flex-col justify-between h-40 cursor-pointer transition-all duration-200 ${
+                                activeTab === 'dropoff' 
+                                    ? 'border-rose-500 ring-2 ring-rose-50 bg-rose-50/10' 
+                                    : 'border-slate-100 hover:border-slate-200'
+                            }`}
+                        >
+                            <div>
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Drop-off Point</span>
+                                <span className="text-2xl font-black text-rose-600 block mt-2">
+                                    {formatDuration(selectedRecord.progress?.lastWatchedPosition)}
+                                </span>
+                            </div>
+                            <button
+                                type="button"
+                                className={`w-full py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all text-center ${
+                                    activeTab === 'dropoff' ? 'bg-rose-600 text-white' : 'bg-rose-50 text-rose-600'
+                                }`}
+                            >
+                                See Graph
+                            </button>
+                        </div>
+
+                        {/* 5. Return Gap */}
+                        <div 
+                            onClick={() => setActiveTab('gaps')}
+                            className={`bg-white border rounded-3xl p-5 shadow-sm flex flex-col justify-between h-40 cursor-pointer transition-all duration-200 ${
+                                activeTab === 'gaps' 
+                                    ? 'border-amber-500 ring-2 ring-amber-50 bg-amber-50/10' 
+                                    : 'border-slate-100 hover:border-slate-200'
+                            }`}
+                        >
+                            <div>
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Return Gap</span>
+                                <span className="text-2xl font-black text-amber-600 block mt-2">
                                     {(() => {
-                                        const timeline = selectedRecord.watchTimeline || [];
-                                        if (timeline.length === 0) {
-                                            return <p className="text-xs text-slate-400 italic py-2">No timeline segments tracked.</p>;
-                                        }
-                                        return timeline.map((seg, idx) => {
-                                            let color = 'bg-red-400'; // default: skipped
-                                            if (seg.status === 'watched') {
-                                                color = 'bg-emerald-500';
-                                            } else if (seg.status === 'partial') {
-                                                color = 'bg-amber-400';
-                                            }
-                                            return (
-                                                <div
-                                                    key={idx}
-                                                    className={`w-3.5 h-7 rounded-sm ${color} transition-all hover:scale-110 cursor-pointer`}
-                                                    title={`Segment ${idx + 1}: ${seg.status === 'watched' ? `Watched (${seg.watchCount}x)` : 'Skipped'}`}
-                                                />
-                                            );
-                                        });
+                                        const gaps = getReturnGapsList(selectedRecord);
+                                        return gaps.length > 0 ? gaps[gaps.length - 1].gap : 'N/A';
                                     })()}
-                                </div>
-                                <div className="flex justify-start gap-4 mt-3 text-[10px] font-bold text-slate-500">
-                                    <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 bg-emerald-500 rounded-sm" /> Watched</span>
-                                    <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 bg-amber-400 rounded-sm" /> Partial</span>
-                                    <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 bg-red-400 rounded-sm" /> Skipped</span>
-                                </div>
+                                </span>
                             </div>
+                            <button
+                                type="button"
+                                className={`w-full py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all text-center ${
+                                    activeTab === 'gaps' ? 'bg-amber-600 text-white' : 'bg-amber-550/10 text-amber-600'
+                                }`}
+                            >
+                                See Details
+                            </button>
+                        </div>
+                    </div>
 
-                            {/* Heatmap visualization */}
-                            <div className="bg-white border border-slate-100 rounded-3xl p-5 shadow-sm">
-                                <h4 className="text-sm font-extrabold text-slate-800 mb-3">Video Replay Heatmap</h4>
-                                <div className="flex flex-wrap gap-1 bg-slate-50 p-2.5 rounded-2xl border border-slate-100">
-                                    {(() => {
-                                        const timeline = selectedRecord.watchTimeline || [];
-                                        if (timeline.length === 0) {
-                                            return <p className="text-xs text-slate-400 italic py-2">No replay counts logged.</p>;
-                                        }
-                                        return timeline.map((seg, idx) => {
-                                            const count = seg.watchCount || 0;
-                                            let bgColor = 'rgba(226, 232, 240, 1)'; // 0 views
-                                            if (count > 0) {
-                                                const opacity = Math.min(1.0, 0.2 + (count * 0.15));
-                                                bgColor = `rgba(79, 70, 229, ${opacity})`;
-                                            }
-                                            return (
-                                                <div
-                                                    key={idx}
-                                                    style={{ backgroundColor: bgColor }}
-                                                    className="w-3.5 h-7 rounded-sm transition-all hover:scale-110 cursor-pointer"
-                                                    title={`Segment ${idx + 1}: ${count} views`}
+                    {/* Integrated Details Panel (Instead of Modals) */}
+                    <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm mt-6">
+                        <div className="flex items-center gap-2 mb-6 border-b border-slate-100 pb-3">
+                            <BarChart3 size={18} className="text-[#3E3ADD]" />
+                            <h3 className="text-sm font-extrabold text-slate-800 tracking-tight">
+                                {activeTab === 'clicks' && 'Total Clicks - Session Details'}
+                                {activeTab === 'attempts' && 'Completion Attempt Details'}
+                                {activeTab === 'watchtime' && 'Session Watch Duration Details'}
+                                {activeTab === 'dropoff' && 'Drop-off Points Analysis'}
+                                {activeTab === 'gaps' && 'Return Gaps Log'}
+                            </h3>
+                        </div>
+
+                        <div>
+                            {activeTab === 'clicks' && (
+                                <div className="overflow-x-auto">
+                                    <table className="w-full border-collapse text-left text-xs">
+                                        <thead>
+                                            <tr className="border-b border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-wider">
+                                                <th className="pb-3 pl-3">Started Video (Time)</th>
+                                                <th className="pb-3 text-center">Total Pause</th>
+                                                <th className="pb-3 text-center">Total Resumed</th>
+                                                <th className="pb-3 text-center">Total Returned</th>
+                                                <th className="pb-3 text-center">Total Forward</th>
+                                                <th className="pb-3 text-center">Total Rewind</th>
+                                                <th className="pb-3 text-center">Tab Switch</th>
+                                                <th className="pb-3 text-center">Left Video</th>
+                                                <th className="pb-3 pr-3 text-right">Total Watch Time</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-50 text-slate-700 font-semibold">
+                                            {selectedRecord.sessions && selectedRecord.sessions.length > 0 ? (
+                                                [...selectedRecord.sessions]
+                                                    .sort((a, b) => new Date(a.sessionStart) - new Date(b.sessionStart))
+                                                    .map((s, idx) => (
+                                                        <tr key={s.sessionId || idx} className="hover:bg-slate-50/50 transition-colors">
+                                                            <td className="py-3 pl-3">
+                                                                <p className="font-bold text-slate-800">Session {idx + 1}</p>
+                                                                <p className="text-[9px] text-slate-400 font-medium mt-0.5">{new Date(s.sessionStart).toLocaleString()}</p>
+                                                            </td>
+                                                            <td className="py-3 text-center text-slate-650 font-mono">{s.totalPauses || 0}</td>
+                                                            <td className="py-3 text-center text-slate-655 font-mono">{s.totalResumed || 0}</td>
+                                                            <td className="py-3 text-center text-slate-655 font-mono">{s.totalReturned || 0}</td>
+                                                            <td className="py-3 text-center text-slate-655 font-mono">{s.totalForward || 0}</td>
+                                                            <td className="py-3 text-center text-slate-655 font-mono">{s.totalRewind || 0}</td>
+                                                            <td className="py-3 text-center text-rose-500 font-bold font-mono">{s.tabSwitch || 0}</td>
+                                                            <td className="py-3 text-center text-amber-500 font-bold font-mono">{s.leftVideo || 0}</td>
+                                                            <td className="py-3 pr-3 text-right text-indigo-600 font-bold">
+                                                                {((s.sessionDuration || 0) / 60).toFixed(2)} mins
+                                                                <span className="text-[9px] text-slate-400 font-medium block mt-0.5">({formatDuration(s.sessionDuration)})</span>
+                                                            </td>
+                                                        </tr>
+                                                    ))
+                                            ) : (
+                                                <tr>
+                                                    <td colSpan="9" className="text-center py-6 text-slate-400 italic">No session click logs recorded.</td>
+                                                </tr>
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+
+                            {activeTab === 'attempts' && (
+                                <div className="overflow-x-auto">
+                                    <table className="w-full border-collapse text-left text-xs">
+                                        <thead>
+                                            <tr className="border-b border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-wider">
+                                                <th className="pb-3 pl-3">Attempt / Session</th>
+                                                <th className="pb-3">Date</th>
+                                                <th className="pb-3">Time</th>
+                                                <th className="pb-3">Session Watch Time</th>
+                                                <th className="pb-3 pr-3 text-right">Completion Attempts</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-50 text-slate-700 font-semibold">
+                                            {selectedRecord.sessions && selectedRecord.sessions.length > 0 ? (
+                                                [...selectedRecord.sessions]
+                                                    .sort((a, b) => new Date(a.sessionStart) - new Date(b.sessionStart))
+                                                    .map((s, idx) => {
+                                                        const sDate = new Date(s.sessionStart);
+                                                        return (
+                                                            <tr key={s.sessionId || idx} className="hover:bg-slate-50/50 transition-colors">
+                                                                <td className="py-3.5 pl-3">
+                                                                    <span className="px-2.5 py-0.5 bg-indigo-50 text-[#3E3ADD] rounded-lg text-[9px] font-black">
+                                                                        Session {idx + 1}
+                                                                    </span>
+                                                                </td>
+                                                                <td className="py-3.5 text-slate-700">{sDate.toLocaleDateString()}</td>
+                                                                <td className="py-3.5 text-slate-500 font-medium">{sDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</td>
+                                                                <td className="py-3.5 text-slate-655 font-bold">{formatDuration(s.sessionDuration)}</td>
+                                                                <td className="py-3.5 pr-3 text-right">
+                                                                    <span className={`px-2.5 py-0.5 rounded-lg text-[10px] font-black ${
+                                                                        s.completionAttempts > 0 
+                                                                            ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' 
+                                                                            : 'bg-slate-50 text-slate-400 border border-slate-100'
+                                                                    }`}>
+                                                                        {s.completionAttempts || 0} attempts
+                                                                    </span>
+                                                                </td>
+                                                            </tr>
+                                                        );
+                                                    })
+                                            ) : (
+                                                <tr>
+                                                    <td colSpan="5" className="text-center py-6 text-slate-400 italic">No completion attempt logs recorded.</td>
+                                                </tr>
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+
+                            {activeTab === 'watchtime' && (
+                                <div className="overflow-x-auto">
+                                    <table className="w-full border-collapse text-left text-xs">
+                                        <thead>
+                                            <tr className="border-b border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-wider">
+                                                <th className="pb-3 pl-3">Session</th>
+                                                <th className="pb-3">Started At</th>
+                                                <th className="pb-3">Ended At</th>
+                                                <th className="pb-3 pr-3 text-right">Watch Time Duration</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-50 text-slate-700 font-semibold">
+                                            {selectedRecord.sessions && selectedRecord.sessions.length > 0 ? (
+                                                [...selectedRecord.sessions]
+                                                    .sort((a, b) => new Date(a.sessionStart) - new Date(b.sessionStart))
+                                                    .map((s, idx) => (
+                                                        <tr key={s.sessionId || idx} className="hover:bg-slate-50/50 transition-colors">
+                                                            <td className="py-3.5 pl-3">
+                                                                <span className="px-2.5 py-0.5 bg-purple-50 text-purple-600 rounded-lg text-[9px] font-black">
+                                                                    Session {idx + 1}
+                                                                </span>
+                                                            </td>
+                                                            <td className="py-3.5 text-slate-700">{new Date(s.sessionStart).toLocaleString()}</td>
+                                                            <td className="py-3.5 text-slate-500 font-medium">{s.sessionEnd ? new Date(s.sessionEnd).toLocaleString() : 'Active/Unfinished'}</td>
+                                                            <td className="py-3.5 pr-3 text-right text-purple-600 font-bold">{formatDuration(s.sessionDuration)}</td>
+                                                        </tr>
+                                                    ))
+                                            ) : (
+                                                <tr>
+                                                    <td colSpan="4" className="text-center py-6 text-slate-400 italic">No watch duration logs recorded.</td>
+                                                </tr>
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+
+                            {activeTab === 'dropoff' && (
+                                <div className="space-y-6">
+                                    <div className="h-72">
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <BarChart data={getDropOffChartData(selectedRecord)}>
+                                                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                                                <XAxis dataKey="name" label={{ value: 'Sessions', position: 'insideBottomRight', offset: -5 }} />
+                                                <YAxis label={{ value: 'Drop-off Position (Seconds)', angle: -90, position: 'insideLeft' }} />
+                                                <Tooltip 
+                                                    content={({ active, payload }) => {
+                                                        if (active && payload && payload.length) {
+                                                            const data = payload[0].payload;
+                                                            return (
+                                                                <div className="bg-white border border-slate-100 p-3 rounded-2xl shadow-xl text-xs space-y-1">
+                                                                    <p className="font-extrabold text-slate-800">{data.name} ({data.dateStr})</p>
+                                                                    <p className="text-slate-500 font-medium">Time: {data.timeStr}</p>
+                                                                    <p className="font-black text-[#3E3ADD]">Drop-off: {data.positionFormatted}</p>
+                                                                    <p className="font-bold text-rose-500">Progress: {data.completion}%</p>
+                                                                </div>
+                                                            );
+                                                        }
+                                                        return null;
+                                                    }}
                                                 />
-                                            );
-                                        });
-                                    })()}
+                                                <Bar dataKey="position" fill="#f43f5e" radius={[8, 8, 0, 0]} />
+                                            </BarChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                    <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex items-start gap-2.5">
+                                        <Info size={16} className="text-rose-500 mt-0.5 shrink-0" />
+                                        <p className="text-xs text-slate-600 leading-relaxed font-sans">
+                                            This chart displays the drop-off position in seconds for each watch session sequentially. 
+                                            A lower height indicates the student stopped early in that session, helping you analyze where the student drops off interest.
+                                        </p>
+                                    </div>
                                 </div>
-                                <div className="flex justify-between items-center mt-3 text-[10px] font-bold text-slate-500">
-                                    <span>0-1 views</span>
-                                    <span>Multiple Replays</span>
-                                </div>
-                            </div>
+                            )}
 
-                            {/* Focus & speed stats split */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {/* Browser Focus stats */}
-                                <div className="bg-white border border-slate-100 rounded-3xl p-5 shadow-sm">
-                                    <h4 className="text-sm font-extrabold text-slate-800 mb-3.5">Focus Analytics</h4>
-                                    <div className="space-y-3">
-                                        <div className="flex justify-between text-xs text-slate-500">
-                                            <span>Focused Time:</span>
-                                            <span className="font-bold text-slate-700">{selectedRecord.focusAnalytics?.focusedTime || 0}s</span>
-                                        </div>
-                                        <div className="flex justify-between text-xs text-slate-500">
-                                            <span>Unfocused Time:</span>
-                                            <span className="font-bold text-slate-700">{selectedRecord.focusAnalytics?.unfocusedTime || 0}s</span>
-                                        </div>
-                                        <div className="border-t border-slate-100 my-2" />
-                                        <div className="flex justify-between text-xs font-bold text-slate-750">
-                                            <span>Focus Percentage:</span>
-                                            <span>{selectedRecord.focusAnalytics?.focusPercentage || 100}%</span>
-                                        </div>
-                                    </div>
+                            {activeTab === 'gaps' && (
+                                <div className="overflow-x-auto">
+                                    <table className="w-full border-collapse text-left text-xs">
+                                        <thead>
+                                            <tr className="border-b border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-wider">
+                                                <th className="pb-3 pl-3">Previous Session Exit</th>
+                                                <th className="pb-3">Next Session Entry</th>
+                                                <th className="pb-3 pr-3 text-right">Return Gap (Time Elapsed)</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-50 text-slate-700 font-semibold">
+                                            {getReturnGapsList(selectedRecord).length > 0 ? (
+                                                getReturnGapsList(selectedRecord).map((g, idx) => (
+                                                    <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
+                                                        <td className="py-3.5 pl-3">
+                                                            <p className="font-bold text-slate-800">Session {g.fromSession} Ended</p>
+                                                            <p className="text-[10px] text-slate-400 font-medium mt-0.5">{g.fromTime}</p>
+                                                        </td>
+                                                        <td className="py-3.5">
+                                                            <p className="font-bold text-slate-800">Session {g.toSession} Started</p>
+                                                            <p className="text-[10px] text-slate-405 font-medium mt-0.5">{g.toTime}</p>
+                                                        </td>
+                                                        <td className="py-3.5 pr-3 text-right">
+                                                            <span className="bg-amber-550/10 text-amber-600 border border-amber-250 font-black rounded-lg px-2.5 py-1 text-[10px] uppercase tracking-wider">
+                                                                ⏳ {g.gap}
+                                                            </span>
+                                                        </td>
+                                                    </tr>
+                                                ))
+                                            ) : (
+                                                <tr>
+                                                    <td colSpan="3" className="text-center py-8 text-slate-400 italic">
+                                                        No return gaps recorded. Needs at least two sessions to compute.
+                                                    </td>
+                                                </tr>
+                                            )}
+                                        </tbody>
+                                    </table>
                                 </div>
-
-                                {/* Playback speed breakdown */}
-                                <div className="bg-white border border-slate-100 rounded-3xl p-5 shadow-sm">
-                                    <h4 className="text-sm font-extrabold text-slate-800 mb-3.5">Speed Breakdown</h4>
-                                    <div className="space-y-2 text-xs text-slate-500">
-                                        <div className="flex justify-between">
-                                            <span>1x Speed:</span>
-                                            <span className="font-semibold text-slate-700">{(selectedRecord.playbackSpeedDurations?.speed_1x || 0)}s</span>
-                                        </div>
-                                        <div className="flex justify-between">
-                                            <span>1.25x Speed:</span>
-                                            <span className="font-semibold text-slate-700">{(selectedRecord.playbackSpeedDurations?.speed_1_25x || 0)}s</span>
-                                        </div>
-                                        <div className="flex justify-between">
-                                            <span>1.5x Speed:</span>
-                                            <span className="font-semibold text-slate-700">{(selectedRecord.playbackSpeedDurations?.speed_1_5x || 0)}s</span>
-                                        </div>
-                                        <div className="flex justify-between">
-                                            <span>1.75x Speed:</span>
-                                            <span className="font-semibold text-slate-700">{(selectedRecord.playbackSpeedDurations?.speed_1_75x || 0)}s</span>
-                                        </div>
-                                        <div className="flex justify-between">
-                                            <span>2x Speed:</span>
-                                            <span className="font-semibold text-slate-700">{(selectedRecord.playbackSpeedDurations?.speed_2x || 0)}s</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Skips & Replays events log */}
-                            <div className="bg-white border border-slate-100 rounded-3xl p-5 shadow-sm">
-                                <h4 className="text-sm font-extrabold text-slate-800 mb-3.5">Seek Events (Skips & Replays)</h4>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2">Skips ({selectedRecord.skips?.length || 0})</h5>
-                                        {selectedRecord.skips && selectedRecord.skips.length > 0 ? (
-                                            <div className="max-h-36 overflow-y-auto space-y-1.5 pr-1.5">
-                                                {selectedRecord.skips.map((s, idx) => (
-                                                    <div key={idx} className="bg-slate-50 p-2 rounded-xl text-[10px] text-slate-550 border border-slate-100">
-                                                        Seek: {Math.floor(s.skipStart)}s → {Math.floor(s.skipEnd)}s (+{Math.floor(s.skippedDuration)}s)
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        ) : (
-                                            <p className="text-xs text-slate-350 italic">No skip events logged.</p>
-                                        )}
-                                    </div>
-                                    <div>
-                                        <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2">Replays ({selectedRecord.replays?.length || 0})</h5>
-                                        {selectedRecord.replays && selectedRecord.replays.length > 0 ? (
-                                            <div className="max-h-36 overflow-y-auto space-y-1.5 pr-1.5">
-                                                {selectedRecord.replays.map((r, idx) => (
-                                                    <div key={idx} className="bg-slate-50 p-2 rounded-xl text-[10px] text-slate-550 border border-slate-100">
-                                                        Rewind: {Math.floor(r.replayEnd)}s → {Math.floor(r.replayStart)}s
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        ) : (
-                                            <p className="text-xs text-slate-355 italic">No rewind events logged.</p>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Session logs */}
-                            <div className="bg-white border border-slate-100 rounded-3xl p-5 shadow-sm">
-                                <h4 className="text-sm font-extrabold text-slate-800 mb-3">Watch Session History</h4>
-                                {selectedRecord.sessions && selectedRecord.sessions.length > 0 ? (
-                                    <div className="max-h-40 overflow-y-auto space-y-2 pr-1.5">
-                                        {selectedRecord.sessions.map((s, idx) => (
-                                            <div key={idx} className="bg-slate-50 border border-slate-100 rounded-2xl p-3 flex justify-between items-center text-xs">
-                                                <div>
-                                                    <p className="font-bold text-slate-700">Session {idx + 1}</p>
-                                                    <p className="text-[10px] text-slate-400 mt-0.5">
-                                                        {new Date(s.sessionStart).toLocaleTimeString()} - {new Date(s.sessionEnd).toLocaleTimeString()} ({new Date(s.sessionStart).toLocaleDateString()})
-                                                    </p>
-                                                </div>
-                                                <span className="px-2.5 py-0.5 rounded-full bg-[#3E3ADD] text-white text-[10px] font-black">
-                                                    {s.sessionDuration}s
-                                                </span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                ) : (
-                                    <p className="text-xs text-slate-400 italic">No session logs recorded.</p>
-                                )}
-                            </div>
+                            )}
                         </div>
                     </div>
                 </div>
+            ) : (
+                <div className="bg-white border border-slate-100 rounded-3xl p-12 text-center shadow-sm">
+                    <p className="text-slate-500 font-semibold italic">No video watch records found for this student.</p>
+                </div>
             )}
-            <style>{`
-                @keyframes slideLeft {
-                    from { transform: translateX(100%); }
-                    to { transform: translateX(0); }
-                }
-                .animate-slide-left {
-                    animation: slideLeft 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-                }
-            `}</style>
         </div>
     );
 };

@@ -330,38 +330,6 @@ const StudentDashboard = () => {
                             </div>
                         </div>
                     </div>
-
-                    {/* Course Subjects list */}
-                    {profile?.studentProfile?.course?.subjects && profile.studentProfile.course.subjects.length > 0 && (
-                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-                            <div className="flex items-center gap-2 mb-4 text-slate-800">
-                                <BookOpen size={18} className="text-indigo-600" />
-                                <h3 className="font-bold text-sm uppercase tracking-wider text-slate-700">Course Syllabus</h3>
-                            </div>
-                            <p className="text-xs text-slate-400 mb-3.5 leading-relaxed">
-                                Below are the subjects in <span className="font-extrabold text-slate-600">{profile.studentProfile.course.name}</span>:
-                            </p>
-                            <div className="flex flex-wrap gap-2">
-                                {profile.studentProfile.course.subjects
-                                    .filter(sub => {
-                                        if (!profile?.studentProfile?.subject) return true;
-                                        return profile.studentProfile.subject.split(',').map(s => s.trim().toLowerCase()).includes(sub.trim().toLowerCase());
-                                    })
-                                    .map((sub, i) => {
-                                        return (
-                                            <div 
-                                                key={i} 
-                                                className="px-3 py-2 rounded-xl text-xs font-bold border transition-all flex items-center gap-1.5 bg-indigo-50 border-indigo-250 text-indigo-700 shadow-sm"
-                                            >
-                                                <span className="w-1.5 h-1.5 bg-indigo-600 rounded-full animate-ping"></span>
-                                                {sub}
-                                            </div>
-                                        );
-                                    })
-                                }
-                            </div>
-                        </div>
-                    )}
                 </div>
             </div>
         </div>

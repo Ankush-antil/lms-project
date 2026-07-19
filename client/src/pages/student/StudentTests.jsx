@@ -1949,7 +1949,12 @@ const StudentTests = () => {
                                                                 {/* Inline Previews */}
                                                                 {config.label === 'Video' && (
                                                                     <div
-                                                                        onClick={() => {
+                                                                        onClick={async () => {
+                                                                            try {
+                                                                                axios.post(`/api/study-materials/${mat._id}/view`);
+                                                                            } catch (e) {
+                                                                                console.error("Failed to log view", e);
+                                                                            }
                                                                             setActiveVideoModalUrl(mat.fileUrl);
                                                                             setActiveVideoMaterial(mat);
                                                                         }}

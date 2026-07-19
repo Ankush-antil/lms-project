@@ -1319,8 +1319,9 @@ const AdminDashboard = () => {
 
                                     {/* 5 Aggregate Cards Grid */}
                                     {(() => {
-                                        const uniqueViewers = selectedMaterialForAnalytics.views?.length || 0;
-                                        const totalViews = selectedMaterialForAnalytics.views?.reduce((sum, v) => sum + (v.count || 0), 0) || 0;
+                                        const materialViews = videoAnalyticsData?.material?.views || selectedMaterialForAnalytics.views || [];
+                                        const uniqueViewers = materialViews.length;
+                                        const totalViews = materialViews.reduce((sum, v) => sum + (v.count || 0), 0);
                                         const uniquePlayers = videoAnalyticsData?.records?.length || 0;
                                         const totalPlays = videoAnalyticsData?.records?.reduce((sum, r) => sum + (r.sessions?.length || 0), 0) || 0;
                                         const totalWatchSecs = videoAnalyticsData?.records?.reduce((sum, r) => {

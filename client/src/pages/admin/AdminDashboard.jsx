@@ -1320,9 +1320,23 @@ const AdminDashboard = () => {
                                     {/* 5 Aggregate Cards Grid */}
                                     {(() => {
                                         const materialViews = videoAnalyticsData?.material?.views || selectedMaterialForAnalytics.views || [];
-                                        const uniqueViewers = materialViews.length;
-                                        const totalViews = materialViews.reduce((sum, v) => sum + (v.count || 0), 0);
                                         const uniquePlayers = videoAnalyticsData?.records?.length || 0;
+                                        
+                                        const viewerIds = new Set();
+                                        materialViews.forEach(v => {
+                                            const id = v.student?._id || v.student;
+                                            if (id) viewerIds.add(id.toString());
+                                        });
+                                        videoAnalyticsData?.records?.forEach(r => {
+                                            const id = r.student?._id || r.student;
+                                            if (id) viewerIds.add(id.toString());
+                                        });
+
+                                        const uniqueViewers = viewerIds.size;
+                                        const totalViews = Math.max(
+                                            materialViews.reduce((sum, v) => sum + (v.count || 0), 0),
+                                            uniqueViewers
+                                        );
                                         const totalPlays = videoAnalyticsData?.records?.reduce((sum, r) => sum + (r.sessions?.length || 0), 0) || 0;
                                         const totalWatchSecs = videoAnalyticsData?.records?.reduce((sum, r) => {
                                             return sum + (r.totalWatchTime || r.sessions?.reduce((sSum, s) => sSum + (s.sessionDuration || 0), 0) || 0);

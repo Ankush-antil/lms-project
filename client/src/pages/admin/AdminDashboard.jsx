@@ -968,8 +968,16 @@ const AdminDashboard = () => {
                                             if (associatedStudents.length === 0 && item.course) {
                                                 const courseLower = item.course.trim().toLowerCase();
                                                 allStudents.forEach(s => {
-                                                    const studentCourse = s.studentProfile?.course || '';
-                                                    if (studentCourse.trim().toLowerCase() === courseLower) {
+                                                    const rawCourse = s.studentProfile?.course;
+                                                    let studentCourse = '';
+                                                    if (rawCourse) {
+                                                        if (typeof rawCourse === 'string') {
+                                                            studentCourse = rawCourse;
+                                                        } else if (typeof rawCourse === 'object') {
+                                                            studentCourse = rawCourse.name || rawCourse.title || rawCourse._id || '';
+                                                        }
+                                                    }
+                                                    if (studentCourse && studentCourse.toString().trim().toLowerCase() === courseLower) {
                                                         associatedStudents.push(s);
                                                     }
                                                 });

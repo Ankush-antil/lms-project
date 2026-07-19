@@ -257,31 +257,6 @@ const UserProfileModal = ({ userId, isOpen, onClose }) => {
                                                         <p className="text-sm font-bold text-slate-700 truncate">{user?.studentProfile?.course?.name || 'N/A'}</p>
                                                     </div>
                                                 </div>
-
-                                                {user?.studentProfile?.course?.subjects && user.studentProfile.course.subjects.length > 0 && (
-                                                    <div className="col-span-2 p-3 bg-indigo-50/50 rounded-2xl border border-indigo-100 flex flex-col gap-2 mt-1">
-                                                        <div className="flex items-center gap-1.5 text-indigo-700">
-                                                            <Book size={12} className="animate-pulse" />
-                                                            <p className="text-[9px] font-black uppercase tracking-widest leading-none">Course Subjects List</p>
-                                                        </div>
-                                                        <div className="flex flex-wrap gap-1.5">
-                                                            {user.studentProfile.course.subjects
-                                                                .filter(sub => {
-                                                                    if (!user?.studentProfile?.subject) return true;
-                                                                    return user.studentProfile.subject.split(',').map(s => s.trim().toLowerCase()).includes(sub.trim().toLowerCase());
-                                                                })
-                                                                .map((sub, idx) => (
-                                                                    <span 
-                                                                        key={idx} 
-                                                                        className="px-2.5 py-1 rounded-xl text-[10px] font-bold border transition-colors bg-indigo-600 border-indigo-700 text-white shadow-sm"
-                                                                    >
-                                                                        {sub}
-                                                                    </span>
-                                                                ))
-                                                            }
-                                                        </div>
-                                                    </div>
-                                                )}
                                             </>
                                         )}
                                     </>

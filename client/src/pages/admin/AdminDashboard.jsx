@@ -928,6 +928,7 @@ const AdminDashboard = () => {
                                     <thead>
                                         <tr className="bg-slate-50 border-b border-slate-150 text-slate-500 text-[10px] font-black uppercase tracking-wider">
                                             <th className="p-4 font-semibold">Title of SM</th>
+                                            <th className="p-4 font-semibold">Type</th>
                                             <th className="p-4 font-semibold">Course</th>
                                             <th className="p-4 font-semibold">Subject</th>
                                             <th className="p-4 font-semibold">Uploaded By</th>
@@ -989,16 +990,18 @@ const AdminDashboard = () => {
                                             return (
                                                 <tr key={item._id} className="hover:bg-slate-50 transition-colors group">
                                                     <td className="p-4">
-                                                        <div className="flex items-center gap-2 flex-wrap">
-                                                            <span className="text-xs font-bold text-slate-800 truncate max-w-[220px]" title={item.title}>
-                                                                {item.title}
+                                                        <span className="text-xs font-bold text-slate-800 truncate max-w-[220px]" title={item.title}>
+                                                            {item.title}
+                                                        </span>
+                                                    </td>
+                                                    <td className="p-4">
+                                                        {item.materialType ? (
+                                                            <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-indigo-50 text-indigo-700 border border-indigo-100">
+                                                                {item.materialType}
                                                             </span>
-                                                            {item.materialType && (
-                                                                <span className="px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider bg-indigo-50 text-indigo-700 border border-indigo-100">
-                                                                    {item.materialType}
-                                                                </span>
-                                                            )}
-                                                        </div>
+                                                        ) : (
+                                                            <span className="text-[10px] text-slate-400 font-semibold italic">N/A</span>
+                                                        )}
                                                     </td>
                                                     <td className="p-4">
                                                         <div className="flex flex-col">
@@ -1178,7 +1181,6 @@ const AdminDashboard = () => {
                                     <div><span className="text-[9px] uppercase tracking-wider text-slate-400 block font-black mb-0.5">Course</span>{riData.course}</div>
                                     <div><span className="text-[9px] uppercase tracking-wider text-slate-400 block font-black mb-0.5">Subject Name</span>{riData.subject}</div>
                                     <div><span className="text-[9px] uppercase tracking-wider text-slate-400 block font-black mb-0.5">Inbox / Day</span>{riData.dayNum ? `Inbox ${riData.dayNum}` : riData.inboxId}</div>
-                                    <div><span className="text-[9px] uppercase tracking-wider text-slate-400 block font-black mb-0.5">Student</span>{riData.student?.name} ({riData.student?.email})</div>
                                 </div>
                              
                                 {/* Footer Actions */}
@@ -1186,7 +1188,7 @@ const AdminDashboard = () => {
                                     <button
                                         type="button"
                                         onClick={() => setIsRiModalOpen(false)}
-                                        className="px-4.5 py-2.5 bg-[#3E3ADD] hover:bg-indigo-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer shadow-sm active:scale-95"
+                                        className="px-6 py-2.5 bg-[#3E3ADD] hover:bg-indigo-700 text-white rounded-xl text-xs font-bold uppercase tracking-wider transition-all cursor-pointer shadow-md active:scale-95 whitespace-nowrap"
                                     >
                                         Close
                                     </button>

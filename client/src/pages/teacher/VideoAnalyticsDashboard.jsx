@@ -64,6 +64,14 @@ const VideoAnalyticsDashboard = ({ videoId, studentId, onClose }) => {
             setRecords(data.records || []);
             if (data.records && data.records.length > 0) {
                 setSelectedRecord(data.records[0]);
+            } else {
+                setSelectedRecord({
+                    sessions: [],
+                    completionAttempts: 0,
+                    totalWatchTime: 0,
+                    progress: { lastWatchedPosition: 0, videoDuration: 1 },
+                    student: null
+                });
             }
         } catch (err) {
             console.error("Failed to load video analytics:", err);

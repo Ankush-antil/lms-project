@@ -44,7 +44,16 @@ const uploadStudyMaterial = asyncHandler(async (req, res) => {
     }
 
     const user = await User.findById(req.user._id).populate('institute');
-    const instituteName = user.institute?.name || '';
+    let instituteName = user.institute?.name || '';
+
+    if (!instituteName && req.user.role === 'Admin') {
+        if (req.body.institute) {
+            instituteName = req.body.institute;
+        } else if (studentList.length > 0) {
+            const firstStudent = await User.findById(studentList[0]).populate('institute');
+            instituteName = firstStudent?.institute?.name || '';
+        }
+    }
 
     if (!instituteName) {
         if (req.file) {
@@ -53,7 +62,7 @@ const uploadStudyMaterial = asyncHandler(async (req, res) => {
         }
 
         res.status(400);
-        throw new Error('User has no assigned institute');
+        throw new Error('Please specify an institute for this study material');
     }
 
     const finalFileUrl = req.file ? `/uploads/attachments/${req.file.filename}` : fileUrl;
@@ -137,16 +146,18 @@ const uploadStudyMaterial = asyncHandler(async (req, res) => {
 const getStudyMaterials = asyncHandler(async (req, res) => {
     const { inboxId, isPrivate, status, studentId } = req.query;
 
-    const user = await User.findById(req.user._id).populate('institute');
-    const instituteName = user.institute?.name || '';
+    const query = {};
 
-    if (!instituteName) {
-        return res.json([]);
+    if (req.user.role !== 'Admin') {
+        const user = await User.findById(req.user._id).populate('institute');
+        const instituteName = user.institute?.name || '';
+
+        if (!instituteName) {
+            return res.json([]);
+        }
+
+        query.institute = { $regex: new RegExp(`^\\s*${escapeRegex(instituteName)}\\s*$`, 'i') };
     }
-
-    const query = {
-        institute: { $regex: new RegExp(`^\\s*${escapeRegex(instituteName)}\\s*$`, 'i') }
-    };
 
     if (inboxId) {
         query.inboxId = inboxId;
@@ -208,7 +219,7 @@ const deleteStudyMaterial = asyncHandler(async (req, res) => {
     const isAdmin = req.user.role === 'Admin';
 
     let isTeacherOfSameInst = false;
-    if (req.user.role === 'Teacher') {
+    if (req.user.role === 'Teacher' || req.user.role === 'Institute') {
         const userWithInst = await User.findById(req.user._id).populate('institute');
         const userInstName = userWithInst?.institute?.name?.trim().toLowerCase();
         const matInstName = material.institute?.trim().toLowerCase();
@@ -250,7 +261,7 @@ const updateStudyMaterialStatus = asyncHandler(async (req, res) => {
     const isUploadedByCurrentUser = material.uploadedBy && material.uploadedBy.toString() === req.user._id.toString();
     const isAdmin = req.user.role === 'Admin';
     let isTeacherOfSameInst = false;
-    if (req.user.role === 'Teacher') {
+    if (req.user.role === 'Teacher' || req.user.role === 'Institute') {
         const userWithInst = await User.findById(req.user._id).populate('institute');
         const userInstName = userWithInst?.institute?.name?.trim().toLowerCase();
         const matInstName = material.institute?.trim().toLowerCase();
@@ -328,7 +339,7 @@ const updateStudyMaterial = asyncHandler(async (req, res) => {
     const isUploadedByCurrentUser = material.uploadedBy && material.uploadedBy.toString() === req.user._id.toString();
     const isAdmin = req.user.role === 'Admin';
     let isTeacherOfSameInst = false;
-    if (req.user.role === 'Teacher') {
+    if (req.user.role === 'Teacher' || req.user.role === 'Institute') {
         const userWithInst = await User.findById(req.user._id).populate('institute');
         const userInstName = userWithInst?.institute?.name?.trim().toLowerCase();
         const matInstName = material.institute?.trim().toLowerCase();

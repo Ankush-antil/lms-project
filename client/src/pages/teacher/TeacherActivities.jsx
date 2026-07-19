@@ -5687,7 +5687,6 @@ const StudentActivitiesTab = ({ studentSubmissions, submissionsLoading }) => {
                                     <th className="py-3 px-4">Subject / Category</th>
                                     <th className="py-3 px-4">Submitted Date</th>
                                     <th className="py-3 px-4">Score / Marks</th>
-                                    <th className="py-3 px-4 text-center">Status</th>
                                     <th className="py-3 px-4 text-right">Actions</th>
                                 </tr>
                             </thead>
@@ -5703,11 +5702,6 @@ const StudentActivitiesTab = ({ studentSubmissions, submissionsLoading }) => {
                                     const marks = sub.status === 'evaluated' || sub.status === 'returned'
                                         ? `${sub.totalMarks} / ${sub.test?.settings?.totalMarks || 100}`
                                         : 'Awaiting Evaluation';
-
-                                    let statusColor = 'bg-blue-50 text-blue-700 border-blue-100';
-                                    if (sub.status === 'evaluated') statusColor = 'bg-emerald-50 text-emerald-700 border-emerald-100';
-                                    if (sub.status === 'returned') statusColor = 'bg-orange-50 text-orange-700 border-orange-100';
-                                    if (sub.status === 'reported') statusColor = 'bg-rose-50 text-rose-700 border-rose-100';
 
                                     return (
                                         <tr key={sub._id} className="hover:bg-slate-50/50 transition-colors">
@@ -5725,11 +5719,6 @@ const StudentActivitiesTab = ({ studentSubmissions, submissionsLoading }) => {
                                             </td>
                                             <td className="py-3.5 px-4 font-bold text-slate-700">
                                                 {marks}
-                                            </td>
-                                            <td className="py-3.5 px-4 text-center">
-                                                <span className={`inline-flex px-2 py-0.5 rounded-full border text-[9px] font-black uppercase tracking-wider ${statusColor}`}>
-                                                    {sub.status}
-                                                </span>
                                             </td>
                                             <td className="py-3.5 px-4 text-right">
                                                 <button

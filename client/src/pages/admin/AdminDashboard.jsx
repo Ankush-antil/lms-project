@@ -159,6 +159,7 @@ const AdminDashboard = () => {
     };
 
     const [isRiModalOpen, setIsRiModalOpen] = useState(false);
+    const [riDropdownMatId, setRiDropdownMatId] = useState(null);
     const [riData, setRiData] = useState(null);
     const [loadingRi, setLoadingRi] = useState(false);
 
@@ -948,6 +949,35 @@ const AdminDashboard = () => {
                                                     ? 'bg-indigo-50 text-indigo-700 border border-indigo-100'
                                                     : 'bg-emerald-50 text-emerald-600 border border-emerald-100';
 
+                                            const associatedStudents = [];
+                                            if (item.allStudents) {
+                                                item.allStudents.forEach(s => {
+                                                    if (s && !associatedStudents.some(as => (as._id || as) === (s._id || s))) {
+                                                        associatedStudents.push(s);
+                                                    }
+                                                });
+                                            }
+                                            if (item.views) {
+                                                item.views.forEach(v => {
+                                                    const s = v.student;
+                                                    if (s && !associatedStudents.some(as => (as._id || as) === (s._id || s))) {
+                                                        associatedStudents.push(s);
+                                                    }
+                                                });
+                                            }
+                                            if (associatedStudents.length === 0 && item.course) {
+                                                const courseLower = item.course.trim().toLowerCase();
+                                                allStudents.forEach(s => {
+                                                    const studentCourse = s.studentProfile?.course || '';
+                                                    if (studentCourse.trim().toLowerCase() === courseLower) {
+                                                        associatedStudents.push(s);
+                                                    }
+                                                });
+                                            }
+                                            if (associatedStudents.length === 0) {
+                                                associatedStudents.push(...allStudents);
+                                            }
+
                                             return (
                                                 <tr key={item._id} className="hover:bg-slate-50 transition-colors group">
                                                     <td className="p-4">
@@ -982,16 +1012,52 @@ const AdminDashboard = () => {
                                                     </td>
                                                     <td className="p-4 whitespace-nowrap text-right">
                                                         <div className="flex items-center justify-end gap-2">
-                                                            {item.student && (
-                                                                <button
-                                                                    onClick={() => {
-                                                                        handleOpenRiReport(item);
-                                                                    }}
-                                                                    className="px-2.5 py-1.5 bg-indigo-50 hover:bg-[#3E3ADD] text-[#3E3ADD] hover:text-white border border-indigo-150 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer shadow-xs active:scale-95"
-                                                                    title="View RI Report"
-                                                                >
-                                                                    RI
-                                                                </button>
+                                                            {associatedStudents.length > 0 && (
+                                                                <div className="relative inline-block text-left">
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                            if (associatedStudents.length === 1) {
+                                                                                handleOpenRiReport({
+                                                                                    ...item,
+                                                                                    student: associatedStudents[0]
+                                                                                });
+                                                                            } else {
+                                                                                setRiDropdownMatId(riDropdownMatId === item._id ? null : item._id);
+                                                                            }
+                                                                        }}
+                                                                        className="px-2.5 py-1.5 bg-indigo-50 hover:bg-[#3E3ADD] text-[#3E3ADD] hover:text-white border border-indigo-150 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer shadow-xs active:scale-95 flex items-center gap-1"
+                                                                        title="View RI Report"
+                                                                    >
+                                                                        <span>RI</span>
+                                                                        {associatedStudents.length > 1 && <span className="text-[6px]">▼</span>}
+                                                                    </button>
+                                                                    {associatedStudents.length > 1 && riDropdownMatId === item._id && (
+                                                                        <div className="absolute right-0 mt-1 w-44 bg-white border border-slate-200 rounded-xl shadow-lg z-[9999] py-1 text-left">
+                                                                            <div className="px-2 py-1 text-[8px] font-black text-slate-400 uppercase border-b border-slate-100">
+                                                                                Select Student
+                                                                            </div>
+                                                                            <div className="max-h-48 overflow-y-auto">
+                                                                                {associatedStudents.map(stud => (
+                                                                                    <button
+                                                                                        key={stud._id}
+                                                                                        type="button"
+                                                                                        onClick={() => {
+                                                                                            setRiDropdownMatId(null);
+                                                                                            handleOpenRiReport({
+                                                                                                ...item,
+                                                                                                student: stud
+                                                                                            });
+                                                                                        }}
+                                                                                        className="w-full text-left px-3 py-1.5 hover:bg-slate-50 text-[10px] font-bold text-slate-700 truncate cursor-pointer block"
+                                                                                    >
+                                                                                        {stud.name}
+                                                                                    </button>
+                                                                                ))}
+                                                                            </div>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
                                                             )}
                                                             <a
                                                                 href={item.fileUrl}

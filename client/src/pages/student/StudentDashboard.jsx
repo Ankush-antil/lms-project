@@ -262,7 +262,12 @@ const StudentDashboard = () => {
                                                 return (
                                                     <tr key={sub._id} className="hover:bg-slate-50/50 transition-colors">
                                                         <td className="py-3.5 px-4 font-extrabold text-slate-800">
-                                                            {testTitle}
+                                                            <button
+                                                                onClick={() => navigate(`/student/test-result/${sub._id}`)}
+                                                                className="text-left font-extrabold hover:text-[#3E3ADD] transition-colors focus:outline-none cursor-pointer"
+                                                            >
+                                                                {testTitle}
+                                                            </button>
                                                         </td>
                                                         <td className="py-3.5 px-4 text-slate-500 font-semibold">
                                                             <div className="flex flex-col">
@@ -285,9 +290,12 @@ const StudentDashboard = () => {
                                                                     View Report
                                                                 </button>
                                                             ) : (
-                                                                <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-2.5 py-1.5 rounded-xl uppercase tracking-wider">
+                                                                <button
+                                                                    onClick={() => navigate(`/student/test-result/${sub._id}`)}
+                                                                    className="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-[10px] font-black uppercase tracking-wider shadow-sm transition-all cursor-pointer border border-slate-200"
+                                                                >
                                                                     Awaiting Evaluation
-                                                                </span>
+                                                                </button>
                                                             )}
                                                         </td>
                                                     </tr>

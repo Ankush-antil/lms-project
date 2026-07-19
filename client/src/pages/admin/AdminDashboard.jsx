@@ -989,10 +989,15 @@ const AdminDashboard = () => {
                                             return (
                                                 <tr key={item._id} className="hover:bg-slate-50 transition-colors group">
                                                     <td className="p-4">
-                                                        <div className="flex flex-col gap-0.5">
+                                                        <div className="flex items-center gap-2 flex-wrap">
                                                             <span className="text-xs font-bold text-slate-800 truncate max-w-[220px]" title={item.title}>
                                                                 {item.title}
                                                             </span>
+                                                            {item.materialType && (
+                                                                <span className="px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider bg-indigo-50 text-indigo-700 border border-indigo-100">
+                                                                    {item.materialType}
+                                                                </span>
+                                                            )}
                                                         </div>
                                                     </td>
                                                     <td className="p-4">
@@ -1175,156 +1180,15 @@ const AdminDashboard = () => {
                                     <div><span className="text-[9px] uppercase tracking-wider text-slate-400 block font-black mb-0.5">Inbox / Day</span>{riData.dayNum ? `Inbox ${riData.dayNum}` : riData.inboxId}</div>
                                     <div><span className="text-[9px] uppercase tracking-wider text-slate-400 block font-black mb-0.5">Student</span>{riData.student?.name} ({riData.student?.email})</div>
                                 </div>
-
-                                {/* Stats Row */}
-                                <div className="grid grid-cols-1 gap-3">
-                                    <div className="bg-indigo-50/50 border border-indigo-100/80 p-3.5 rounded-2xl text-center">
-                                        <div className="text-xl font-extrabold text-[#3E3ADD]">{riData.stats.total}</div>
-                                        <div className="text-[9px] font-black text-indigo-400 uppercase tracking-wider mt-0.5">Total Study Materials</div>
-                                    </div>
-                                </div>
-
-                                {/* Details List */}
-                                <div className="max-h-48 overflow-y-auto border border-slate-100 rounded-2xl">
-                                    <table className="min-w-full text-left text-xs font-semibold">
-                                        <thead className="bg-slate-50 border-b border-slate-100 text-[10px] text-slate-450 uppercase">
-                                            <tr>
-                                                <th className="p-3">Study Material Title</th>
-                                                <th className="p-3 text-center">Type of Content</th>
-                                                <th className="p-3 text-right">Action</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-slate-100 text-slate-700">
-                                            {riData.materials?.map((mat, idx) => {
-                                                const typeLabel = mat.materialType ? mat.materialType.toUpperCase() : 'PDF';
-
-                                                return (
-                                                    <tr key={mat._id} className="hover:bg-slate-50/50">
-                                                        <td className="p-3 font-bold">{idx + 1}. {mat.title}</td>
-                                                        <td className="p-3 text-center">
-                                                            <span className="px-2 py-0.5 border rounded-full text-[9px] font-black uppercase tracking-wider bg-indigo-50 text-indigo-650 border-indigo-100">
-                                                                {typeLabel}
-                                                            </span>
-                                                        </td>
-                                                        <td className="p-3 text-right">
-                                                            <a
-                                                                href={mat.fileUrl}
-                                                                target="_blank"
-                                                                rel="noreferrer"
-                                                                className="px-2.5 py-1 bg-[#3E3ADD] hover:bg-indigo-700 text-white rounded-lg text-[9px] font-black uppercase tracking-wider shadow-sm transition-all"
-                                                            >
-                                                                View
-                                                            </a>
-                                                        </td>
-                                                    </tr>
-                                                );
-                                            })}
-                                            {(!riData.materials || riData.materials.length === 0) && (
-                                                <tr>
-                                                    <td colSpan="3" className="p-4 text-center text-slate-400">No study materials found for this inbox.</td>
-                                                </tr>
-                                            )}
-                                        </tbody>
-                                    </table>
-                                </div>
-
+                             
                                 {/* Footer Actions */}
                                 <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-100">
                                     <button
                                         type="button"
                                         onClick={() => setIsRiModalOpen(false)}
-                                        className="px-4.5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer shadow-sm active:scale-95"
+                                        className="px-4.5 py-2.5 bg-[#3E3ADD] hover:bg-indigo-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer shadow-sm active:scale-95"
                                     >
                                         Close
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            const studentName = riData.student?.name || 'Student';
-                                            const courseName = riData.course;
-                                            const studentEmail = riData.student?.email || 'N/A';
-                                            const inboxName = riData.dayNum ? `Inbox ${riData.dayNum}` : riData.inboxId;
-                                            const subjectName = riData.subject;
-                                            const reportDate = new Date().toLocaleDateString('en-GB');
-
-                                            const printWindow = window.open('', '_blank');
-                                            if (!printWindow) {
-                                                toast.error("Popup blocker prevented opening the print page.");
-                                                return;
-                                            }
-
-                                            const tableRowsHtml = riData.materials?.map((mat, idx) => {
-                                                const typeLabel = mat.materialType ? mat.materialType.toUpperCase() : 'PDF';
-
-                                                return `
-                                                    <tr>
-                                                        <td>${idx + 1}. ${mat.title}</td>
-                                                        <td>${typeLabel}</td>
-                                                        <td><a href="${mat.fileUrl}" target="_blank" style="color: #3e3add; text-decoration: none; font-weight: bold; font-size: 11px;">VIEW / OPEN</a></td>
-                                                    </tr>
-                                                `;
-                                            }).join('') || '<tr><td colspan="3" style="text-align: center; color: #64748b; padding: 15px;">No study materials found in this inbox.</td></tr>';
-
-                                            printWindow.document.write(`
-                                                <html>
-                                                <head>
-                                                    <title>RI Report - ${studentName}</title>
-                                                    <style>
-                                                        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; padding: 40px; color: #1e293b; max-width: 800px; margin: 0 auto; line-height: 1.5; }
-                                                        .header-title { font-size: 24px; font-weight: 800; color: #0b1329; margin-bottom: 2px; }
-                                                        .header-subtitle { font-size: 12px; color: #64748b; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0; }
-                                                        .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 24px 0; border: 1px solid #e2e8f0; padding: 20px; border-radius: 16px; background: #f8fafc; }
-                                                        .meta-item { display: flex; flex-direction: column; }
-                                                        .meta-label { font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 2px; }
-                                                        .meta-value { font-size: 13px; font-weight: 700; color: #1e293b; }
-                                                        .stats-row { display: grid; grid-template-columns: 1fr; gap: 16px; margin-bottom: 30px; }
-                                                        .stat-card { border: 1px solid #e2e8f0; padding: 16px; border-radius: 12px; text-align: center; background: #ffffff; }
-                                                        .stat-num { font-size: 20px; font-weight: 800; color: #3e3add; }
-                                                        .stat-label { font-size: 10px; font-weight: 600; color: #64748b; text-transform: uppercase; margin-top: 4px; }
-                                                        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-                                                        th { background: #f1f5f9; padding: 10px 12px; text-align: left; font-size: 11px; font-weight: bold; color: #475569; text-transform: uppercase; border-bottom: 2px solid #e2e8f0; }
-                                                        td { padding: 12px; border-bottom: 1px solid #e2e8f0; font-size: 12px; color: #334155; }
-                                                        .badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; text-transform: uppercase; }
-                                                        h3 { font-size: 15px; font-weight: bold; color: #0b1329; margin-top: 25px; margin-bottom: 10px; }
-                                                    </style>
-                                                </head>
-                                                <body>
-                                                    <div style="border-bottom: 3px solid #3e3add; padding-bottom: 15px; margin-bottom: 20px;">
-                                                        <div class="header-title">INBOX PERFORMANCE REPORT (RI)</div>
-                                                        <div class="header-subtitle">${inboxName} — ${subjectName}</div>
-                                                    </div>
-                                                    <div class="meta-grid">
-                                                         <div class="meta-item" style="grid-column: span 2;"><span class="meta-label">Study Material Title</span><span class="meta-value">${riData.materialTitle || 'N/A'}</span></div>
-                                                         <div class="meta-item"><span class="meta-label">Course</span><span class="meta-value">${courseName}</span></div>
-                                                         <div class="meta-item"><span class="meta-label">Subject Name</span><span class="meta-value">${subjectName}</span></div>
-                                                         <div class="meta-item"><span class="meta-label">Inbox / Day</span><span class="meta-value">${inboxName}</span></div>
-                                                         <div class="meta-item"><span class="meta-label">Student</span><span class="meta-value">${studentName} (${studentEmail})</span></div>
-                                                     </div>
-                                                    <div class="stats-row">
-                                                        <div class="stat-card"><div class="stat-num">${riData.materials?.length || 0}</div><div class="stat-label">Total Study Materials</div></div>
-                                                    </div>
-                                                    <h3>Study Material details</h3>
-                                                    <table>
-                                                        <thead>
-                                                            <tr>
-                                                                <th>Study Material Title</th>
-                                                                <th>Type of Content</th>
-                                                                <th>Action</th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody>
-                                                            ${tableRowsHtml}
-                                                        </tbody>
-                                                    </table>
-                                                </body>
-                                                </html>
-                                            `);
-                                            printWindow.document.close();
-                                            printWindow.print();
-                                        }}
-                                        className="px-4.5 py-2.5 bg-[#3E3ADD] hover:bg-indigo-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer shadow-md shadow-indigo-150 flex items-center gap-1.5 active:scale-95"
-                                    >
-                                        <Printer size={12} strokeWidth={3} /> Print Report
                                     </button>
                                 </div>
                             </div>

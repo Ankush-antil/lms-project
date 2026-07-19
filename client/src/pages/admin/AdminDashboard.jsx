@@ -955,17 +955,6 @@ const AdminDashboard = () => {
                                                             <span className="text-xs font-bold text-slate-800 truncate max-w-[220px]" title={item.title}>
                                                                 {item.title}
                                                             </span>
-                                                            <span className="text-slate-400 text-[10px] font-mono mt-0.5 truncate max-w-[220px]" title={item.filename}>
-                                                                {item.filename || 'No file attached'}
-                                                            </span>
-                                                            <span className="text-[9px] text-indigo-500 font-extrabold uppercase mt-1 tracking-wider">
-                                                                {item.materialType || 'pdf'}
-                                                            </span>
-                                                            {item.allStudents && item.allStudents.length > 0 && (
-                                                                <div className="text-[9px] text-slate-400 font-semibold mt-0.5">
-                                                                    For student{item.allStudents.length > 1 ? 's' : ''}: <span className="text-slate-655 font-bold">{item.allStudents.map(s => s.name || s).join(', ')}</span>
-                                                                </div>
-                                                            )}
                                                         </div>
                                                     </td>
                                                     <td className="p-4">

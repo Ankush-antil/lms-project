@@ -2380,7 +2380,8 @@ const TeacherActivities = () => {
                                     {[
                                         { id: 'tests', label: 'Tests', icon: FileText },
                                         { id: 'practice', label: 'Tool', icon: Settings },
-                                        { id: 'performance', label: 'SnapShots', icon: BarChart3 }
+                                        { id: 'performance', label: 'SnapShots', icon: BarChart3 },
+                                        { id: 'activities', label: 'Complete Activities', icon: CheckCircle }
                                     ].map(tab => {
                                         const TabIcon = tab.icon;
                                         const isTabActive = studentTab === tab.id;
@@ -3604,6 +3605,11 @@ const TeacherActivities = () => {
                                         </div>
                                     )}
                                 </div>
+                            ) : studentTab === 'activities' ? (
+                                <StudentActivitiesTab
+                                    studentSubmissions={studentSubmissions}
+                                    submissionsLoading={submissionsLoading}
+                                />
                             ) : (
                                 /* --- STUDENT PERFORMANCE DASHBOARD --- */
                                 <div className="animate-fade-in space-y-8 text-left">
@@ -5597,6 +5603,151 @@ const TeacherActivities = () => {
             </div>
         )}
         </>
+    );
+};
+
+const StudentActivitiesTab = ({ studentSubmissions, submissionsLoading }) => {
+    const [subTab, setSubTab] = useState('submitted'); // 'submitted' | 'evaluated'
+    const navigate = useNavigate();
+
+    const filtered = useMemo(() => {
+        return studentSubmissions.filter(sub => {
+            if (subTab === 'submitted') {
+                return sub.status === 'submitted' || sub.status === 'reported';
+            } else {
+                return sub.status === 'evaluated' || sub.status === 'returned';
+            }
+        });
+    }, [studentSubmissions, subTab]);
+
+    return (
+        <div className="animate-fade-in space-y-6 text-left">
+            {/* Header */}
+            <div className="bg-white border-b border-slate-200 pb-4 flex flex-col gap-2.5 shrink-0">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-[#3E3ADD] text-white flex items-center justify-center shadow-md shadow-indigo-500/10 shrink-0 font-sans font-bold">
+                            ✓
+                        </div>
+                        <div>
+                            <h1 className="text-lg font-extrabold text-indigo-950 tracking-tight leading-none">
+                                Student Activity History
+                            </h1>
+                            <p className="text-slate-500 text-xs mt-1">
+                                View submitted and evaluated assignments/activities.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Sub Tabs */}
+            <div className="flex border-b border-slate-100 gap-6">
+                {[
+                    { id: 'submitted', label: `Submitted (${studentSubmissions.filter(s => s.status === 'submitted' || s.status === 'reported').length})` },
+                    { id: 'evaluated', label: `Evaluated (${studentSubmissions.filter(s => s.status === 'evaluated' || s.status === 'returned').length})` }
+                ].map(tab => (
+                    <button
+                        key={tab.id}
+                        type="button"
+                        onClick={() => setSubTab(tab.id)}
+                        className={`pb-2.5 text-xs font-black uppercase tracking-wider relative transition-all cursor-pointer ${
+                            subTab === tab.id
+                                ? 'text-[#3E3ADD]'
+                                : 'text-slate-400 hover:text-slate-600'
+                        }`}
+                    >
+                        {tab.label}
+                        {subTab === tab.id && (
+                            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#3E3ADD] rounded-full animate-fade-in" />
+                        )}
+                    </button>
+                ))}
+            </div>
+
+            {/* Content Table */}
+            {submissionsLoading ? (
+                <div className="flex flex-col items-center justify-center py-12 bg-white rounded-2xl border border-slate-100">
+                    <div className="animate-spin rounded-full h-8 w-8 border-4 border-indigo-900/20 border-t-indigo-900 mb-2"></div>
+                    <p className="text-xs text-slate-455 font-semibold">Loading submissions...</p>
+                </div>
+            ) : filtered.length === 0 ? (
+                <div className="py-12 text-center bg-white rounded-2xl border border-slate-100 shadow-sm max-w-md mx-auto">
+                    <div className="text-4xl mb-2">📝</div>
+                    <p className="font-bold text-slate-700 text-sm">No Activities Found</p>
+                    <p className="text-slate-450 text-xs mt-1 font-medium">No tests in this category yet.</p>
+                </div>
+            ) : (
+                <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left border-collapse">
+                            <thead>
+                                <tr className="bg-slate-50 border-b border-slate-200/60 text-[10px] font-black uppercase tracking-wider text-slate-450">
+                                    <th className="py-3 px-4">Activity / Test</th>
+                                    <th className="py-3 px-4">Subject / Category</th>
+                                    <th className="py-3 px-4">Submitted Date</th>
+                                    <th className="py-3 px-4">Score / Marks</th>
+                                    <th className="py-3 px-4 text-center">Status</th>
+                                    <th className="py-3 px-4 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100 text-xs">
+                                {filtered.map((sub) => {
+                                    const testTitle = sub.test?.title || 'Untitled Test';
+                                    const subject = sub.test?.subject || 'N/A';
+                                    const category = sub.test?.activity || 'General';
+                                    const submittedDate = new Date(sub.submittedAt || sub.createdAt).toLocaleString(undefined, {
+                                        dateStyle: 'medium',
+                                        timeStyle: 'short'
+                                    });
+                                    const marks = sub.status === 'evaluated' || sub.status === 'returned'
+                                        ? `${sub.totalMarks} / ${sub.test?.settings?.totalMarks || 100}`
+                                        : 'Awaiting Evaluation';
+
+                                    let statusColor = 'bg-blue-50 text-blue-700 border-blue-100';
+                                    if (sub.status === 'evaluated') statusColor = 'bg-emerald-50 text-emerald-700 border-emerald-100';
+                                    if (sub.status === 'returned') statusColor = 'bg-orange-50 text-orange-700 border-orange-100';
+                                    if (sub.status === 'reported') statusColor = 'bg-rose-50 text-rose-700 border-rose-100';
+
+                                    return (
+                                        <tr key={sub._id} className="hover:bg-slate-50/50 transition-colors">
+                                            <td className="py-3.5 px-4 font-extrabold text-slate-800">
+                                                {testTitle}
+                                            </td>
+                                            <td className="py-3.5 px-4 text-slate-500 font-semibold">
+                                                <div className="flex flex-col">
+                                                    <span>{subject}</span>
+                                                    <span className="text-[10px] text-slate-400 capitalize">{category}</span>
+                                                </div>
+                                            </td>
+                                            <td className="py-3.5 px-4 text-slate-500 font-medium">
+                                                {submittedDate}
+                                            </td>
+                                            <td className="py-3.5 px-4 font-bold text-slate-700">
+                                                {marks}
+                                            </td>
+                                            <td className="py-3.5 px-4 text-center">
+                                                <span className={`inline-flex px-2 py-0.5 rounded-full border text-[9px] font-black uppercase tracking-wider ${statusColor}`}>
+                                                    {sub.status}
+                                                </span>
+                                            </td>
+                                            <td className="py-3.5 px-4 text-right">
+                                                <button
+                                                    onClick={() => navigate(`/teacher/evaluate/${sub._id}${sub.status === 'evaluated' ? '?mode=reevaluate' : ''}`)}
+                                                    className="px-3 py-1.5 bg-[#3E3ADD] hover:bg-indigo-700 text-white rounded-xl text-[10px] font-bold uppercase tracking-wider shadow-sm transition-all cursor-pointer"
+                                                >
+                                                    {sub.status === 'evaluated' ? 'Re-Evaluate' : 'Evaluate'}
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
+        </div>
     );
 };
 

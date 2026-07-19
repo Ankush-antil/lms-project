@@ -235,6 +235,78 @@ const StudentDashboard = () => {
                             )}
                         </div>
                     </div>
+
+                    {/* My Completed Activities / History */}
+                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                        <div className="flex justify-between items-center mb-6">
+                            <h3 className="font-bold text-slate-800">My Completed Activities / History</h3>
+                            <span className="text-xs text-slate-500 font-bold bg-slate-50 border border-slate-150 px-2.5 py-1 rounded-lg">
+                                Total: {submissions.length}
+                            </span>
+                        </div>
+                        {submissions.length > 0 ? (
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left border-collapse">
+                                    <thead>
+                                        <tr className="bg-slate-50 border-b border-slate-200/65 text-[10px] font-black uppercase tracking-wider text-slate-450">
+                                            <th className="py-2.5 px-3">Activity / Test</th>
+                                            <th className="py-2.5 px-3">Submitted Date</th>
+                                            <th className="py-2.5 px-3">Total Marks</th>
+                                            <th className="py-2.5 px-3 text-center">Status</th>
+                                            <th className="py-2.5 px-3 text-right">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100 text-xs">
+                                        {submissions.map((sub) => {
+                                            const testTitle = sub.test?.title || 'Untitled Test';
+                                            const date = new Date(sub.submittedAt || sub.createdAt).toLocaleDateString(undefined, {
+                                                dateStyle: 'medium'
+                                            });
+                                            const marks = sub.status === 'evaluated' || sub.status === 'returned'
+                                                ? `${sub.totalMarks} / ${sub.test?.settings?.totalMarks || 100}`
+                                                : 'Awaiting Evaluation';
+
+                                            let statusColor = 'bg-blue-50 text-blue-700 border-blue-100';
+                                            if (sub.status === 'evaluated') statusColor = 'bg-emerald-50 text-emerald-700 border-emerald-100';
+                                            if (sub.status === 'returned') statusColor = 'bg-orange-50 text-orange-700 border-orange-100';
+                                            if (sub.status === 'reported') statusColor = 'bg-rose-50 text-rose-700 border-rose-100';
+
+                                            return (
+                                                <tr key={sub._id} className="hover:bg-slate-50/30 transition-colors">
+                                                    <td className="py-3 px-3 font-extrabold text-slate-800">
+                                                        {testTitle}
+                                                    </td>
+                                                    <td className="py-3 px-3 text-slate-500 font-medium">
+                                                        {date}
+                                                    </td>
+                                                    <td className="py-3 px-3 font-bold text-slate-700">
+                                                        {marks}
+                                                    </td>
+                                                    <td className="py-3 px-3 text-center">
+                                                        <span className={`inline-flex px-2 py-0.5 rounded-full border text-[9px] font-black uppercase tracking-wider ${statusColor}`}>
+                                                            {sub.status}
+                                                        </span>
+                                                    </td>
+                                                    <td className="py-3 px-3 text-right">
+                                                        <button
+                                                            onClick={() => navigate(`/student/test-result/${sub._id}`)}
+                                                            className="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-[10px] font-bold uppercase tracking-wider shadow-sm transition-all cursor-pointer"
+                                                        >
+                                                            View Report
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                        ) : (
+                            <div className="text-center py-8">
+                                <p className="text-slate-400 font-medium italic">You haven't submitted any activities or tests yet.</p>
+                            </div>
+                        )}
+                    </div>
                 </div>
 
                 {/* Profile / Secondary */}

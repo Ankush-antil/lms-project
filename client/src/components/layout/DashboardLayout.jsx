@@ -166,6 +166,7 @@ const menuItems = {
         { name: '_section_content', icon: BookOpen, path: null },
         { name: 'Courses', icon: BookOpen, path: '/admin/courses' },
         { name: 'Subjects', icon: BookOpen, path: '/admin/subjects' },
+        { name: 'Study Material', icon: BookOpen, path: '/admin?tab=study-material' },
         { name: 'Activities', icon: FileText, path: '/admin/activities' },
         { name: 'Tools', icon: PenTool, path: '/admin/tools' },
 

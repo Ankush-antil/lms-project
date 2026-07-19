@@ -1216,126 +1216,361 @@ const AdminDashboard = () => {
                         {/* Header */}
                         <div className="flex items-center justify-between mb-5 border-b border-slate-250 pb-3">
                             <div className="flex items-center gap-2.5">
+                                {selectedMaterialForAnalytics && (
+                                    <button
+                                        onClick={() => setSelectedMaterialForAnalytics(null)}
+                                        className="p-1 hover:bg-slate-200 rounded-lg text-slate-500 hover:text-slate-800 transition-all cursor-pointer mr-1 flex items-center justify-center border border-slate-300 bg-white"
+                                        title="Back to Study Materials"
+                                    >
+                                        <ArrowLeft size={14} />
+                                    </button>
+                                )}
                                 <div className="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center">
                                     <FolderOpen className="text-[#3E3ADD]" size={18} />
                                 </div>
                                 <div>
-                                    <h3 className="font-extrabold text-slate-800 text-sm">Study Materials</h3>
+                                    <h3 className="font-extrabold text-slate-800 text-sm">
+                                        {selectedMaterialForAnalytics ? 'Material Performance' : 'Study Materials'}
+                                    </h3>
                                     <p className="text-[10px] text-slate-450 font-semibold uppercase">
-                                        {activeMaterialsGroup.student?.name || 'All Students'} • {activeMaterialsGroup.subject} • {activeMaterialsGroup.dayNum ? `Inbox ${activeMaterialsGroup.dayNum}` : (activeMaterialsGroup.inboxId || 'N/A')}
+                                        {selectedMaterialForAnalytics 
+                                            ? selectedMaterialForAnalytics.title 
+                                            : `${activeMaterialsGroup.student?.name || 'All Students'} • ${activeMaterialsGroup.subject} • ${activeMaterialsGroup.dayNum ? `Inbox ${activeMaterialsGroup.dayNum}` : (activeMaterialsGroup.inboxId || 'N/A')}`}
                                     </p>
                                 </div>
                             </div>
                             <button
-                                onClick={() => setActiveMaterialsGroup(null)}
+                                onClick={() => {
+                                    setSelectedMaterialForAnalytics(null);
+                                    setActiveMaterialsGroup(null);
+                                }}
                                 className="w-7 h-7 rounded-full bg-slate-200/60 hover:bg-slate-200 flex items-center justify-center text-slate-650 transition-all cursor-pointer text-sm font-bold shadow-xs"
                             >
                                 ×
                             </button>
                         </div>
 
-                        {/* List Grid */}
-                        <div className="flex-1 overflow-y-auto space-y-3.5 pr-1">
-                            {activeMaterialsGroup.items.map((item, idx) => (
-                                <div key={item._id} className="bg-white border border-slate-200/60 rounded-2xl p-4 flex items-center justify-between gap-4 shadow-sm hover:shadow-md transition-all duration-200">
-                                    <div className="flex flex-col min-w-0 flex-1">
-                                        <span className="font-extrabold text-slate-800 text-xs truncate" title={item.title}>
-                                            {idx + 1}. {item.title}
-                                        </span>
-                                        <span className="text-slate-400 text-[10px] font-mono mt-0.5 truncate" title={item.filename}>
-                                            {item.filename || 'No file attached'}
-                                        </span>
-                                        <span className="text-[9px] text-indigo-500 font-extrabold uppercase mt-1 tracking-wider">
-                                            {item.materialType || 'pdf'}
-                                        </span>
+                        {selectedMaterialForAnalytics ? (
+                            selectedMaterialForAnalytics.materialType === 'video' ? (
+                                /* Video Analytics Content */
+                                loadingVideoAnalytics ? (
+                                    <div className="flex-1 flex flex-col justify-center items-center py-20 gap-3">
+                                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-650"></div>
+                                        <p className="text-xs text-slate-500 font-bold">Loading video analytics...</p>
                                     </div>
-                                    <div className="flex items-center gap-2 shrink-0">
-                                        {item.student && (
-                                            <button
-                                                onClick={() => {
-                                                    setActiveMaterialsGroup(null);
-                                                    handleOpenRiReport(item);
-                                                }}
-                                                className="px-2.5 py-1 bg-indigo-50 hover:bg-[#3E3ADD] text-[#3E3ADD] hover:text-white border border-indigo-150 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer shadow-xs active:scale-95"
-                                                title="View RI Report"
-                                            >
-                                                RI
-                                            </button>
+                                ) : (
+                                    <div className="flex-1 overflow-y-auto space-y-6">
+                                        {/* Video info card */}
+                                        <div className="bg-white border border-slate-200/60 rounded-2xl p-4 flex flex-wrap gap-2.5 items-center justify-between shadow-xs">
+                                            <div className="min-w-0">
+                                                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Video filename</h4>
+                                                <p className="text-xs font-mono text-slate-500 truncate mt-0.5">{selectedMaterialForAnalytics.filename}</p>
+                                            </div>
+                                            <div className="flex gap-2 shrink-0">
+                                                <span className="bg-slate-50 border border-slate-200 text-slate-600 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full">
+                                                    Course: {selectedMaterialForAnalytics.course || 'All'}
+                                                </span>
+                                                <span className="bg-slate-50 border border-slate-200 text-slate-600 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full">
+                                                    Subject: {selectedMaterialForAnalytics.subject || 'All'}
+                                                </span>
+                                                <span className="bg-slate-50 border border-slate-200 text-slate-600 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full">
+                                                    Institute: {selectedMaterialForAnalytics.institute}
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        {/* 5 Aggregate Cards Grid */}
+                                        {(() => {
+                                            const uniqueViewers = selectedMaterialForAnalytics.views?.length || 0;
+                                            const totalViews = selectedMaterialForAnalytics.views?.reduce((sum, v) => sum + (v.count || 0), 0) || 0;
+                                            const uniquePlayers = videoAnalyticsData?.records?.length || 0;
+                                            const totalPlays = videoAnalyticsData?.records?.reduce((sum, r) => sum + (r.sessions?.length || 0), 0) || 0;
+                                            const totalWatchSecs = videoAnalyticsData?.records?.reduce((sum, r) => {
+                                                return sum + (r.totalWatchTime || r.sessions?.reduce((sSum, s) => sSum + (s.sessionDuration || 0), 0) || 0);
+                                            }, 0) || 0;
+                                            
+                                            const startRate = uniqueViewers > 0 
+                                                ? Math.min(Math.round((uniquePlayers / uniqueViewers) * 100), 100) 
+                                                : 0;
+
+                                            const completedPlayers = videoAnalyticsData?.records?.filter(r => {
+                                                const pct = r.progress?.completionPercentage || 0;
+                                                return (r.completionAttempts > 0) || (pct >= 95);
+                                            }).length || 0;
+
+                                            const completionRate = uniquePlayers > 0 
+                                                ? Math.min(Math.round((completedPlayers / uniquePlayers) * 100), 100) 
+                                                : 0;
+
+                                            return (
+                                                <div className="grid grid-cols-2 md:grid-cols-5 gap-4 animate-fade-in">
+                                                    {/* 1. Total Views */}
+                                                    <div className="bg-white border border-slate-200/60 rounded-2xl p-4 flex flex-col justify-between shadow-xs">
+                                                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">Total Views</span>
+                                                        <span className="text-2xl font-black text-indigo-650 mt-1 block">
+                                                            {totalViews}
+                                                        </span>
+                                                        <span className="text-[9px] text-slate-450 font-semibold mt-1 block">
+                                                            {uniqueViewers} Unique Viewers
+                                                        </span>
+                                                    </div>
+
+                                                    {/* 2. Total Watch Time */}
+                                                    <div className="bg-white border border-slate-200/60 rounded-2xl p-4 flex flex-col justify-between shadow-xs">
+                                                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">Total Watch Time</span>
+                                                        <span className="text-2xl font-black text-emerald-600 mt-1 block">
+                                                            {formatDuration(totalWatchSecs)}
+                                                        </span>
+                                                        <span className="text-[9px] text-slate-455 font-semibold mt-1 block">
+                                                            Accumulated watch
+                                                        </span>
+                                                    </div>
+
+                                                    {/* 3. Total Play Count */}
+                                                    <div className="bg-white border border-slate-200/60 rounded-2xl p-4 flex flex-col justify-between shadow-xs">
+                                                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">Total Play Count</span>
+                                                        <span className="text-2xl font-black text-purple-600 mt-1 block">
+                                                            {totalPlays}
+                                                        </span>
+                                                        <span className="text-[9px] text-slate-455 font-semibold mt-1 block">
+                                                            Total sessions
+                                                        </span>
+                                                    </div>
+
+                                                    {/* 4. Video Start Rate */}
+                                                    <div className="bg-white border border-slate-200/60 rounded-2xl p-4 flex flex-col justify-between shadow-xs">
+                                                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">Video Start Rate (%)</span>
+                                                        <span className="text-2xl font-black text-blue-600 mt-1 block">
+                                                            {startRate}%
+                                                        </span>
+                                                        <span className="text-[9px] text-slate-455 font-semibold mt-1 block">
+                                                            Played vs Viewed
+                                                        </span>
+                                                    </div>
+
+                                                    {/* 5. Video Completion Rate */}
+                                                    <div className="bg-white border border-slate-200/60 rounded-2xl p-4 flex flex-col justify-between shadow-xs">
+                                                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">Completion Rate (%)</span>
+                                                        <span className="text-2xl font-black text-amber-600 mt-1 block">
+                                                            {completionRate}%
+                                                        </span>
+                                                        <span className="text-[9px] text-slate-455 font-semibold mt-1 block">
+                                                            Finished (95-100%)
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })()}
+
+                                        {/* Student Breakdown Table */}
+                                        <div className="space-y-3">
+                                            <h4 className="text-[10px] font-black text-slate-455 uppercase tracking-widest">Student Watch Details</h4>
+                                            {!videoAnalyticsData?.records || videoAnalyticsData.records.length === 0 ? (
+                                                <p className="text-xs text-slate-400 italic py-6 text-center bg-white rounded-2xl border border-slate-200/60 shadow-xs animate-fade-in">
+                                                    No video sessions recorded yet.
+                                                </p>
+                                            ) : (
+                                                <div className="overflow-x-auto rounded-2xl border border-slate-200/60 bg-white shadow-xs animate-fade-in">
+                                                    <table className="w-full text-left border-collapse text-xs">
+                                                        <thead>
+                                                            <tr className="bg-slate-50 border-b border-slate-150 text-[10px] font-black text-slate-400 uppercase tracking-wider">
+                                                                <th className="p-3">Student Name</th>
+                                                                <th className="p-3 text-center">Sessions</th>
+                                                                <th className="p-3 text-center">Total Watch Time</th>
+                                                                <th className="p-3 text-center">Max Watched %</th>
+                                                                <th className="p-3 text-right">Completion Status</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody className="divide-y divide-slate-100 text-slate-700 font-semibold">
+                                                            {videoAnalyticsData.records.map((r, index) => {
+                                                                const isCompleted = (r.completionAttempts > 0) || (r.progress?.completionPercentage >= 95);
+                                                                return (
+                                                                    <tr key={r._id || index} className="hover:bg-slate-50/50 transition-colors">
+                                                                        <td className="p-3">
+                                                                            <p className="font-bold text-slate-800">{r.student?.name || 'Unknown Student'}</p>
+                                                                            <p className="text-[9px] text-slate-400">{r.student?.email || ''}</p>
+                                                                        </td>
+                                                                        <td className="p-3 text-center font-mono text-slate-650">{r.sessions?.length || 0}</td>
+                                                                        <td className="p-3 text-center text-slate-655">
+                                                                            {formatDuration(r.totalWatchTime || r.sessions?.reduce((sum, s) => sum + (s.sessionDuration || 0), 0) || 0)}
+                                                                        </td>
+                                                                        <td className="p-3 text-center font-mono font-bold text-indigo-650">
+                                                                            {Math.round(r.progress?.completionPercentage || 0)}%
+                                                                        </td>
+                                                                        <td className="p-3 text-right">
+                                                                            {isCompleted ? (
+                                                                                <span className="inline-block bg-emerald-50 border border-emerald-100 text-emerald-650 px-2 py-0.5 rounded-full text-[9px] font-black">
+                                                                                    Completed ({r.completionAttempts || 1})
+                                                                                </span>
+                                                                            ) : (
+                                                                                <span className="inline-block bg-amber-50 border border-amber-100 text-amber-600 px-2 py-0.5 rounded-full text-[9px] font-black">
+                                                                                    In Progress
+                                                                                </span>
+                                                                            )}
+                                                                        </td>
+                                                                    </tr>
+                                                                );
+                                                            })}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                )
+                            ) : (
+                                /* Standard PDF/Doc Analytics Content */
+                                <div className="flex-1 overflow-y-auto space-y-4 animate-fade-in">
+                                    <div className="bg-white border border-slate-200/60 rounded-2xl p-4 flex items-center justify-between shadow-xs">
+                                        <div className="space-y-0.5">
+                                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Views</span>
+                                            <p className="text-2xl font-black text-[#3E3ADD]">
+                                                {selectedMaterialForAnalytics.views?.reduce((sum, v) => sum + (v.count || 0), 0) || 0}
+                                            </p>
+                                        </div>
+                                        <div className="space-y-0.5 text-right">
+                                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Unique Viewers</span>
+                                            <p className="text-2xl font-black text-slate-700">
+                                                {selectedMaterialForAnalytics.views?.length || 0}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <h4 className="text-[10px] font-black text-slate-450 uppercase tracking-widest">Viewer Details</h4>
+                                        {!selectedMaterialForAnalytics.views || selectedMaterialForAnalytics.views.length === 0 ? (
+                                            <p className="text-xs text-slate-400 italic py-4 text-center bg-white rounded-2xl border border-slate-200/60">
+                                                No views recorded yet.
+                                            </p>
+                                        ) : (
+                                            <div className="border border-slate-200/60 bg-white rounded-2xl overflow-hidden divide-y divide-slate-100 shadow-xs">
+                                                {selectedMaterialForAnalytics.views.map((v, index) => (
+                                                    <div key={index} className="p-3 hover:bg-slate-50/50 flex items-center justify-between gap-3 text-xs">
+                                                        <div className="min-w-0">
+                                                            <p className="font-bold text-slate-800 truncate">{v.student?.name || 'Unknown Student'}</p>
+                                                            <p className="text-[10px] text-slate-400 truncate">{v.student?.email || ''}</p>
+                                                        </div>
+                                                        <div className="text-right shrink-0">
+                                                            <span className="bg-indigo-50 border border-indigo-100 text-indigo-650 px-2 py-0.5 rounded-full text-[10px] font-black">
+                                                                {v.count} {v.count === 1 ? 'view' : 'views'}
+                                                            </span>
+                                                            <p className="text-[9px] text-slate-450 mt-1 font-semibold">
+                                                                {new Date(v.lastViewed).toLocaleDateString()} {new Date(v.lastViewed).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
                                         )}
-                                        <a
-                                            href={item.fileUrl}
-                                            target="_blank"
-                                            rel="noreferrer"
-                                            className="p-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 rounded-xl transition-all cursor-pointer shadow-xs active:scale-95 flex items-center justify-center"
-                                            title="View file/link"
-                                        >
-                                            <FolderOpen size={13} />
-                                        </a>
-                                        <button
-                                            type="button"
-                                            onClick={() => setSelectedMaterialForAnalytics(item)}
-                                            className="p-2 bg-indigo-50 hover:bg-indigo-100 border border-indigo-100 text-[#3E3ADD] rounded-xl transition-all cursor-pointer shadow-xs active:scale-95 flex items-center justify-center"
-                                            title="View Material Analytics"
-                                        >
-                                            <BarChart3 size={13} />
-                                        </button>
-                                        <button
-                                            onClick={() => {
-                                                setEditingMaterial(item);
-                                                setMatTitle(item.title || '');
-                                                setMatUrl(item.fileUrl || '');
-                                                setUploadInst(item.institute || '');
-                                                setUploadCourse(item.course || '');
-                                                setUploadSubject(item.subject || '');
-                                                setUploadDayNum(item.dayNum || 1);
-                                                if (item.student) {
-                                                    setUploadTarget('particular');
-                                                    setUploadStudentIds([item.student._id || item.student]);
-                                                } else {
-                                                    setUploadTarget('all');
-                                                    setUploadStudentIds([]);
-                                                }
-                                                setSelectedUploadType(item.materialType || 'pdf');
-                                                setMatFile(null);
-                                                setHtmlCode(item.htmlContent || '');
-                                                setAdminUploadModalOpen(true);
-                                            }}
-                                            className="p-2 bg-indigo-50/50 hover:bg-indigo-100 border border-indigo-100 text-[#3E3ADD] rounded-xl transition-all cursor-pointer shadow-xs active:scale-95 flex items-center justify-center"
-                                            title="Edit info"
-                                        >
-                                            <Edit size={13} />
-                                        </button>
-                                        <button
-                                            onClick={() => {
-                                                handleDeleteMaterial(item._id);
-                                                setActiveMaterialsGroup(prev => {
-                                                    if (!prev) return null;
-                                                    const updatedItems = prev.items.filter(i => i._id !== item._id);
-                                                    if (updatedItems.length === 0) return null;
-                                                    return { ...prev, items: updatedItems };
-                                                });
-                                            }}
-                                            disabled={deletingMaterialId === item._id}
-                                            className="p-2 bg-rose-50 hover:bg-rose-100 border border-rose-100 text-rose-600 rounded-xl transition-all disabled:opacity-50 cursor-pointer shadow-xs active:scale-95 flex items-center justify-center"
-                                            title="Delete study material"
-                                        >
-                                            <Trash2 size={13} />
-                                        </button>
                                     </div>
                                 </div>
-                            ))}
-                        </div>
+                            )
+                        ) : (
+                            /* List Grid */
+                            <>
+                                <div className="flex-1 overflow-y-auto space-y-3.5 pr-1">
+                                    {activeMaterialsGroup.items.map((item, idx) => (
+                                        <div key={item._id} className="bg-white border border-slate-200/60 rounded-2xl p-4 flex items-center justify-between gap-4 shadow-sm hover:shadow-md transition-all duration-200">
+                                            <div className="flex flex-col min-w-0 flex-1">
+                                                <span className="font-extrabold text-slate-800 text-xs truncate" title={item.title}>
+                                                    {idx + 1}. {item.title}
+                                                </span>
+                                                <span className="text-slate-400 text-[10px] font-mono mt-0.5 truncate" title={item.filename}>
+                                                    {item.filename || 'No file attached'}
+                                                </span>
+                                                <span className="text-[9px] text-indigo-500 font-extrabold uppercase mt-1 tracking-wider">
+                                                    {item.materialType || 'pdf'}
+                                                </span>
+                                            </div>
+                                            <div className="flex items-center gap-2 shrink-0">
+                                                {item.student && (
+                                                    <button
+                                                        onClick={() => {
+                                                            setActiveMaterialsGroup(null);
+                                                            handleOpenRiReport(item);
+                                                        }}
+                                                        className="px-2.5 py-1 bg-indigo-50 hover:bg-[#3E3ADD] text-[#3E3ADD] hover:text-white border border-indigo-150 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer shadow-xs active:scale-95"
+                                                        title="View RI Report"
+                                                    >
+                                                        RI
+                                                    </button>
+                                                )}
+                                                <a
+                                                    href={item.fileUrl}
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                    className="p-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 rounded-xl transition-all cursor-pointer shadow-xs active:scale-95 flex items-center justify-center"
+                                                    title="View file/link"
+                                                >
+                                                    <FolderOpen size={13} />
+                                                </a>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setSelectedMaterialForAnalytics(item)}
+                                                    className="p-2 bg-indigo-50 hover:bg-indigo-100 border border-indigo-100 text-[#3E3ADD] rounded-xl transition-all cursor-pointer shadow-xs active:scale-95 flex items-center justify-center"
+                                                    title="View Material Analytics"
+                                                >
+                                                    <BarChart3 size={13} />
+                                                </button>
+                                                <button
+                                                    onClick={() => {
+                                                        setEditingMaterial(item);
+                                                        setMatTitle(item.title || '');
+                                                        setMatUrl(item.fileUrl || '');
+                                                        setUploadInst(item.institute || '');
+                                                        setUploadCourse(item.course || '');
+                                                        setUploadSubject(item.subject || '');
+                                                        setUploadDayNum(item.dayNum || 1);
+                                                        if (item.student) {
+                                                            setUploadTarget('particular');
+                                                            setUploadStudentIds([item.student._id || item.student]);
+                                                        } else {
+                                                            setUploadTarget('all');
+                                                            setUploadStudentIds([]);
+                                                        }
+                                                        setSelectedUploadType(item.materialType || 'pdf');
+                                                        setMatFile(null);
+                                                        setHtmlCode(item.htmlContent || '');
+                                                        setAdminUploadModalOpen(true);
+                                                    }}
+                                                    className="p-2 bg-indigo-50/50 hover:bg-indigo-100 border border-indigo-100 text-[#3E3ADD] rounded-xl transition-all cursor-pointer shadow-xs active:scale-95 flex items-center justify-center"
+                                                    title="Edit info"
+                                                >
+                                                    <Edit size={13} />
+                                                </button>
+                                                <button
+                                                    onClick={() => {
+                                                        handleDeleteMaterial(item._id);
+                                                        setActiveMaterialsGroup(prev => {
+                                                            if (!prev) return null;
+                                                            const updatedItems = prev.items.filter(i => i._id !== item._id);
+                                                            if (updatedItems.length === 0) return null;
+                                                            return { ...prev, items: updatedItems };
+                                                        });
+                                                    }}
+                                                    disabled={deletingMaterialId === item._id}
+                                                    className="p-2 bg-rose-50 hover:bg-rose-100 border border-rose-100 text-rose-600 rounded-xl transition-all disabled:opacity-50 cursor-pointer shadow-xs active:scale-95 flex items-center justify-center"
+                                                    title="Delete study material"
+                                                >
+                                                    <Trash2 size={13} />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
 
-                        {/* Footer */}
-                        <div className="flex justify-end pt-3.5 border-t border-slate-250 mt-4.5">
-                            <button
-                                type="button"
-                                onClick={() => setActiveMaterialsGroup(null)}
-                                className="px-4.5 py-2 bg-slate-200/85 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer shadow-sm active:scale-95"
-                            >
-                                Close
-                            </button>
-                        </div>
+                                {/* Footer */}
+                                <div className="flex justify-end pt-3.5 border-t border-slate-255 mt-4.5">
+                                    <button
+                                        type="button"
+                                        onClick={() => setActiveMaterialsGroup(null)}
+                                        className="px-4.5 py-2 bg-slate-200/85 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer shadow-sm active:scale-95"
+                                    >
+                                        Close
+                                    </button>
+                                </div>
+                            </>
+                        )}
                     </div>
                 </div>,
                 document.body
@@ -1344,265 +1579,6 @@ const AdminDashboard = () => {
             <AddUserModal isOpen={isUserModalOpen} onClose={() => { setIsUserModalOpen(false); setQuickAddRole(null); }} role={quickAddRole || modalRole} onSuccess={fetchDashboardData} />
             <AddInstituteModal isOpen={isInstituteModalOpen} onClose={() => setIsInstituteModalOpen(false)} refreshData={fetchDashboardData} />
             <AddCourseModal isOpen={isCourseModalOpen} onClose={() => setIsCourseModalOpen(false)} refreshData={fetchDashboardData} />
-
-            {selectedMaterialForAnalytics && (
-                <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm animate-fade-in p-4">
-                    <div className="absolute inset-0" onClick={() => setSelectedMaterialForAnalytics(null)} />
-                    {selectedMaterialForAnalytics.materialType === 'video' ? (
-                        <div className="bg-white border border-slate-100 rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col relative z-50 animate-scale-up text-left">
-                            {/* Video Analytics Header */}
-                            <div className="flex justify-between items-center p-5 border-b border-slate-100 bg-slate-50/50 shrink-0">
-                                <div className="flex items-center gap-2">
-                                    <BarChart3 size={18} className="text-indigo-650" />
-                                    <div>
-                                        <h3 className="text-sm font-extrabold text-slate-800 tracking-tight">Video Performance Analytics</h3>
-                                        <p className="text-[10px] text-slate-505 font-semibold">Aggregated metrics for all viewers</p>
-                                    </div>
-                                </div>
-                                <button
-                                    type="button"
-                                    onClick={() => setSelectedMaterialForAnalytics(null)}
-                                    className="w-8 h-8 flex items-center justify-center bg-slate-50 hover:bg-slate-100 text-slate-500 hover:text-slate-700 rounded-xl transition-all cursor-pointer font-bold text-lg"
-                                >
-                                    ×
-                                </button>
-                            </div>
-
-                            {/* Video Analytics Content */}
-                            {loadingVideoAnalytics ? (
-                                <div className="flex-1 flex flex-col justify-center items-center py-20 gap-3">
-                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
-                                    <p className="text-xs text-slate-500 font-bold">Loading video analytics...</p>
-                                </div>
-                            ) : (
-                                <div className="p-6 flex-1 overflow-y-auto space-y-6">
-                                    {/* Video Info Header */}
-                                    <div className="border-b border-slate-100 pb-4">
-                                        <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Video Title</h4>
-                                        <h3 className="text-base font-black text-slate-800 mt-1">{selectedMaterialForAnalytics.title}</h3>
-                                        <div className="flex flex-wrap gap-2.5 mt-2.5">
-                                            <span className="bg-slate-50 border border-slate-200 text-slate-600 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full">
-                                                Course: {selectedMaterialForAnalytics.course || 'All'}
-                                            </span>
-                                            <span className="bg-slate-50 border border-slate-200 text-slate-600 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full">
-                                                Subject: {selectedMaterialForAnalytics.subject || 'All'}
-                                            </span>
-                                            <span className="bg-slate-50 border border-slate-200 text-slate-600 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full">
-                                                Institute: {selectedMaterialForAnalytics.institute}
-                                            </span>
-                                        </div>
-                                    </div>
-
-                                    {/* 5 Aggregate Cards Grid */}
-                                    {(() => {
-                                        const uniqueViewers = selectedMaterialForAnalytics.views?.length || 0;
-                                        const totalViews = selectedMaterialForAnalytics.views?.reduce((sum, v) => sum + (v.count || 0), 0) || 0;
-                                        const uniquePlayers = videoAnalyticsData?.records?.length || 0;
-                                        const totalPlays = videoAnalyticsData?.records?.reduce((sum, r) => sum + (r.sessions?.length || 0), 0) || 0;
-                                        const totalWatchSecs = videoAnalyticsData?.records?.reduce((sum, r) => {
-                                            return sum + (r.totalWatchTime || r.sessions?.reduce((sSum, s) => sSum + (s.sessionDuration || 0), 0) || 0);
-                                        }, 0) || 0;
-                                        
-                                        const startRate = uniqueViewers > 0 
-                                            ? Math.min(Math.round((uniquePlayers / uniqueViewers) * 100), 100) 
-                                            : 0;
-
-                                        const completedPlayers = videoAnalyticsData?.records?.filter(r => {
-                                            const pct = r.progress?.completionPercentage || 0;
-                                            return (r.completionAttempts > 0) || (pct >= 95);
-                                        }).length || 0;
-
-                                        const completionRate = uniquePlayers > 0 
-                                            ? Math.min(Math.round((completedPlayers / uniquePlayers) * 100), 100) 
-                                            : 0;
-
-                                        return (
-                                            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                                                {/* 1. Total Views */}
-                                                <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex flex-col justify-between">
-                                                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">Total Views</span>
-                                                    <span className="text-2xl font-black text-indigo-650 mt-1 block">
-                                                        {totalViews}
-                                                    </span>
-                                                    <span className="text-[9px] text-slate-450 font-semibold mt-1 block">
-                                                        {uniqueViewers} Unique Viewers
-                                                    </span>
-                                                </div>
-
-                                                {/* 2. Total Watch Time */}
-                                                <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex flex-col justify-between">
-                                                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">Total Watch Time</span>
-                                                    <span className="text-2xl font-black text-emerald-600 mt-1 block">
-                                                        {formatDuration(totalWatchSecs)}
-                                                    </span>
-                                                    <span className="text-[9px] text-slate-450 font-semibold mt-1 block">
-                                                        Accumulated watch
-                                                    </span>
-                                                </div>
-
-                                                {/* 3. Total Play Count */}
-                                                <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex flex-col justify-between">
-                                                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">Total Play Count</span>
-                                                    <span className="text-2xl font-black text-purple-600 mt-1 block">
-                                                        {totalPlays}
-                                                    </span>
-                                                    <span className="text-[9px] text-slate-450 font-semibold mt-1 block">
-                                                        Total sessions
-                                                    </span>
-                                                </div>
-
-                                                {/* 4. Video Start Rate */}
-                                                <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex flex-col justify-between">
-                                                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">Video Start Rate (%)</span>
-                                                    <span className="text-2xl font-black text-blue-600 mt-1 block">
-                                                        {startRate}%
-                                                    </span>
-                                                    <span className="text-[9px] text-slate-450 font-semibold mt-1 block">
-                                                        Played vs Viewed
-                                                    </span>
-                                                </div>
-
-                                                {/* 5. Video Completion Rate */}
-                                                <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex flex-col justify-between">
-                                                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">Completion Rate (%)</span>
-                                                    <span className="text-2xl font-black text-amber-600 mt-1 block">
-                                                        {completionRate}%
-                                                    </span>
-                                                    <span className="text-[9px] text-slate-450 font-semibold mt-1 block">
-                                                        Finished (95-100%)
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        );
-                                    })()}
-
-                                    {/* Student Breakdown Table */}
-                                    <div className="space-y-3">
-                                        <h4 className="text-[10px] font-black text-slate-450 uppercase tracking-widest">Student Watch Details</h4>
-                                        {!videoAnalyticsData?.records || videoAnalyticsData.records.length === 0 ? (
-                                            <p className="text-xs text-slate-400 italic py-6 text-center bg-slate-50 rounded-2xl border border-slate-100">
-                                                No video sessions recorded yet.
-                                            </p>
-                                        ) : (
-                                            <div className="overflow-x-auto rounded-2xl border border-slate-100">
-                                                <table className="w-full text-left border-collapse text-xs">
-                                                    <thead>
-                                                        <tr className="bg-slate-50 border-b border-slate-150 text-[10px] font-black text-slate-400 uppercase tracking-wider">
-                                                            <th className="p-3">Student Name</th>
-                                                            <th className="p-3 text-center">Sessions</th>
-                                                            <th className="p-3 text-center">Total Watch Time</th>
-                                                            <th className="p-3 text-center">Max Watched %</th>
-                                                            <th className="p-3 text-right">Completion Status</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody className="divide-y divide-slate-100 text-slate-700 font-semibold">
-                                                        {videoAnalyticsData.records.map((r, index) => {
-                                                            const isCompleted = (r.completionAttempts > 0) || (r.progress?.completionPercentage >= 95);
-                                                            return (
-                                                                <tr key={r._id || index} className="hover:bg-slate-50/50 transition-colors">
-                                                                    <td className="p-3">
-                                                                        <p className="font-bold text-slate-800">{r.student?.name || 'Unknown Student'}</p>
-                                                                        <p className="text-[9px] text-slate-400">{r.student?.email || ''}</p>
-                                                                    </td>
-                                                                    <td className="p-3 text-center font-mono text-slate-650">{r.sessions?.length || 0}</td>
-                                                                    <td className="p-3 text-center text-slate-650">
-                                                                        {formatDuration(r.totalWatchTime || r.sessions?.reduce((sum, s) => sum + (s.sessionDuration || 0), 0) || 0)}
-                                                                    </td>
-                                                                    <td className="p-3 text-center font-mono font-bold text-indigo-650">
-                                                                        {Math.round(r.progress?.completionPercentage || 0)}%
-                                                                    </td>
-                                                                    <td className="p-3 text-right">
-                                                                        {isCompleted ? (
-                                                                            <span className="inline-block bg-emerald-50 border border-emerald-100 text-emerald-650 px-2 py-0.5 rounded-full text-[9px] font-black">
-                                                                                Completed ({r.completionAttempts || 1})
-                                                                            </span>
-                                                                        ) : (
-                                                                            <span className="inline-block bg-amber-50 border border-amber-100 text-amber-600 px-2 py-0.5 rounded-full text-[9px] font-black">
-                                                                                In Progress
-                                                                            </span>
-                                                                        )}
-                                                                    </td>
-                                                                </tr>
-                                                            );
-                                                        })}
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    ) : (
-                        <div className="bg-white border border-slate-100 rounded-3xl shadow-2xl w-full max-w-lg max-h-[85vh] overflow-hidden flex flex-col relative z-50 animate-scale-up text-left">
-                            {/* Header */}
-                            <div className="flex justify-between items-center p-4 border-b border-slate-100 bg-slate-50/50 shrink-0">
-                                <div className="flex items-center gap-2">
-                                    <BarChart3 size={18} className="text-indigo-650" />
-                                    <h3 className="text-sm font-extrabold text-slate-800 tracking-tight">Material View Analytics</h3>
-                                </div>
-                                <button
-                                    type="button"
-                                    onClick={() => setSelectedMaterialForAnalytics(null)}
-                                    className="w-8 h-8 flex items-center justify-center bg-slate-50 hover:bg-slate-100 text-slate-500 hover:text-slate-700 rounded-xl transition-all cursor-pointer font-bold text-lg"
-                                >
-                                    ×
-                                </button>
-                            </div>
-
-                            {/* Content */}
-                            <div className="p-5 flex-1 overflow-y-auto space-y-4">
-                                <div>
-                                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Material Title</h4>
-                                    <p className="text-sm font-bold text-slate-800 mt-1">{selectedMaterialForAnalytics.title}</p>
-                                    <p className="text-[10px] text-slate-500 font-mono mt-0.5">{selectedMaterialForAnalytics.filename}</p>
-                                </div>
-
-                                <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-100 flex items-center justify-between">
-                                    <div className="space-y-0.5">
-                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Views</span>
-                                        <p className="text-2xl font-black text-indigo-600">
-                                            {selectedMaterialForAnalytics.views?.reduce((sum, v) => sum + (v.count || 0), 0) || 0}
-                                        </p>
-                                    </div>
-                                    <div className="space-y-0.5 text-right">
-                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Unique Viewers</span>
-                                        <p className="text-2xl font-black text-slate-700">
-                                            {selectedMaterialForAnalytics.views?.length || 0}
-                                        </p>
-                                    </div>
-                                </div>
-
-                                <div className="space-y-2">
-                                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Viewer Details</h4>
-                                    {!selectedMaterialForAnalytics.views || selectedMaterialForAnalytics.views.length === 0 ? (
-                                        <p className="text-xs text-slate-400 italic py-4 text-center">No views recorded yet.</p>
-                                    ) : (
-                                        <div className="border border-slate-100 rounded-xl overflow-hidden divide-y divide-slate-100">
-                                            {selectedMaterialForAnalytics.views.map((v, index) => (
-                                                <div key={index} className="p-3 bg-white hover:bg-slate-50/50 flex items-center justify-between gap-3 text-xs">
-                                                    <div className="min-w-0">
-                                                        <p className="font-bold text-slate-800 truncate">{v.student?.name || 'Unknown Student'}</p>
-                                                        <p className="text-[10px] text-slate-400 truncate">{v.student?.email || ''}</p>
-                                                    </div>
-                                                    <div className="text-right shrink-0">
-                                                        <span className="bg-indigo-50 border border-indigo-100 text-indigo-650 px-2 py-0.5 rounded-full text-[10px] font-black">
-                                                            {v.count} {v.count === 1 ? 'view' : 'views'}
-                                                        </span>
-                                                        <p className="text-[9px] text-slate-450 mt-1 font-semibold">
-                                                            {new Date(v.lastViewed).toLocaleDateString()} {new Date(v.lastViewed).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                </div>
-            )}
 
             {/* Admin Upload / Edit Material Modal */}
             {adminUploadModalOpen && createPortal(

@@ -171,7 +171,7 @@ const VideoAnalyticsDashboard = ({ videoId, studentId, onClose }) => {
                         >
                             <div>
                                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Total Click</span>
-                                <span className="text-3xl font-black text-[#3E3ADD] block mt-2">{getTotalClicks(selectedRecord)}</span>
+                                <span className="text-3xl font-black text-[#3E3ADD] block mt-2">{selectedRecord.sessions?.length || 0}</span>
                             </div>
                             <button
                                 type="button"
@@ -311,7 +311,7 @@ const VideoAnalyticsDashboard = ({ videoId, studentId, onClose }) => {
                                                 <th className="pb-3 text-center">Total Forward</th>
                                                 <th className="pb-3 text-center">Total Rewind</th>
                                                 <th className="pb-3 text-center">Tab Switch</th>
-                                                <th className="pb-3 text-center">Left Video</th>
+                                                <th className="pb-3 text-center">Left Video (Time)</th>
                                                 <th className="pb-3 pr-3 text-right">Total Watch Time</th>
                                             </tr>
                                         </thead>
@@ -331,7 +331,16 @@ const VideoAnalyticsDashboard = ({ videoId, studentId, onClose }) => {
                                                             <td className="py-3 text-center text-slate-655 font-mono">{s.totalForward || 0}</td>
                                                             <td className="py-3 text-center text-slate-655 font-mono">{s.totalRewind || 0}</td>
                                                             <td className="py-3 text-center text-rose-500 font-bold font-mono">{s.tabSwitch || 0}</td>
-                                                            <td className="py-3 text-center text-amber-500 font-bold font-mono">{s.leftVideo || 0}</td>
+                                                            <td className="py-3 text-center">
+                                                                {s.sessionEnd ? (
+                                                                    <>
+                                                                        <p className="font-bold text-slate-850">Ended</p>
+                                                                        <p className="text-[9px] text-slate-400 font-medium mt-0.5">{new Date(s.sessionEnd).toLocaleString()}</p>
+                                                                    </>
+                                                                ) : (
+                                                                    <span className="text-slate-400 italic">In Progress</span>
+                                                                )}
+                                                            </td>
                                                             <td className="py-3 pr-3 text-right text-indigo-600 font-bold">
                                                                 {((s.sessionDuration || 0) / 60).toFixed(2)} mins
                                                                 <span className="text-[9px] text-slate-400 font-medium block mt-0.5">({formatDuration(s.sessionDuration)})</span>

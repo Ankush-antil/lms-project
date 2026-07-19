@@ -219,8 +219,47 @@ const getVideoAnalyticsDetails = asyncHandler(async (req, res) => {
         }
     }
 
+    // Find all study materials with the same fileUrl (or just this one if fileUrl is empty)
+    const materialsSharingUrl = material.fileUrl
+        ? await StudyMaterial.find({ fileUrl: material.fileUrl }).populate('views.student', 'name email')
+        : [material];
+    const materialIds = materialsSharingUrl.map(m => m._id);
+
+    // Merge views from all matching materials
+    const mergedViews = [];
+    materialsSharingUrl.forEach(m => {
+        if (m.views && m.views.length > 0) {
+            m.views.forEach(v => {
+                const studentObj = v.student;
+                const studentIdStr = studentObj?._id?.toString() || studentObj?.toString();
+                if (!studentIdStr) return;
+
+                const existing = mergedViews.find(ev => {
+                    const evIdStr = ev.student?._id?.toString() || ev.student?.toString();
+                    return evIdStr === studentIdStr;
+                });
+
+                if (existing) {
+                    existing.count = (existing.count || 0) + (v.count || 1);
+                    if (new Date(v.lastViewed) > new Date(existing.lastViewed)) {
+                        existing.lastViewed = v.lastViewed;
+                    }
+                } else {
+                    mergedViews.push({
+                        student: studentObj,
+                        count: v.count || 1,
+                        lastViewed: v.lastViewed || new Date()
+                    });
+                }
+            });
+        }
+    });
+
+    const materialObj = material.toObject();
+    materialObj.views = mergedViews;
+
     // Query builder
-    const query = { video: videoId };
+    const query = { video: { $in: materialIds } };
     if (studentId) {
         query.student = studentId;
     }
@@ -230,7 +269,7 @@ const getVideoAnalyticsDetails = asyncHandler(async (req, res) => {
         .sort({ updatedAt: -1 });
 
     res.json({
-        material,
+        material: materialObj,
         records
     });
 });

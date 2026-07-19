@@ -794,6 +794,45 @@ const AdminDashboard = () => {
                     return searchMatches && courseMatches && instituteMatches;
                 });
 
+                const uniqueMaterials = [];
+                filteredMaterials.forEach(mat => {
+                    const key = mat.fileUrl ? mat.fileUrl.trim() : mat._id;
+                    const existing = uniqueMaterials.find(m => m.fileUrl && m.fileUrl.trim() === key);
+                    if (existing) {
+                        // Merge views count for each student
+                        if (mat.views && mat.views.length > 0) {
+                            mat.views.forEach(v => {
+                                const ev = existing.views.find(view => (view.student?._id || view.student) === (v.student?._id || v.student));
+                                if (ev) {
+                                    ev.count = (ev.count || 0) + (v.count || 1);
+                                    if (new Date(v.lastViewed) > new Date(ev.lastViewed)) {
+                                        ev.lastViewed = v.lastViewed;
+                                    }
+                                } else {
+                                    existing.views.push({ ...v });
+                                }
+                            });
+                        }
+                        // Add student to the allStudents array
+                        if (mat.student) {
+                            if (!existing.allStudents) {
+                                existing.allStudents = [existing.student].filter(Boolean);
+                            }
+                            const exists = existing.allStudents.some(s => (s._id || s) === (mat.student._id || mat.student));
+                            if (!exists) {
+                                existing.allStudents.push(mat.student);
+                            }
+                        }
+                    } else {
+                        const clone = { 
+                            ...mat, 
+                            views: mat.views ? mat.views.map(v => ({ ...v })) : [],
+                            allStudents: mat.student ? [mat.student] : [] 
+                        };
+                        uniqueMaterials.push(clone);
+                    }
+                });
+
                 return (
                     <div className="bg-white rounded-[2rem] p-6 border border-slate-100 shadow-sm animate-fade-in text-left">
                         <div className="border-b border-slate-100 pb-4 mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -869,7 +908,7 @@ const AdminDashboard = () => {
                                     />
                                 </div>
                                 <span className="bg-[#0b1329] text-white px-3.5 py-1.5 rounded-full text-xs font-black font-mono shrink-0">
-                                    Total: {filteredMaterials.length}
+                                    Total: {uniqueMaterials.length}
                                 </span>
                             </div>
                         </div>
@@ -878,7 +917,7 @@ const AdminDashboard = () => {
                             <div className="flex justify-center items-center py-20">
                                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0b1329]"></div>
                             </div>
-                        ) : filteredMaterials.length === 0 ? (
+                        ) : uniqueMaterials.length === 0 ? (
                             <div className="text-center py-16 text-slate-400 font-medium font-semibold">
                                 No study materials found
                             </div>
@@ -896,7 +935,7 @@ const AdminDashboard = () => {
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-100 text-slate-700 text-xs font-semibold">
-                                        {filteredMaterials.map((item, idx) => {
+                                        {uniqueMaterials.map((item, idx) => {
                                             const uploadDate = new Date(item.createdAt).toLocaleDateString(undefined, {
                                                 year: 'numeric',
                                                 month: 'short',
@@ -922,9 +961,9 @@ const AdminDashboard = () => {
                                                             <span className="text-[9px] text-indigo-500 font-extrabold uppercase mt-1 tracking-wider">
                                                                 {item.materialType || 'pdf'}
                                                             </span>
-                                                            {item.student && (
+                                                            {item.allStudents && item.allStudents.length > 0 && (
                                                                 <div className="text-[9px] text-slate-400 font-semibold mt-0.5">
-                                                                    For student: <span className="text-slate-655 font-bold">{item.student.name}</span>
+                                                                    For student{item.allStudents.length > 1 ? 's' : ''}: <span className="text-slate-655 font-bold">{item.allStudents.map(s => s.name || s).join(', ')}</span>
                                                                 </div>
                                                             )}
                                                         </div>

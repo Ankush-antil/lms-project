@@ -1976,7 +1976,7 @@ const StudentTests = () => {
                                                         const isEmbed = mat.filename === 'Web Link';
 
                                                         return (
-                                                            <div key={mat._id} className="bg-white p-3.5 rounded-xl border border-slate-200 hover:shadow-md transition-all flex flex-col justify-between hover:-translate-y-0.5 duration-200 w-[240px] shrink-0">
+                                                            <div key={mat._id} className="bg-white p-3.5 rounded-xl border border-slate-200 hover:shadow-md transition-all flex flex-col justify-between hover:-translate-y-0.5 duration-200 w-[185px] shrink-0">
                                                                 <div className="space-y-2">
                                                                     <div className="flex items-center justify-between">
                                                                         <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg border text-[9px] font-black uppercase tracking-wider ${config.color}`}>

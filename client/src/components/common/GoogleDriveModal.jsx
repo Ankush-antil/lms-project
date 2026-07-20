@@ -396,9 +396,9 @@ const GoogleDriveModal = ({ isOpen, onClose, fileName, fileBlob, onSaveSuccess, 
             await performUpload(token, targetFolderId, finalName);
         } catch (err) {
             console.error("Auto save flow error:", err);
-            // Check if token expired (401 Unauthorized)
-            if (err.message && (err.message.includes('401') || err.message.toLowerCase().includes('unauthorized'))) {
-                toast.error("Google Drive session expired. Please connect again.");
+            // Check if token expired (401/403)
+            if (err.message && (err.message.includes('401') || err.message.includes('403') || err.message.toLowerCase().includes('unauthorized'))) {
+                toast.error("Google Drive session expired. Please reconnect your account.");
                 clearGoogleAuth();
                 return;
             }
@@ -534,9 +534,9 @@ const GoogleDriveModal = ({ isOpen, onClose, fileName, fileBlob, onSaveSuccess, 
                 headers: { Authorization: `Bearer ${tokenVal || accessToken}` }
             });
             if (!res.ok) {
-                if (res.status === 401) {
+                if (res.status === 401 || res.status === 403) {
                     clearGoogleAuth();
-                    throw new Error("Google Drive session expired. Please connect again.");
+                    throw new Error("Google Drive session expired. Please reconnect your account.");
                 }
                 throw new Error(`Google Drive API returned status ${res.status}`);
             }

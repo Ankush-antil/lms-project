@@ -12,8 +12,8 @@ const roleIcons = {
     Institute: Shield,
     Accountant: Calculator,
     Marketer: Megaphone,
-    Staff: Briefcase,
-    Parent: Heart
+    Parent: Heart,
+    Guest: User
 };
 
 const ChangeRoleModal = ({ isOpen, onClose }) => {
@@ -41,11 +41,10 @@ const ChangeRoleModal = ({ isOpen, onClose }) => {
     const allowedRoles = [...new Set([
         user?.role,
         ...(user?.allowedRoles || [])
-    ])].filter(r => r && r !== 'Staff');
+    ])].filter(r => r && r.toString().trim().toLowerCase() !== 'staff');
 
-
-    // Roles that can be requested (not already allowed, and not Admin)
-    const requestableRoles = allRoles.filter(role => role !== 'Admin' && !allowedRoles.includes(role));
+    // Roles that can be requested (not already allowed, and not Admin or Staff)
+    const requestableRoles = allRoles.filter(role => role !== 'Admin' && role !== 'Staff' && !allowedRoles.includes(role));
 
     // Fetch existing requests for user
     const fetchUserRequests = async () => {

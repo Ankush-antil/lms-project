@@ -25,6 +25,7 @@ const GoogleCalendarModal = ({ isOpen, onClose, inline = false }) => {
     const [loading, setLoading] = useState(false);
     const [showForm, setShowForm] = useState(false);
     const [creating, setCreating] = useState(false);
+    const [apiError, setApiError] = useState(''); // 'disabled' | 'scope' | ''
     const [form, setForm] = useState({
         title: '', type: 'class', date: '', startTime: '09:00', endTime: '10:00', description: ''
     });
@@ -89,13 +90,26 @@ const GoogleCalendarModal = ({ isOpen, onClose, inline = false }) => {
 
     const loadEvents = async (token) => {
         setLoading(true);
+        setApiError('');
         try {
             const now = new Date().toISOString();
             const future = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
             const url = `https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${encodeURIComponent(now)}&timeMax=${encodeURIComponent(future)}&singleEvents=true&orderBy=startTime&maxResults=50`;
             const res = await fetch(url, { headers: { Authorization: `Bearer ${token || accessToken}` } });
             if (!res.ok) {
-                if (res.status === 401 || res.status === 403) { clearAuth(); return; }
+                if (res.status === 401) { clearAuth(); return; }
+                if (res.status === 403) {
+                    // Read error body to distinguish "API not enabled" from "token/scope issue"
+                    let errMsg = '';
+                    try { const body = await res.json(); errMsg = body?.error?.message || ''; } catch {}
+                    const isApiDisabled = errMsg.toLowerCase().includes('disabled') || errMsg.toLowerCase().includes('has not been used') || errMsg.toLowerCase().includes('permission');
+                    if (isApiDisabled) {
+                        setApiError('disabled'); // Show setup banner — don't clear auth
+                        return;
+                    }
+                    clearAuth(); // Token or scope issue — reset to sign-in
+                    return;
+                }
                 throw new Error(`Calendar API ${res.status}`);
             }
             const data = await res.json();
@@ -234,6 +248,28 @@ const GoogleCalendarModal = ({ isOpen, onClose, inline = false }) => {
                 {/* STEP 2: Calendar */}
                 {step === 2 && (
                     <div className="space-y-4">
+                        {/* API Not Enabled Banner */}
+                        {apiError === 'disabled' && (
+                            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 space-y-2">
+                                <div className="flex items-start gap-2">
+                                    <svg className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M12 3a9 9 0 110 18A9 9 0 0112 3z"/></svg>
+                                    <div>
+                                        <p className="text-xs font-black text-amber-800">Google Calendar API Not Enabled</p>
+                                        <p className="text-[11px] text-amber-700 mt-1">Enable it in Google Cloud Console, then come back and refresh.</p>
+                                    </div>
+                                </div>
+                                <ol className="text-[11px] text-amber-700 space-y-1 pl-6 list-decimal">
+                                    <li>Go to <a href="https://console.cloud.google.com/apis/library/calendar-json.googleapis.com" target="_blank" rel="noopener noreferrer" className="underline font-bold">Google Cloud Console → Calendar API</a></li>
+                                    <li>Click <strong>Enable</strong></li>
+                                    <li>Come back and click the refresh button below ↓</li>
+                                </ol>
+                                <button onClick={() => loadEvents(accessToken)} className="flex items-center gap-1.5 text-[10px] font-black uppercase text-amber-700 hover:text-amber-900 transition-colors mt-1">
+                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                                    Try Again
+                                </button>
+                            </div>
+                        )}
+
                         {/* Create Event Form */}
                         {showForm && (
                             <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3">

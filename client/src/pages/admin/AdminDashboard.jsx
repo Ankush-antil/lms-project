@@ -505,12 +505,6 @@ const AdminDashboard = () => {
                     />
 
                     <StatCard
-                        title="Staff" value={stats.staff || 0} icon={Briefcase} color="bg-cyan-600 text-cyan-600"
-                        onClick={() => navigate('/admin/staff')}
-                        onAdd={() => { setQuickAddRole('Staff'); setIsUserModalOpen(true); }}
-                        onEdit={() => navigate('/admin/staff')}
-                    />
-                    <StatCard
                         title="Accountants" value={stats.accountants || 0} icon={Calculator} color="bg-teal-600 text-teal-600"
                         onClick={() => navigate('/admin/accountants')}
                         onAdd={() => { setQuickAddRole('Accountant'); setIsUserModalOpen(true); }}

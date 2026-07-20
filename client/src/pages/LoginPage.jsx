@@ -30,7 +30,7 @@ const LoginPage = () => {
             else if (data.role === 'Institute') navigate('/institute');
             else if (data.role === 'Accountant') navigate('/accountant');
             else if (data.role === 'Marketer') navigate('/marketer');
-            else if (data.role === 'Staff') navigate('/admin/staff');
+            else if (data.role === 'Staff') navigate('/admin');
             else if (data.role === 'Parent') navigate('/parent');
             else if (data.role === 'Guest') navigate('/guest');
 

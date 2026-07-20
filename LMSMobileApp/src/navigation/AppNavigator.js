@@ -271,8 +271,8 @@ const AppNavigator = () => {
                 ) : user.role === 'Accountant' ? (
                     // Accountant
                     <Stack.Screen name="AccountantRoot" component={AccountantStack} />
-                ) : (user.role === 'Admin' || user.role === 'Editor' || user.role === 'Institute') ? (
-                    // Admin/Editor/Institute
+                ) : (user.role === 'Admin' || user.role === 'Editor' || user.role === 'Institute' || user.role === 'Staff') ? (
+                    // Admin/Editor/Institute/Staff
                     <Stack.Screen name="AdminRoot" component={AdminStack} />
                 ) : user.role === 'Marketer' ? (
                     // Marketer

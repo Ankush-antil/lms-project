@@ -162,7 +162,7 @@ const SubdomainRedirectHandler = ({ children }) => {
 
         const subdomain = parts[0].toLowerCase();
         const isApexOrWww = subdomain === 'www' || subdomain === 'landing' || subdomain === 'digitalstudyacademy' || parts.length <= 2;
-        const isPublicPath = path.startsWith('/share/') || path === '/track-applications' || path.startsWith('/mobile-call');
+        const isPublicPath = path.startsWith('/share/') || path === '/track-applications' || path.startsWith('/mobile-call') || path === '/login';
 
         const safeRedirect = (targetUrl) => {
             try {
@@ -187,14 +187,12 @@ const SubdomainRedirectHandler = ({ children }) => {
                 const separator = finalUrl.includes('?') ? '&' : '?';
                 finalUrl = `${finalUrl}${separator}token=${encodeURIComponent(token)}`;
             }
-            window.location.href = finalUrl;
+            window.location.replace(finalUrl);
         };
 
         if (!user) {
-            // Unauthenticated users are forced to landing page for login (except on public paths or root/www landing)
-            if (!isApexOrWww && !isPublicPath) {
-                safeRedirect(`${window.location.protocol}//www.digitalstudyacademy.com/login`);
-            }
+            // Unauthenticated users stay on current domain at /login or landing page.
+            // Never jump domains when unauthenticated to prevent cross-subdomain redirect loops.
             return;
         }
 
@@ -221,45 +219,29 @@ const SubdomainRedirectHandler = ({ children }) => {
         const expectedSubdomain = roleSubdomains[user.role] || 'www';
         const expectedPath = getRoleRedirectPath(user.role);
 
-        // 1. Handle feature and role subdomains root routing
-        if (path === '/') {
-            if (subdomain === expectedSubdomain) {
-                safeRedirect(`${window.location.protocol}//${hostname}${expectedPath}`);
-                return;
-            }
-            if (subdomain === 'notes') {
-                safeRedirect(`${window.location.protocol}//notes.digitalstudyacademy.com/${user.role.toLowerCase()}/notes`);
-                return;
-            }
-            if (subdomain === 'drive') {
-                safeRedirect(`${window.location.protocol}//drive.digitalstudyacademy.com/${user.role.toLowerCase()}/drive`);
-                return;
-            }
-            if (subdomain === 'chat') {
-                safeRedirect(`${window.location.protocol}//chat.digitalstudyacademy.com/${user.role.toLowerCase()}/chat`);
-                return;
-            }
-            if (subdomain === 'feeportal') {
-                safeRedirect(`${window.location.protocol}//feeportal.digitalstudyacademy.com/${user.role.toLowerCase()}/fee-portal`);
-                return;
-            }
-            if (subdomain === 'attandence' || subdomain === 'attendance') {
-                const attPath = user.role === 'Admin' ? '/admin/attendance-portal' : '/teacher/attendance';
-                safeRedirect(`${window.location.protocol}//${subdomain}.digitalstudyacademy.com${attPath}`);
-                return;
-            }
-        }
-
-        // 2. Enforce role subdomain routing (skip for special feature subdomains)
+        // Special subdomains (notes, drive, chat, feeportal, attendance)
         const specialSubdomains = ['notes', 'drive', 'chat', 'feeportal', 'attandence', 'attendance'];
         if (specialSubdomains.includes(subdomain)) {
             return;
         }
 
+        // 1. Handle root '/' path routing
+        if (path === '/') {
+            if (subdomain === expectedSubdomain) {
+                if (location.pathname !== expectedPath) {
+                    safeRedirect(`${window.location.protocol}//${hostname}${expectedPath}`);
+                }
+                return;
+            }
+        }
+
+        // 2. Enforce role subdomain routing if logged in on wrong subdomain
         if ((isApexOrWww || (expectedSubdomain && subdomain !== expectedSubdomain)) && !isPublicPath) {
             if (expectedSubdomain && expectedSubdomain !== 'www') {
                 const targetHost = `${expectedSubdomain}.digitalstudyacademy.com`;
-                safeRedirect(`${window.location.protocol}//${targetHost}${expectedPath}`);
+                if (hostname.toLowerCase() !== targetHost.toLowerCase()) {
+                    safeRedirect(`${window.location.protocol}//${targetHost}${expectedPath}`);
+                }
             }
         }
     }, [user, loading, location.pathname]);
@@ -424,7 +406,7 @@ function App() {
 
                                         {/* Admin Routes */}
                                         <Route path="/admin" element={
-                                            <PrivateRoute role="Admin">
+                                            <PrivateRoute role={['Admin', 'Staff']}>
                                                 <AdminDashboard />
                                             </PrivateRoute>
                                         } />

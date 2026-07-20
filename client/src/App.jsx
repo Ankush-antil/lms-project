@@ -180,7 +180,7 @@ const SubdomainRedirectHandler = ({ children }) => {
             Institute: 'institute',
             Accountant: 'account',
             Marketer: 'marketer',
-            Staff: 'staff'
+            Staff: 'admin'
         };
 
         const expectedSubdomain = roleSubdomains[user.role];
@@ -188,7 +188,7 @@ const SubdomainRedirectHandler = ({ children }) => {
         // 1. Handle feature and role subdomains root routing
         if (path === '/') {
             if (subdomain === expectedSubdomain) {
-                const redirectPath = user.role === 'Student' ? '/student/tests' : `/${user.role.toLowerCase()}`;
+                const redirectPath = user.role === 'Student' ? '/student/tests' : (user.role === 'Staff' ? '/admin/staff' : `/${user.role.toLowerCase()}`);
                 window.location.href = `${window.location.protocol}//${hostname}${redirectPath}`;
                 return;
             }
@@ -225,7 +225,7 @@ const SubdomainRedirectHandler = ({ children }) => {
         if ((subdomain === 'www' || subdomain === 'landing' || parts.length === 2 || (expectedSubdomain && subdomain !== expectedSubdomain)) && !isPublicPath) {
             if (expectedSubdomain) {
                 const targetHost = `${expectedSubdomain}.digitalstudyacademy.com`;
-                const redirectPath = user.role === 'Student' ? '/student/tests' : `/${user.role.toLowerCase()}`;
+                const redirectPath = user.role === 'Student' ? '/student/tests' : (user.role === 'Staff' ? '/admin/staff' : `/${user.role.toLowerCase()}`);
                 window.location.href = `${window.location.protocol}//${targetHost}${redirectPath}`;
             }
         }

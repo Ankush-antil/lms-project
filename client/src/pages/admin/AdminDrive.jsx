@@ -64,6 +64,7 @@ const AdminDrive = () => {
     const [showFolderModal, setShowFolderModal] = useState(false);
     const [folderName, setFolderName] = useState('');
     const [showGDriveModal, setShowGDriveModal] = useState(false);
+    const [showIntegrationSection, setShowIntegrationSection] = useState(false);
     
     // File/Folder upload progress states
     const [uploadProgress, setUploadProgress] = useState({ uploading: false, current: 0, total: 0 });
@@ -708,8 +709,12 @@ const AdminDrive = () => {
                         {/* Integrate Button */}
                         {canPerform('drive', 'integrateDrive') && (
                             <button
-                                onClick={() => setShowGDriveModal(true)}
-                                className="flex items-center gap-2.5 px-5 py-3.5 bg-white hover:bg-slate-50 text-slate-700 rounded-full border border-slate-200 shadow-sm hover:shadow font-bold text-sm transition-all cursor-pointer active:scale-95"
+                                onClick={() => setShowIntegrationSection(prev => !prev)}
+                                className={`flex items-center gap-2.5 px-5 py-3.5 text-slate-700 rounded-full border shadow-sm hover:shadow font-bold text-sm transition-all cursor-pointer active:scale-95 ${
+                                    showIntegrationSection
+                                        ? 'bg-indigo-50 border-indigo-200 text-indigo-700'
+                                        : 'bg-white hover:bg-slate-50 border-slate-200'
+                                }`}
                             >
                                 <img src="https://upload.wikimedia.org/wikipedia/commons/1/12/Google_Drive_icon_%282020%29.svg" alt="Google Drive" className="w-5 h-5 shrink-0" />
                                 <span>Integrate</span>
@@ -798,6 +803,23 @@ const AdminDrive = () => {
                     </div>
                 ) : (
                     renderItems()
+                )}
+
+                {/* Google Drive Integration - Inline Section */}
+                {showIntegrationSection && canPerform('drive', 'integrateDrive') && (
+                    <div className="mt-2">
+                        <div className="flex items-center gap-2 mb-3">
+                            <img src="https://upload.wikimedia.org/wikipedia/commons/1/12/Google_Drive_icon_%282020%29.svg" alt="Google Drive" className="w-4 h-4" />
+                            <h3 className="text-sm font-bold text-slate-700">Google Drive Integration</h3>
+                        </div>
+                        <GoogleDriveModal
+                            isOpen={showIntegrationSection}
+                            onClose={() => setShowIntegrationSection(false)}
+                            currentParentId={currentParentId}
+                            onSaveSuccess={fetchItems}
+                            inline={true}
+                        />
+                    </div>
                 )}
             </div>
 
@@ -890,13 +912,6 @@ const AdminDrive = () => {
             </div>
         )}
 
-        {/* Google Drive Integration Modal */}
-        <GoogleDriveModal
-            isOpen={showGDriveModal}
-            onClose={() => setShowGDriveModal(false)}
-            currentParentId={currentParentId}
-            onSaveSuccess={fetchItems}
-        />
         </>
     );
 };

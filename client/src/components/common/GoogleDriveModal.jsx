@@ -35,7 +35,7 @@ const FOLDER_COLORS = {
     "File Uploader": "bg-amber-50 border-amber-150 text-amber-700"
 };
 
-const GoogleDriveModal = ({ isOpen, onClose, fileName, fileBlob, onSaveSuccess, toolName, currentParentId }) => {
+const GoogleDriveModal = ({ isOpen, onClose, fileName, fileBlob, onSaveSuccess, toolName, currentParentId, inline = false }) => {
     const { user } = useAuth();
     const [step, setStep] = useState(1); // 1: Connect Account, 2: Workspace / Dashboard
     const [selectedAccount, setSelectedAccount] = useState('');
@@ -891,11 +891,18 @@ const GoogleDriveModal = ({ isOpen, onClose, fileName, fileBlob, onSaveSuccess, 
         }
     };
 
-    if (!isOpen) return null;
+    if (!isOpen && !inline) return null;
+    if (inline && !isOpen) return null;
 
-    return (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 text-left font-sans">
-            <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 w-full max-w-2xl overflow-hidden relative transition-all duration-300 flex flex-col max-h-[85vh]">
+    const outerClass = inline
+        ? "bg-white rounded-3xl shadow-sm border border-slate-100 w-full overflow-hidden relative transition-all duration-300 flex flex-col text-left font-sans"
+        : "fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 text-left font-sans";
+    const innerClass = inline
+        ? ""
+        : "bg-white rounded-3xl shadow-2xl border border-slate-100 w-full max-w-2xl overflow-hidden relative transition-all duration-300 flex flex-col max-h-[85vh]";
+
+    const content = (
+        <div className={inline ? outerClass : innerClass}>
                 
                 {/* Header */}
                 <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100 bg-slate-50/50 shrink-0">
@@ -926,9 +933,11 @@ const GoogleDriveModal = ({ isOpen, onClose, fileName, fileBlob, onSaveSuccess, 
                                 <span className="hidden sm:inline">Disconnect</span>
                             </button>
                         )}
-                        <button onClick={onClose} className="p-1.5 hover:bg-slate-100 rounded-xl text-slate-400 hover:text-slate-700 transition-colors">
-                            <X size={18} />
-                        </button>
+                        {!inline && (
+                            <button onClick={onClose} className="p-1.5 hover:bg-slate-100 rounded-xl text-slate-400 hover:text-slate-700 transition-colors">
+                                <X size={18} />
+                            </button>
+                        )}
                     </div>
                 </div>
 
@@ -1601,6 +1610,23 @@ const GoogleDriveModal = ({ isOpen, onClose, fileName, fileBlob, onSaveSuccess, 
                 </div>
             </div>
             
+            <style dangerouslySetInnerHTML={{__html: `
+                @keyframes fadeIn {
+                    from { opacity: 0; transform: translateY(8px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
+                .animate-fade-in {
+                    animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+                }
+            `}} />
+        </div>
+    );
+
+    if (inline) return content;
+
+    return (
+        <div className={outerClass}>
+            {content}
             <style dangerouslySetInnerHTML={{__html: `
                 @keyframes fadeIn {
                     from { opacity: 0; transform: translateY(8px); }

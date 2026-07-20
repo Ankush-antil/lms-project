@@ -143,7 +143,7 @@ const StaffAttendance = () => {
     };
 
     return (
-        <DashboardLayout role="Staff" fullWidth={true}>
+        <DashboardLayout role={user?.role || 'Staff'} fullWidth={true}>
             <div style={{ padding: '0 8px' }}>
                 
                 {/* Header */}

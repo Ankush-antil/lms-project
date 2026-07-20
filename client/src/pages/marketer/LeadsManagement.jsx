@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
+import { useAuth } from '../../context/AuthContext';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { 
     Users, Search, Plus, Filter, ArrowRight, Check, X, 
@@ -10,6 +12,7 @@ import {
 } from 'lucide-react';
 
 const LeadsManagement = () => {
+    const { user } = useAuth();
     const [leads, setLeads] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -229,7 +232,7 @@ const LeadsManagement = () => {
     };
 
     return (
-        <DashboardLayout role="Marketer">
+        <DashboardLayout role={user?.role || 'Marketer'}>
             {/* Header section */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 text-left">
                 <div>
@@ -417,11 +420,11 @@ const LeadsManagement = () => {
                 </div>
             ) : (
                 /* KANBAN BOARD VIEW */
-                <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 text-left overflow-x-auto pb-4 custom-scrollbar">
+                <div className="flex flex-row gap-4 text-left overflow-x-auto pb-4 custom-scrollbar w-full items-start">
                     {leadStages.map(stage => {
                         const stageLeads = filteredLeads.filter(l => l.stage === stage);
                         return (
-                            <div key={stage} className="bg-slate-50 rounded-3xl p-4 border border-slate-200/50 flex flex-col min-w-[250px] max-h-[70vh]">
+                            <div key={stage} className="bg-slate-50 rounded-3xl p-4 border border-slate-200/50 flex flex-col min-w-[280px] max-h-[70vh] shrink-0">
                                 <div className="flex justify-between items-center mb-4 pb-2 border-b border-slate-200 shrink-0">
                                     <h4 className="text-xs font-black uppercase text-slate-750 tracking-wider flex items-center gap-1.5">
                                         <span className={`w-2 h-2 rounded-full ${
@@ -437,7 +440,7 @@ const LeadsManagement = () => {
                                         {stageLeads.length}
                                     </span>
                                 </div>
-
+ 
                                 <div className="space-y-3 flex-1 overflow-y-auto custom-scrollbar pr-1">
                                     {stageLeads.map(lead => (
                                         <div 
@@ -446,7 +449,7 @@ const LeadsManagement = () => {
                                         >
                                             <div>
                                                 <div className="flex justify-between items-start gap-1">
-                                                    <h5 className="font-bold text-slate-800 text-xs truncate max-w-[130px]">{lead.guestName}</h5>
+                                                    <h5 className="font-bold text-slate-800 text-xs truncate max-w-[150px]">{lead.guestName}</h5>
                                                     <button 
                                                         onClick={() => setSelectedLead(lead)}
                                                         className="text-slate-400 hover:text-indigo-650 opacity-0 group-hover:opacity-100 transition-opacity"
@@ -456,18 +459,16 @@ const LeadsManagement = () => {
                                                 </div>
                                                 <p className="text-[10px] text-slate-450 truncate font-semibold mt-0.5">{lead.course?.name || 'General Inquiry'}</p>
                                             </div>
-
-                                            <div className="flex justify-between items-center pt-2 border-t border-slate-100 text-[9px] font-bold text-slate-450 mt-1">
-                                                <span className="bg-slate-100 px-1.5 py-0.5 rounded text-[8px] uppercase tracking-wider">{lead.source}</span>
-                                                <div className="flex items-center gap-1.5">
-                                                    <select
-                                                        value={lead.stage}
-                                                        onChange={(e) => handleUpdateStage(lead._id, e.target.value)}
-                                                        className="bg-transparent border-none text-[8px] font-bold text-indigo-600 hover:underline outline-none cursor-pointer"
-                                                    >
-                                                        {leadStages.map(s => <option key={s} value={s}>{s}</option>)}
-                                                    </select>
-                                                </div>
+ 
+                                            <div className="flex justify-between items-center pt-2 border-t border-slate-100 text-[9px] font-bold text-slate-450 mt-1 gap-2">
+                                                <span className="bg-slate-100 text-slate-600 border border-slate-200 rounded-full px-2 py-0.5 text-[8px] uppercase tracking-wider shrink-0 whitespace-nowrap">{lead.source}</span>
+                                                <select
+                                                    value={lead.stage}
+                                                    onChange={(e) => handleUpdateStage(lead._id, e.target.value)}
+                                                    className="bg-indigo-50 text-indigo-600 border border-indigo-100 rounded-full px-2 py-0.5 text-[8px] font-black uppercase outline-none cursor-pointer tracking-wider shrink-0"
+                                                >
+                                                    {leadStages.map(s => <option key={s} value={s}>{s}</option>)}
+                                                </select>
                                             </div>
                                         </div>
                                     ))}
@@ -484,7 +485,7 @@ const LeadsManagement = () => {
             )}
 
             {/* Details Modal */}
-            {selectedLead && (
+            {selectedLead && createPortal(
                 <div className="fixed inset-0 z-[150] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
                     <div className="bg-white w-full max-w-lg rounded-3xl border border-slate-100 shadow-2xl overflow-hidden flex flex-col animate-slide-up text-left">
                         <div className="bg-[#0b1329] text-white p-6 flex justify-between items-center">
@@ -544,11 +545,12 @@ const LeadsManagement = () => {
                             </button>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
 
             {/* Add Lead Modal */}
-            {isAddModalOpen && (
+            {isAddModalOpen && createPortal(
                 <div className="fixed inset-0 z-[150] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
                     <form onSubmit={handleCreateLead} className="bg-white w-full max-w-lg rounded-3xl border border-slate-100 shadow-2xl overflow-hidden flex flex-col animate-slide-up text-left">
                         <div className="bg-[#0b1329] text-white p-6 flex justify-between items-center">
@@ -662,7 +664,8 @@ const LeadsManagement = () => {
                             </button>
                         </div>
                     </form>
-                </div>
+                </div>,
+                document.body
             )}
         </DashboardLayout>
     );

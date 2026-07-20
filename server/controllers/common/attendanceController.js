@@ -753,7 +753,7 @@ exports.submitLeaveApplication = async (req, res) => {
             leaveFileUrl = `/uploads/leave-applications/${req.file.filename}`;
         }
 
-        if (student.role === 'Staff') {
+        if (['Staff', 'Teacher', 'Editor', 'Accountant', 'Marketer'].includes(student.role)) {
             if (!student.staffProfile) student.staffProfile = {};
             if (!student.staffProfile.physicalAttendance) student.staffProfile.physicalAttendance = [];
 
@@ -963,7 +963,7 @@ exports.getStaffAttendanceHistory = async (req, res) => {
         const { staffId } = req.params;
         
         const staff = await User.findById(staffId).select('name email avatar role staffProfile');
-        if (!staff || staff.role !== 'Staff') {
+        if (!staff || !['Staff', 'Teacher', 'Editor', 'Accountant', 'Marketer'].includes(staff.role)) {
             return res.status(404).json({ message: 'Staff member not found' });
         }
         
@@ -1010,7 +1010,7 @@ exports.deleteStaffPhysicalAttendance = async (req, res) => {
         const { staffId, date } = req.params;
         
         const staff = await User.findById(staffId);
-        if (!staff || staff.role !== 'Staff') {
+        if (!staff || !['Staff', 'Teacher', 'Editor', 'Accountant', 'Marketer'].includes(staff.role)) {
             return res.status(404).json({ message: 'Staff member not found' });
         }
         
@@ -1042,7 +1042,7 @@ exports.approveOrRejectStaffLeave = async (req, res) => {
         const { approved } = req.body; // Boolean: true -> Approve, false -> Reject
 
         const staff = await User.findById(staffId);
-        if (!staff || staff.role !== 'Staff') {
+        if (!staff || !['Staff', 'Teacher', 'Editor', 'Accountant', 'Marketer'].includes(staff.role)) {
             return res.status(404).json({ message: 'Staff member not found' });
         }
 

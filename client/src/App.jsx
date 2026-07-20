@@ -536,6 +536,16 @@ function App() {
                                                  <AssetManagement />
                                              </PrivateRoute>
                                          } />
+                                         <Route path="/admin/leads" element={
+                                             <PrivateRoute role="Admin">
+                                                 <LeadsManagement />
+                                             </PrivateRoute>
+                                         } />
+                                         <Route path="/admin/ads" element={
+                                             <PrivateRoute role="Admin">
+                                                 <AdsManagement />
+                                             </PrivateRoute>
+                                         } />
 
                                         {/* Accountant Routes */}
                                         <Route path="/accountant" element={
@@ -566,6 +576,21 @@ function App() {
                                         <Route path="/accountant/chat" element={
                                             <PrivateRoute role="Accountant">
                                                 <ChatPage />
+                                            </PrivateRoute>
+                                        } />
+                                        <Route path="/accountant/task" element={
+                                            <PrivateRoute role="Accountant">
+                                                <StaffTask />
+                                            </PrivateRoute>
+                                        } />
+                                        <Route path="/accountant/attendance" element={
+                                            <PrivateRoute role="Accountant">
+                                                <StaffAttendance />
+                                            </PrivateRoute>
+                                        } />
+                                        <Route path="/accountant/salary" element={
+                                            <PrivateRoute role="Accountant">
+                                                <StaffSalary />
                                             </PrivateRoute>
                                         } />
 
@@ -608,6 +633,21 @@ function App() {
                                         <Route path="/marketer/chat" element={
                                             <PrivateRoute role="Marketer">
                                                 <ChatPage />
+                                            </PrivateRoute>
+                                        } />
+                                        <Route path="/marketer/task" element={
+                                            <PrivateRoute role="Marketer">
+                                                <StaffTask />
+                                            </PrivateRoute>
+                                        } />
+                                        <Route path="/marketer/attendance" element={
+                                            <PrivateRoute role="Marketer">
+                                                <StaffAttendance />
+                                            </PrivateRoute>
+                                        } />
+                                        <Route path="/marketer/salary" element={
+                                            <PrivateRoute role="Marketer">
+                                                <StaffSalary />
                                             </PrivateRoute>
                                         } />
 
@@ -676,6 +716,21 @@ function App() {
                                                 <NotesPage />
                                             </PrivateRoute>
                                         } />
+                                        <Route path="/editor/task" element={
+                                            <PrivateRoute role="Editor">
+                                                <StaffTask />
+                                            </PrivateRoute>
+                                        } />
+                                        <Route path="/editor/attendance" element={
+                                            <PrivateRoute role="Editor">
+                                                <StaffAttendance />
+                                            </PrivateRoute>
+                                        } />
+                                        <Route path="/editor/salary" element={
+                                            <PrivateRoute role="Editor">
+                                                <StaffSalary />
+                                            </PrivateRoute>
+                                        } />
 
                                         {/* Teacher Routes */}
                                         <Route path="/teacher" element={
@@ -717,7 +772,17 @@ function App() {
 
                                         <Route path="/teacher/attendance" element={
                                             <PrivateRoute role="Teacher">
-                                                <TeacherAttendance />
+                                                <StaffAttendance />
+                                            </PrivateRoute>
+                                        } />
+                                        <Route path="/teacher/task" element={
+                                            <PrivateRoute role="Teacher">
+                                                <StaffTask />
+                                            </PrivateRoute>
+                                        } />
+                                        <Route path="/teacher/salary" element={
+                                            <PrivateRoute role="Teacher">
+                                                <StaffSalary />
                                             </PrivateRoute>
                                         } />
 

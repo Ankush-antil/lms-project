@@ -147,7 +147,7 @@ const StaffDashboard = () => {
     }
 
     return (
-        <DashboardLayout role="Staff" fullWidth={true}>
+        <DashboardLayout role={user?.role || 'Staff'} fullWidth={true}>
             <div>
 
                 {/* Stats Grid */}

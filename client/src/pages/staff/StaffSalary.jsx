@@ -1,5 +1,6 @@
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { DollarSign, TrendingUp, Calendar, CheckCircle, Clock } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 
 const SALARY_HISTORY = [
     { month: 'June 2026', amount: 25000, status: 'Paid', date: 'Jul 1, 2026' },
@@ -19,8 +20,9 @@ const statusStyle = {
 };
 
 const StaffSalary = () => {
+    const { user } = useAuth();
     return (
-        <DashboardLayout role="Staff" fullWidth={true}>
+        <DashboardLayout role={user?.role || 'Staff'} fullWidth={true}>
             <div>
                 {/* Header */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '28px' }}>

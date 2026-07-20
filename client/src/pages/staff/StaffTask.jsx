@@ -759,7 +759,7 @@ const StaffTask = () => {
     };
 
     return (
-        <DashboardLayout role="Staff" fullWidth={true}>
+        <DashboardLayout role={user?.role || 'Staff'} fullWidth={true}>
             <div style={{ padding: '4px' }}>
                 {/* Header */}
                 <div style={{ marginBottom: '28px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>

@@ -1,5 +1,7 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import toast from 'react-hot-toast';
+import { useAuth } from '../../context/AuthContext';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { 
     Megaphone, Plus, Search, Filter, Play, Pause, Edit, Trash2, 
@@ -8,6 +10,7 @@ import {
 } from 'lucide-react';
 
 const AdsManagement = () => {
+    const { user } = useAuth();
     // Convincing Demo Data for Ad Campaigns
     const [campaigns, setCampaigns] = useState([
         {
@@ -177,7 +180,7 @@ const AdsManagement = () => {
     };
 
     return (
-        <DashboardLayout role="Marketer">
+        <DashboardLayout role={user?.role || 'Marketer'}>
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 text-left">
                 <div>
@@ -388,7 +391,7 @@ const AdsManagement = () => {
             </div>
 
             {/* Edit Budget Modal */}
-            {editingCampaign && (
+            {editingCampaign && createPortal(
                 <div className="fixed inset-0 z-[150] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
                     <div className="bg-white w-full max-w-sm rounded-3xl border border-slate-100 shadow-2xl overflow-hidden flex flex-col animate-slide-up text-left">
                         <div className="bg-[#0b1329] text-white p-5">
@@ -422,11 +425,12 @@ const AdsManagement = () => {
                             </button>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
 
             {/* Add Campaign Modal */}
-            {isAddModalOpen && (
+            {isAddModalOpen && createPortal(
                 <div className="fixed inset-0 z-[150] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
                     <form onSubmit={handleCreateCampaign} className="bg-white w-full max-w-md rounded-3xl border border-slate-100 shadow-2xl overflow-hidden flex flex-col animate-slide-up text-left">
                         <div className="bg-[#0b1329] text-white p-5 flex justify-between items-center">
@@ -515,7 +519,8 @@ const AdsManagement = () => {
                             </button>
                         </div>
                     </form>
-                </div>
+                </div>,
+                document.body
             )}
         </DashboardLayout>
     );

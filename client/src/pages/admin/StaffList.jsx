@@ -1018,7 +1018,7 @@ const StaffList = () => {
                                                     className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer accent-indigo-650"
                                                 />
                                             </th>
-                                            {['#', 'Name', 'Role', 'Designation', 'Department', 'Institute', 'Status', 'Actions'].map(h => (
+                                            {['#', 'Name', 'Department', 'Institute', 'Status', 'Actions'].map(h => (
                                                 <th key={h} style={{ padding: '13px 16px', textAlign: h === 'Actions' ? 'right' : 'left', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                                                     {h}
                                                 </th>
@@ -1028,7 +1028,7 @@ const StaffList = () => {
                                     <tbody>
                                         {displayList.length === 0 ? (
                                             <tr>
-                                                <td colSpan={9} style={{ padding: '48px', textAlign: 'center', color: '#94a3b8', fontWeight: 700 }}>
+                                                <td colSpan={7} style={{ padding: '48px', textAlign: 'center', color: '#94a3b8', fontWeight: 700 }}>
                                                     No staff found
                                                 </td>
                                             </tr>
@@ -1080,15 +1080,8 @@ const StaffList = () => {
                                                         borderRadius: '8px',
                                                         background: s.role === 'Teacher' ? '#eef2ff' : s.role === 'Editor' ? '#fef3c7' : s.role === 'Accountant' ? '#dcfce7' : '#fce7f3',
                                                         color: s.role === 'Teacher' ? '#4f46e5' : s.role === 'Editor' ? '#d97706' : s.role === 'Accountant' ? '#16a34a' : '#db2777'
-                                                    }}>{s.role || 'â€”'}</span>
+                                                    }}>{s.role || '—'}</span>
                                                 </td>
-                                                <td style={{ padding: '13px 16px', fontSize: '0.78rem', fontWeight: 700, color: '#374151' }}>
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                                        <Briefcase size={12} style={{ color: '#94a3b8' }} />
-                                                        {s.staffProfile?.designation || 'â€”'}
-                                                    </div>
-                                                </td>
-                                                <td style={{ padding: '13px 16px', fontSize: '0.78rem', fontWeight: 600, color: '#64748b' }}>{s.staffProfile?.department || 'â€”'}</td>
                                                 <td style={{ padding: '13px 16px', fontSize: '0.78rem', fontWeight: 600, color: '#64748b' }}>
                                                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                                         <Building size={12} style={{ color: '#94a3b8' }} />

@@ -66,6 +66,10 @@ export const AuthProvider = ({ children }) => {
         if (tokenParam) {
             console.log('[AuthContext] Auto-authenticating from URL token parameter');
             localStorage.setItem('authToken', tokenParam);
+            queryParams.delete('token');
+            const newSearch = queryParams.toString();
+            const newUrl = window.location.pathname + (newSearch ? `?${newSearch}` : '') + window.location.hash;
+            window.history.replaceState({}, document.title, newUrl);
         }
 
         // Validate saved accounts in localStorage on startup to prune deleted/inactive users
@@ -130,20 +134,23 @@ export const AuthProvider = ({ children }) => {
             Editor: 'editor',
             Institute: 'institute',
             Accountant: 'account',
-            Marketer: 'marketer'
+            Marketer: 'marketer',
+            Staff: 'admin',
+            Parent: 'parent',
+            Guest: 'guest'
         };
 
         const subdomain = roleSubdomains[userInfo.role] || 'www';
-        const redirectPath = userInfo.role === 'Student' ? '/student/tests' : `/${userInfo.role.toLowerCase()}`;
+        const redirectPath = userInfo.role === 'Student' ? '/student/tests' : (userInfo.role === 'Staff' ? '/admin' : `/${userInfo.role.toLowerCase()}`);
         
         const hostname = window.location.hostname;
-        const parts = hostname.split('.');
-        const isLocalHost = hostname.includes('localhost') || hostname === '127.0.0.1' || parts.length <= 2 || hostname.startsWith('dev.') || hostname.includes('pinggy') || hostname.includes('lhr.life') || hostname.includes('loca.lt') || hostname.includes('serveo');
+        const isLocalHost = hostname.includes('localhost') || hostname === '127.0.0.1' || hostname.startsWith('dev.') || hostname.includes('pinggy') || hostname.includes('lhr.life') || hostname.includes('loca.lt') || hostname.includes('serveo');
 
-        if (isLocalHost) {
+        if (isLocalHost || subdomain === 'www') {
             window.location.href = redirectPath;
         } else {
-            window.location.href = `${window.location.protocol}//${subdomain}.digitalstudyacademy.com${redirectPath}`;
+            const targetUrl = `${window.location.protocol}//${subdomain}.digitalstudyacademy.com${redirectPath}?token=${encodeURIComponent(token)}`;
+            window.location.href = targetUrl;
         }
     };
 

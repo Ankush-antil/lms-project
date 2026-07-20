@@ -327,9 +327,6 @@ const AdminDashboard = ({ navigation }) => {
                             </View>
 
                             <View style={styles.gridRow}>
-                                <TouchableOpacity style={styles.gridCardCol} onPress={() => navigation.navigate('StaffList')} activeOpacity={0.85}>
-                                    <StatCard title="Staff" value={displayStaff} icon="briefcase-outline" color="#0891b2" bg="#ecfeff" />
-                                </TouchableOpacity>
                                 <TouchableOpacity style={styles.gridCardCol} onPress={() => navigation.navigate('AccountantsList')} activeOpacity={0.85}>
                                     <StatCard title="Accountants" value={displayAccountants} icon="calculator-outline" color="#0d9488" bg="#f0fdfa" />
                                 </TouchableOpacity>
@@ -745,24 +742,6 @@ const AdminDashboard = ({ navigation }) => {
                                 style={styles.dropdownItem}
                                 onPress={() => {
                                     setUserMenuVisible(false);
-                                    navigation.navigate('StaffList');
-                                }}
-                                activeOpacity={0.7}
-                            >
-                                <View style={[styles.dropdownIconContainer, { backgroundColor: '#ecfeff' }]}>
-                                    <Ionicons name="briefcase-outline" size={22} color="#0891b2" />
-                                </View>
-                                <View style={styles.dropdownTextContainer}>
-                                    <Text style={styles.dropdownItemText}>All Staff</Text>
-                                    <Text style={styles.dropdownItemSub}>Manage system administration staff</Text>
-                                </View>
-                                <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
-                            </TouchableOpacity>
-
-                            <TouchableOpacity
-                                style={styles.dropdownItem}
-                                onPress={() => {
-                                    setUserMenuVisible(false);
                                     navigation.navigate('ParentsList');
                                 }}
                                 activeOpacity={0.7}
@@ -1023,24 +1002,6 @@ const AdminDashboard = ({ navigation }) => {
                     <View style={styles.dropdownContainer}>
                         <Text style={styles.dropdownTitle}>Management Portal</Text>
                         
-                        <TouchableOpacity
-                            style={styles.dropdownItem}
-                            onPress={() => {
-                                setManagementMenuVisible(false);
-                                navigation.navigate('StaffList');
-                            }}
-                            activeOpacity={0.7}
-                        >
-                            <View style={[styles.dropdownIconContainer, { backgroundColor: '#ecfeff' }]}>
-                                <Ionicons name="briefcase-outline" size={22} color="#0891b2" />
-                            </View>
-                            <View style={styles.dropdownTextContainer}>
-                                <Text style={styles.dropdownItemText}>Staff Mgt</Text>
-                                <Text style={styles.dropdownItemSub}>Manage system administration staff</Text>
-                            </View>
-                            <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
-                        </TouchableOpacity>
-
                         <TouchableOpacity
                             style={styles.dropdownItem}
                             onPress={() => {

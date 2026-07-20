@@ -153,7 +153,7 @@ const SubdomainRedirectHandler = ({ children }) => {
         const hostname = window.location.hostname;
         const path = location.pathname;
 
-        // Skip redirect logic for localhost, local IPs, or dev subdomain (allow root domain digitalstudyacademy.com to redirect)
+        // Skip redirect logic for localhost, local IPs, or dev subdomains
         const parts = hostname.split('.');
         const isLocalHost = hostname.includes('localhost') || hostname === '127.0.0.1' || /^\d+\.\d+\.\d+\.\d+$/.test(hostname) || hostname.startsWith('dev.') || hostname.includes('pinggy') || hostname.includes('lhr.life') || hostname.includes('loca.lt') || hostname.includes('serveo');
         if (isLocalHost) {
@@ -161,18 +161,44 @@ const SubdomainRedirectHandler = ({ children }) => {
         }
 
         const subdomain = parts[0].toLowerCase();
-        // Public paths allowed without login
+        const isApexOrWww = subdomain === 'www' || subdomain === 'landing' || subdomain === 'digitalstudyacademy' || parts.length <= 2;
         const isPublicPath = path.startsWith('/share/') || path === '/track-applications' || path.startsWith('/mobile-call');
 
+        const safeRedirect = (targetUrl) => {
+            try {
+                const now = Date.now();
+                const lastRedirectTime = parseInt(sessionStorage.getItem('last_subdomain_redirect_time') || '0', 10);
+                const redirectCount = parseInt(sessionStorage.getItem('subdomain_redirect_count') || '0', 10);
+                
+                if (now - lastRedirectTime < 5000 && redirectCount >= 2) {
+                    console.warn('[SubdomainRedirectHandler] Circuit breaker active: prevented redirect loop to', targetUrl);
+                    return;
+                }
+
+                sessionStorage.setItem('last_subdomain_redirect_time', now.toString());
+                sessionStorage.setItem('subdomain_redirect_count', (now - lastRedirectTime < 5000 ? redirectCount + 1 : 1).toString());
+            } catch (e) {
+                console.error('SessionStorage error during redirect check:', e);
+            }
+
+            const token = localStorage.getItem('authToken');
+            let finalUrl = targetUrl;
+            if (token && !finalUrl.includes('token=')) {
+                const separator = finalUrl.includes('?') ? '&' : '?';
+                finalUrl = `${finalUrl}${separator}token=${encodeURIComponent(token)}`;
+            }
+            window.location.href = finalUrl;
+        };
+
         if (!user) {
-            // Unauthenticated users are forced to landing page for login (except on public paths)
-            if (subdomain !== 'www' && !isPublicPath) {
-                window.location.href = `${window.location.protocol}//www.digitalstudyacademy.com/login`;
+            // Unauthenticated users are forced to landing page for login (except on public paths or root/www landing)
+            if (!isApexOrWww && !isPublicPath) {
+                safeRedirect(`${window.location.protocol}//www.digitalstudyacademy.com/login`);
             }
             return;
         }
 
-        // Mappings for roles to expected subdomains
+        // Mappings for all 9 roles to expected subdomains
         const roleSubdomains = {
             Admin: 'admin',
             Teacher: 'teacher',
@@ -181,53 +207,59 @@ const SubdomainRedirectHandler = ({ children }) => {
             Institute: 'institute',
             Accountant: 'account',
             Marketer: 'marketer',
-            Staff: 'admin'
+            Staff: 'admin',
+            Parent: 'parent',
+            Guest: 'guest'
         };
 
-        const expectedSubdomain = roleSubdomains[user.role];
+        const getRoleRedirectPath = (role) => {
+            if (role === 'Student') return '/student/tests';
+            if (role === 'Staff') return '/admin';
+            return `/${role.toLowerCase()}`;
+        };
+
+        const expectedSubdomain = roleSubdomains[user.role] || 'www';
+        const expectedPath = getRoleRedirectPath(user.role);
 
         // 1. Handle feature and role subdomains root routing
         if (path === '/') {
             if (subdomain === expectedSubdomain) {
-                const redirectPath = user.role === 'Student' ? '/student/tests' : (user.role === 'Staff' ? '/admin' : `/${user.role.toLowerCase()}`);
-                window.location.href = `${window.location.protocol}//${hostname}${redirectPath}`;
+                safeRedirect(`${window.location.protocol}//${hostname}${expectedPath}`);
                 return;
             }
             if (subdomain === 'notes') {
-
-                window.location.href = `${window.location.protocol}//notes.digitalstudyacademy.com/${user.role.toLowerCase()}/notes`;
+                safeRedirect(`${window.location.protocol}//notes.digitalstudyacademy.com/${user.role.toLowerCase()}/notes`);
                 return;
             }
             if (subdomain === 'drive') {
-                window.location.href = `${window.location.protocol}//drive.digitalstudyacademy.com/${user.role.toLowerCase()}/drive`;
+                safeRedirect(`${window.location.protocol}//drive.digitalstudyacademy.com/${user.role.toLowerCase()}/drive`);
                 return;
             }
             if (subdomain === 'chat') {
-                window.location.href = `${window.location.protocol}//chat.digitalstudyacademy.com/${user.role.toLowerCase()}/chat`;
+                safeRedirect(`${window.location.protocol}//chat.digitalstudyacademy.com/${user.role.toLowerCase()}/chat`);
                 return;
             }
             if (subdomain === 'feeportal') {
-                window.location.href = `${window.location.protocol}//feeportal.digitalstudyacademy.com/${user.role.toLowerCase()}/fee-portal`;
+                safeRedirect(`${window.location.protocol}//feeportal.digitalstudyacademy.com/${user.role.toLowerCase()}/fee-portal`);
                 return;
             }
-            if (subdomain === 'attandence') {
+            if (subdomain === 'attandence' || subdomain === 'attendance') {
                 const attPath = user.role === 'Admin' ? '/admin/attendance-portal' : '/teacher/attendance';
-                window.location.href = `${window.location.protocol}//attandence.digitalstudyacademy.com${attPath}`;
+                safeRedirect(`${window.location.protocol}//${subdomain}.digitalstudyacademy.com${attPath}`);
                 return;
             }
         }
 
         // 2. Enforce role subdomain routing (skip for special feature subdomains)
-        const specialSubdomains = ['notes', 'drive', 'chat', 'feeportal', 'attandence'];
+        const specialSubdomains = ['notes', 'drive', 'chat', 'feeportal', 'attandence', 'attendance'];
         if (specialSubdomains.includes(subdomain)) {
             return;
         }
 
-        if ((subdomain === 'www' || subdomain === 'landing' || parts.length === 2 || (expectedSubdomain && subdomain !== expectedSubdomain)) && !isPublicPath) {
-            if (expectedSubdomain) {
+        if ((isApexOrWww || (expectedSubdomain && subdomain !== expectedSubdomain)) && !isPublicPath) {
+            if (expectedSubdomain && expectedSubdomain !== 'www') {
                 const targetHost = `${expectedSubdomain}.digitalstudyacademy.com`;
-                const redirectPath = user.role === 'Student' ? '/student/tests' : (user.role === 'Staff' ? '/admin' : `/${user.role.toLowerCase()}`);
-                window.location.href = `${window.location.protocol}//${targetHost}${redirectPath}`;
+                safeRedirect(`${window.location.protocol}//${targetHost}${expectedPath}`);
             }
         }
     }, [user, loading, location.pathname]);

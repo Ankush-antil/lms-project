@@ -101,11 +101,11 @@ const GoogleCalendarModal = ({ isOpen, onClose, inline = false }) => {
                 if (res.status === 403) {
                     let errMsg = '';
                     try { const body = await res.json(); errMsg = body?.error?.message || ''; } catch {}
+                    console.log('[Calendar 403 Error]:', errMsg); // debug - check which project
                     const msg = errMsg.toLowerCase();
                     if (msg.includes('has not been used') || msg.includes('disabled')) {
-                        setApiError('disabled'); // API not enabled in Cloud Console
+                        setApiError('disabled');
                     } else {
-                        // Token lacks calendar scope — need fresh sign-in
                         setApiError('scope');
                     }
                     return;
@@ -260,7 +260,7 @@ const GoogleCalendarModal = ({ isOpen, onClose, inline = false }) => {
                                     </div>
                                 </div>
                                 <ol className="text-[11px] text-amber-700 space-y-1 pl-6 list-decimal">
-                                    <li>Go to <a href="https://console.cloud.google.com/apis/library/calendar-json.googleapis.com" target="_blank" rel="noopener noreferrer" className="underline font-bold">Google Cloud Console → Calendar API</a></li>
+                                    <li>Go to <a href="https://console.developers.google.com/apis/api/calendar-json.googleapis.com/overview?project=1091703484552" target="_blank" rel="noopener noreferrer" className="underline font-bold text-amber-800 hover:text-amber-900">Google Cloud Console (Project: 1091703484552)</a></li>
                                     <li>Click <strong>Enable</strong></li>
                                     <li>Come back and click Try Again ↓</li>
                                 </ol>

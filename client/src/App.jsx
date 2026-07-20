@@ -166,7 +166,7 @@ const SubdomainRedirectHandler = ({ children }) => {
 
         if (!user) {
             // Unauthenticated users are forced to landing page for login (except on public paths)
-            if (subdomain !== 'www' && subdomain !== 'landing' && !isPublicPath) {
+            if (subdomain !== 'www' && !isPublicPath) {
                 window.location.href = `${window.location.protocol}//www.digitalstudyacademy.com/login`;
             }
             return;

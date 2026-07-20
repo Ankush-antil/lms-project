@@ -99,15 +99,15 @@ const GoogleCalendarModal = ({ isOpen, onClose, inline = false }) => {
             if (!res.ok) {
                 if (res.status === 401) { clearAuth(); return; }
                 if (res.status === 403) {
-                    // Read error body to distinguish "API not enabled" from "token/scope issue"
                     let errMsg = '';
                     try { const body = await res.json(); errMsg = body?.error?.message || ''; } catch {}
-                    const isApiDisabled = errMsg.toLowerCase().includes('disabled') || errMsg.toLowerCase().includes('has not been used') || errMsg.toLowerCase().includes('permission');
-                    if (isApiDisabled) {
-                        setApiError('disabled'); // Show setup banner — don't clear auth
-                        return;
+                    const msg = errMsg.toLowerCase();
+                    if (msg.includes('has not been used') || msg.includes('disabled')) {
+                        setApiError('disabled'); // API not enabled in Cloud Console
+                    } else {
+                        // Token lacks calendar scope — need fresh sign-in
+                        setApiError('scope');
                     }
-                    clearAuth(); // Token or scope issue — reset to sign-in
                     return;
                 }
                 throw new Error(`Calendar API ${res.status}`);
@@ -117,6 +117,7 @@ const GoogleCalendarModal = ({ isOpen, onClose, inline = false }) => {
         } catch (err) { toast.error(err.message || 'Failed to load events.'); }
         finally { setLoading(false); }
     };
+
 
     const handleCreateEvent = async () => {
         if (!form.title.trim()) { toast.error('Event title is required.'); return; }
@@ -255,17 +256,37 @@ const GoogleCalendarModal = ({ isOpen, onClose, inline = false }) => {
                                     <svg className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M12 3a9 9 0 110 18A9 9 0 0112 3z"/></svg>
                                     <div>
                                         <p className="text-xs font-black text-amber-800">Google Calendar API Not Enabled</p>
-                                        <p className="text-[11px] text-amber-700 mt-1">Enable it in Google Cloud Console, then come back and refresh.</p>
+                                        <p className="text-[11px] text-amber-700 mt-1">Enable it in Google Cloud Console, then try again.</p>
                                     </div>
                                 </div>
                                 <ol className="text-[11px] text-amber-700 space-y-1 pl-6 list-decimal">
                                     <li>Go to <a href="https://console.cloud.google.com/apis/library/calendar-json.googleapis.com" target="_blank" rel="noopener noreferrer" className="underline font-bold">Google Cloud Console → Calendar API</a></li>
                                     <li>Click <strong>Enable</strong></li>
-                                    <li>Come back and click the refresh button below ↓</li>
+                                    <li>Come back and click Try Again ↓</li>
                                 </ol>
-                                <button onClick={() => loadEvents(accessToken)} className="flex items-center gap-1.5 text-[10px] font-black uppercase text-amber-700 hover:text-amber-900 transition-colors mt-1">
+                                <button onClick={() => loadEvents(accessToken)} className="flex items-center gap-1.5 text-[10px] font-black uppercase text-amber-700 hover:text-amber-900 transition-colors">
                                     <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
                                     Try Again
+                                </button>
+                            </div>
+                        )}
+
+                        {/* Scope / Token Reconnect Banner */}
+                        {apiError === 'scope' && (
+                            <div className="bg-red-50 border border-red-200 rounded-2xl p-4 space-y-3">
+                                <div className="flex items-start gap-2">
+                                    <svg className="w-4 h-4 text-red-500 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M12 3a9 9 0 110 18A9 9 0 0112 3z"/></svg>
+                                    <div>
+                                        <p className="text-xs font-black text-red-700">Calendar Access Not Granted</p>
+                                        <p className="text-[11px] text-red-600 mt-1">Your session doesn't have Calendar permission. Please disconnect and sign in again to grant access.</p>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => { clearAuth(); }}
+                                    className="w-full flex items-center justify-center gap-2 py-2.5 bg-[#1967D2] hover:bg-[#1558BB] text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all"
+                                >
+                                    <svg className="w-4 h-4" viewBox="0 0 21 21"><path fill="#fff" d="M0 0h10v10H0zm11 0h10v10H11zM0 11h10v10H0zm11 0h10v10H11z"/></svg>
+                                    Disconnect &amp; Sign in Again
                                 </button>
                             </div>
                         )}

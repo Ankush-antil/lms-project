@@ -200,8 +200,10 @@ const menuItems = {
         { name: 'Tools', icon: PenTool, path: '/institute/tools' },
 
         { name: '_section_management', icon: Briefcase, path: null },
-        { name: 'Staff Management', icon: Users, path: '/institute/staff' },
-        { name: 'Asset Management', icon: Package, path: '/institute/assets' },
+        { name: 'Staff Mgt', icon: Users, path: '/institute/staff' },
+        { name: 'Asset Mgt', icon: Package, path: '/institute/assets' },
+        { name: 'Lead Mgt', icon: Users, path: '/institute/leads' },
+        { name: 'Ads Mgt', icon: Megaphone, path: '/institute/ads' },
 
         { name: '_section_services', icon: Settings, path: null },
         { name: 'Drive', icon: HardDrive, path: '/institute/drive' },

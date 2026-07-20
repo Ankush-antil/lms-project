@@ -378,6 +378,16 @@ function App() {
                                                  <AssetManagement />
                                              </PrivateRoute>
                                          } />
+                                         <Route path="/institute/leads" element={
+                                             <PrivateRoute role="Institute">
+                                                 <LeadsManagement />
+                                             </PrivateRoute>
+                                         } />
+                                         <Route path="/institute/ads" element={
+                                             <PrivateRoute role="Institute">
+                                                 <AdsManagement />
+                                             </PrivateRoute>
+                                         } />
 
                                         {/* Admin Routes */}
                                         <Route path="/admin" element={

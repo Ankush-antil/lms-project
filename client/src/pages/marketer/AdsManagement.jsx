@@ -180,7 +180,7 @@ const AdsManagement = () => {
     };
 
     return (
-        <DashboardLayout role={user?.role || 'Marketer'}>
+        <DashboardLayout role={user?.role || 'Institute'}>
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 text-left">
                 <div>

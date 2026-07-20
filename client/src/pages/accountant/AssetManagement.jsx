@@ -361,7 +361,7 @@ const AssetManagement = () => {
     };
 
     return (
-        <DashboardLayout role={user?.role || 'Accountant'}>
+        <DashboardLayout role={user?.role || 'Institute'}>
             {/* Header / Banner */}
             <div className="relative overflow-hidden bg-gradient-to-r from-indigo-700 via-slate-900 to-slate-900 rounded-[30px] p-8 md:p-10 text-white mb-8 border border-white/5 shadow-2xl">
                 <div className="absolute top-0 right-0 w-80 h-80 bg-indigo-500/10 rounded-full blur-3xl -mr-20 -mt-20"></div>
@@ -507,7 +507,7 @@ const AssetManagement = () => {
                         <tbody>
                             {filteredAssets.length === 0 ? (
                                 <tr>
-                                    <td colSpan={8} className="p-12 text-center text-slate-400 font-semibold text-sm">
+                                    <td colSpan={user?.role === 'Admin' ? 9 : 8} className="p-12 text-center text-slate-400 font-semibold text-sm">
                                         No assets match your search parameters.
                                     </td>
                                 </tr>

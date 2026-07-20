@@ -398,7 +398,6 @@ const GoogleDriveModal = ({ isOpen, onClose, fileName, fileBlob, onSaveSuccess, 
             console.error("Auto save flow error:", err);
             // Check if token expired (401/403)
             if (err.message && (err.message.includes('401') || err.message.includes('403') || err.message.toLowerCase().includes('unauthorized'))) {
-                toast.error("Google Drive session expired. Please reconnect your account.");
                 clearGoogleAuth();
                 return;
             }
@@ -712,9 +711,8 @@ const GoogleDriveModal = ({ isOpen, onClose, fileName, fileBlob, onSaveSuccess, 
             setDateFolders(dateFoldersList);
         } catch (err) {
             console.error("Failed to load history root:", err);
-            // Check if token expired (401 Unauthorized)
-            if (err.message && (err.message.includes('401') || err.message.toLowerCase().includes('unauthorized'))) {
-                toast.error("Google Drive session expired. Please connect again.");
+            // Check if token expired (401/403)
+            if (err.message && (err.message.includes('401') || err.message.includes('403') || err.message.toLowerCase().includes('unauthorized'))) {
                 clearGoogleAuth();
                 return;
             }
@@ -793,9 +791,8 @@ const GoogleDriveModal = ({ isOpen, onClose, fileName, fileBlob, onSaveSuccess, 
             }
         } catch (err) {
             console.error("Failed to preview Google Drive file content:", err);
-            // Check if token expired (401 Unauthorized)
-            if (err.message && (err.message.includes('401') || err.message.toLowerCase().includes('unauthorized'))) {
-                toast.error("Google Drive session expired. Please connect again.");
+            // Check if token expired (401/403)
+            if (err.message && (err.message.includes('401') || err.message.includes('403') || err.message.toLowerCase().includes('unauthorized'))) {
                 clearGoogleAuth();
                 return;
             }
@@ -881,9 +878,8 @@ const GoogleDriveModal = ({ isOpen, onClose, fileName, fileBlob, onSaveSuccess, 
             }
         } catch (err) {
             console.error("Delete file from Drive failed:", err);
-            // Check if token expired (401 Unauthorized)
-            if (err.message && (err.message.includes('401') || err.message.toLowerCase().includes('unauthorized'))) {
-                toast.error("Google Drive session expired. Please connect again.");
+            // Check if token expired (401/403)
+            if (err.message && (err.message.includes('401') || err.message.includes('403') || err.message.toLowerCase().includes('unauthorized'))) {
                 clearGoogleAuth();
                 return;
             }

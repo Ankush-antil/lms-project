@@ -270,7 +270,6 @@ const menuItems = {
         { name: 'Notes', icon: StickyNote, path: '/student/notes' },
         { name: 'Chat', icon: MessageSquare, path: '/student/chat' },
     ],
-
     Parent: [
         { name: 'Dashboard', icon: LayoutDashboard, path: '/parent' },
         { name: 'Student Fee', icon: Wallet, path: '/parent/fee' },

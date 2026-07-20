@@ -69,7 +69,6 @@ const ParentDashboard = lazy(() => import('./pages/parent/ParentDashboard'));
 const ParentFee = lazy(() => import('./pages/parent/ParentFee'));
 const ParentAttendance = lazy(() => import('./pages/parent/ParentAttendance'));
 const ParentActivities = lazy(() => import('./pages/parent/ParentActivities'));
-const StaffDashboard = lazy(() => import('./pages/staff/StaffDashboard'));
 const StaffTask = lazy(() => import('./pages/staff/StaffTask'));
 const StaffAttendance = lazy(() => import('./pages/staff/StaffAttendance'));
 const StaffSalary = lazy(() => import('./pages/staff/StaffSalary'));
@@ -521,17 +520,17 @@ function App() {
                                                 <AdminStaffAttendance />
                                             </PrivateRoute>
                                         } />
-                                        <Route path="/admin/staff/salary" element={
-                                            <PrivateRoute role="Admin">
-                                                <AdminStaffSalary />
-                                            </PrivateRoute>
-                                        } />
+                                         <Route path="/admin/staff/salary" element={
+                                             <PrivateRoute role="Admin">
+                                                 <AdminStaffSalary />
+                                             </PrivateRoute>
+                                         } />
                                          <Route path="/admin/staff/task" element={
                                              <PrivateRoute role="Admin">
                                                  <AdminStaffTask />
                                              </PrivateRoute>
                                          } />
-                                         <Route path="/admin/assets" element={
+                                          <Route path="/admin/assets" element={
                                              <PrivateRoute role="Admin">
                                                  <AssetManagement />
                                              </PrivateRoute>
@@ -881,43 +880,6 @@ function App() {
                                         <Route path="/student/performance" element={
                                             <PrivateRoute role="Student">
                                                 <StudentPerformance />
-                                            </PrivateRoute>
-                                        } />
-
-                                        {/* Staff Routes */}
-                                        <Route path="/staff" element={
-                                            <PrivateRoute role="Staff">
-                                                <StaffDashboard />
-                                            </PrivateRoute>
-                                        } />
-                                        <Route path="/staff/task" element={
-                                            <PrivateRoute role="Staff">
-                                                <StaffTask />
-                                            </PrivateRoute>
-                                        } />
-                                        <Route path="/staff/attendance" element={
-                                            <PrivateRoute role="Staff">
-                                                <StaffAttendance />
-                                            </PrivateRoute>
-                                        } />
-                                        <Route path="/staff/salary" element={
-                                            <PrivateRoute role="Staff">
-                                                <StaffSalary />
-                                            </PrivateRoute>
-                                        } />
-                                        <Route path="/staff/chat" element={
-                                            <PrivateRoute role="Staff">
-                                                <ChatPage />
-                                            </PrivateRoute>
-                                        } />
-                                        <Route path="/staff/notes" element={
-                                            <PrivateRoute role="Staff">
-                                                <NotesPage />
-                                            </PrivateRoute>
-                                        } />
-                                        <Route path="/staff/drive" element={
-                                            <PrivateRoute role="Staff">
-                                                <AdminDrive />
                                             </PrivateRoute>
                                         } />
 

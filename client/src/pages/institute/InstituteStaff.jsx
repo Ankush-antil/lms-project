@@ -499,6 +499,10 @@ const InstituteStaff = () => {
         setBulkPresentModal(false);
     };
 
+    const handleSearchClick = () => {
+        setSearch(searchTermInput);
+    };
+
     const allFilteredStaff = useMemo(() => {
         return staffList.filter(s => {
             const matchSearch = !search ||
@@ -3000,8 +3004,8 @@ const InstituteStaff = () => {
 
             {/* Add/Edit Staff Modal (Rendered globally using React Portal) */}
             {showModal && createPortal(
-                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 99999, display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: '100px 20px 40px', overflowY: 'auto' }}>
-                    <div style={{ background: '#fff', borderRadius: '24px', padding: '32px', width: '100%', maxWidth: '460px', boxShadow: '0 24px 60px rgba(0,0,0,0.2)', margin: '0 auto', position: 'relative' }}>
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 99999, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '20px', overflowY: 'auto' }}>
+                    <div style={{ background: '#fff', borderRadius: '24px', padding: '32px', width: '100%', maxWidth: '460px', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 24px 60px rgba(0,0,0,0.2)', position: 'relative' }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
                             <h2 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 900, color: '#0f172a' }}>
                                 {editingStaff ? 'Edit Staff Member' : 'Add Staff Member'}

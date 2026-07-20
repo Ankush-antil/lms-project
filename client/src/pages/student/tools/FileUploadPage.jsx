@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Upload, FileText, Cloud, Database, Download, Trash, ArrowLeft, Loader2, AlertCircle, Info, Folder, RefreshCw, Save, CheckCircle } from 'lucide-react';
 import DashboardLayout from '../../../components/layout/DashboardLayout';
+import { useAuth } from '../../../context/AuthContext';
 import toast from 'react-hot-toast';
 import axios from 'axios';
 import GoogleDriveModal from '../../../components/common/GoogleDriveModal';
@@ -12,6 +13,7 @@ import { parseDateToDdMmYyyy, getTodayDdMmYyyy } from '../../../utils/dateUtils'
 const FileUploadPage = () => {
     const navigate = useNavigate();
     const location = useLocation();
+    const { user } = useAuth();
     const fileInputRef = useRef(null);
 
     // Parse selected date and inbox param
@@ -447,7 +449,7 @@ const FileUploadPage = () => {
     };
 
     return (
-        <DashboardLayout role="Student" fullWidth={true}>
+        <DashboardLayout role={user?.role || 'Student'} fullWidth={true}>
             <div className="max-w-7xl mx-auto px-4 py-2 text-left">
                 {/* Back Link & Header Row */}
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 border-b border-slate-100 pb-3">
@@ -505,9 +507,14 @@ const FileUploadPage = () => {
                         </button>
                     </div>
 
-                    {/* Right: Back to Practice Tools */}
                     <button
-                        onClick={() => navigate(inboxParam ? `/student/tests?tab=practice` : `/student/practice-tools?date=${dateParam || todayDdMmYyyy}`)}
+                        onClick={() => {
+                            if (user?.role && user.role !== 'Student') {
+                                navigate(`/${user.role.toLowerCase()}/tools`);
+                            } else {
+                                navigate(inboxParam ? `/student/tests?tab=practice` : `/student/practice-tools?date=${dateParam || todayDdMmYyyy}`);
+                            }
+                        }}
                         className="h-[65px] w-45 flex items-center gap-1.5 text-slate-550 hover:text-slate-800 transition-colors font-bold text-xs bg-slate-50 hover:bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-xl self-start sm:self-auto shadow-sm cursor-pointer"
                     >
                         <ArrowLeft size={14} />

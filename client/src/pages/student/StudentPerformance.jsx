@@ -36,33 +36,33 @@ const StudentPerformance = () => {
     // College ERP Integration Mock States
     const [isSyncing, setIsSyncing] = useState(false);
     const [localErpPresent, setLocalErpPresent] = useState(null);
- 
+
     const physicalAttendanceList = profile?.studentProfile?.physicalAttendance || [];
-    
+
     // Dynamic calculations from database attendance records
-    const erpPresent = attendanceRecords.length > 0 
-        ? attendanceRecords.filter(a => a.status === 'Present' || a.status === 'In').length 
+    const erpPresent = attendanceRecords.length > 0
+        ? attendanceRecords.filter(a => a.status === 'Present' || a.status === 'In').length
         : (localErpPresent !== null ? localErpPresent : (physicalAttendanceList.length > 0 ? physicalAttendanceList.filter(a => a.status === 'Present').length : 42));
-    const erpTotal = attendanceRecords.length > 0 
-        ? attendanceRecords.length 
+    const erpTotal = attendanceRecords.length > 0
+        ? attendanceRecords.length
         : (physicalAttendanceList.length > 0 ? physicalAttendanceList.length : 50);
- 
+
     const handleSyncERP = () => {
         setIsSyncing(true);
         const loadingToast = toast.loading("Syncing data with College ERP Server...");
- 
+
         setTimeout(() => {
             toast.dismiss(loadingToast);
             // Randomly update attendance slightly to simulate live sync
             const randomAdd = Math.floor(Math.random() * 3) - 1; // -1, 0, 1, or 2
             const newPresent = Math.min(erpTotal, Math.max(35, erpPresent + randomAdd));
             setLocalErpPresent(newPresent);
- 
+
             toast.success("ERP Attendance and Fees records synced successfully!");
             setIsSyncing(false);
         }, 1500);
     };
- 
+
     // Calculate dynamic percentage
     const erpAttendancePercent = useMemo(() => {
         return Math.round((erpPresent / erpTotal) * 100);
@@ -515,489 +515,476 @@ const StudentPerformance = () => {
                             Track your class attendance, academic test scores, and tool practice statistics.
                         </p>
                     </div>
-                    <div className="flex items-center gap-3">
-                        {profile?.studentProfile?.section && (
-                            <span className="px-4 py-2 bg-violet-50 border border-violet-200 text-violet-750 rounded-2xl text-xs font-black shadow-sm flex items-center gap-1">
-                                Section: {profile.studentProfile.section}
-                            </span>
-                        )}
-                        <span className="px-4 py-2 bg-indigo-50 border border-indigo-150 text-indigo-700 rounded-2xl text-xs font-black shadow-sm">
-                            Subject: {profile?.studentProfile?.subject || 'N/A'}
-                        </span>
-                        <span className="px-4 py-2 bg-slate-50 border border-slate-200 text-slate-600 rounded-2xl text-xs font-bold shadow-sm">
-                            Course: {profile?.studentProfile?.course?.name || 'N/A'}
-                        </span>
-                    </div>
                 </div>
 
                 {/* ── METRICS GRID ─────────────────────────────────── */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
- 
-                     {/* CARD 1: Attendance Rate */}
-                     <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-sm flex flex-col justify-between relative overflow-hidden group">
-                         <div className="absolute right-0 top-0 w-24 h-24 bg-indigo-500/5 rounded-bl-full pointer-events-none transition-all group-hover:scale-110" />
- 
-                         <div>
-                             <div className="flex justify-between items-center mb-4">
-                                 <span className="text-slate-400 font-bold text-xs uppercase tracking-wider">LMS Attendance</span>
-                                 <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black border uppercase tracking-wider ${attendanceStatus.color}`}>
-                                     {attendanceStatus.label}
-                                 </span>
-                             </div>
- 
-                             <div className="flex items-center gap-6 my-2">
-                                 {/* Circular SVG Indicator */}
-                                 <div className="relative w-20 h-20 shrink-0">
-                                     <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
-                                         <path
-                                             className="text-slate-100"
-                                             strokeWidth="3.5"
-                                             stroke="currentColor"
-                                             fill="transparent"
-                                             d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                                         />
-                                         <path
-                                             className="text-indigo-600 transition-all duration-1000 ease-out"
-                                             strokeWidth="3.5"
-                                             strokeDasharray={`${attendancePercentage}, 100`}
-                                             strokeLinecap="round"
-                                             stroke="currentColor"
-                                             fill="transparent"
-                                             d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                                         />
-                                     </svg>
-                                     <div className="absolute inset-0 flex items-center justify-center">
-                                         <span className="text-base font-black text-slate-800">{attendancePercentage}%</span>
-                                     </div>
-                                 </div>
-                                 <div>
-                                     <h4 className="text-2xl font-black text-slate-800">{activeDaysCount} Days</h4>
-                                     <p className="text-slate-500 text-xs font-semibold uppercase mt-0.5">Active Workspace Logs</p>
-                                 </div>
-                             </div>
-                         </div>
- 
-                         <div className="mt-4 pt-4 border-t border-slate-100 flex items-center gap-2">
-                             <Info size={14} className="text-indigo-500 shrink-0" />
-                             <p className="text-[11px] text-slate-500 font-medium">
-                                 Calculated from test submissions and workspace practice sessions.
-                             </p>
-                         </div>
-                     </div>
 
-                     {/* CARD 2: Physical Attendance */}
-                     <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-sm flex flex-col justify-between relative overflow-hidden group">
-                         <div className="absolute right-0 top-0 w-24 h-24 bg-emerald-500/5 rounded-bl-full pointer-events-none transition-all group-hover:scale-110" />
- 
-                         <div>
-                             <div className="flex justify-between items-center mb-4">
-                                 <span className="text-slate-400 font-bold text-xs uppercase tracking-wider">Physical Attendance</span>
-                                 <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black border uppercase tracking-wider text-emerald-600 bg-emerald-50 border-emerald-200">
-                                     Good
-                                 </span>
-                             </div>
- 
-                             <div className="flex items-center gap-6 my-2">
-                                 {/* Circular SVG Indicator */}
-                                 <div className="relative w-20 h-20 shrink-0">
-                                     <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
-                                         <path
-                                             className="text-slate-100"
-                                             strokeWidth="3.5"
-                                             stroke="currentColor"
-                                             fill="transparent"
-                                             d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                                         />
-                                         <path
-                                             className="text-emerald-600 transition-all duration-1000 ease-out"
-                                             strokeWidth="3.5"
-                                             strokeDasharray="84, 100"
-                                             strokeLinecap="round"
-                                             stroke="currentColor"
-                                             fill="transparent"
-                                             d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                                         />
-                                     </svg>
-                                     <div className="absolute inset-0 flex items-center justify-center">
-                                         <span className="text-base font-black text-slate-800">84%</span>
-                                     </div>
-                                 </div>
-                                  <div>
-                                      <h4 className="text-2xl font-black text-slate-800">{erpPresent} / {erpTotal} Days</h4>
-                                      <p className="text-slate-500 text-xs font-semibold uppercase mt-0.5">Lectures Attended</p>
-                                  </div>
-                             </div>
-                         </div>
- 
-                         <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between gap-2">
-                             <button
-                                 onClick={() => setIsLeaveModalOpen(true)}
-                                 className="w-full py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md shadow-amber-100 hover:-translate-y-0.5 cursor-pointer text-center"
-                             >
-                                 Apply for Leave
-                             </button>
-                         </div>
-                     </div>
-                  </div>
-  
-                  {/* ── PHYSICAL ATTENDANCE LOGS ────────────────── */}
-                  <div className="bg-white rounded-3xl border border-slate-200/80 shadow-sm overflow-hidden text-left animate-fade-in">
-                      <div className="border-b border-slate-100 p-6 bg-slate-50/40 flex justify-between items-center">
-                          <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-650 flex items-center justify-center border border-indigo-100 shadow-sm">
-                                  <Calendar size={18} />
-                              </div>
-                              <div>
-                                  <h3 className="font-extrabold text-slate-800 text-sm tracking-tight">Physical Attendance Logs</h3>
-                                  <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider mt-0.5">History of physical classroom check-ins, check-outs, and verification selfies</p>
-                              </div>
-                          </div>
-                      </div>
-  
-                      <div className="p-6 space-y-6">
-                           {/* 4 Status Cards Row */}
-                           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pb-2">
-                               {/* Card 1: Present */}
-                               <div className="bg-emerald-50/50 border border-emerald-100/80 rounded-2xl p-4 flex items-center gap-4">
-                                   <div className="w-10 h-10 rounded-xl bg-emerald-500 text-white flex items-center justify-center shadow-md shadow-emerald-100">
-                                       <CheckCircle2 size={18} />
-                                   </div>
-                                   <div>
-                                       <h4 className="text-2xl font-black text-emerald-800 tracking-tight">{erpPresent}</h4>
-                                       <p className="text-emerald-600 text-xs font-bold mt-0.5">Present</p>
-                                   </div>
-                               </div>
-                               {/* Card 2: Absent */}
-                               <div className="bg-rose-50/50 border border-rose-100/80 rounded-2xl p-4 flex items-center gap-4">
-                                   <div className="w-10 h-10 rounded-xl bg-rose-500 text-white flex items-center justify-center shadow-md shadow-rose-100">
-                                       <AlertCircle size={18} />
-                                   </div>
-                                   <div>
-                                       <h4 className="text-2xl font-black text-rose-800 tracking-tight">{Math.max(0, erpTotal - erpPresent - 2)}</h4>
-                                       <p className="text-rose-600 text-xs font-bold mt-0.5">Absent</p>
-                                   </div>
-                               </div>
-                               {/* Card 3: Leave */}
-                               <div className="bg-amber-50/50 border border-amber-100/80 rounded-2xl p-4 flex items-center gap-4">
-                                   <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center shadow-md shadow-amber-100">
-                                       <FileText size={18} />
-                                   </div>
-                                   <div>
-                                       <h4 className="text-2xl font-black text-amber-800 tracking-tight">2</h4>
-                                       <p className="text-amber-600 text-xs font-bold mt-0.5">Leave</p>
-                                   </div>
-                               </div>
-                               {/* Card 4: Holiday */}
-                               <div className="bg-blue-50/50 border border-blue-100/80 rounded-2xl p-4 flex items-center gap-4">
-                                   <div className="w-10 h-10 rounded-xl bg-blue-500 text-white flex items-center justify-center shadow-md shadow-blue-100">
-                                       <Award size={18} />
-                                   </div>
-                                   <div>
-                                       <h4 className="text-2xl font-black text-blue-800 tracking-tight">0</h4>
-                                       <p className="text-blue-600 text-xs font-bold mt-0.5">Holiday</p>
-                                   </div>
-                               </div>
-                           </div>
+                    {/* CARD 1: Attendance Rate */}
+                    <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-sm flex flex-col justify-between relative overflow-hidden group">
+                        <div className="absolute right-0 top-0 w-24 h-24 bg-indigo-500/5 rounded-bl-full pointer-events-none transition-all group-hover:scale-110" />
 
-                          {displayAttendanceRecords.length === 0 ? (
-                              <div className="text-center py-8 text-slate-400">
-                                  <Calendar size={48} className="mx-auto mb-2 opacity-50" />
-                                  <p className="font-bold text-sm">No live attendance logs found.</p>
-                                  <p className="text-xs text-slate-500 mt-1">Scan QR codes on the mobile app to populate these records.</p>
-                              </div>
-                          ) : (
-                              <div className="overflow-x-auto">
-                                  <table className="w-full min-w-[1100px] border-collapse text-xs">
-                                      <thead>
-                                          <tr className="border-b border-slate-100 text-slate-400 font-bold uppercase text-[9px] tracking-wider text-left bg-slate-50/50">
-                                              <th className="py-2.5 px-3 whitespace-nowrap">Date</th>
-                                              <th className="py-2.5 px-3 whitespace-nowrap">Mode</th>
-                                              <th className="py-2.5 px-3 whitespace-nowrap">Marked By</th>
-                                              <th className="py-2.5 px-3 whitespace-nowrap">Student Note</th>
-                                              <th className="py-2.5 px-3 whitespace-nowrap">Teacher Note</th>
-                                              <th className="py-2.5 px-3 text-center whitespace-nowrap">Check-In</th>
-                                              <th className="py-2.5 px-3 text-center whitespace-nowrap">Check-Out</th>
-                                              <th className="py-2.5 px-3 text-center whitespace-nowrap">Time Spent</th>
-                                              <th className="py-2.5 px-3 text-center whitespace-nowrap">Selfie Verifications</th>
-                                              <th className="py-2.5 px-3 text-center whitespace-nowrap">Status</th>
-                                          </tr>
-                                      </thead>
-                                      <tbody className="divide-y divide-slate-100 font-semibold text-slate-700">
-                                          {displayAttendanceRecords.map((record, idx) => {
-                                              const status = record.status || 'Absent';
-                                              let badgeClass = 'text-red-700 bg-red-50 border-red-150';
-                                              if (status === 'Present') badgeClass = 'text-emerald-700 bg-emerald-50 border-emerald-150';
-                                              else if (status === 'In') badgeClass = 'text-amber-700 bg-amber-50 border-amber-150';
+                        <div>
+                            <div className="flex justify-between items-center mb-4">
+                                <span className="text-slate-400 font-bold text-xs uppercase tracking-wider">LMS Attendance</span>
+                                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black border uppercase tracking-wider ${attendanceStatus.color}`}>
+                                    {attendanceStatus.label}
+                                </span>
+                            </div>
 
-                                              const checkInVal = record.checkInTime;
-                                              const checkOutVal = record.checkOutTime;
-                                              let timeSpentStr = '—';
-                                              if (checkInVal && checkOutVal) {
-                                                  const durationMs = new Date(checkOutVal) - new Date(checkInVal);
-                                                  if (durationMs > 0) {
-                                                      const totalMins = Math.floor(durationMs / 60000);
-                                                      const h = Math.floor(totalMins / 60);
-                                                      const m = totalMins % 60;
-                                                      timeSpentStr = h > 0 ? `${h}h ${m}m` : `${m}m`;
-                                                  }
-                                              }
- 
-                                              return (
-                                                  <tr key={record._id || idx} className="hover:bg-slate-50/50 transition-colors">
-                                                      <td className="py-3 px-3 text-slate-550 whitespace-nowrap">
-                                                          {record.date ? new Date(record.date).toLocaleDateString('en-US', {
-                                                              weekday: 'short', month: 'short', day: 'numeric', year: 'numeric'
-                                                          }) : ''}
-                                                      </td>
-                                                      <td className="py-3 px-3 whitespace-nowrap">
-                                                          <span className="inline-block px-2 py-0.5 bg-slate-100 border border-slate-200 rounded text-[10px] font-bold text-slate-600">
-                                                              {record.isManual ? 'Manual' : 'QR Scan'}
-                                                          </span>
-                                                      </td>
-                                                      <td className="py-3 px-3 text-slate-600 font-semibold whitespace-nowrap">
-                                                          {record.isManual ? (record.markedBy || 'Teacher') : 'System (QR)'}
-                                                      </td>
-                                                      <td className="py-3 px-3 whitespace-nowrap">
-                                                          {record.studentNote ? (
-                                                              <button
-                                                                  onClick={() => setSelectedNotes({ title: 'Student Note', content: record.studentNote })}
-                                                                  className="px-2.5 py-1 bg-violet-50 hover:bg-violet-100 text-violet-755 border border-violet-150 rounded-lg text-[10px] font-black uppercase tracking-wider transition-colors cursor-pointer"
-                                                              >
-                                                                  See Note
-                                                              </button>
-                                                          ) : (
-                                                              <span className="text-slate-400 italic text-[10px] font-semibold">No Note</span>
-                                                          )}
-                                                      </td>
-                                                      <td className="py-3 px-3 whitespace-nowrap">
-                                                          {record.teacherNote ? (
-                                                              <button
-                                                                  onClick={() => setSelectedNotes({ title: 'Teacher Note', content: record.teacherNote })}
-                                                                  className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-755 border border-indigo-150 rounded-lg text-[10px] font-black uppercase tracking-wider transition-colors cursor-pointer"
-                                                              >
-                                                                  See Note
-                                                              </button>
-                                                          ) : (
-                                                              <span className="text-slate-400 italic text-[10px] font-semibold">No Note</span>
-                                                          )}
-                                                      </td>
-                                                      <td className="py-3 px-3 text-center text-slate-600 whitespace-nowrap">
-                                                          {checkInVal ? new Date(checkInVal).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}
-                                                      </td>
-                                                      <td className="py-3 px-3 text-center text-slate-600 whitespace-nowrap">
-                                                          {checkOutVal ? new Date(checkOutVal).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}
-                                                      </td>
-                                                      <td className="py-3 px-3 text-center text-slate-600 font-bold whitespace-nowrap">
-                                                           {timeSpentStr}
-                                                      </td>
-                                                      <td className="py-3 px-3 text-center whitespace-nowrap">
-                                                          <div className="flex justify-center items-center gap-2">
-                                                              {record.checkInPhoto && (
-                                                                  <button
-                                                                      onClick={() => setSelectedPhoto({
-                                                                          title: 'Check-In Verification Selfie',
-                                                                          url: record.checkInPhoto
-                                                                      })}
-                                                                      className="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-750 border border-indigo-150 rounded-lg text-[10px] font-black uppercase tracking-wider transition-colors"
-                                                                  >
-                                                                    Check-In
-                                                                  </button>
-                                                              )}
-                                                              {record.checkOutPhoto && (
-                                                                  <button
-                                                                      onClick={() => setSelectedPhoto({
-                                                                          title: 'Check-Out Verification Selfie',
-                                                                          url: record.checkOutPhoto
-                                                                      })}
-                                                                      className="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-750 border border-indigo-150 rounded-lg text-[10px] font-black uppercase tracking-wider transition-colors"
-                                                                  >
-                                                                    Check-Out
-                                                                  </button>
-                                                              )}
-                                                              {!record.checkInPhoto && !record.checkOutPhoto && (
-                                                                  <span className="text-slate-400 text-[10px]">No Photo</span>
-                                                              )}
-                                                          </div>
-                                                      </td>
-                                                      <td className="py-3 px-3 text-center whitespace-nowrap">
-                                                          <span className={`inline-block px-2.5 py-0.5 border rounded-full text-[10px] font-black tracking-wider ${badgeClass}`}>
-                                                              {status === 'In' ? 'Checked-In' : status}
-                                                          </span>
-                                                      </td>
-                                                  </tr>
-                                              );
-                                          })}
-                                      </tbody>
-                                  </table>
-                               </div>
-                          )}
-                      </div>
-                  </div>
-            {/* Selfie Preview Modal */}
-            {selectedPhoto && (
-                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
-                    <div className="bg-white rounded-3xl overflow-hidden border border-slate-200 shadow-2xl max-w-sm w-full animate-scale-in">
-                        <div className="flex justify-between items-center p-5 border-b border-slate-100 bg-slate-50/50">
-                            <h3 className="font-extrabold text-slate-800 text-sm tracking-tight">{selectedPhoto.title}</h3>
-                            <button
-                                onClick={() => setSelectedPhoto(null)}
-                                className="text-slate-400 hover:text-slate-655 p-1.5 rounded-full hover:bg-slate-100 transition-all"
-                            >
-                                <X size={20} />
-                            </button>
-                        </div>
-                        <div className="p-6 flex items-center justify-center bg-slate-50/30">
-                            <img
-                                src={selectedPhoto.url}
-                                alt="Verification Selfie"
-                                className="w-64 h-64 rounded-2xl object-cover border border-slate-200 shadow-md bg-slate-100"
-                            />
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Notes Preview Modal */}
-            {selectedNotes && (
-                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
-                    <div className="bg-white rounded-3xl overflow-hidden border border-slate-200 shadow-2xl max-w-sm w-full animate-scale-in">
-                        <div className="flex justify-between items-center p-5 border-b border-slate-100 bg-slate-50/50">
-                            <h3 className="font-extrabold text-slate-800 text-sm tracking-tight">{selectedNotes.title}</h3>
-                            <button
-                                onClick={() => setSelectedNotes(null)}
-                                className="text-slate-455 hover:text-slate-655 p-1.5 rounded-full hover:bg-slate-100 transition-all cursor-pointer"
-                            >
-                                <X size={20} />
-                            </button>
-                        </div>
-                        <div className="p-6">
-                            <div className="space-y-1">
-                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Content / Remarks</span>
-                                <div className="p-4 bg-slate-50 border border-slate-150 rounded-xl text-xs text-slate-700 font-semibold leading-relaxed whitespace-pre-line">
-                                    {selectedNotes.content}
+                            <div className="flex items-center gap-6 my-2">
+                                {/* Circular SVG Indicator */}
+                                <div className="relative w-20 h-20 shrink-0">
+                                    <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+                                        <path
+                                            className="text-slate-100"
+                                            strokeWidth="3.5"
+                                            stroke="currentColor"
+                                            fill="transparent"
+                                            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                                        />
+                                        <path
+                                            className="text-indigo-600 transition-all duration-1000 ease-out"
+                                            strokeWidth="3.5"
+                                            strokeDasharray={`${attendancePercentage}, 100`}
+                                            strokeLinecap="round"
+                                            stroke="currentColor"
+                                            fill="transparent"
+                                            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                                        />
+                                    </svg>
+                                    <div className="absolute inset-0 flex items-center justify-center">
+                                        <span className="text-base font-black text-slate-800">{attendancePercentage}%</span>
+                                    </div>
+                                </div>
+                                <div>
+                                    <h4 className="text-2xl font-black text-slate-800">{activeDaysCount} Days</h4>
+                                    <p className="text-slate-500 text-xs font-semibold uppercase mt-0.5">Active Workspace Logs</p>
                                 </div>
                             </div>
                         </div>
+
+                        <div className="mt-4 pt-4 border-t border-slate-100 flex items-center gap-2">
+                            <Info size={14} className="text-indigo-500 shrink-0" />
+                            <p className="text-[11px] text-slate-500 font-medium">
+                                Calculated from test submissions and workspace practice sessions.
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* CARD 2: Physical Attendance */}
+                    <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-sm flex flex-col justify-between relative overflow-hidden group">
+                        <div className="absolute right-0 top-0 w-24 h-24 bg-emerald-500/5 rounded-bl-full pointer-events-none transition-all group-hover:scale-110" />
+
+                        <div>
+                            <div className="flex justify-between items-center mb-4">
+                                <span className="text-slate-400 font-bold text-xs uppercase tracking-wider">Physical Attendance</span>
+                                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black border uppercase tracking-wider text-emerald-600 bg-emerald-50 border-emerald-200">
+                                    Good
+                                </span>
+                            </div>
+
+                            <div className="flex items-center gap-6 my-2">
+                                {/* Circular SVG Indicator */}
+                                <div className="relative w-20 h-20 shrink-0">
+                                    <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+                                        <path
+                                            className="text-slate-100"
+                                            strokeWidth="3.5"
+                                            stroke="currentColor"
+                                            fill="transparent"
+                                            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                                        />
+                                        <path
+                                            className="text-emerald-600 transition-all duration-1000 ease-out"
+                                            strokeWidth="3.5"
+                                            strokeDasharray="84, 100"
+                                            strokeLinecap="round"
+                                            stroke="currentColor"
+                                            fill="transparent"
+                                            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                                        />
+                                    </svg>
+                                    <div className="absolute inset-0 flex items-center justify-center">
+                                        <span className="text-base font-black text-slate-800">84%</span>
+                                    </div>
+                                </div>
+                                <div>
+                                    <h4 className="text-2xl font-black text-slate-800">{erpPresent} / {erpTotal} Days</h4>
+                                    <p className="text-slate-500 text-xs font-semibold uppercase mt-0.5">Lectures Attended</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between gap-2">
+                            <button
+                                onClick={() => setIsLeaveModalOpen(true)}
+                                className="w-full py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md shadow-amber-100 hover:-translate-y-0.5 cursor-pointer text-center"
+                            >
+                                Apply for Leave
+                            </button>
+                        </div>
                     </div>
                 </div>
-            )}
 
-            {/* ── LEAVE APPLICATION MODAL ────────────────── */}
-            {isLeaveModalOpen && (
-                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-                    <div className="bg-white w-full max-w-md rounded-[32px] border border-slate-200 shadow-2xl overflow-hidden animate-fade-in">
-                        {/* Header */}
-                        <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                {/* ── PHYSICAL ATTENDANCE LOGS ────────────────── */}
+                <div className="bg-white rounded-3xl border border-slate-200/80 shadow-sm overflow-hidden text-left animate-fade-in">
+                    <div className="border-b border-slate-100 p-6 bg-slate-50/40 flex justify-between items-center">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-650 flex items-center justify-center border border-indigo-100 shadow-sm">
+                                <Calendar size={18} />
+                            </div>
                             <div>
-                                <h3 className="font-extrabold text-slate-800 text-lg flex items-center gap-2">
-                                    <Calendar className="text-amber-500" size={22} />
-                                    Apply for Leave
-                                </h3>
-                                <p className="text-slate-400 text-xs mt-1">Submit your leave request to your teacher.</p>
+                                <h3 className="font-extrabold text-slate-800 text-sm tracking-tight">Physical Attendance Logs</h3>
+                                <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider mt-0.5">History of physical classroom check-ins, check-outs, and verification selfies</p>
                             </div>
-                            <button
-                                onClick={() => {
-                                    setIsLeaveModalOpen(false);
-                                    setLeaveNote('');
-                                    setLeaveFile(null);
-                                }}
-                                className="w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center text-slate-450 hover:bg-slate-100 transition-all font-black text-sm cursor-pointer"
-                            >
-                                ✕
-                            </button>
+                        </div>
+                    </div>
+
+                    <div className="p-6 space-y-6">
+                        {/* 4 Status Cards Row */}
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pb-2">
+                            {/* Card 1: Present */}
+                            <div className="bg-emerald-50/50 border border-emerald-100/80 rounded-2xl p-4 flex items-center gap-4">
+                                <div className="w-10 h-10 rounded-xl bg-emerald-500 text-white flex items-center justify-center shadow-md shadow-emerald-100">
+                                    <CheckCircle2 size={18} />
+                                </div>
+                                <div>
+                                    <h4 className="text-2xl font-black text-emerald-800 tracking-tight">{erpPresent}</h4>
+                                    <p className="text-emerald-600 text-xs font-bold mt-0.5">Present</p>
+                                </div>
+                            </div>
+                            {/* Card 2: Absent */}
+                            <div className="bg-rose-50/50 border border-rose-100/80 rounded-2xl p-4 flex items-center gap-4">
+                                <div className="w-10 h-10 rounded-xl bg-rose-500 text-white flex items-center justify-center shadow-md shadow-rose-100">
+                                    <AlertCircle size={18} />
+                                </div>
+                                <div>
+                                    <h4 className="text-2xl font-black text-rose-800 tracking-tight">{Math.max(0, erpTotal - erpPresent - 2)}</h4>
+                                    <p className="text-rose-600 text-xs font-bold mt-0.5">Absent</p>
+                                </div>
+                            </div>
+                            {/* Card 3: Leave */}
+                            <div className="bg-amber-50/50 border border-amber-100/80 rounded-2xl p-4 flex items-center gap-4">
+                                <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center shadow-md shadow-amber-100">
+                                    <FileText size={18} />
+                                </div>
+                                <div>
+                                    <h4 className="text-2xl font-black text-amber-800 tracking-tight">2</h4>
+                                    <p className="text-amber-600 text-xs font-bold mt-0.5">Leave</p>
+                                </div>
+                            </div>
+                            {/* Card 4: Holiday */}
+                            <div className="bg-blue-50/50 border border-blue-100/80 rounded-2xl p-4 flex items-center gap-4">
+                                <div className="w-10 h-10 rounded-xl bg-blue-500 text-white flex items-center justify-center shadow-md shadow-blue-100">
+                                    <Award size={18} />
+                                </div>
+                                <div>
+                                    <h4 className="text-2xl font-black text-blue-800 tracking-tight">0</h4>
+                                    <p className="text-blue-600 text-xs font-bold mt-0.5">Holiday</p>
+                                </div>
+                            </div>
                         </div>
 
-                        {/* Form */}
-                        <form onSubmit={handleLeaveSubmit} className="p-6 space-y-4">
-                            <div className="space-y-1">
-                                <label className="text-[10px] font-black text-slate-450 uppercase tracking-wider block">Leave Date</label>
-                                <input
-                                    type="date"
-                                    className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl outline-none font-bold text-xs text-slate-700 bg-white"
-                                    value={leaveDate}
-                                    onChange={e => setLeaveDate(e.target.value)}
-                                    required
+                        {displayAttendanceRecords.length === 0 ? (
+                            <div className="text-center py-8 text-slate-400">
+                                <Calendar size={48} className="mx-auto mb-2 opacity-50" />
+                                <p className="font-bold text-sm">No live attendance logs found.</p>
+                                <p className="text-xs text-slate-500 mt-1">Scan QR codes on the mobile app to populate these records.</p>
+                            </div>
+                        ) : (
+                            <div className="overflow-x-auto">
+                                <table className="w-full min-w-[1100px] border-collapse text-xs">
+                                    <thead>
+                                        <tr className="border-b border-slate-100 text-slate-400 font-bold uppercase text-[9px] tracking-wider text-left bg-slate-50/50">
+                                            <th className="py-2.5 px-3 whitespace-nowrap">Date</th>
+                                            <th className="py-2.5 px-3 whitespace-nowrap">Mode</th>
+                                            <th className="py-2.5 px-3 whitespace-nowrap">Marked By</th>
+                                            <th className="py-2.5 px-3 whitespace-nowrap">Student Note</th>
+                                            <th className="py-2.5 px-3 whitespace-nowrap">Teacher Note</th>
+                                            <th className="py-2.5 px-3 text-center whitespace-nowrap">Check-In</th>
+                                            <th className="py-2.5 px-3 text-center whitespace-nowrap">Check-Out</th>
+                                            <th className="py-2.5 px-3 text-center whitespace-nowrap">Time Spent</th>
+                                            <th className="py-2.5 px-3 text-center whitespace-nowrap">Selfie Verifications</th>
+                                            <th className="py-2.5 px-3 text-center whitespace-nowrap">Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100 font-semibold text-slate-700">
+                                        {displayAttendanceRecords.map((record, idx) => {
+                                            const status = record.status || 'Absent';
+                                            let badgeClass = 'text-red-700 bg-red-50 border-red-150';
+                                            if (status === 'Present') badgeClass = 'text-emerald-700 bg-emerald-50 border-emerald-150';
+                                            else if (status === 'In') badgeClass = 'text-amber-700 bg-amber-50 border-amber-150';
+
+                                            const checkInVal = record.checkInTime;
+                                            const checkOutVal = record.checkOutTime;
+                                            let timeSpentStr = '—';
+                                            if (checkInVal && checkOutVal) {
+                                                const durationMs = new Date(checkOutVal) - new Date(checkInVal);
+                                                if (durationMs > 0) {
+                                                    const totalMins = Math.floor(durationMs / 60000);
+                                                    const h = Math.floor(totalMins / 60);
+                                                    const m = totalMins % 60;
+                                                    timeSpentStr = h > 0 ? `${h}h ${m}m` : `${m}m`;
+                                                }
+                                            }
+
+                                            return (
+                                                <tr key={record._id || idx} className="hover:bg-slate-50/50 transition-colors">
+                                                    <td className="py-3 px-3 text-slate-550 whitespace-nowrap">
+                                                        {record.date ? new Date(record.date).toLocaleDateString('en-US', {
+                                                            weekday: 'short', month: 'short', day: 'numeric', year: 'numeric'
+                                                        }) : ''}
+                                                    </td>
+                                                    <td className="py-3 px-3 whitespace-nowrap">
+                                                        <span className="inline-block px-2 py-0.5 bg-slate-100 border border-slate-200 rounded text-[10px] font-bold text-slate-600">
+                                                            {record.isManual ? 'Manual' : 'QR Scan'}
+                                                        </span>
+                                                    </td>
+                                                    <td className="py-3 px-3 text-slate-600 font-semibold whitespace-nowrap">
+                                                        {record.isManual ? (record.markedBy || 'Teacher') : 'System (QR)'}
+                                                    </td>
+                                                    <td className="py-3 px-3 whitespace-nowrap">
+                                                        {record.studentNote ? (
+                                                            <button
+                                                                onClick={() => setSelectedNotes({ title: 'Student Note', content: record.studentNote })}
+                                                                className="px-2.5 py-1 bg-violet-50 hover:bg-violet-100 text-violet-755 border border-violet-150 rounded-lg text-[10px] font-black uppercase tracking-wider transition-colors cursor-pointer"
+                                                            >
+                                                                See Note
+                                                            </button>
+                                                        ) : (
+                                                            <span className="text-slate-400 italic text-[10px] font-semibold">No Note</span>
+                                                        )}
+                                                    </td>
+                                                    <td className="py-3 px-3 whitespace-nowrap">
+                                                        {record.teacherNote ? (
+                                                            <button
+                                                                onClick={() => setSelectedNotes({ title: 'Teacher Note', content: record.teacherNote })}
+                                                                className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-755 border border-indigo-150 rounded-lg text-[10px] font-black uppercase tracking-wider transition-colors cursor-pointer"
+                                                            >
+                                                                See Note
+                                                            </button>
+                                                        ) : (
+                                                            <span className="text-slate-400 italic text-[10px] font-semibold">No Note</span>
+                                                        )}
+                                                    </td>
+                                                    <td className="py-3 px-3 text-center text-slate-600 whitespace-nowrap">
+                                                        {checkInVal ? new Date(checkInVal).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}
+                                                    </td>
+                                                    <td className="py-3 px-3 text-center text-slate-600 whitespace-nowrap">
+                                                        {checkOutVal ? new Date(checkOutVal).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}
+                                                    </td>
+                                                    <td className="py-3 px-3 text-center text-slate-600 font-bold whitespace-nowrap">
+                                                        {timeSpentStr}
+                                                    </td>
+                                                    <td className="py-3 px-3 text-center whitespace-nowrap">
+                                                        <div className="flex justify-center items-center gap-2">
+                                                            {record.checkInPhoto && (
+                                                                <button
+                                                                    onClick={() => setSelectedPhoto({
+                                                                        title: 'Check-In Verification Selfie',
+                                                                        url: record.checkInPhoto
+                                                                    })}
+                                                                    className="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-750 border border-indigo-150 rounded-lg text-[10px] font-black uppercase tracking-wider transition-colors"
+                                                                >
+                                                                    Check-In
+                                                                </button>
+                                                            )}
+                                                            {record.checkOutPhoto && (
+                                                                <button
+                                                                    onClick={() => setSelectedPhoto({
+                                                                        title: 'Check-Out Verification Selfie',
+                                                                        url: record.checkOutPhoto
+                                                                    })}
+                                                                    className="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-750 border border-indigo-150 rounded-lg text-[10px] font-black uppercase tracking-wider transition-colors"
+                                                                >
+                                                                    Check-Out
+                                                                </button>
+                                                            )}
+                                                            {!record.checkInPhoto && !record.checkOutPhoto && (
+                                                                <span className="text-slate-400 text-[10px]">No Photo</span>
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                    <td className="py-3 px-3 text-center whitespace-nowrap">
+                                                        <span className={`inline-block px-2.5 py-0.5 border rounded-full text-[10px] font-black tracking-wider ${badgeClass}`}>
+                                                            {status === 'In' ? 'Checked-In' : status}
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                    </div>
+                </div>
+                {/* Selfie Preview Modal */}
+                {selectedPhoto && (
+                    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+                        <div className="bg-white rounded-3xl overflow-hidden border border-slate-200 shadow-2xl max-w-sm w-full animate-scale-in">
+                            <div className="flex justify-between items-center p-5 border-b border-slate-100 bg-slate-50/50">
+                                <h3 className="font-extrabold text-slate-800 text-sm tracking-tight">{selectedPhoto.title}</h3>
+                                <button
+                                    onClick={() => setSelectedPhoto(null)}
+                                    className="text-slate-400 hover:text-slate-655 p-1.5 rounded-full hover:bg-slate-100 transition-all"
+                                >
+                                    <X size={20} />
+                                </button>
+                            </div>
+                            <div className="p-6 flex items-center justify-center bg-slate-50/30">
+                                <img
+                                    src={selectedPhoto.url}
+                                    alt="Verification Selfie"
+                                    className="w-64 h-64 rounded-2xl object-cover border border-slate-200 shadow-md bg-slate-100"
                                 />
                             </div>
+                        </div>
+                    </div>
+                )}
 
-                            <div className="space-y-1">
-                                <label className="text-[10px] font-black text-slate-450 uppercase tracking-wider block">Reason / Leave Note</label>
-                                <textarea
-                                    rows={4}
-                                    placeholder="Explain the reason for your leave..."
-                                    className="w-full border border-slate-200 rounded-xl px-4 py-3 text-xs text-slate-700 resize-none outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100 transition bg-white"
-                                    value={leaveNote}
-                                    onChange={e => setLeaveNote(e.target.value)}
-                                    required
-                                />
+                {/* Notes Preview Modal */}
+                {selectedNotes && (
+                    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+                        <div className="bg-white rounded-3xl overflow-hidden border border-slate-200 shadow-2xl max-w-sm w-full animate-scale-in">
+                            <div className="flex justify-between items-center p-5 border-b border-slate-100 bg-slate-50/50">
+                                <h3 className="font-extrabold text-slate-800 text-sm tracking-tight">{selectedNotes.title}</h3>
+                                <button
+                                    onClick={() => setSelectedNotes(null)}
+                                    className="text-slate-455 hover:text-slate-655 p-1.5 rounded-full hover:bg-slate-100 transition-all cursor-pointer"
+                                >
+                                    <X size={20} />
+                                </button>
                             </div>
-
-                            <div className="space-y-1">
-                                <label className="text-[10px] font-black text-slate-450 uppercase tracking-wider block">Attachment (PDF/Image - optional)</label>
-                                <div className="relative border border-dashed border-slate-200 rounded-xl p-4 text-center hover:bg-slate-50 transition cursor-pointer">
-                                    <input
-                                        type="file"
-                                        accept=".pdf,image/*"
-                                        onChange={e => setLeaveFile(e.target.files[0])}
-                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                                    />
-                                    <div className="space-y-1.5">
-                                        <Upload className="mx-auto text-slate-400" size={20} />
-                                        <p className="text-[11px] text-slate-500 font-semibold">
-                                            {leaveFile ? leaveFile.name : "Click to upload medical slip/document"}
-                                        </p>
-                                        <p className="text-[9px] text-slate-400 font-bold uppercase">Max Size: 5MB</p>
+                            <div className="p-6">
+                                <div className="space-y-1">
+                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Content / Remarks</span>
+                                    <div className="p-4 bg-slate-50 border border-slate-150 rounded-xl text-xs text-slate-700 font-semibold leading-relaxed whitespace-pre-line">
+                                        {selectedNotes.content}
                                     </div>
                                 </div>
-                                {leaveFile && (
-                                    <div className="flex items-center justify-between bg-amber-50 border border-amber-100 rounded-lg px-2.5 py-1.5 mt-2">
-                                        <span className="text-[10px] text-amber-800 font-bold truncate max-w-[200px]">
-                                            📎 {leaveFile.name}
-                                        </span>
-                                        <button
-                                            type="button"
-                                            onClick={() => setLeaveFile(null)}
-                                            className="text-[10px] text-red-500 hover:text-red-700 font-black cursor-pointer"
-                                        >
-                                            Remove
-                                        </button>
-                                    </div>
-                                )}
                             </div>
+                        </div>
+                    </div>
+                )}
 
-                            <div className="flex gap-3 justify-end pt-3 border-t border-slate-100 shrink-0">
+                {/* ── LEAVE APPLICATION MODAL ────────────────── */}
+                {isLeaveModalOpen && (
+                    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+                        <div className="bg-white w-full max-w-md rounded-[32px] border border-slate-200 shadow-2xl overflow-hidden animate-fade-in">
+                            {/* Header */}
+                            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                                <div>
+                                    <h3 className="font-extrabold text-slate-800 text-lg flex items-center gap-2">
+                                        <Calendar className="text-amber-500" size={22} />
+                                        Apply for Leave
+                                    </h3>
+                                    <p className="text-slate-400 text-xs mt-1">Submit your leave request to your teacher.</p>
+                                </div>
                                 <button
-                                    type="button"
                                     onClick={() => {
                                         setIsLeaveModalOpen(false);
                                         setLeaveNote('');
                                         setLeaveFile(null);
                                     }}
-                                    className="px-5 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-black uppercase tracking-wider cursor-pointer"
+                                    className="w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center text-slate-450 hover:bg-slate-100 transition-all font-black text-sm cursor-pointer"
                                 >
-                                    Cancel
-                                </button>
-                                <button
-                                    type="submit"
-                                    disabled={submittingLeave}
-                                    className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-black uppercase tracking-wider cursor-pointer shadow-md disabled:opacity-60 flex items-center gap-1.5"
-                                >
-                                    {submittingLeave ? (
-                                        <>
-                                            <RefreshCw className="animate-spin" size={12} /> Submitting...
-                                        </>
-                                    ) : (
-                                        <>Submit Leave</>
-                                    )}
+                                    ✕
                                 </button>
                             </div>
-                        </form>
-                    </div>
-                </div>
-            )}
 
-        </div>
-    </DashboardLayout>
+                            {/* Form */}
+                            <form onSubmit={handleLeaveSubmit} className="p-6 space-y-4">
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-black text-slate-450 uppercase tracking-wider block">Leave Date</label>
+                                    <input
+                                        type="date"
+                                        className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl outline-none font-bold text-xs text-slate-700 bg-white"
+                                        value={leaveDate}
+                                        onChange={e => setLeaveDate(e.target.value)}
+                                        required
+                                    />
+                                </div>
+
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-black text-slate-450 uppercase tracking-wider block">Reason / Leave Note</label>
+                                    <textarea
+                                        rows={4}
+                                        placeholder="Explain the reason for your leave..."
+                                        className="w-full border border-slate-200 rounded-xl px-4 py-3 text-xs text-slate-700 resize-none outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100 transition bg-white"
+                                        value={leaveNote}
+                                        onChange={e => setLeaveNote(e.target.value)}
+                                        required
+                                    />
+                                </div>
+
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-black text-slate-450 uppercase tracking-wider block">Attachment (PDF/Image - optional)</label>
+                                    <div className="relative border border-dashed border-slate-200 rounded-xl p-4 text-center hover:bg-slate-50 transition cursor-pointer">
+                                        <input
+                                            type="file"
+                                            accept=".pdf,image/*"
+                                            onChange={e => setLeaveFile(e.target.files[0])}
+                                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                        />
+                                        <div className="space-y-1.5">
+                                            <Upload className="mx-auto text-slate-400" size={20} />
+                                            <p className="text-[11px] text-slate-500 font-semibold">
+                                                {leaveFile ? leaveFile.name : "Click to upload medical slip/document"}
+                                            </p>
+                                            <p className="text-[9px] text-slate-400 font-bold uppercase">Max Size: 5MB</p>
+                                        </div>
+                                    </div>
+                                    {leaveFile && (
+                                        <div className="flex items-center justify-between bg-amber-50 border border-amber-100 rounded-lg px-2.5 py-1.5 mt-2">
+                                            <span className="text-[10px] text-amber-800 font-bold truncate max-w-[200px]">
+                                                📎 {leaveFile.name}
+                                            </span>
+                                            <button
+                                                type="button"
+                                                onClick={() => setLeaveFile(null)}
+                                                className="text-[10px] text-red-500 hover:text-red-700 font-black cursor-pointer"
+                                            >
+                                                Remove
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="flex gap-3 justify-end pt-3 border-t border-slate-100 shrink-0">
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setIsLeaveModalOpen(false);
+                                            setLeaveNote('');
+                                            setLeaveFile(null);
+                                        }}
+                                        className="px-5 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-black uppercase tracking-wider cursor-pointer"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        disabled={submittingLeave}
+                                        className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-black uppercase tracking-wider cursor-pointer shadow-md disabled:opacity-60 flex items-center gap-1.5"
+                                    >
+                                        {submittingLeave ? (
+                                            <>
+                                                <RefreshCw className="animate-spin" size={12} /> Submitting...
+                                            </>
+                                        ) : (
+                                            <>Submit Leave</>
+                                        )}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                )}
+
+            </div>
+        </DashboardLayout>
     );
 };
 

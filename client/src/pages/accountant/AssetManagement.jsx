@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import * as XLSX from 'xlsx';
 import axios from 'axios';
 import toast from 'react-hot-toast';
+import { useAuth } from '../../context/AuthContext';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { 
     Package, Plus, Search, Edit, Trash2, Calendar, DollarSign, 
@@ -9,6 +10,7 @@ import {
 } from 'lucide-react';
 
 const AssetManagement = () => {
+    const { user } = useAuth();
     // 1. Assets list state (initialized with high-quality mock data)
     const [assets, setAssets] = useState(() => {
         const stored = localStorage.getItem('lms_assets');
@@ -359,7 +361,7 @@ const AssetManagement = () => {
     };
 
     return (
-        <DashboardLayout role="Accountant">
+        <DashboardLayout role={user?.role || 'Accountant'}>
             {/* Header / Banner */}
             <div className="relative overflow-hidden bg-gradient-to-r from-indigo-700 via-slate-900 to-slate-900 rounded-[30px] p-8 md:p-10 text-white mb-8 border border-white/5 shadow-2xl">
                 <div className="absolute top-0 right-0 w-80 h-80 bg-indigo-500/10 rounded-full blur-3xl -mr-20 -mt-20"></div>

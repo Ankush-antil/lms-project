@@ -9,7 +9,7 @@ import {
     BookOpen, Clock, MoreVertical, RefreshCw, Info, Menu, Plus,
     Hourglass, FileText, CheckCircle, MessageSquare, BarChart3, RotateCcw, Settings, ChevronDown, ChevronUp,
     Sparkles, Eye, ThumbsUp, Camera, Mic, Phone, Video, MonitorPlay, Calendar, ArrowRight, Play, Upload, Link2,
-    CreditCard, Activity, Edit3, Lock, Loader2
+    CreditCard, Activity, Edit3, Lock, Loader2, FolderOpen, Inbox, Star, Wrench, LayoutDashboard
 } from 'lucide-react';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import LoadingPlaceholder from '../../components/common/LoadingPlaceholder';
@@ -165,6 +165,27 @@ const getCategoryDisplayName = (act) => {
 
     return act.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 };
+
+const StatCard = ({ title, value, icon: Icon, color, onClick }) => (
+    <div
+        onClick={onClick}
+        className={`bg-white p-3.5 md:p-4.5 rounded-2xl shadow-sm border border-slate-100 hover:shadow-2xl hover:shadow-indigo-500/10 transition-all duration-500 group relative overflow-hidden h-full ${onClick ? 'cursor-pointer hover:-translate-y-1' : ''}`}
+    >
+        <div className={`absolute top-0 right-0 w-24 h-24 ${color.split(' ')[0]} opacity-[0.03] -mr-12 -mt-12 rounded-full transition-transform group-hover:scale-150 duration-700`}></div>
+        <div className="flex items-center justify-between mb-3 relative z-10">
+            <div className={`p-2.5 rounded-xl ${color.split(' ')[0]} bg-opacity-10 text-white shadow-sm transition-transform group-hover:scale-110 duration-500`}>
+                <Icon size={18} className={color.split(' ').find(c => c.startsWith('text-'))} />
+            </div>
+            <span className="text-[9px] font-extrabold text-emerald-500 bg-emerald-50/70 px-2 py-0.5 rounded-full tracking-wide">
+                Live
+            </span>
+        </div>
+        <div className="relative z-10">
+            <h3 className="text-2xl md:text-3xl font-black text-slate-900 mb-0.5">{value}</h3>
+            <p className="text-[10px] md:text-xs text-slate-500 font-bold uppercase tracking-wider opacity-85 leading-tight">{title}</p>
+        </div>
+    </div>
+);
 
 const getMatchingInboxIdsForTest = (test, subjectDaysMapping) => {
     if (!test.index) return ['no index'];
@@ -360,6 +381,7 @@ const TeacherActivities = () => {
     const [expandedSections, setExpandedSections] = useState({});
     const [studentPracticeFiles, setStudentPracticeFiles] = useState([]);
     const [studentSharedNotes, setStudentSharedNotes] = useState([]);
+    const [studentTotalToolsCount, setStudentTotalToolsCount] = useState(0);
     const [selectedPracticeDate, setSelectedPracticeDate] = useState('');
     const [loadingPracticeFiles, setLoadingPracticeFiles] = useState(false);
 
@@ -662,8 +684,12 @@ const TeacherActivities = () => {
                 axios.get(`/api/practice-files?studentId=${studentId}`),
                 axios.get(`/api/notes/shared?studentId=${studentId}`).catch(() => ({ data: [] }))
             ]);
-            const noInboxFiles = (filesRes.data.files || []).filter(f => !f.inbox);
-            const noInboxNotes = (notesRes.data || []).filter(n => !n.inboxId);
+            const files = filesRes.data.files || [];
+            const notes = notesRes.data || [];
+            setStudentTotalToolsCount(files.length + notes.length);
+
+            const noInboxFiles = files.filter(f => !f.inbox);
+            const noInboxNotes = notes.filter(n => !n.inboxId);
             setStudentPracticeFiles(noInboxFiles);
             setStudentSharedNotes(noInboxNotes);
         } catch (error) {
@@ -2154,8 +2180,8 @@ const TeacherActivities = () => {
 
     return (
         <>
-            <DashboardLayout role="Teacher" fullWidth={true}>
-                <div className="flex h-[calc(100vh-120px)] bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
+            <DashboardLayout role="Teacher" fullWidth={true} noPadding={true}>
+                <div className="flex h-[calc(100vh-80px)] bg-white overflow-hidden">
                     {/* --- Left Sidebar: Activities Inbox --- */}
                     {(!isSaDisabled('inbox') || saMode() === 'disable') && (
                         <aside className="w-72 border-r border-slate-200 flex flex-col shrink-0 overflow-hidden bg-white relative">
@@ -2547,6 +2573,7 @@ const TeacherActivities = () => {
 
                                 <div className="flex bg-white/10 p-1 rounded-xl gap-1 border border-white/5 shrink-0">
                                     {[
+                                        { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
                                         { id: 'tests', label: 'Tests', icon: FileText },
                                         { id: 'practice', label: 'Tool', icon: Settings },
                                         { id: 'performance', label: 'SnapShots', icon: BarChart3 },
@@ -2692,6 +2719,147 @@ const TeacherActivities = () => {
                                         <p className="text-slate-400 text-sm leading-relaxed">
                                             Select a student from the list to view their assigned inbox activities.
                                         </p>
+                                    </div>
+                                </div>
+                            ) : studentTab === 'dashboard' ? (
+                                <div className="animate-fade-in space-y-6">
+                                    <div className="bg-white border-b border-slate-200 pb-4 flex flex-col gap-2.5 shrink-0 text-left animate-slide-up">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 rounded-full bg-[#3E3ADD] text-white flex items-center justify-center shadow-md shadow-indigo-500/10 shrink-0">
+                                                    <LayoutDashboard size={18} />
+                                                </div>
+                                                <div>
+                                                    <h1 className="text-lg font-extrabold text-indigo-950 tracking-tight leading-none font-sans">
+                                                        Student Dashboard Preview
+                                                    </h1>
+                                                    <p className="text-slate-500 text-xs mt-1">
+                                                        Viewing live statistics and progress overview for {selectedStudent.name}.
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* 10 Card Stat Grid */}
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4 mb-8">
+                                        {(() => {
+                                            // 1. Total Subjects
+                                            const studentCourses = selectedStudent.studentProfile?.coursesList && selectedStudent.studentProfile.coursesList.length > 0
+                                                ? selectedStudent.studentProfile.coursesList
+                                                : (selectedStudent.studentProfile?.course ? [{ course: selectedStudent.studentProfile.course, subjects: selectedStudent.studentProfile.subject ? selectedStudent.studentProfile.subject.split(',').map(s => s.trim()).filter(Boolean) : [] }] : []);
+
+                                            const studentSubjectsSet = new Set();
+                                            studentCourses.forEach(item => {
+                                                (item.subjects || []).forEach(sub => studentSubjectsSet.add(sub));
+                                            });
+                                            if (studentSubjectsSet.size === 0 && selectedStudent.studentProfile?.subject) {
+                                                selectedStudent.studentProfile.subject.split(',').map(s => s.trim()).filter(Boolean).forEach(sub => studentSubjectsSet.add(sub));
+                                            }
+                                            const totalSubjects = studentSubjectsSet.size;
+
+                                            // 2. Total Inboxes
+                                            const totalInboxes = dynamicInboxItems.filter(i => i.visible !== false).length;
+
+                                            // 3. Total Assigned
+                                            const totalAssigned = assignedTests.length;
+
+                                            // 4. Upcoming
+                                            const submittedTestIds = new Set(studentSubmissions.map(s => s.test?._id || s.test));
+                                            const pendingTests = assignedTests.filter(t => !submittedTestIds.has(t._id));
+                                            const upcomingCount = pendingTests.filter(t => !isTestExpired(t, selectedStudent)).length;
+
+                                            // 5. Submitted
+                                            const submittedCount = studentSubmissions.filter(s => s.status === 'submitted' || s.status === 'reported').length;
+
+                                            // 6. Returned
+                                            const returnedCount = studentSubmissions.filter(s => s.status === 'returned').length;
+
+                                            // 7. Evaluated
+                                            const evaluatedCount = studentSubmissions.filter(s => s.status === 'evaluated').length;
+
+                                            // 8. Expired
+                                            const expiredCount = pendingTests.filter(t => isTestExpired(t, selectedStudent)).length;
+
+                                            // 9. Study Material
+                                            const studyMaterialsCount = allStudyMaterials.filter(m => !m.student || m.student === selectedStudent._id).length;
+
+                                            // 10. Tools Submitted Content
+                                            const toolsContentCount = studentTotalToolsCount;
+
+                                            return (
+                                                <>
+                                                    <StatCard
+                                                        title="Total Subjects"
+                                                        value={totalSubjects}
+                                                        icon={FolderOpen}
+                                                        color="bg-violet-500 text-violet-500"
+                                                    />
+                                                    <StatCard
+                                                        title="Total Inboxes"
+                                                        value={totalInboxes}
+                                                        icon={Inbox}
+                                                        color="bg-blue-500 text-blue-500"
+                                                        onClick={() => setStudentTab('tests')}
+                                                    />
+                                                    <StatCard
+                                                        title="Total Assigned"
+                                                        value={totalAssigned}
+                                                        icon={FileText}
+                                                        color="bg-indigo-600 text-indigo-600"
+                                                        onClick={() => setStudentTab('tests')}
+                                                    />
+                                                    <StatCard
+                                                        title="Upcoming"
+                                                        value={upcomingCount}
+                                                        icon={Clock}
+                                                        color="bg-orange-500 text-orange-500"
+                                                        onClick={() => setStudentTab('tests')}
+                                                    />
+                                                    <StatCard
+                                                        title="Submitted"
+                                                        value={submittedCount}
+                                                        icon={CheckCircle}
+                                                        color="bg-emerald-500 text-emerald-500"
+                                                        onClick={() => { setStudentTab('activities'); }}
+                                                    />
+                                                    <StatCard
+                                                        title="Returned"
+                                                        value={returnedCount}
+                                                        icon={RotateCcw}
+                                                        color="bg-rose-500 text-rose-500"
+                                                        onClick={() => { setStudentTab('activities'); }}
+                                                    />
+                                                    <StatCard
+                                                        title="Evaluated"
+                                                        value={evaluatedCount}
+                                                        icon={Star}
+                                                        color="bg-teal-600 text-teal-600"
+                                                        onClick={() => { setStudentTab('activities'); }}
+                                                    />
+                                                    <StatCard
+                                                        title="Expired"
+                                                        value={expiredCount}
+                                                        icon={AlertCircle}
+                                                        color="bg-slate-600 text-slate-600"
+                                                        onClick={() => setStudentTab('tests')}
+                                                    />
+                                                    <StatCard
+                                                        title="Study Material"
+                                                        value={studyMaterialsCount}
+                                                        icon={BookOpen}
+                                                        color="bg-pink-500 text-pink-500"
+                                                    />
+                                                    <StatCard
+                                                        title="Tools Submitted Content"
+                                                        value={toolsContentCount}
+                                                        icon={Wrench}
+                                                        color="bg-cyan-600 text-cyan-600"
+                                                        onClick={() => setStudentTab('practice')}
+                                                    />
+                                                </>
+                                            );
+                                        })()}
                                     </div>
                                 </div>
                             ) : studentTab === 'tests' ? (
@@ -4650,7 +4818,7 @@ const TeacherActivities = () => {
                                                                     key={student._id}
                                                                     onClick={() => {
                                                                         setSelectedStudent(student);
-                                                                        setStudentTab('tests');
+                                                                        setStudentTab('dashboard');
                                                                         setSelectedPracticeDate('');
                                                                         fetchStudentSubmissions(student._id);
                                                                         fetchStudentPracticeFiles(student._id);
@@ -4684,7 +4852,7 @@ const TeacherActivities = () => {
                                             key={student._id}
                                             onClick={() => {
                                                 setSelectedStudent(student);
-                                                setStudentTab('tests');
+                                                setStudentTab('dashboard');
                                                 setSelectedPracticeDate('');
                                                 fetchStudentSubmissions(student._id);
                                                 fetchStudentPracticeFiles(student._id);

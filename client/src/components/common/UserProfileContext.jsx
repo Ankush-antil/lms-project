@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState } from 'react';
 import UserProfileModal from './UserProfileModal';
 
-const UserProfileContext = createContext();
+const UserProfileContext = window.__UserProfileContext || (window.__UserProfileContext = createContext());
 
 export const UserProfileProvider = ({ children }) => {
     const [isOpen, setIsOpen] = useState(false);
@@ -32,7 +32,12 @@ export const UserProfileProvider = ({ children }) => {
 export const useUserProfile = () => {
     const context = useContext(UserProfileContext);
     if (!context) {
-        throw new Error('useUserProfile must be used within a UserProfileProvider');
+        console.warn('useUserProfile: Context mismatch or provider not found. Using safe fallback.');
+        return {
+            openProfile: (id) => {
+                console.warn('useUserProfile: openProfile called but provider not found. ID:', id);
+            }
+        };
     }
     return context;
 };

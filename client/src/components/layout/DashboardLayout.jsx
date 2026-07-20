@@ -160,7 +160,6 @@ const menuItems = {
         { name: 'Institutes', icon: Building, path: '/admin/institutes' },
         { name: 'Accountants', icon: Users, path: '/admin/accountants' },
         { name: 'Marketers', icon: Megaphone, path: '/admin/marketers' },
-        { name: 'All Staff', icon: Users, path: '/admin/staff' },
         { name: 'Parents', icon: Users, path: '/admin/parents' },
 
         { name: '_section_content', icon: BookOpen, path: null },
@@ -169,6 +168,10 @@ const menuItems = {
         { name: 'Study Material', icon: BookOpen, path: '/admin?tab=study-material' },
         { name: 'Activities', icon: FileText, path: '/admin/activities' },
         { name: 'Tools', icon: PenTool, path: '/admin/tools' },
+
+        { name: '_section_management', icon: Briefcase, path: null },
+        { name: 'Staff Mgt', icon: Users, path: '/admin/staff' },
+        { name: 'Asset Mgt', icon: Package, path: '/admin/assets' },
 
         { name: '_section_services', icon: Settings, path: null },
         { name: 'Drive', icon: HardDrive, path: '/admin/drive' },
@@ -185,7 +188,6 @@ const menuItems = {
         { name: 'Teachers', icon: GraduationCap, path: '/institute/teachers' },
         { name: 'Editors', icon: Users, path: '/institute/editors' },
         { name: 'Accountants', icon: Users, path: '/institute/accountants' },
-        { name: 'My Staff', icon: Users, path: '/institute/staff' },
         { name: 'Parents', icon: Users, path: '/institute/parents' },
 
         { name: '_section_content', icon: BookOpen, path: null },
@@ -194,6 +196,10 @@ const menuItems = {
         { name: 'Study Material', icon: BookOpen, path: '/institute?tab=study-material' },
         { name: 'Activities', icon: FileText, path: '/institute/activities' },
         { name: 'Tools', icon: PenTool, path: '/institute/tools' },
+
+        { name: '_section_management', icon: Briefcase, path: null },
+        { name: 'Staff Management', icon: Users, path: '/institute/staff' },
+        { name: 'Asset Management', icon: Package, path: '/institute/assets' },
 
         { name: '_section_services', icon: Settings, path: null },
         { name: 'Drive', icon: HardDrive, path: '/institute/drive' },
@@ -452,7 +458,7 @@ const Header = ({ role = 'Admin', onMobileMenuToggle, isMobileMenuOpen }) => {
     const safeRole = role || 'Admin';
     const showBell = safeRole === 'Teacher' || safeRole === 'Student';
     const [isChangeRoleModalOpen, setIsChangeRoleModalOpen] = useState(false);
-    
+
     // Switch Account password prompt states
     const [switchingToAccount, setSwitchingToAccount] = useState(null);
     const [switchPassword, setSwitchPassword] = useState('');
@@ -825,7 +831,8 @@ const Sidebar = ({ role = 'Admin', collapsed, onToggle, isMobileOpen }) => {
             else if (name === 'teachers') instControlKey = 'teacher';
             else if (name === 'editors') instControlKey = 'editor';
             else if (name === 'accountants') instControlKey = 'accountant';
-            else if (name === 'my staff' || name === 'all staff' || name === 'staff') instControlKey = 'staff';
+            else if (name === 'my staff' || name === 'all staff' || name === 'staff' || name === 'staff management') instControlKey = 'staff';
+            else if (name === 'asset management' || name === 'asset mgt' || name === 'assets') instControlKey = 'assets';
             else if (name === 'parents') instControlKey = 'parent';
             else if (name === 'dashboard' && user?.role === 'Institute') instControlKey = 'dashboard';
 
@@ -926,6 +933,28 @@ const Sidebar = ({ role = 'Admin', collapsed, onToggle, isMobileOpen }) => {
 
     const isActive = (path) => {
         if (!path) return false;
+
+        // Match practice tools sub-pages and notes pages to highlight the Tools or Notes sidebar item
+        const isToolSubPage = location.pathname.startsWith('/student/practice-tools') ||
+            location.pathname.startsWith('/student/notes') ||
+            location.pathname.includes('/practice-tools/');
+
+        if (isToolSubPage) {
+            if (safeRole !== 'Student') {
+                if (location.pathname.startsWith('/student/notes') || location.pathname.includes('/notes')) {
+                    if (path === `/${safeRole.toLowerCase()}/notes`) return true;
+                } else {
+                    if (path === `/${safeRole.toLowerCase()}/tools`) return true;
+                }
+            } else {
+                if (location.pathname.startsWith('/student/notes')) {
+                    if (path === '/student/notes') return true;
+                } else {
+                    if (path === '/student/practice-tools') return true;
+                }
+            }
+        }
+
         if (path.includes('?')) {
             return (location.pathname + location.search).startsWith(path);
         }
@@ -1122,7 +1151,7 @@ const Sidebar = ({ role = 'Admin', collapsed, onToggle, isMobileOpen }) => {
 /* ─────────────────────────────────────────
    Main DashboardLayout
 ───────────────────────────────────────── */
-const DashboardLayout = ({ children, role = 'Admin', fullWidth = false }) => {
+const DashboardLayout = ({ children, role = 'Admin', fullWidth = false, noPadding = false }) => {
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const location = useLocation();
@@ -1161,10 +1190,10 @@ const DashboardLayout = ({ children, role = 'Admin', fullWidth = false }) => {
                 style={{
                     transition: 'padding-left 0.3s cubic-bezier(0.4,0,0.2,1)'
                 }}
-                className={`flex-1 pt-20 pb-12 px-4 md:px-8 ${hasSidebar ? (sidebarCollapsed ? 'lg:pl-[112px]' : 'lg:pl-[264px]') : ''
+                className={`flex-1 pt-20 ${noPadding ? 'pb-0 px-0' : 'pb-12 px-4 md:px-8'} ${hasSidebar ? (sidebarCollapsed ? (noPadding ? 'lg:pl-[72px]' : 'lg:pl-[112px]') : (noPadding ? 'lg:pl-[224px]' : 'lg:pl-[264px]')) : ''
                     }`}
             >
-                <div className={`${fullWidth ? 'w-full' : 'max-w-7xl mx-auto'} animate-fade-in relative`}>
+                <div className={`${fullWidth ? 'w-full' : 'max-w-7xl mx-auto'} ${noPadding ? 'h-full' : ''} animate-fade-in relative`}>
                     {children}
                 </div>
             </main>

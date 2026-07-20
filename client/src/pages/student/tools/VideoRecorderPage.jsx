@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { MonitorPlay, Camera, Mic, Clock, Settings, Cloud, Folder, RefreshCw, Database, Download, Trash, AlertTriangle, ArrowLeft, Play, Square, Share2, CheckCircle, X, Save, Pencil, Eye } from 'lucide-react';
 import DashboardLayout from '../../../components/layout/DashboardLayout';
+import { useAuth } from '../../../context/AuthContext';
 import toast from 'react-hot-toast';
 import axios from 'axios';
 import GoogleDriveModal from '../../../components/common/GoogleDriveModal';
@@ -13,6 +14,7 @@ import VideoTrimmerModal from '../../../components/common/VideoTrimmerModal';
 const VideoRecorderPage = () => {
     const navigate = useNavigate();
     const location = useLocation();
+    const { user } = useAuth();
     const videoRef = useRef(null);
 
     // Parse selected date and inbox param
@@ -597,7 +599,7 @@ const VideoRecorderPage = () => {
     };
 
     return (
-        <DashboardLayout role="Student" fullWidth={true}>
+        <DashboardLayout role={user?.role || 'Student'} fullWidth={true}>
             <div className="max-w-7xl mx-auto px-4 py-2 text-left">
                 {/* Back Link & Header Row */}
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 border-b border-slate-100 pb-3">
@@ -657,7 +659,9 @@ const VideoRecorderPage = () => {
                     {/* Right: Back to Practice Tools */}
                     <button
                         onClick={() => {
-                            if (inboxParam) {
+                            if (user?.role && user.role !== 'Student') {
+                                navigate(`/${user.role.toLowerCase()}/tools`);
+                            } else if (inboxParam) {
                                 navigate('/student/tests');
                             } else {
                                 navigate(dateParam ? `/student/practice-tools?date=${dateParam}` : '/student/practice-tools');

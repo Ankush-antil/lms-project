@@ -297,7 +297,9 @@ const NotesPage = () => {
         if (inboxParam) {
             navigate(`/student/tests?tab=practice`);
         } else {
-            const rolePath = user?.role ? `/${user.role.toLowerCase()}` : '/student';
+            const rolePath = user?.role && user.role !== 'Student'
+                ? `/${user.role.toLowerCase()}/tools`
+                : '/student/practice-tools';
             navigate(rolePath);
         }
     };

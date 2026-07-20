@@ -61,7 +61,9 @@ const saveNote = asyncHandler(async (req, res) => {
 const getNotes = asyncHandler(async (req, res) => {
     const query = { student: req.user._id };
     
-    if (req.query.inboxId) {
+    if (req.query.all === 'true') {
+        // No inbox filter, return all notes
+    } else if (req.query.inboxId) {
         query.inboxId = req.query.inboxId;
     } else {
         query.inboxId = { $in: ['', null] };

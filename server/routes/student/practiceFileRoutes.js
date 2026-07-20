@@ -43,7 +43,9 @@ router.get('/', protect, async (req, res) => {
         if (req.query.googleDriveEmail) {
             filter.googleDriveEmail = req.query.googleDriveEmail;
         }
-        if (req.query.inbox) {
+        if (req.query.all === 'true') {
+            // No inbox filter, return all files
+        } else if (req.query.inbox) {
             filter.inbox = req.query.inbox;
         } else {
             filter.inbox = { $in: ['', null] };

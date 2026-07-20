@@ -184,7 +184,7 @@ const StudentFeePortal = () => {
                         </div>
                     </div>
                 )}
-                <div className={`space-y-6 max-w-5xl mx-auto ${isFeePortalDisabled ? 'opacity-40 select-none pointer-events-none' : ''}`}>
+                <div className={`space-y-6 w-full ${isFeePortalDisabled ? 'opacity-40 select-none pointer-events-none' : ''}`}>
                     
                     {/* Back Button */}
                     <div className="flex items-center mb-2">

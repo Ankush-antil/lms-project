@@ -6,7 +6,7 @@ import DashboardLayout from '../../components/layout/DashboardLayout';
 import { Download,  Upload, 
     Users, Search, Building, Mail, Briefcase, Calendar,
     DollarSign, CheckSquare, Plus, Check, Clock, AlertCircle, Trash2, Edit, Filter, ChevronDown, Eye, Bell, CheckCircle,
-    Award, AlertTriangle, ChevronLeft
+    Award, AlertTriangle, ChevronLeft, X, Pencil
 } from 'lucide-react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
@@ -16,7 +16,7 @@ import BulkEditModal from '../../components/common/BulkEditModal';
 import { useUserProfile } from '../../components/common/UserProfileContext';
 
 const calculateSpendingTime = (checkIn, checkOut) => {
-    if (!checkIn || !checkOut) return '—';
+    if (!checkIn || !checkOut) return 'â€”';
     const parseTimeToMinutes = (timeStr) => {
         const clean = timeStr.trim().toUpperCase();
         let hours = 0;
@@ -44,7 +44,7 @@ const calculateSpendingTime = (checkIn, checkOut) => {
     const startMins = parseTimeToMinutes(checkIn);
     const endMins = parseTimeToMinutes(checkOut);
     
-    if (startMins === null || endMins === null) return '—';
+    if (startMins === null || endMins === null) return 'â€”';
     
     let diff = endMins - startMins;
     if (diff < 0) diff += 24 * 60;
@@ -82,16 +82,34 @@ const StaffList = () => {
         setBulkAction('');
     }, [activeTab]);
 
-    // Points / Valuation Management states (Read-only on Admin side)
+    // Points / Valuation Management states
     const [pointsLogs, setPointsLogs] = useState(() => {
         const stored = localStorage.getItem('staff_points') || localStorage.getItem('staff_minus_points');
         return stored ? JSON.parse(stored) : [];
     });
+
+    useEffect(() => {
+        localStorage.setItem('staff_points', JSON.stringify(pointsLogs));
+    }, [pointsLogs]);
+
     const [selectedPreviewStaff, setSelectedPreviewStaff] = useState(null);
     const [pointsDateFilter, setPointsDateFilter] = useState('year');
     const [pointsParticularDate, setPointsParticularDate] = useState('');
     const [pointsStartDate, setPointsStartDate] = useState('');
     const [pointsEndDate, setPointsEndDate] = useState('');
+
+    const [showPointsModal, setShowPointsModal] = useState(false);
+    const [pointsStaff, setPointsStaff] = useState('');
+    const [pointsType, setPointsType] = useState('minus'); // 'plus' or 'minus'
+    const [isPointsStaffPreselected, setIsPointsStaffPreselected] = useState(false);
+    const [pointsModalRows, setPointsModalRows] = useState([
+        { title: '', description: '', valuation: '', date: new Date().toISOString().split('T')[0] }
+    ]);
+    const [editingLogId, setEditingLogId] = useState(null);
+    const [submittingPoints, setSubmittingPoints] = useState(false);
+    const [descPopupIndex, setDescPopupIndex] = useState(null);
+    const [descPopupText, setDescPopupText] = useState('');
+    const [descPopupType, setDescPopupType] = useState('points');
 
     // Sub-modules state
     const [tasks, setTasks] = useState([
@@ -106,6 +124,11 @@ const StaffList = () => {
     const [taskPriorityFilter, setTaskPriorityFilter] = useState('');
     const [taskStatusFilter, setTaskStatusFilter] = useState('');
     const [selectedStaffForTasks, setSelectedStaffForTasks] = useState(null);
+    const [taskDateFilter, setTaskDateFilter] = useState('year');
+    const [filterParticularDate, setFilterParticularDate] = useState('');
+    const [filterStartDate, setFilterStartDate] = useState('');
+    const [filterEndDate, setFilterEndDate] = useState('');
+    const [taskVerificationFilter, setTaskVerificationFilter] = useState('');
 
     const [attendanceDate, setAttendanceDate] = useState(new Date().toISOString().split('T')[0]);
     const [attendanceRecords, setAttendanceRecords] = useState({});
@@ -125,7 +148,7 @@ const StaffList = () => {
             try {
                 const token = localStorage.getItem('authToken');
                 const [staffRes, instsRes] = await Promise.all([
-                    axios.get('/api/users?role=Staff', { headers: { Authorization: `Bearer ${token}` } }),
+                    axios.get('/api/users?role=Teacher,Editor,Accountant,Marketer', { headers: { Authorization: `Bearer ${token}` } }),
                     axios.get('/api/setup/institutes')
                 ]);
                 setStaffList(Array.isArray(staffRes.data) ? staffRes.data : staffRes.data.users || []);
@@ -181,7 +204,7 @@ const StaffList = () => {
                     setBulkAction('');
                     // refresh staff list
                     const token = localStorage.getItem('authToken');
-                    const staffRes = await axios.get('/api/users?role=Staff', { headers: { Authorization: `Bearer ${token}` } });
+                    const staffRes = await axios.get('/api/users?role=Teacher,Editor,Accountant,Marketer', { headers: { Authorization: `Bearer ${token}` } });
                     setStaffList(Array.isArray(staffRes.data) ? staffRes.data : staffRes.data.users || []);
                 } catch (err) {
                     console.error("Bulk delete error:", err);
@@ -306,14 +329,7 @@ const StaffList = () => {
         s.staffProfile?.designation?.toLowerCase().includes(search.toLowerCase()))
     );
 
-    const displayList = filtered.length > 0 ? filtered : (search ? [] : DUMMY_STAFF.filter(s => {
-        if (filterInstitute === 'All') return true;
-        const selectedInst = institutes.find(i => i._id === filterInstitute);
-        if (selectedInst) {
-            return s.instituteName === selectedInst.name;
-        }
-        return true;
-    }));
+    const displayList = filtered.length > 0 ? filtered : (search ? [] : staffList);
 
     const handleAddTask = (e) => {
         e.preventDefault();
@@ -327,6 +343,207 @@ const StaffList = () => {
         ]);
         setNewTask({ staffName: '', title: '', due: '', priority: 'Medium' });
         toast.success('Task assigned successfully!');
+    };
+
+    // ── Points Modal Helpers ─────────────
+    const openAddPointsModal = (staffId = '', defaultType = 'minus') => {
+        setPointsStaff(staffId);
+        setIsPointsStaffPreselected(!!staffId);
+        setPointsType(defaultType);
+        setPointsModalRows([
+            { title: '', description: '', valuation: '', date: new Date().toISOString().split('T')[0] }
+        ]);
+        setEditingLogId(null);
+        setShowPointsModal(true);
+    };
+
+    const openEditPointsModal = (log) => {
+        setPointsStaff(log.staffId);
+        setIsPointsStaffPreselected(true);
+        setPointsType(log.type);
+        setPointsModalRows([
+            { 
+                title: log.taskTitle || '', 
+                description: log.reason || '', 
+                valuation: log.points ? log.points.toString() : '', 
+                date: log.date || new Date().toISOString().split('T')[0] 
+            }
+        ]);
+        setEditingLogId(log.id);
+        setShowPointsModal(true);
+    };
+
+    const addPointsRow = () => {
+        setPointsModalRows(prev => [
+            ...prev,
+            { title: '', description: '', valuation: '', date: new Date().toISOString().split('T')[0] }
+        ]);
+    };
+
+    const removePointsRow = (index) => {
+        if (pointsModalRows.length <= 1) {
+            toast.error('At least one points row must remain.');
+            return;
+        }
+        setPointsModalRows(prev => prev.filter((_, idx) => idx !== index));
+    };
+
+    const handlePointsRowChange = (index, field, val) => {
+        setPointsModalRows(prev => prev.map((row, idx) => idx === index ? { ...row, [field]: val } : row));
+    };
+
+    const recalculateStaffPoints = async (staffId, logs) => {
+        const staffLogs = logs.filter(l => l.staffId === staffId);
+        const plusPoints = staffLogs.filter(l => l.type === 'plus').reduce((sum, l) => sum + (Number(l.points) || 0), 0);
+        const minusPoints = staffLogs.filter(l => l.type === 'minus').reduce((sum, l) => sum + (Number(l.points) || 0), 0);
+
+        setStaffList(prev => prev.map(s => {
+            if (s._id === staffId) {
+                return {
+                    ...s,
+                    staffProfile: {
+                        ...(s.staffProfile || {}),
+                        plusPoints,
+                        minusPoints
+                    }
+                };
+            }
+            return s;
+        }));
+
+        if (staffId && !staffId.startsWith('pl_') && !staffId.startsWith('d_') && !staffId.startsWith('d')) {
+            try {
+                const token = localStorage.getItem('authToken');
+                const { data } = await axios.get(`/api/users/${staffId}`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                const currentProfile = (data?.user || data)?.staffProfile || {};
+                
+                await axios.put(`/api/users/${staffId}`, {
+                    staffProfile: {
+                        ...currentProfile,
+                        plusPoints,
+                        minusPoints
+                    }
+                }, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+            } catch (err) {
+                console.error('Failed to update staff points on server', err);
+            }
+        }
+    };
+
+    const handleSavePointsLog = async (e) => {
+        e.preventDefault();
+        if (!pointsStaff) {
+            toast.error('Please select a staff member.');
+            return;
+        }
+
+        const staff = staffList.find(s => s._id === pointsStaff);
+        if (!staff) {
+            toast.error('Staff member not found.');
+            return;
+        }
+
+        // Validate rows
+        const validRows = pointsModalRows.filter(r => r.valuation && Number(r.valuation) > 0);
+        if (validRows.length === 0) {
+            toast.error('Please fill at least one row with a valid positive points value.');
+            return;
+        }
+
+        for (let i = 0; i < validRows.length; i++) {
+            const row = validRows[i];
+            if (!row.description || !row.description.trim()) {
+                toast.error(`Please enter a description / reason for row #${i + 1}`);
+                return;
+            }
+        }
+
+        try {
+            setSubmittingPoints(true);
+            let updatedLogs = [...pointsLogs];
+
+            if (editingLogId) {
+                // Edit mode
+                const row = validRows[0];
+                updatedLogs = updatedLogs.map(l => l.id === editingLogId ? {
+                    ...l,
+                    staffId: pointsStaff,
+                    staffName: staff.name,
+                    taskTitle: row.title || '',
+                    reason: row.description,
+                    points: Number(row.valuation),
+                    type: pointsType,
+                    date: row.date
+                } : l);
+                toast.success('Points entry updated successfully!');
+            } else {
+                // Add mode
+                const newEntries = validRows.map((row, idx) => ({
+                    id: 'pl_' + (Date.now() + idx),
+                    staffId: pointsStaff,
+                    staffName: staff.name,
+                    taskTitle: row.title || '',
+                    reason: row.description,
+                    points: Number(row.valuation),
+                    type: pointsType,
+                    date: row.date
+                }));
+                updatedLogs = [...newEntries, ...updatedLogs];
+                toast.success(`Successfully recorded points entries for ${staff.name}!`);
+            }
+
+            setPointsLogs(updatedLogs);
+            await recalculateStaffPoints(pointsStaff, updatedLogs);
+
+            if (editingLogId) {
+                const oldLog = pointsLogs.find(l => l.id === editingLogId);
+                if (oldLog && oldLog.staffId !== pointsStaff) {
+                    await recalculateStaffPoints(oldLog.staffId, updatedLogs);
+                }
+            }
+
+            setShowPointsModal(false);
+            setPointsStaff('');
+            setPointsModalRows([
+                { title: '', description: '', valuation: '', date: new Date().toISOString().split('T')[0] }
+            ]);
+            setEditingLogId(null);
+            
+            // Refresh staff list
+            const token = localStorage.getItem('authToken');
+            const staffRes = await axios.get('/api/users?role=Teacher,Editor,Accountant,Marketer', { headers: { Authorization: `Bearer ${token}` } });
+            setStaffList(Array.isArray(staffRes.data) ? staffRes.data : staffRes.data.users || []);
+        } catch (err) {
+            toast.error('Failed to record points');
+        } finally {
+            setSubmittingPoints(false);
+        }
+    };
+
+    const handleDeletePointsLog = async (logId) => {
+        if (!window.confirm('Are you sure you want to delete this points entry?')) return;
+
+        const log = pointsLogs.find(l => l.id === logId);
+        if (!log) return;
+
+        const staffId = log.staffId;
+        const updatedLogs = pointsLogs.filter(l => l.id !== logId);
+
+        try {
+            setPointsLogs(updatedLogs);
+            await recalculateStaffPoints(staffId, updatedLogs);
+            toast.success('Points entry deleted successfully.');
+            // Refresh staff list
+            const token = localStorage.getItem('authToken');
+            const staffRes = await axios.get('/api/users?role=Teacher,Editor,Accountant,Marketer', { headers: { Authorization: `Bearer ${token}` } });
+            setStaffList(Array.isArray(staffRes.data) ? staffRes.data : staffRes.data.users || []);
+        } catch (err) {
+            toast.error('Failed to delete points entry.');
+        }
     };
 
     const [isExportDropdownOpen, setIsExportDropdownOpen] = useState(false);
@@ -605,7 +822,7 @@ const StaffList = () => {
 
     return (
         <>
-        <DashboardLayout role="Admin" fullWidth={true}>
+        <DashboardLayout role={user?.role || 'Admin'} fullWidth={true}>
             <div>
                 {/* Header */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
@@ -624,6 +841,7 @@ const StaffList = () => {
                     </div>
                 </div>
 
+
                 {/* Tabs */}
                 <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', borderBottom: '1px solid #e2e8f0', paddingBottom: '12px', overflowX: 'auto' }}>
                     {[
@@ -640,19 +858,11 @@ const StaffList = () => {
                                 key={t.id}
                                 onClick={() => setActiveTab(t.id)}
                                 style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '6px',
-                                    padding: '8px 16px',
-                                    borderRadius: '10px',
-                                    fontSize: '0.8rem',
-                                    fontWeight: 800,
-                                    border: 'none',
-                                    background: isSel ? '#0f172a' : 'transparent',
-                                    color: isSel ? '#fff' : '#64748b',
-                                    cursor: 'pointer',
-                                    transition: 'all 0.15s ease',
-                                    whiteSpace: 'nowrap'
+                                    display: 'flex', alignItems: 'center', gap: '6px',
+                                    padding: '8px 16px', borderRadius: '10px', fontSize: '0.8rem', fontWeight: 800,
+                                    border: 'none', background: isSel ? '#0f172a' : 'transparent',
+                                    color: isSel ? '#fff' : '#64748b', cursor: 'pointer',
+                                    transition: 'all 0.15s ease', whiteSpace: 'nowrap'
                                 }}
                             >
                                 <Icon size={14} />
@@ -782,20 +992,7 @@ const StaffList = () => {
                                         </div>
                                     )}
                                 </div>
-                                <button
-                                    onClick={() => setIsAddModalOpen(true)}
-                                    style={{
-                                        display: 'flex', alignItems: 'center', gap: '8px',
-                                        padding: '10px 20px', background: '#4f46e5', color: '#fff',
-                                        border: 'none', borderRadius: '12px', fontSize: '0.82rem',
-                                        fontWeight: 800, cursor: 'pointer', transition: 'all 0.15s ease',
-                                        boxShadow: '0 4px 12px rgba(79,70,229,0.25)'
-                                    }}
-                                    onMouseEnter={e => e.currentTarget.style.background = '#4338ca'}
-                                    onMouseLeave={e => e.currentTarget.style.background = '#4f46e5'}
-                                >
-                                    <Plus size={16} /> Add New Staff
-                                </button>
+
                             </div>
                         </div>
 
@@ -821,7 +1018,7 @@ const StaffList = () => {
                                                     className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer accent-indigo-650"
                                                 />
                                             </th>
-                                            {['#', 'Name', 'Designation', 'Department', 'Institute', 'Minus Valuation', 'Status', 'Actions'].map(h => (
+                                            {['#', 'Name', 'Role', 'Designation', 'Department', 'Institute', 'Status', 'Actions'].map(h => (
                                                 <th key={h} style={{ padding: '13px 16px', textAlign: h === 'Actions' ? 'right' : 'left', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                                                     {h}
                                                 </th>
@@ -875,21 +1072,28 @@ const StaffList = () => {
                                                         </div>
                                                     </div>
                                                 </td>
+                                                <td style={{ padding: '13px 16px' }}>
+                                                    <span style={{
+                                                        padding: '3px 10px',
+                                                        fontSize: '0.68rem',
+                                                        fontWeight: 800,
+                                                        borderRadius: '8px',
+                                                        background: s.role === 'Teacher' ? '#eef2ff' : s.role === 'Editor' ? '#fef3c7' : s.role === 'Accountant' ? '#dcfce7' : '#fce7f3',
+                                                        color: s.role === 'Teacher' ? '#4f46e5' : s.role === 'Editor' ? '#d97706' : s.role === 'Accountant' ? '#16a34a' : '#db2777'
+                                                    }}>{s.role || 'â€”'}</span>
+                                                </td>
                                                 <td style={{ padding: '13px 16px', fontSize: '0.78rem', fontWeight: 700, color: '#374151' }}>
                                                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                                         <Briefcase size={12} style={{ color: '#94a3b8' }} />
-                                                        {s.staffProfile?.designation || '—'}
+                                                        {s.staffProfile?.designation || 'â€”'}
                                                     </div>
                                                 </td>
-                                                <td style={{ padding: '13px 16px', fontSize: '0.78rem', fontWeight: 600, color: '#64748b' }}>{s.staffProfile?.department || '—'}</td>
+                                                <td style={{ padding: '13px 16px', fontSize: '0.78rem', fontWeight: 600, color: '#64748b' }}>{s.staffProfile?.department || 'â€”'}</td>
                                                 <td style={{ padding: '13px 16px', fontSize: '0.78rem', fontWeight: 600, color: '#64748b' }}>
                                                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                                         <Building size={12} style={{ color: '#94a3b8' }} />
                                                         {s.instituteName || s.institute?.name || 'All Institutes'}
                                                     </div>
-                                                </td>
-                                                <td style={{ padding: '13px 16px', fontSize: '0.78rem', fontWeight: 800, color: s.staffProfile?.minusPoints > 0 ? '#ef4444' : '#64748b' }}>
-                                                    {s.staffProfile?.minusPoints !== undefined ? s.staffProfile.minusPoints : 0}
                                                 </td>
                                                 <td style={{ padding: '13px 16px' }}>
                                                      <button
@@ -955,6 +1159,7 @@ const StaffList = () => {
                                 </div>
                             </div>
                         )}
+                    
                     </>
                 )}
 
@@ -999,103 +1204,134 @@ const StaffList = () => {
                                     </div>
                                 )}
                             </div>
-
                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                 <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#64748b' }}>Attendance Date:</span>
-                                <div style={{ position: 'relative' }}>
-                                    <Calendar size={13} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
-                                    <input
-                                        type="date"
-                                        value={attendanceDate}
-                                        onChange={e => setAttendanceDate(e.target.value)}
-                                        max={new Date().toISOString().split('T')[0]}
-                                        style={{
-                                            paddingLeft: 32, paddingRight: 12, paddingTop: 8, paddingBottom: 8,
-                                            border: '1.5px solid #e2e8f0', borderRadius: '12px', fontSize: '0.8rem',
-                                            fontWeight: 700, color: '#374151', background: '#fff', outline: 'none',
-                                            fontFamily: 'inherit', cursor: 'pointer'
-                                        }}
-                                    />
+                                <input
+                                    type="date"
+                                    value={attendanceDate}
+                                    onChange={e => setAttendanceDate(e.target.value)}
+                                    style={{
+                                        padding: '8px 12px', border: '1.5px solid #e2e8f0', borderRadius: '12px',
+                                        fontSize: '0.82rem', fontWeight: 600, color: '#374151', background: '#fff',
+                                        outline: 'none', fontFamily: 'inherit', cursor: 'pointer'
+                                    }}
+                                />
+                                <button
+                                    onClick={handleSaveAttendance}
+                                    disabled={submittingAttendance}
+                                    style={{
+                                        display: 'flex', alignItems: 'center', gap: '6px',
+                                        padding: '8px 18px', background: '#4f46e5', color: '#fff',
+                                        border: 'none', borderRadius: '12px', fontSize: '0.82rem',
+                                        fontWeight: 800, cursor: submittingAttendance ? 'not-allowed' : 'pointer',
+                                        opacity: submittingAttendance ? 0.7 : 1, transition: 'all 0.15s'
+                                    }}
+                                >
+                                    <Check size={15} /> {submittingAttendance ? 'Saving...' : 'Save All'}
+                                </button>
                             </div>
                         </div>
-                    </div>
 
-                        {/* Staff Attendance Grid/List */}
+                        {/* Attendance Table */}
                         <div style={{ background: '#fff', borderRadius: '20px', overflow: 'hidden', border: '1px solid #f1f5f9', boxShadow: '0 2px 12px rgba(0,0,0,0.04)' }}>
-                            <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
-                                <thead>
-                                    <tr style={{ background: '#f8fafc', borderBottom: '1px solid #f1f5f9' }}>
-                                        {['Staff Name', 'Designation & Department', 'Institute', 'Attendance Status', 'Check-In / Out', 'Time'].map(h => {
-                                            const widths = {
-                                                'Staff Name': '26%',
-                                                'Designation & Department': '22%',
-                                                'Institute': '20%',
-                                                'Attendance Status': '14%',
-                                                'Check-In / Out': '12%',
-                                                'Time': '6%'
-                                            };
+                            <div style={{ overflowX: 'auto' }}>
+                                <table style={{ width: '100%', minWidth: '700px', borderCollapse: 'collapse' }}>
+                                    <thead>
+                                        <tr style={{ background: '#f8fafc', borderBottom: '1px solid #f1f5f9' }}>
+                                            {['#', 'Name', 'Role', 'Status', 'Check-In', 'Check-Out', 'Time Spent', 'Action'].map(h => (
+                                                <th key={h} style={{ padding: '13px 16px', textAlign: 'left', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{h}</th>
+                                            ))}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {displayList.length === 0 ? (
+                                            <tr><td colSpan={8} style={{ padding: '48px', textAlign: 'center', color: '#94a3b8', fontWeight: 700 }}>No staff found</td></tr>
+                                        ) : displayList.map((s, i) => {
+                                            const rec = attendanceRecords[s._id] || { status: '', checkInTime: '', checkOutTime: '' };
+                                            const isEditing = editingId === s._id;
                                             return (
-                                                <th key={h} style={{ width: widths[h] || 'auto', padding: '14px 18px', textAlign: h.includes('Status') || h.includes('Time') || h.includes('Out') ? 'center' : 'left', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                                                    {h}
-                                                </th>
+                                                <tr key={s._id || i} style={{ borderBottom: '1px solid #f8fafc' }}>
+                                                    <td style={{ padding: '13px 16px', fontSize: '0.78rem', fontWeight: 700, color: '#94a3b8' }}>{i + 1}</td>
+                                                    <td style={{ padding: '13px 16px' }}>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                            <div style={{ width: 34, height: 34, borderRadius: '10px', background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '0.8rem', fontWeight: 900 }}>
+                                                                {s.name?.[0]?.toUpperCase() || '?'}
+                                                            </div>
+                                                            <div>
+                                                                <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#0f172a', display: 'block' }}>{s.name}</span>
+                                                                <span style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 650 }}>{s.email}</span>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                    <td style={{ padding: '13px 16px' }}>
+                                                        <span style={{
+                                                            padding: '3px 10px', fontSize: '0.68rem', fontWeight: 800, borderRadius: '8px',
+                                                            background: s.role === 'Teacher' ? '#eef2ff' : s.role === 'Editor' ? '#fef3c7' : s.role === 'Accountant' ? '#dcfce7' : '#fce7f3',
+                                                            color: s.role === 'Teacher' ? '#4f46e5' : s.role === 'Editor' ? '#d97706' : s.role === 'Accountant' ? '#16a34a' : '#db2777'
+                                                        }}>{s.role || '—'}</span>
+                                                    </td>
+                                                    <td style={{ padding: '13px 16px' }}>
+                                                        {isEditing ? (
+                                                            <select
+                                                                value={editRecord.status}
+                                                                onChange={e => setEditRecord(prev => ({ ...prev, status: e.target.value }))}
+                                                                style={{ padding: '6px 10px', border: '1.5px solid #e2e8f0', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 700, outline: 'none', cursor: 'pointer' }}
+                                                            >
+                                                                <option value="">Select</option>
+                                                                <option value="Present">Present</option>
+                                                                <option value="Absent">Absent</option>
+                                                                <option value="Leave">Leave</option>
+                                                                <option value="Holiday">Holiday</option>
+                                                            </select>
+                                                        ) : (
+                                                            <select
+                                                                value={rec.status}
+                                                                onChange={e => handleAttendanceStatusChange(s._id, e.target.value)}
+                                                                style={{ padding: '6px 10px', border: '1.5px solid #e2e8f0', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 700, outline: 'none', cursor: 'pointer' }}
+                                                            >
+                                                                <option value="">Not Marked</option>
+                                                                <option value="Present">Present</option>
+                                                                <option value="Absent">Absent</option>
+                                                                <option value="Leave">Leave</option>
+                                                                <option value="Holiday">Holiday</option>
+                                                            </select>
+                                                        )}
+                                                    </td>
+                                                    <td style={{ padding: '13px 16px' }}>
+                                                        {isEditing ? (
+                                                            <input type="time" value={editRecord.checkInTime} onChange={e => setEditRecord(prev => ({ ...prev, checkInTime: e.target.value }))} style={{ padding: '6px 10px', border: '1.5px solid #e2e8f0', borderRadius: '8px', fontSize: '0.8rem', outline: 'none' }} />
+                                                        ) : (
+                                                            <span style={{ fontSize: '0.78rem', fontWeight: 600, color: '#64748b' }}>{rec.checkInTime || '—'}</span>
+                                                        )}
+                                                    </td>
+                                                    <td style={{ padding: '13px 16px' }}>
+                                                        {isEditing ? (
+                                                            <input type="time" value={editRecord.checkOutTime} onChange={e => setEditRecord(prev => ({ ...prev, checkOutTime: e.target.value }))} style={{ padding: '6px 10px', border: '1.5px solid #e2e8f0', borderRadius: '8px', fontSize: '0.8rem', outline: 'none' }} />
+                                                        ) : (
+                                                            <span style={{ fontSize: '0.78rem', fontWeight: 600, color: '#64748b' }}>{rec.checkOutTime || '—'}</span>
+                                                        )}
+                                                    </td>
+                                                    <td style={{ padding: '13px 16px', fontSize: '0.78rem', fontWeight: 600, color: '#64748b' }}>
+                                                        {calculateSpendingTime(isEditing ? editRecord.checkInTime : rec.checkInTime, isEditing ? editRecord.checkOutTime : rec.checkOutTime)}
+                                                    </td>
+                                                    <td style={{ padding: '13px 16px' }}>
+                                                        {isEditing ? (
+                                                            <div style={{ display: 'flex', gap: '6px' }}>
+                                                                <button onClick={() => handleSaveSingleAttendance(s._id)} disabled={submittingAttendance} style={{ padding: '5px 12px', background: '#4f46e5', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '0.75rem', fontWeight: 800, cursor: 'pointer' }}>Save</button>
+                                                                <button onClick={() => setEditingId(null)} style={{ padding: '5px 10px', background: '#f1f5f9', color: '#64748b', border: 'none', borderRadius: '8px', fontSize: '0.75rem', fontWeight: 800, cursor: 'pointer' }}>Cancel</button>
+                                                            </div>
+                                                        ) : (
+                                                            <button onClick={() => handleStartEdit(s._id, rec)} style={{ padding: '5px 12px', background: '#f1f5f9', color: '#4f46e5', border: 'none', borderRadius: '8px', fontSize: '0.75rem', fontWeight: 800, cursor: 'pointer' }}>
+                                                                <Edit size={13} />
+                                                            </button>
+                                                        )}
+                                                    </td>
+                                                </tr>
                                             );
                                         })}
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {filtered.length === 0 ? (
-                                        <tr>
-                                            <td colSpan={6} style={{ padding: '48px', textAlign: 'center', color: '#94a3b8', fontWeight: 700 }}>
-                                                No staff found
-                                            </td>
-                                        </tr>
-                                    ) : filtered.map((s) => {
-                                        const record = attendanceRecords[s._id] || { status: '', checkInTime: '', checkOutTime: '' };
-                                        return (
-                                            <tr key={s._id} style={{ borderBottom: '1px solid #f8fafc', transition: 'background 0.15s' }}>
-                                                <td style={{ padding: '14px 18px', overflow: 'hidden' }}>
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
-                                                        <div style={{
-                                                            width: 32, height: 32, borderRadius: '10px',
-                                                            background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-                                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                            color: '#fff', fontSize: '0.8rem', fontWeight: 900, flexShrink: 0
-                                                        }}>
-                                                            {s.name?.[0]?.toUpperCase() || '?'}
-                                                        </div>
-                                                        <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
-                                                            <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={s.name}>{s.name}</span>
-                                                            <span style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={s.email}>{s.email}</span>
-                                                        </div>
-                                                    </div>
-                                                </td>
-                                                <td style={{ padding: '14px 18px', overflow: 'hidden' }}>
-                                                    <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
-                                                        <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#374151', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={s.staffProfile?.designation || '—'}>{s.staffProfile?.designation || '—'}</span>
-                                                        <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={s.staffProfile?.department || '—'}>{s.staffProfile?.department || '—'}</span>
-                                                    </div>
-                                                </td>
-                                                <td style={{ padding: '14px 18px', fontSize: '0.8rem', fontWeight: 650, color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={s.instituteName || s.institute?.name || 'All Institutes'}>
-                                                    {s.instituteName || s.institute?.name || 'All Institutes'}
-                                                </td>
-                                                <td style={{ padding: '14px 18px', textAlign: 'center' }}>
-                                                    {renderStatusBadge(record.status)}
-                                                </td>
-                                                <td style={{ padding: '14px 18px', textAlign: 'center' }}>
-                                                    <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#374151' }}>
-                                                        {record.checkInTime || record.checkOutTime ? (
-                                                            `${record.checkInTime || '—'} to ${record.checkOutTime || '—'}`
-                                                        ) : '—'}
-                                                    </span>
-                                                </td>
-                                                <td style={{ padding: '14px 18px', textAlign: 'center', fontSize: '0.8rem', fontWeight: 700, color: '#64748b' }}>
-                                                    {calculateSpendingTime(record.checkInTime, record.checkOutTime)}
-                                                </td>
-                                            </tr>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 )}
@@ -1104,110 +1340,57 @@ const StaffList = () => {
                     <div style={{ background: '#fff', borderRadius: '20px', padding: '24px', border: '1px solid #f1f5f9', boxShadow: '0 2px 12px rgba(0,0,0,0.04)' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '16px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 900, color: '#0f172a' }}>Salary Processing (July 2026)</h3>
+                                <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 900, color: '#0f172a' }}>Salary Processing ({new Date().toLocaleString('default', { month: 'long', year: 'numeric' })})</h3>
                                 {user?.role === 'Admin' && (
                                     <div style={{ position: 'relative', width: 200 }}>
                                         <Filter size={13} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
-                                        <select
-                                            value={filterInstitute}
-                                            onChange={(e) => setFilterInstitute(e.target.value)}
-                                            style={{
-                                                width: '100%', paddingLeft: 32, paddingRight: 24, paddingTop: 8, paddingBottom: 8,
-                                                border: '1.5px solid #e2e8f0', borderRadius: '10px', fontSize: '0.8rem',
-                                                fontWeight: 600, color: '#374151', background: '#fff', outline: 'none',
-                                                fontFamily: 'inherit', appearance: 'none', cursor: 'pointer'
-                                            }}
-                                        >
+                                        <select value={filterInstitute} onChange={(e) => setFilterInstitute(e.target.value)} style={{ width: '100%', paddingLeft: 32, paddingRight: 24, paddingTop: 8, paddingBottom: 8, border: '1.5px solid #e2e8f0', borderRadius: '10px', fontSize: '0.8rem', fontWeight: 600, color: '#374151', background: '#fff', outline: 'none', fontFamily: 'inherit', appearance: 'none', cursor: 'pointer' }}>
                                             <option value="All">All Institutes</option>
-                                            {institutes.map(inst => (
-                                                <option key={inst._id} value={inst._id}>{inst.name}</option>
-                                            ))}
+                                            {institutes.map(inst => (<option key={inst._id} value={inst._id}>{inst.name}</option>))}
                                         </select>
                                         <ChevronDown size={13} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', pointerEvents: 'none' }} />
                                     </div>
                                 )}
                             </div>
                         </div>
-                        
-                        <div style={{ overflowX: 'auto', border: '1px solid #f1f5f9', borderRadius: '14px' }}>
-                            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                        <div style={{ border: '1px solid #e2e8f0', borderRadius: '16px', overflow: 'hidden' }}>
+                            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.78rem' }}>
                                 <thead>
-                                    <tr style={{ background: '#f8fafc', borderBottom: '1px solid #f1f5f9' }}>
-                                        {['Name', 'Designation & Department', 'Institute', 'Salary', 'Status', 'Actions'].map(h => (
-                                            <th key={h} style={{ padding: '13px 16px', textAlign: h === 'Actions' ? 'right' : 'left', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                                                {h}
-                                            </th>
+                                    <tr style={{ borderBottom: '1px solid #e2e8f0', backgroundColor: '#f8fafc', color: '#64748b', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                                        {['#', 'Staff Member', 'Role', 'Institute', 'Monthly Salary', 'Status', 'Action'].map(h => (
+                                            <th key={h} style={{ padding: '12px 16px' }}>{h}</th>
                                         ))}
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {displayList.length === 0 ? (
-                                        <tr>
-                                            <td colSpan={6} style={{ padding: '48px', textAlign: 'center', color: '#94a3b8', fontWeight: 700 }}>
-                                                No staff found
-                                            </td>
-                                        </tr>
+                                        <tr><td colSpan={7} style={{ padding: '40px', textAlign: 'center', color: '#94a3b8', fontWeight: 700 }}>No staff found</td></tr>
                                     ) : displayList.map((s, i) => {
-                                        const status = salaryPayouts[s.name] || 'Pending';
-                                        const designation = s.staffProfile?.designation || '—';
-                                        const department = s.staffProfile?.department || '—';
-                                        const salary = s.staffProfile?.salary ? `₹${Number(s.staffProfile.salary).toLocaleString('en-IN')} / month` : '₹25,000 / month';
-                                        const institute = s.instituteName || s.institute?.name || 'All Institutes';
-
+                                        const status = salaryPayouts[s.name] || s.staffProfile?.salaryStatus || 'Pending';
+                                        const salary = s.staffProfile?.salary || 25000;
                                         return (
-                                            <tr key={s._id || i} style={{ borderBottom: '1px solid #f8fafc', transition: 'background 0.15s' }}
-                                                onMouseEnter={e => e.currentTarget.style.background = '#fafafa'}
-                                                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                                            >
-                                                <td style={{ padding: '13px 16px' }}>
+                                            <tr key={s._id || i} style={{ borderBottom: '1px solid #f8fafc' }}>
+                                                <td style={{ padding: '12px 16px', fontWeight: 700, color: '#94a3b8' }}>{i + 1}</td>
+                                                <td style={{ padding: '12px 16px' }}>
                                                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                                        <div style={{
-                                                            width: 34, height: 34, borderRadius: '10px',
-                                                            background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-                                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                            color: '#fff', fontSize: '0.8rem', fontWeight: 900
-                                                        }}>
-                                                            {s.name?.[0]?.toUpperCase() || '?'}
+                                                        <div style={{ width: 32, height: 32, borderRadius: '10px', background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '0.8rem', fontWeight: 900 }}>{s.name?.[0]?.toUpperCase() || '?'}</div>
+                                                        <div>
+                                                            <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#0f172a', display: 'block' }}>{s.name}</span>
+                                                            <span style={{ fontSize: '0.68rem', color: '#64748b' }}>{s.email}</span>
                                                         </div>
-                                                        <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#0f172a' }}>{s.name}</span>
                                                     </div>
                                                 </td>
-                                                <td style={{ padding: '13px 16px', fontSize: '0.78rem', fontWeight: 700, color: '#374151' }}>
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                                        <Briefcase size={12} style={{ color: '#94a3b8' }} />
-                                                        {designation} / {department}
-                                                    </div>
+                                                <td style={{ padding: '12px 16px' }}>
+                                                    <span style={{ padding: '3px 10px', fontSize: '0.68rem', fontWeight: 800, borderRadius: '8px', background: s.role === 'Teacher' ? '#eef2ff' : s.role === 'Editor' ? '#fef3c7' : s.role === 'Accountant' ? '#dcfce7' : '#fce7f3', color: s.role === 'Teacher' ? '#4f46e5' : s.role === 'Editor' ? '#d97706' : s.role === 'Accountant' ? '#16a34a' : '#db2777' }}>{s.role || '—'}</span>
                                                 </td>
-                                                <td style={{ padding: '13px 16px', fontSize: '0.78rem', fontWeight: 600, color: '#64748b' }}>
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                                        <Building size={12} style={{ color: '#94a3b8' }} />
-                                                        {institute}
-                                                    </div>
+                                                <td style={{ padding: '12px 16px', fontWeight: 600, color: '#64748b' }}>{s.institute?.name || s.instituteName || '—'}</td>
+                                                <td style={{ padding: '12px 16px', fontWeight: 800, color: '#0f172a' }}>₹{salary.toLocaleString('en-IN')}/mo</td>
+                                                <td style={{ padding: '12px 16px' }}>
+                                                    <span style={{ background: status === 'Paid' ? '#dcfce7' : status === 'Processing' ? '#fef3c7' : '#fee2e2', color: status === 'Paid' ? '#16a34a' : status === 'Processing' ? '#d97706' : '#ef4444', borderRadius: '999px', padding: '4px 12px', fontSize: '0.68rem', fontWeight: 900 }}>{status}</span>
                                                 </td>
-                                                <td style={{ padding: '13px 16px', fontSize: '0.78rem', fontWeight: 700, color: '#0f172a' }}>
-                                                    {salary}
-                                                </td>
-                                                <td style={{ padding: '13px 16px' }}>
-                                                    <span style={{
-                                                        background: status === 'Paid' ? '#dcfce7' : '#fffbeb',
-                                                        color: status === 'Paid' ? '#16a34a' : '#d97706',
-                                                        borderRadius: '999px', padding: '4px 12px',
-                                                        fontSize: '0.68rem', fontWeight: 900
-                                                    }}>{status}</span>
-                                                </td>
-                                                <td style={{ padding: '13px 16px', textAlign: 'right' }}>
-                                                    <button
-                                                        onClick={() => setSelectedStaffForDetails(s)}
-                                                        title="View Profile"
-                                                        style={{
-                                                            padding: '6px 8px', border: 'none', borderRadius: '8px',
-                                                            background: 'transparent', color: '#94a3b8', cursor: 'pointer',
-                                                            transition: 'all 0.15s'
-                                                        }}
-                                                        onMouseEnter={e => { e.currentTarget.style.background = '#eef2ff'; e.currentTarget.style.color = '#4f46e5'; }}
-                                                        onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#94a3b8'; }}
-                                                    >
-                                                        <Eye size={16} />
+                                                <td style={{ padding: '12px 16px' }}>
+                                                    <button onClick={() => setSelectedStaffForDetails(s)} style={{ padding: '5px 12px', background: '#eef2ff', color: '#4f46e5', border: 'none', borderRadius: '8px', fontSize: '0.75rem', fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                        <Eye size={13} /> Details
                                                     </button>
                                                 </td>
                                             </tr>
@@ -1223,279 +1406,87 @@ const StaffList = () => {
                     <div style={{ background: '#fff', borderRadius: '24px', padding: '24px', border: '1px solid #f1f5f9', boxShadow: '0 2px 12px rgba(0,0,0,0.04)', display: 'flex', flexDirection: 'column', gap: '20px' }}>
                         <div>
                             <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 900, color: '#0f172a' }}>Task Assignments</h3>
-                            <p style={{ margin: '4px 0 0', fontSize: '0.72rem', color: '#64748b', fontWeight: 600 }}>Monitor tasks assigned to staff members with priorities, completion logs, and verification statuses.</p>
+                            <p style={{ margin: '4px 0 0', fontSize: '0.72rem', color: '#64748b', fontWeight: 600 }}>Assign and monitor tasks for staff members with priorities and completion tracking.</p>
+                        </div>
+                        {/* Add Task Form */}
+                        <form onSubmit={handleAddTask} style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'flex-end', background: '#f8fafc', padding: '16px', borderRadius: '16px' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                <label style={{ fontSize: '0.7rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>Staff</label>
+                                <select value={newTask.staffName} onChange={e => setNewTask(p => ({ ...p, staffName: e.target.value }))} style={{ padding: '8px 12px', border: '1.5px solid #e2e8f0', borderRadius: '10px', fontSize: '0.82rem', fontWeight: 600, outline: 'none', minWidth: 160 }}>
+                                    <option value="">Select Staff</option>
+                                    {staffList.map(s => <option key={s._id} value={s.name}>{s.name} ({s.role})</option>)}
+                                </select>
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1 }}>
+                                <label style={{ fontSize: '0.7rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>Task Title</label>
+                                <input value={newTask.title} onChange={e => setNewTask(p => ({ ...p, title: e.target.value }))} placeholder="Enter task title..." style={{ padding: '8px 12px', border: '1.5px solid #e2e8f0', borderRadius: '10px', fontSize: '0.82rem', fontWeight: 600, outline: 'none', minWidth: 200 }} />
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                <label style={{ fontSize: '0.7rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>Due Date</label>
+                                <input type="date" value={newTask.due} onChange={e => setNewTask(p => ({ ...p, due: e.target.value }))} style={{ padding: '8px 12px', border: '1.5px solid #e2e8f0', borderRadius: '10px', fontSize: '0.82rem', fontWeight: 600, outline: 'none' }} />
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                <label style={{ fontSize: '0.7rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>Priority</label>
+                                <select value={newTask.priority} onChange={e => setNewTask(p => ({ ...p, priority: e.target.value }))} style={{ padding: '8px 12px', border: '1.5px solid #e2e8f0', borderRadius: '10px', fontSize: '0.82rem', fontWeight: 600, outline: 'none' }}>
+                                    <option value="Low">Low</option>
+                                    <option value="Medium">Medium</option>
+                                    <option value="High">High</option>
+                                </select>
+                            </div>
+                            <button type="submit" style={{ padding: '8px 18px', background: '#4f46e5', color: '#fff', border: 'none', borderRadius: '10px', fontSize: '0.82rem', fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <Plus size={15} /> Assign Task
+                            </button>
+                        </form>
+
+                        {/* Filters */}
+                        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
+                            <select value={taskPriorityFilter} onChange={e => setTaskPriorityFilter(e.target.value)} style={{ padding: '7px 12px', border: '1.5px solid #e2e8f0', borderRadius: '10px', fontSize: '0.8rem', fontWeight: 700, outline: 'none', cursor: 'pointer' }}>
+                                <option value="">All Priorities</option>
+                                <option value="High">High</option>
+                                <option value="Medium">Medium</option>
+                                <option value="Low">Low</option>
+                            </select>
+                            <select value={taskStatusFilter} onChange={e => setTaskStatusFilter(e.target.value)} style={{ padding: '7px 12px', border: '1.5px solid #e2e8f0', borderRadius: '10px', fontSize: '0.8rem', fontWeight: 700, outline: 'none', cursor: 'pointer' }}>
+                                <option value="">All Statuses</option>
+                                <option value="pending">Pending</option>
+                                <option value="inprogress">In Progress</option>
+                                <option value="done">Done</option>
+                            </select>
                         </div>
 
-                        {/* Premium Filter Toolbar */}
-                        <div style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '16px',
-                            flexWrap: 'wrap',
-                            background: '#f8fafc',
-                            padding: '16px',
-                            borderRadius: '16px',
-                            border: '1px solid #e2e8f0',
-                            marginBottom: '16px'
-                        }}>
-                            {/* Date Filter */}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#475569' }}>Date:</span>
-                                <select
-                                    value={taskDateFilter}
-                                    onChange={e => setTaskDateFilter(e.target.value)}
-                                    style={{ padding: '6px 12px', borderRadius: '10px', border: '1.5px solid #cbd5e1', fontSize: '0.75rem', fontWeight: 700, color: '#334155', background: '#fff', cursor: 'pointer', outline: 'none' }}
-                                >
-                                    <option value="today">Today</option>
-                                    <option value="month">This Month</option>
-                                    <option value="particular">Particular Date</option>
-                                    <option value="range">Date Range</option>
-                                    <option value="year">Complete Year</option>
-                                </select>
-                            </div>
-
-                            {/* Conditionally Rendered Inputs */}
-                            {taskDateFilter === 'particular' && (
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    <input
-                                        type="date"
-                                        value={filterParticularDate}
-                                        onChange={e => setFilterParticularDate(e.target.value)}
-                                        style={{
-                                            padding: '5px 10px',
-                                            borderRadius: '8px',
-                                            border: '1.5px solid #cbd5e1',
-                                            fontSize: '0.72rem',
-                                            fontWeight: 700,
-                                            outline: 'none',
-                                            color: '#334155'
-                                        }}
-                                    />
-                                </div>
-                            )}
-
-                            {taskDateFilter === 'range' && (
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                                    <input
-                                        type="date"
-                                        value={filterStartDate}
-                                        onChange={e => setFilterStartDate(e.target.value)}
-                                        placeholder="From"
-                                        style={{
-                                            padding: '5px 10px',
-                                            borderRadius: '8px',
-                                            border: '1.5px solid #cbd5e1',
-                                            fontSize: '0.72rem',
-                                            fontWeight: 700,
-                                            outline: 'none',
-                                            color: '#334155'
-                                        }}
-                                    />
-                                    <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748b' }}>to</span>
-                                    <input
-                                        type="date"
-                                        value={filterEndDate}
-                                        onChange={e => setFilterEndDate(e.target.value)}
-                                        placeholder="To"
-                                        style={{
-                                            padding: '5px 10px',
-                                            borderRadius: '8px',
-                                            border: '1.5px solid #cbd5e1',
-                                            fontSize: '0.72rem',
-                                            fontWeight: 700,
-                                            outline: 'none',
-                                            color: '#334155'
-                                        }}
-                                    />
-                                </div>
-                            )}
-
-                            {/* Verification Filter */}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#475569' }}>Verification:</span>
-                                <select
-                                    value={taskVerificationFilter}
-                                    onChange={e => setTaskVerificationFilter(e.target.value)}
-                                    style={{ padding: '6px 12px', borderRadius: '10px', border: '1.5px solid #cbd5e1', fontSize: '0.75rem', fontWeight: 700, color: '#334155', background: '#fff', cursor: 'pointer', outline: 'none' }}
-                                >
-                                    <option value="">All Verifications</option>
-                                    <option value="approved">Approved</option>
-                                    <option value="rejected">Rejected</option>
-                                    <option value="needs_revision">Needs Revision</option>
-                                    <option value="under_verification">Under Verification</option>
-                                </select>
-                            </div>
-
-                            {/* Status Filter */}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#475569' }}>Status:</span>
-                                <select
-                                    value={taskStatusFilter}
-                                    onChange={e => setTaskStatusFilter(e.target.value)}
-                                    style={{ padding: '6px 12px', borderRadius: '10px', border: '1.5px solid #cbd5e1', fontSize: '0.75rem', fontWeight: 700, color: '#334155', background: '#fff', cursor: 'pointer', outline: 'none' }}
-                                >
-                                    <option value="">All Statuses</option>
-                                    <option value="pending">Pending</option>
-                                    <option value="inprogress">In Progress</option>
-                                    <option value="done">Completed</option>
-                                </select>
-                            </div>
+                        {/* Task Table */}
+                        <div style={{ border: '1px solid #e2e8f0', borderRadius: '16px', overflow: 'hidden' }}>
+                            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.78rem' }}>
+                                <thead>
+                                    <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', color: '#64748b', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                                        {['Staff', 'Task', 'Due Date', 'Priority', 'Status'].map(h => (
+                                            <th key={h} style={{ padding: '12px 16px' }}>{h}</th>
+                                        ))}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {tasks
+                                        .filter(t => (!taskPriorityFilter || t.priority === taskPriorityFilter) && (!taskStatusFilter || t.status === taskStatusFilter))
+                                        .map(t => (
+                                            <tr key={t.id} style={{ borderBottom: '1px solid #f8fafc' }}>
+                                                <td style={{ padding: '12px 16px', fontWeight: 800, color: '#334155' }}>{t.staffName}</td>
+                                                <td style={{ padding: '12px 16px', fontWeight: 700, color: '#0f172a' }}>{t.title}</td>
+                                                <td style={{ padding: '12px 16px', color: '#64748b', fontWeight: 600 }}>{t.due ? new Date(t.due).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}</td>
+                                                <td style={{ padding: '12px 16px' }}>
+                                                    <span style={{ background: t.priority === 'High' ? '#fee2e2' : t.priority === 'Medium' ? '#fffbeb' : '#dcfce7', color: t.priority === 'High' ? '#ef4444' : t.priority === 'Medium' ? '#d97706' : '#16a34a', fontSize: '0.68rem', fontWeight: 900, padding: '2px 8px', borderRadius: '12px' }}>{t.priority}</span>
+                                                </td>
+                                                <td style={{ padding: '12px 16px' }}>
+                                                    <span style={{ background: t.status === 'done' ? '#dcfce7' : t.status === 'inprogress' ? '#fffbeb' : '#fee2e2', color: t.status === 'done' ? '#16a34a' : t.status === 'inprogress' ? '#d97706' : '#ef4444', borderRadius: '999px', padding: '3px 10px', fontSize: '0.68rem', fontWeight: 900 }}>{t.status}</span>
+                                                </td>
+                                            </tr>
+                                        ))
+                                    }
+                                    {tasks.filter(t => (!taskPriorityFilter || t.priority === taskPriorityFilter) && (!taskStatusFilter || t.status === taskStatusFilter)).length === 0 && (
+                                        <tr><td colSpan={5} style={{ padding: '40px', textAlign: 'center', color: '#94a3b8', fontWeight: 700 }}>No tasks match the filters</td></tr>
+                                    )}
+                                </tbody>
+                            </table>
                         </div>
-
-                        {/* Tasks Table */}
-                        {displayList.length === 0 ? (
-                            <div style={{ textAlign: 'center', padding: '48px 0', color: '#94a3b8', fontSize: '0.85rem', fontWeight: 600 }}>
-                                👥 No staff members found.
-                            </div>
-                        ) : (
-                            <div style={{ borderRadius: '16px', border: '1px solid #f1f5f9', overflow: 'hidden' }}>
-                                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '700px' }}>
-                                    <thead>
-                                        <tr style={{ background: '#f8fafc', borderBottom: '1px solid #cbd5e1', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                                            <th style={{ padding: '14px 20px', width: '80px' }}>Sr No.</th>
-                                            <th style={{ padding: '14px 20px' }}>Staff Name</th>
-                                            <th style={{ padding: '14px 20px' }}>Institute</th>
-                                            <th style={{ padding: '14px 20px', textAlign: 'center' }}>Assigned Tasks</th>
-                                            <th style={{ padding: '14px 20px', textAlign: 'center' }}>Not Assigned Tasks</th>
-                                            <th style={{ padding: '14px 20px', textAlign: 'center', width: '100px' }}>Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody style={{ fontSize: '0.75rem' }}>
-                                        {displayList.map((s, idx) => {
-                                            const staffTasks = tasks.filter(t => t.staffName?.toLowerCase() === s.name?.toLowerCase());
-
-                                            // Apply date range filter to active tasks list
-                                            const filteredStaffTasks = staffTasks.filter(t => {
-                                                const taskDate = t.createdAt || t.due || new Date().toISOString().split('T')[0];
-                                                const todayStr = new Date().toISOString().split('T')[0];
-
-                                                if (taskDateFilter === 'today') {
-                                                    return taskDate === todayStr;
-                                                }
-                                                if (taskDateFilter === 'month') {
-                                                    const currentMonthStr = todayStr.substring(0, 7);
-                                                    return taskDate.startsWith(currentMonthStr);
-                                                }
-                                                if (taskDateFilter === 'range') {
-                                                    if (!filterStartDate || !filterEndDate) return true;
-                                                    return taskDate >= filterStartDate && taskDate <= filterEndDate;
-                                                }
-                                                if (taskDateFilter === 'particular') {
-                                                    if (!filterParticularDate) return true;
-                                                    return taskDate === filterParticularDate;
-                                                }
-                                                return true;
-                                            });
-
-                                            const assignedTasks = filteredStaffTasks.filter(t =>
-                                                !t.isSelfCreated &&
-                                                (taskVerificationFilter === '' || (t.verificationStatus || '') === taskVerificationFilter) &&
-                                                (taskStatusFilter === '' || (t.status || 'pending') === taskStatusFilter)
-                                            );
-                                            const assPending = assignedTasks.filter(t => t.status === 'pending' || !t.status || t.status === 'Pending').length;
-                                            const assInprogress = assignedTasks.filter(t => t.status === 'inprogress' || t.status === 'In Progress').length;
-                                            const assCompleted = assignedTasks.filter(t => t.status === 'done' || t.status === 'Completed').length;
-
-                                            const selfTasks = filteredStaffTasks.filter(t =>
-                                                t.isSelfCreated &&
-                                                (taskVerificationFilter === '' || (t.verificationStatus || '') === taskVerificationFilter) &&
-                                                (taskStatusFilter === '' || (t.status || 'pending') === taskStatusFilter)
-                                            );
-                                            const selfCompleted = selfTasks.length;
-                                            const institute = s.instituteName || s.institute?.name || 'All Institutes';
-
-                                            return (
-                                                <tr key={s._id || s.name} style={{ borderBottom: '1px solid #f1f5f9' }}
-                                                    onMouseEnter={e => e.currentTarget.style.background = '#fafafa'}
-                                                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                                                >
-                                                    <td style={{ padding: '14px 20px', fontWeight: 800, color: '#94a3b8' }}>{idx + 1}</td>
-                                                    <td style={{ padding: '14px 20px' }}>
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                            <div style={{ width: 26, height: 26, borderRadius: '6px', background: 'linear-gradient(135deg,#e0e7ff,#eef2ff)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4f46e5', fontSize: '0.72rem', fontWeight: 900 }}>
-                                                                {s.name?.[0]?.toUpperCase() || '?'}
-                                                            </div>
-                                                            <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#1e293b' }}>{s.name}</span>
-                                                        </div>
-                                                    </td>
-                                                    <td style={{ padding: '14px 20px', color: '#64748b', fontWeight: 600 }}>
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                                            <Building size={12} style={{ color: '#94a3b8' }} />
-                                                            {institute}
-                                                        </div>
-                                                    </td>
-                                                    <td style={{ padding: '14px 20px' }}>
-                                                        <div style={{ display: 'flex', gap: '6px', justifyContent: 'center', flexWrap: 'wrap' }}>
-                                                            <span title="Pending" style={{
-                                                                background: assPending > 0 ? '#fee2e2' : '#f1f5f9',
-                                                                color: assPending > 0 ? '#ef4444' : '#64748b',
-                                                                border: `1.5px solid ${assPending > 0 ? '#fca5a5' : '#e2e8f0'}`,
-                                                                borderRadius: '20px',
-                                                                padding: '2px 8px',
-                                                                fontSize: '0.68rem',
-                                                                fontWeight: 900
-                                                            }}>
-                                                                Pending: {assPending}
-                                                            </span>
-                                                            <span title="In Progress" style={{
-                                                                background: assInprogress > 0 ? '#fffbeb' : '#f1f5f9',
-                                                                color: assInprogress > 0 ? '#d97706' : '#64748b',
-                                                                border: `1.5px solid ${assInprogress > 0 ? '#fde68a' : '#e2e8f0'}`,
-                                                                borderRadius: '20px',
-                                                                padding: '2px 8px',
-                                                                fontSize: '0.68rem',
-                                                                fontWeight: 900
-                                                            }}>
-                                                                In Progress: {assInprogress}
-                                                            </span>
-                                                            <span title="Completed" style={{
-                                                                background: assCompleted > 0 ? '#dcfce7' : '#f1f5f9',
-                                                                color: assCompleted > 0 ? '#16a34a' : '#64748b',
-                                                                border: `1.5px solid ${assCompleted > 0 ? '#86efac' : '#e2e8f0'}`,
-                                                                borderRadius: '20px',
-                                                                padding: '2px 8px',
-                                                                fontSize: '0.68rem',
-                                                                fontWeight: 900
-                                                            }}>
-                                                                Completed: {assCompleted}
-                                                            </span>
-                                                        </div>
-                                                    </td>
-                                                    <td style={{ padding: '14px 20px' }}>
-                                                        <div style={{ display: 'flex', gap: '6px', justifyContent: 'center', flexWrap: 'wrap' }}>
-                                                            <span title="Completed" style={{
-                                                                background: selfCompleted > 0 ? '#dcfce7' : '#f1f5f9',
-                                                                color: selfCompleted > 0 ? '#16a34a' : '#64748b',
-                                                                border: `1.5px solid ${selfCompleted > 0 ? '#86efac' : '#e2e8f0'}`,
-                                                                borderRadius: '20px',
-                                                                padding: '2px 8px',
-                                                                fontSize: '0.68rem',
-                                                                fontWeight: 900
-                                                            }}>
-                                                                Completed: {selfCompleted}
-                                                            </span>
-                                                        </div>
-                                                    </td>
-                                                    <td style={{ padding: '14px 20px', textAlign: 'center' }}>
-                                                        <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
-                                                            <button
-                                                                onClick={() => setSelectedStaffForTasks(s)}
-                                                                title="View all tasks for this staff"
-                                                                style={{ width: 32, height: 32, borderRadius: '8px', border: '1px solid #e2e8f0', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#64748b', transition: 'all 0.2s' }}
-                                                                onMouseEnter={e => { e.currentTarget.style.borderColor = '#6366f1'; e.currentTarget.style.color = '#6366f1'; e.currentTarget.style.background = '#f5f3ff'; }}
-                                                                onMouseLeave={e => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.color = '#64748b'; e.currentTarget.style.background = '#fff'; }}
-                                                            >
-                                                                <Eye size={15} />
-                                                            </button>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            );
-                                        })}
-                                    </tbody>
-                                </table>
-                            </div>
-                        )}
                     </div>
                 )}
 
@@ -1509,11 +1500,11 @@ const StaffList = () => {
                             {/* Header Section */}
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
                                 <div>
-                                    <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 900, color: '#0f172a' }}>Points Management (Read-Only)</h3>
+                                    <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 900, color: '#0f172a' }}>Points Management</h3>
                                     <p style={{ margin: '4px 0 0', fontSize: '0.72rem', color: '#64748b', fontWeight: 600 }}>
                                         {currentPreviewStaff 
                                             ? `Viewing plus and minus points log history for ${currentPreviewStaff.name}.` 
-                                            : 'Preview plus and minus points logs for all staff members.'}
+                                            : 'Manage plus and minus points logs for all staff members.'}
                                     </p>
                                 </div>
                                 <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
@@ -1530,6 +1521,18 @@ const StaffList = () => {
                                             <ChevronLeft size={16} /> Back to Staff List
                                         </button>
                                     )}
+                                    <button
+                                        onClick={() => openAddPointsModal(currentPreviewStaff ? currentPreviewStaff._id : '', 'minus')}
+                                        style={{
+                                            display: 'flex', alignItems: 'center', gap: '7px',
+                                            background: 'linear-gradient(135deg, #6366f1, #4f46e5)', color: '#fff',
+                                            border: 'none', borderRadius: '12px', padding: '9px 18px',
+                                            fontSize: '0.82rem', fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit',
+                                            boxShadow: '0 4px 12px rgba(99, 102, 241, 0.2)'
+                                        }}
+                                    >
+                                        <Plus size={15} /> Add Points
+                                    </button>
                                 </div>
                             </div>
 
@@ -1546,23 +1549,36 @@ const StaffList = () => {
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {staffList.map((staff, idx) => {
+                                            {displayList.map((staff, idx) => {
                                                 return (
                                                     <tr key={staff._id} style={{ borderBottom: '1px solid #f1f5f9', background: idx % 2 === 0 ? '#fff' : '#f8fafc' }}>
                                                         <td style={{ padding: '14px 16px', fontSize: '0.78rem', fontWeight: 700, color: '#94a3b8' }}>{idx + 1}</td>
                                                         <td style={{ padding: '14px 16px', fontSize: '0.85rem', fontWeight: 800, color: '#0f172a' }}>{staff.name}</td>
-                                                        <td style={{ padding: '14px 16px', fontSize: '0.78rem', color: '#475569', fontWeight: 600 }}>{staff.staffProfile?.designation || 'Staff'}</td>
+                                                        <td style={{ padding: '14px 16px', fontSize: '0.78rem', color: '#475569', fontWeight: 600 }}>{staff.role || 'Staff'}</td>
                                                         <td style={{ padding: '14px 16px', textAlign: 'center' }}>
-                                                            <button
-                                                                onClick={() => setSelectedPreviewStaff(staff)}
-                                                                style={{
-                                                                    background: '#e0e7ff', color: '#4338ca', border: 'none',
-                                                                    borderRadius: '8px', padding: '6px 14px', fontSize: '0.72rem',
-                                                                    fontWeight: 800, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px'
-                                                                }}
-                                                            >
-                                                                <Eye size={12} /> Preview Valuation
-                                                            </button>
+                                                            <div style={{ display: 'inline-flex', gap: '8px', alignItems: 'center', justifyContent: 'center' }}>
+                                                                <button
+                                                                    onClick={() => setSelectedPreviewStaff(staff)}
+                                                                    style={{
+                                                                        background: '#e0e7ff', color: '#4338ca', border: 'none',
+                                                                        borderRadius: '8px', padding: '6px 14px', fontSize: '0.72rem',
+                                                                        fontWeight: 800, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px'
+                                                                    }}
+                                                                >
+                                                                    <Eye size={12} /> Preview Valuation
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => openAddPointsModal(staff._id, 'minus')}
+                                                                    title="Add Valuation for this Staff"
+                                                                    style={{
+                                                                        background: '#dcfce7', color: '#15803d', border: 'none',
+                                                                        borderRadius: '8px', padding: '6px 10px', fontSize: '0.72rem',
+                                                                        fontWeight: 800, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px'
+                                                                    }}
+                                                                >
+                                                                    <Plus size={12} />
+                                                                </button>
+                                                            </div>
                                                         </td>
                                                     </tr>
                                                 );
@@ -1571,7 +1587,7 @@ const StaffList = () => {
                                     </table>
                                 </div>
                             ) : (
-                                // View 2: Detailed Plus/Minus Tables for Selected Staff (Read-Only)
+                                // View 2: Detailed Plus/Minus Tables for Selected Staff
                                 <div>
 
                                     {/* Unified Points Filter Toolbar */}
@@ -1669,6 +1685,7 @@ const StaffList = () => {
                                                                         <th style={{ padding: '10px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>Date</th>
                                                                         <th style={{ padding: '10px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>Task / Reason</th>
                                                                         <th style={{ padding: '10px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>Valuation</th>
+                                                                        <th style={{ padding: '10px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', whiteSpace: 'nowrap', textAlign: 'center' }}>Actions</th>
                                                                     </tr>
                                                                 </thead>
                                                                 <tbody>
@@ -1694,6 +1711,26 @@ const StaffList = () => {
                                                                                 }}>
                                                                                     +{log.points}
                                                                                 </span>
+                                                                            </td>
+                                                                            <td style={{ padding: '12px 14px', textAlign: 'center' }}>
+                                                                                <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        onClick={() => openEditPointsModal(log)}
+                                                                                        title="Edit Log"
+                                                                                        style={{ padding: '6px', border: 'none', background: '#dbeafe', borderRadius: '8px', color: '#2563eb', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                                                                                    >
+                                                                                        <Pencil size={12} />
+                                                                                    </button>
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        onClick={() => handleDeletePointsLog(log.id)}
+                                                                                        title="Delete entry"
+                                                                                        style={{ padding: '6px', border: 'none', background: '#fee2e2', borderRadius: '8px', color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                                                                                    >
+                                                                                        <Trash2 size={12} />
+                                                                                    </button>
+                                                                                </div>
                                                                             </td>
                                                                         </tr>
                                                                     ))}
@@ -1727,6 +1764,7 @@ const StaffList = () => {
                                                                         <th style={{ padding: '10px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>Date</th>
                                                                         <th style={{ padding: '10px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>Task / Reason</th>
                                                                         <th style={{ padding: '10px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>Valuation</th>
+                                                                        <th style={{ padding: '10px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', whiteSpace: 'nowrap', textAlign: 'center' }}>Actions</th>
                                                                     </tr>
                                                                 </thead>
                                                                 <tbody>
@@ -1753,6 +1791,26 @@ const StaffList = () => {
                                                                                     -{log.points}
                                                                                 </span>
                                                                             </td>
+                                                                            <td style={{ padding: '12px 14px', textAlign: 'center' }}>
+                                                                                <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        onClick={() => openEditPointsModal(log)}
+                                                                                        title="Edit Log"
+                                                                                        style={{ padding: '6px', border: 'none', background: '#dbeafe', borderRadius: '8px', color: '#2563eb', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                                                                                    >
+                                                                                        <Pencil size={12} />
+                                                                                    </button>
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        onClick={() => handleDeletePointsLog(log.id)}
+                                                                                        title="Delete entry"
+                                                                                        style={{ padding: '6px', border: 'none', background: '#fee2e2', borderRadius: '8px', color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                                                                                    >
+                                                                                        <Trash2 size={12} />
+                                                                                    </button>
+                                                                                </div>
+                                                                            </td>
                                                                         </tr>
                                                                     ))}
                                                                 </tbody>
@@ -1768,16 +1826,16 @@ const StaffList = () => {
                         </div>
                     );
                 })()}
+
             </div>
         </DashboardLayout>
         <AddUserModal
             isOpen={isAddModalOpen}
             onClose={() => setIsAddModalOpen(false)}
-            role="Staff"
+            role="Teacher"
             onSuccess={() => {
                 setIsAddModalOpen(false);
-                // Refresh list
-                axios.get('/api/users?role=Staff').then(r => setStaffList(Array.isArray(r.data) ? r.data : r.data.users || [])).catch(() => {});
+                axios.get('/api/users?role=Teacher,Editor,Accountant,Marketer').then(r => setStaffList(Array.isArray(r.data) ? r.data : r.data.users || [])).catch(() => {});
             }}
         />
         <EditUserModal
@@ -1785,26 +1843,13 @@ const StaffList = () => {
             onClose={() => { setIsEditModalOpen(false); setSelectedStaff(null); }}
             user={selectedStaff}
             onSuccess={() => {
-                axios.get('/api/users?role=Staff').then(r => setStaffList(Array.isArray(r.data) ? r.data : r.data.users || [])).catch(() => {});
+                axios.get('/api/users?role=Teacher,Editor,Accountant,Marketer').then(r => setStaffList(Array.isArray(r.data) ? r.data : r.data.users || [])).catch(() => {});
             }}
         />
         {selectedStaffForDetails && (
             <StaffSalaryDetailsModal
                 staff={selectedStaffForDetails}
                 onClose={() => setSelectedStaffForDetails(null)}
-            />
-        )}
-        {selectedStaffForTasks && (
-            <StaffTasksViewModal
-                staff={selectedStaffForTasks}
-                tasks={tasks}
-                onClose={() => setSelectedStaffForTasks(null)}
-                dateFilter={taskDateFilter}
-                particularDate={filterParticularDate}
-                startDate={filterStartDate}
-                endDate={filterEndDate}
-                verificationFilter={taskVerificationFilter}
-                statusFilter={taskStatusFilter}
             />
         )}
         <BulkEditModal
@@ -1814,364 +1859,266 @@ const StaffList = () => {
             selectedIds={Array.from(selectedIds)}
             onSuccess={async () => {
                 const token = localStorage.getItem('authToken');
-                const staffRes = await axios.get('/api/users?role=Staff', { headers: { Authorization: `Bearer ${token}` } });
+                const staffRes = await axios.get('/api/users?role=Teacher,Editor,Accountant,Marketer', { headers: { Authorization: `Bearer ${token}` } });
                 setStaffList(Array.isArray(staffRes.data) ? staffRes.data : staffRes.data.users || []);
             }}
         />
+        {showPointsModal && createPortal(
+            <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', zIndex: 99999, display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: '60px 20px 40px', overflowY: 'auto' }}>
+                <div style={{ background: '#fff', borderRadius: '24px', padding: '32px', width: '100%', maxWidth: '1050px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', margin: '0 auto', position: 'relative', border: '1px solid #e2e8f0' }}>
+
+                    {/* Header */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
+                        <div>
+                            <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 900, color: '#0f172a', letterSpacing: '-0.025em' }}>
+                                {editingLogId ? 'Edit Valuation Entry' : 'Record Plus/Minus Valuation'}
+                            </h2>
+                            <p style={{ margin: '4px 0 0', fontSize: '0.72rem', color: '#64748b', fontWeight: 650 }}>
+                                {editingLogId ? 'Update the details of this valuation log entry.' : 'You can add multiple rows to record multiple valuation entries for the selected staff member at once.'}
+                            </p>
+                        </div>
+                        <button onClick={() => setShowPointsModal(false)} style={{ background: '#f1f5f9', border: 'none', borderRadius: '12px', width: 36, height: 36, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <X size={18} style={{ color: '#64748b' }} />
+                        </button>
+                    </div>
+
+                    <form onSubmit={handleSavePointsLog} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                        
+                        {/* Top Controls: Select Staff & Points Type */}
+                        <div style={{ display: 'flex', gap: '20px', alignItems: 'center', flexWrap: 'wrap' }}>
+                            
+                            {/* 1. Select Staff */}
+                            <div style={{ flex: 1, minWidth: '240px', maxWidth: '320px' }}>
+                                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#374151', marginBottom: '6px' }}>Select Staff Member *</label>
+                                <select
+                                    value={pointsStaff}
+                                    disabled={isPointsStaffPreselected}
+                                    onChange={e => setPointsStaff(e.target.value)}
+                                    style={{ width: '100%', padding: '10px 14px', border: '1.5px solid #e2e8f0', borderRadius: '12px', fontSize: '0.85rem', fontWeight: 600, color: '#0f172a', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit', background: isPointsStaffPreselected ? '#f1f5f9' : '#fff', cursor: isPointsStaffPreselected ? 'not-allowed' : 'pointer' }}
+                                >
+                                    <option value="">-- Choose Staff member --</option>
+                                    {staffList.map(s => (
+                                        <option key={s._id} value={s._id}>{s.name} ({s.role || 'Staff'})</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            {/* 2. Valuation Type Switch */}
+                            <div style={{ flex: 1, minWidth: '240px', maxWidth: '320px' }}>
+                                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#374151', marginBottom: '6px' }}>Valuation Type *</label>
+                                <div style={{ display: 'flex', gap: '10px' }}>
+                                    <button
+                                        type="button"
+                                        disabled={editingLogId !== null}
+                                        onClick={() => setPointsType('plus')}
+                                        style={{
+                                            flex: 1, padding: '10px 14px', borderRadius: '12px', border: '1.5px solid #86efac',
+                                            background: pointsType === 'plus' ? '#f0fdf4' : '#fff',
+                                            color: '#16a34a', fontSize: '0.8rem', fontWeight: 800, cursor: editingLogId ? 'not-allowed' : 'pointer',
+                                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                                            opacity: editingLogId && pointsType !== 'plus' ? 0.5 : 1
+                                        }}
+                                    >
+                                        <Award size={15} /> Plus Valuation
+                                    </button>
+                                    <button
+                                        type="button"
+                                        disabled={editingLogId !== null}
+                                        onClick={() => setPointsType('minus')}
+                                        style={{
+                                            flex: 1, padding: '10px 14px', borderRadius: '12px', border: '1.5px solid #fca5a5',
+                                            background: pointsType === 'minus' ? '#fff5f5' : '#fff',
+                                            color: '#ef4444', fontSize: '0.8rem', fontWeight: 800, cursor: editingLogId ? 'not-allowed' : 'pointer',
+                                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                                            opacity: editingLogId && pointsType !== 'minus' ? 0.5 : 1
+                                        }}
+                                    >
+                                        <AlertTriangle size={15} /> Minus Valuation
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* 3. Table Rows */}
+                        <div style={{ overflowX: 'auto', border: '1px solid #e2e8f0', borderRadius: '16px' }}>
+                            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '850px' }}>
+                                <thead>
+                                    <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                                        <th style={{ padding: '12px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '50px' }}>#</th>
+                                        <th style={{ padding: '12px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '220px' }}>Task Title (Optional)</th>
+                                        <th style={{ padding: '12px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase' }}>Description / Reason *</th>
+                                        <th style={{ padding: '12px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '130px' }}>Valuation *</th>
+                                        <th style={{ padding: '12px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', width: '160px' }}>Date</th>
+                                        {!editingLogId && (
+                                            <th style={{ padding: '12px 14px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', textAlign: 'center', width: '80px' }}>Actions</th>
+                                        )}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {pointsModalRows.map((row, idx) => (
+                                        <tr key={idx} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                                            <td style={{ padding: '12px 14px', fontSize: '0.78rem', fontWeight: 800, color: '#64748b' }}>{idx + 1}</td>
+                                            <td style={{ padding: '12px 14px' }}>
+                                                <input
+                                                    type="text"
+                                                    placeholder="e.g. Design Dashboard"
+                                                    value={row.title}
+                                                    onChange={e => handlePointsRowChange(idx, 'title', e.target.value)}
+                                                    style={{ width: '100%', padding: '8px 12px', border: '1.5px solid #e2e8f0', borderRadius: '10px', fontSize: '0.8rem', fontWeight: 600, color: '#0f172a', outline: 'none' }}
+                                                />
+                                            </td>
+                                            <td style={{ padding: '12px 14px' }}>
+                                                <input
+                                                    type="text"
+                                                    placeholder="Reason or explanation..."
+                                                    value={row.description}
+                                                    onChange={e => handlePointsRowChange(idx, 'description', e.target.value)}
+                                                    style={{ width: '100%', padding: '8px 12px', border: '1.5px solid #e2e8f0', borderRadius: '10px', fontSize: '0.8rem', fontWeight: 600, color: '#0f172a', outline: 'none' }}
+                                                />
+                                            </td>
+                                            <td style={{ padding: '12px 14px' }}>
+                                                <input
+                                                    type="number"
+                                                    min="1"
+                                                    placeholder="e.g. 5"
+                                                    value={row.valuation}
+                                                    onChange={e => handlePointsRowChange(idx, 'valuation', e.target.value)}
+                                                    style={{ width: '100%', padding: '8px 12px', border: '1.5px solid #e2e8f0', borderRadius: '10px', fontSize: '0.8rem', fontWeight: 600, color: '#0f172a', outline: 'none' }}
+                                                />
+                                            </td>
+                                            <td style={{ padding: '12px 14px' }}>
+                                                <input
+                                                    type="date"
+                                                    value={row.date}
+                                                    onChange={e => handlePointsRowChange(idx, 'date', e.target.value)}
+                                                    style={{ width: '100%', padding: '8px 12px', border: '1.5px solid #e2e8f0', borderRadius: '10px', fontSize: '0.8rem', fontWeight: 600, color: '#0f172a', outline: 'none' }}
+                                                />
+                                            </td>
+                                            {!editingLogId && (
+                                                <td style={{ padding: '12px 14px', textAlign: 'center' }}>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => removePointsRow(idx)}
+                                                        disabled={pointsModalRows.length <= 1}
+                                                        style={{ padding: '8px', border: 'none', background: pointsModalRows.length <= 1 ? '#f8fafc' : '#fee2e2', borderRadius: '10px', color: pointsModalRows.length <= 1 ? '#cbd5e1' : '#ef4444', cursor: pointsModalRows.length <= 1 ? 'not-allowed' : 'pointer', display: 'inline-flex', alignItems: 'center' }}
+                                                    >
+                                                        <Trash2 size={13} />
+                                                    </button>
+                                                </td>
+                                            )}
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {/* Add Row Button */}
+                        {!editingLogId && (
+                            <button
+                                type="button"
+                                onClick={addPointsRow}
+                                style={{
+                                    alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: '6px',
+                                    background: '#fff', border: '1.5px dashed #cbd5e1', borderRadius: '12px',
+                                    padding: '8px 16px', fontSize: '0.78rem', fontWeight: 800, color: '#4f46e5',
+                                    cursor: 'pointer', transition: 'all 0.2s'
+                                }}
+                            >
+                                <Plus size={14} /> Add Row
+                            </button>
+                        )}
+
+                        {/* Footer Controls */}
+                        <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '10px' }}>
+                            <button
+                                type="button"
+                                onClick={() => setShowPointsModal(false)}
+                                style={{
+                                    padding: '10px 24px', borderRadius: '12px', border: '1.5px solid #e2e8f0',
+                                    background: '#fff', color: '#475569', fontSize: '0.8rem', fontWeight: 800, cursor: 'pointer'
+                                }}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="submit"
+                                disabled={submittingPoints}
+                                style={{
+                                    padding: '10px 24px', borderRadius: '12px', border: 'none',
+                                    background: pointsType === 'plus' ? 'linear-gradient(135deg,#10b981,#059669)' : 'linear-gradient(135deg,#ef4444,#b91c1c)',
+                                    color: '#fff', fontSize: '0.8rem', fontWeight: 900,
+                                    cursor: submittingPoints ? 'not-allowed' : 'pointer', opacity: submittingPoints ? 0.7 : 1,
+                                    boxShadow: pointsType === 'plus' ? '0 4px 12px rgba(16,185,129,0.2)' : '0 4px 12px rgba(239,68,68,0.2)'
+                                }}
+                            >
+                                {submittingPoints ? 'Saving...' : editingLogId ? 'Save Changes' : 'Record Points'}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>,
+            document.body
+        )}
         </>
     );
 };
 
 const StaffSalaryDetailsModal = ({ staff, onClose }) => {
     if (!staff) return null;
-
-    const designation = staff.staffProfile?.designation || '—';
+    const designation = staff.staffProfile?.designation || staff.teacherProfile ? 'Teacher' : '—';
     const department = staff.staffProfile?.department || '—';
     const salary = staff.staffProfile?.salary || 25000;
     const institute = staff.instituteName || staff.institute?.name || 'All Institutes';
-
     const formatNumber = (num) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(num);
-
     const history = [
         { id: '1', month: 'June 2026', date: '2026-06-30', amount: salary, mode: 'Bank Transfer', status: 'Paid', receiptNo: `PAY-2026-06-${staff._id?.slice(-4) || '1021'}` },
         { id: '2', month: 'May 2026', date: '2026-05-31', amount: salary, mode: 'Bank Transfer', status: 'Paid', receiptNo: `PAY-2026-05-${staff._id?.slice(-4) || '1021'}` },
         { id: '3', month: 'April 2026', date: '2026-04-30', amount: salary, mode: 'Bank Transfer', status: 'Paid', receiptNo: `PAY-2026-04-${staff._id?.slice(-4) || '1021'}` }
     ];
-
     return createPortal(
-        <div style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 9999,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            backgroundColor: 'rgba(0,0,0,0.7)',
-            backdropFilter: 'blur(4px)',
-            padding: '16px'
-        }}>
-            <div style={{
-                backgroundColor: '#fff',
-                borderRadius: '24px',
-                width: '100%',
-                maxWidth: '720px',
-                boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
-                overflow: 'hidden',
-                position: 'relative',
-                border: '1px solid #f1f5f9',
-                display: 'flex',
-                flexDirection: 'column',
-                maxHeight: '90vh'
-            }}>
-                {/* Close Button */}
-                <button 
-                    onClick={onClose} 
-                    style={{
-                        position: 'absolute',
-                        top: '16px',
-                        right: '16px',
-                        color: '#94a3b8',
-                        background: '#f8fafc',
-                        border: 'none',
-                        borderRadius: '999px',
-                        padding: '6px',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        transition: 'background-color 0.2s'
-                    }}
-                    onMouseEnter={e => e.currentTarget.style.backgroundColor = '#e2e8f0'}
-                    onMouseLeave={e => e.currentTarget.style.backgroundColor = '#f8fafc'}
-                >
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)', padding: '16px' }}>
+            <div style={{ backgroundColor: '#fff', borderRadius: '24px', width: '100%', maxWidth: '720px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', overflow: 'hidden', position: 'relative', border: '1px solid #f1f5f9', display: 'flex', flexDirection: 'column', maxHeight: '90vh' }}>
+                <button onClick={onClose} style={{ position: 'absolute', top: '16px', right: '16px', color: '#94a3b8', background: '#f8fafc', border: 'none', borderRadius: '999px', padding: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                 </button>
-
                 <div style={{ padding: '24px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '24px', flex: 1 }}>
-                    <div>
-                        <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 900, color: '#0f172a' }}>Staff Salary & Transaction Details</h2>
-                    </div>
-
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '24px', alignItems: 'start' }}>
-                            {/* Left panel card */}
-                            <div style={{
-                                border: '1px solid #e2e8f0',
-                                borderRadius: '16px',
-                                padding: '20px',
-                                display: 'flex',
-                                flexDirection: 'column',
-                                alignItems: 'center',
-                                textAlign: 'center',
-                                gap: '12px',
-                                backgroundColor: '#f8fafc'
-                            }}>
-                                <div style={{
-                                    width: '70px',
-                                    height: '70px',
-                                    borderRadius: '999px',
-                                    background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    color: '#fff',
-                                    fontSize: '1.8rem',
-                                    fontWeight: 950
-                                }}>
-                                    {staff.name?.[0]?.toUpperCase() || '?'}
-                                </div>
-                                <div>
-                                    <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 900, color: '#0f172a' }}>{staff.name}</h3>
-                                    <p style={{ margin: '4px 0 0', fontSize: '0.72rem', color: '#64748b', fontWeight: 600 }}>{staff.email}</p>
-                                </div>
-                                <span style={{
-                                    background: staff.isActive !== false ? '#dcfce7' : '#fee2e2',
-                                    color: staff.isActive !== false ? '#16a34a' : '#dc2626',
-                                    borderRadius: '999px',
-                                    padding: '4px 12px',
-                                    fontSize: '0.68rem',
-                                    fontWeight: 900
-                                }}>
-                                    {staff.isActive !== false ? 'Active' : 'Inactive'}
-                                </span>
+                    <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 900, color: '#0f172a' }}>Salary & Transaction Details</h2>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '24px', alignItems: 'start' }}>
+                        <div style={{ border: '1px solid #e2e8f0', borderRadius: '16px', padding: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '12px', backgroundColor: '#f8fafc' }}>
+                            <div style={{ width: '70px', height: '70px', borderRadius: '999px', background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '1.8rem', fontWeight: 950 }}>{staff.name?.[0]?.toUpperCase() || '?'}</div>
+                            <div>
+                                <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 900, color: '#0f172a' }}>{staff.name}</h3>
+                                <p style={{ margin: '4px 0 0', fontSize: '0.72rem', color: '#64748b', fontWeight: 600 }}>{staff.email}</p>
                             </div>
-
-                            {/* Right panel details */}
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                                <div style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '12px' }}>
-                                    <span style={{ fontSize: '0.62rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Designation</span>
-                                    <span style={{ display: 'block', fontSize: '0.85rem', fontWeight: 800, color: '#334155', marginTop: '4px' }}>{designation}</span>
-                                </div>
-                                <div style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '12px' }}>
-                                    <span style={{ fontSize: '0.62rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Department</span>
-                                    <span style={{ display: 'block', fontSize: '0.85rem', fontWeight: 800, color: '#334155', marginTop: '4px' }}>{department}</span>
-                                </div>
-                                <div style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '12px' }}>
-                                    <span style={{ fontSize: '0.62rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Monthly Salary</span>
-                                    <span style={{ display: 'block', fontSize: '0.85rem', fontWeight: 800, color: '#0f172a', marginTop: '4px' }}>{formatNumber(salary)} / month</span>
-                                </div>
-                                <div style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '12px' }}>
-                                    <span style={{ fontSize: '0.62rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Institute</span>
-                                    <span style={{ display: 'block', fontSize: '0.82rem', fontWeight: 800, color: '#334155', marginTop: '4px' }}>{institute}</span>
-                                </div>
-                            </div>
+                            <span style={{ background: '#eef2ff', color: '#4f46e5', borderRadius: '999px', padding: '4px 12px', fontSize: '0.68rem', fontWeight: 900 }}>{staff.role}</span>
                         </div>
-
-                        {/* Payment/Payout History Panel */}
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', paddingTop: '8px' }}>
-                            <h3 style={{ margin: 0, fontSize: '0.88rem', fontWeight: 900, color: '#334155' }}>
-                                Transaction History ({history.length})
-                            </h3>
-                            <div style={{ border: '1px solid #e2e8f0', borderRadius: '16px', overflow: 'hidden', backgroundColor: '#fff' }}>
-                                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.75rem' }}>
-                                    <thead>
-                                        <tr style={{ borderBottom: '1px solid #e2e8f0', backgroundColor: '#f8fafc', color: '#64748b', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                                            <th style={{ padding: '10px 16px' }}>Payout ID</th>
-                                            <th style={{ padding: '10px 16px' }}>For Month</th>
-                                            <th style={{ padding: '10px 16px' }}>Paid Date</th>
-                                            <th style={{ padding: '10px 16px' }}>Amount</th>
-                                            <th style={{ padding: '10px 16px' }}>Method</th>
-                                            <th style={{ padding: '10px 16px', textAlign: 'center' }}>Status</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {history.map(rec => (
-                                            <tr key={rec.id} style={{ borderBottom: '1px solid #f8fafc' }}>
-                                                <td style={{ padding: '12px 16px', fontWeight: 800, color: '#334155' }}>{rec.receiptNo}</td>
-                                                <td style={{ padding: '12px 16px', color: '#0f172a', fontWeight: 700 }}>{rec.month}</td>
-                                                <td style={{ padding: '12px 16px', color: '#64748b', fontWeight: 600 }}>{new Date(rec.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</td>
-                                                <td style={{ padding: '12px 16px', color: '#16a34a', fontWeight: 800 }}>{formatNumber(rec.amount)}</td>
-                                                <td style={{ padding: '12px 16px', color: '#475569', fontWeight: 600 }}>{rec.mode}</td>
-                                                <td style={{ padding: '12px 16px', textAlign: 'center' }}>
-                                                    <span style={{
-                                                        background: '#dcfce7',
-                                                        color: '#16a34a',
-                                                        borderRadius: '999px',
-                                                        padding: '3px 10px',
-                                                        fontSize: '0.62rem',
-                                                        fontWeight: 900
-                                                    }}>{rec.status}</span>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                            {[['Designation', designation], ['Department', department], ['Monthly Salary', formatNumber(salary) + ' / month'], ['Institute', institute]].map(([label, val]) => (
+                                <div key={label} style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '12px' }}>
+                                    <span style={{ fontSize: '0.62rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</span>
+                                    <span style={{ display: 'block', fontSize: '0.85rem', fontWeight: 800, color: '#334155', marginTop: '4px' }}>{val}</span>
+                                </div>
+                            ))}
                         </div>
                     </div>
-                </div>
-            </div>
-        </div>,
-        document.body
-    );
-};
-
-const StaffTasksViewModal = ({ staff, tasks, onClose, dateFilter, particularDate, startDate, endDate, verificationFilter, statusFilter }) => {
-    if (!staff) return null;
-
-    const staffTasks = tasks.filter(t => t.staffName?.toLowerCase() === staff.name?.toLowerCase());
-
-    const filtered = staffTasks.filter(t => {
-        const taskDate = t.createdAt || t.due || new Date().toISOString().split('T')[0];
-        const todayStr = new Date().toISOString().split('T')[0];
-
-        if (dateFilter === 'today') {
-            return taskDate === todayStr;
-        }
-        if (dateFilter === 'month') {
-            const currentMonthStr = todayStr.substring(0, 7);
-            return taskDate.startsWith(currentMonthStr);
-        }
-        if (dateFilter === 'particular') {
-            if (!particularDate) return true;
-            return taskDate === particularDate;
-        }
-        if (dateFilter === 'range') {
-            if (!startDate || !endDate) return true;
-            return taskDate >= startDate && taskDate <= endDate;
-        }
-        return true; // Complete Year
-    }).filter(t => 
-        (verificationFilter === '' || (t.verificationStatus || '') === verificationFilter) &&
-        (statusFilter === '' || (t.status || 'pending') === statusFilter)
-    );
-
-    const getStatusStyle = (status) => {
-        const st = status?.toLowerCase();
-        if (st === 'done' || st === 'completed') return { bg: '#dcfce7', text: '#16a34a' };
-        if (st === 'inprogress' || st === 'in progress') return { bg: '#fffbeb', text: '#d97706' };
-        return { bg: '#fee2e2', text: '#ef4444' };
-    };
-
-    const getVerificationStyle = (status) => {
-        if (!status) return { bg: '#f1f5f9', text: '#64748b', label: 'Not Submitted' };
-        const mapping = {
-            approved: { bg: '#dcfce7', text: '#16a34a', label: 'Approved' },
-            rejected: { bg: '#fee2e2', text: '#ef4444', label: 'Rejected' },
-            needs_revision: { bg: '#fef3c7', text: '#d97706', label: 'Needs Revision' },
-            under_verification: { bg: '#e0e7ff', text: '#4f46e5', label: 'Under Verification' },
-        };
-        return mapping[status] || { bg: '#f1f5f9', text: '#64748b', label: status };
-    };
-
-    return createPortal(
-        <div style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 9999,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            backgroundColor: 'rgba(0,0,0,0.7)',
-            backdropFilter: 'blur(4px)',
-            padding: '16px'
-        }}>
-            <div style={{
-                backgroundColor: '#fff',
-                borderRadius: '24px',
-                width: '100%',
-                maxWidth: '680px',
-                boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
-                overflow: 'hidden',
-                position: 'relative',
-                border: '1px solid #f1f5f9',
-                display: 'flex',
-                flexDirection: 'column',
-                maxHeight: '80vh'
-            }}>
-                {/* Close Button */}
-                <button 
-                    onClick={onClose} 
-                    style={{
-                        position: 'absolute',
-                        top: '16px',
-                        right: '16px',
-                        color: '#94a3b8',
-                        background: '#f8fafc',
-                        border: 'none',
-                        borderRadius: '999px',
-                        padding: '6px',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        transition: 'background-color 0.2s'
-                    }}
-                    onMouseEnter={e => e.currentTarget.style.backgroundColor = '#e2e8f0'}
-                    onMouseLeave={e => e.currentTarget.style.backgroundColor = '#f8fafc'}
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                </button>
-
-                <div style={{ padding: '24px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '20px', flex: 1 }}>
-                    <div>
-                        <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 900, color: '#0f172a' }}>Tasks for {staff.name}</h2>
-                        <p style={{ margin: '4px 0 0', fontSize: '0.72rem', color: '#64748b', fontWeight: 600 }}>Review the details and verification statuses of all assigned tasks.</p>
-                    </div>
-
-                    <div style={{ border: '1px solid #e2e8f0', borderRadius: '16px', overflow: 'hidden', backgroundColor: '#fff' }}>
+                    <div style={{ border: '1px solid #e2e8f0', borderRadius: '16px', overflow: 'hidden' }}>
                         <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.75rem' }}>
                             <thead>
                                 <tr style={{ borderBottom: '1px solid #e2e8f0', backgroundColor: '#f8fafc', color: '#64748b', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                                    <th style={{ padding: '10px 16px' }}>Task Title</th>
-                                    <th style={{ padding: '10px 16px' }}>Due Date</th>
-                                    <th style={{ padding: '10px 16px' }}>Priority</th>
-                                    <th style={{ padding: '10px 16px', textAlign: 'center' }}>Status</th>
-                                    <th style={{ padding: '10px 16px', textAlign: 'center' }}>Verification</th>
+                                    {['Payout ID', 'For Month', 'Paid Date', 'Amount', 'Method', 'Status'].map(h => <th key={h} style={{ padding: '10px 16px' }}>{h}</th>)}
                                 </tr>
                             </thead>
                             <tbody>
-                                {filtered.length === 0 ? (
-                                    <tr>
-                                        <td colSpan={5} style={{ padding: '24px', textAlign: 'center', color: '#94a3b8', fontWeight: 600 }}>No tasks match the active filters.</td>
+                                {history.map(rec => (
+                                    <tr key={rec.id} style={{ borderBottom: '1px solid #f8fafc' }}>
+                                        <td style={{ padding: '12px 16px', fontWeight: 800, color: '#334155' }}>{rec.receiptNo}</td>
+                                        <td style={{ padding: '12px 16px', color: '#0f172a', fontWeight: 700 }}>{rec.month}</td>
+                                        <td style={{ padding: '12px 16px', color: '#64748b', fontWeight: 600 }}>{new Date(rec.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</td>
+                                        <td style={{ padding: '12px 16px', color: '#16a34a', fontWeight: 800 }}>{formatNumber(rec.amount)}</td>
+                                        <td style={{ padding: '12px 16px', color: '#475569', fontWeight: 600 }}>{rec.mode}</td>
+                                        <td style={{ padding: '12px 16px' }}><span style={{ background: '#dcfce7', color: '#16a34a', borderRadius: '999px', padding: '3px 10px', fontSize: '0.62rem', fontWeight: 900 }}>{rec.status}</span></td>
                                     </tr>
-                                ) : filtered.map(t => {
-                                    const stStyle = getStatusStyle(t.status);
-                                    const verStyle = getVerificationStyle(t.verificationStatus);
-                                    return (
-                                        <tr key={t.id} style={{ borderBottom: '1px solid #f8fafc' }}>
-                                            <td style={{ padding: '12px 16px', fontWeight: 800, color: '#334155' }}>
-                                                {t.title}
-                                                {t.isSelfCreated && (
-                                                    <span style={{ marginLeft: '6px', backgroundColor: '#f1f5f9', color: '#64748b', fontSize: '0.6rem', padding: '1px 5px', borderRadius: '4px', fontWeight: 800 }}>Self Created</span>
-                                                )}
-                                            </td>
-                                            <td style={{ padding: '12px 16px', color: '#64748b', fontWeight: 600 }}>
-                                                {t.due ? new Date(t.due).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
-                                            </td>
-                                            <td style={{ padding: '12px 16px' }}>
-                                                <span style={{
-                                                    backgroundColor: t.priority === 'High' ? '#fee2e2' : t.priority === 'Medium' ? '#fffbeb' : '#dcfce7',
-                                                    color: t.priority === 'High' ? '#ef4444' : t.priority === 'Medium' ? '#d97706' : '#16a34a',
-                                                    fontSize: '0.62rem',
-                                                    fontWeight: 900,
-                                                    padding: '2px 8px',
-                                                    borderRadius: '12px'
-                                                }}>{t.priority}</span>
-                                            </td>
-                                            <td style={{ padding: '12px 16px', textAlign: 'center' }}>
-                                                <span style={{
-                                                    backgroundColor: stStyle.bg,
-                                                    color: stStyle.text,
-                                                    borderRadius: '999px',
-                                                    padding: '3px 10px',
-                                                    fontSize: '0.62rem',
-                                                    fontWeight: 900
-                                                }}>{t.status || 'pending'}</span>
-                                            </td>
-                                            <td style={{ padding: '12px 16px', textAlign: 'center' }}>
-                                                <span style={{
-                                                    backgroundColor: verStyle.bg,
-                                                    color: verStyle.text,
-                                                    borderRadius: '999px',
-                                                    padding: '3px 10px',
-                                                    fontSize: '0.62rem',
-                                                    fontWeight: 900
-                                                }}>{verStyle.label}</span>
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
+                                ))}
                             </tbody>
                         </table>
                     </div>
@@ -2182,11 +2129,6 @@ const StaffTasksViewModal = ({ staff, tasks, onClose, dateFilter, particularDate
     );
 };
 
-const DUMMY_STAFF = [
-    { _id: 'd1', name: 'Ravi Kumar', email: 'ravi@hartron.edu', staffProfile: { designation: 'Office Clerk', department: 'Administration' }, instituteName: 'Hartron Institute', isActive: true },
-    { _id: 'd2', name: 'Sunita Sharma', email: 'sunita@hartron.edu', staffProfile: { designation: 'Lab Assistant', department: 'IT Lab' }, instituteName: 'Hartron Institute', isActive: true },
-    { _id: 'd3', name: 'Mohit Verma', email: 'mohit@lms.edu', staffProfile: { designation: 'Peon', department: 'General' }, instituteName: 'LMS Academy', isActive: true },
-    { _id: 'd4', name: 'Priya Singh', email: 'priya@lms.edu', staffProfile: { designation: 'Receptionist', department: 'Front Desk' }, instituteName: 'LMS Academy', isActive: false },
-];
-
 export default StaffList;
+
+

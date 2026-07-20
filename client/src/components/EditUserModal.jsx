@@ -1218,7 +1218,7 @@ const handleSubmit = async (e) => {
         const rolesList = user.allowedRoles && user.allowedRoles.length > 0 ? user.allowedRoles : [user.role];
         return createPortal(
             <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-md animate-fade-in flex items-center justify-center sm:p-4">
-                <div className="bg-white w-full h-full sm:h-auto max-w-md rounded-none sm:rounded-[32px] md:rounded-[40px] shadow-2xl border border-slate-100 overflow-hidden relative animate-slide-up flex flex-col">
+                <div className="bg-white w-full h-full sm:h-auto sm:max-h-[85vh] max-w-md rounded-none sm:rounded-[32px] md:rounded-[40px] shadow-2xl border border-slate-100 overflow-hidden relative animate-slide-up flex flex-col">
                     {/* Header */}
                     <div className="bg-[#0b1329] text-white px-6 py-5 flex items-center justify-between">
                         <div>
@@ -1235,7 +1235,7 @@ const handleSubmit = async (e) => {
                     </div>
 
                     {/* Role Picker List */}
-                    <div className="p-6 space-y-4">
+                    <div className="p-6 space-y-4 overflow-y-auto flex-1">
                         <p className="text-xs text-slate-500 font-medium">
                             This user is registered with multiple roles. Select which profile you want to configure:
                         </p>

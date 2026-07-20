@@ -527,81 +527,46 @@ const InstituteDashboard = () => {
 
     return (
         <DashboardLayout role="Institute">
-            {/* Header section with actions */}
-            <div className="flex flex-col gap-4 mb-6">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div>
-                        <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
-                            <span>{userInfo?.institute?.name || 'Institute Portal'}</span>
-                            <span className="text-xs bg-[#0b1329] text-white px-2.5 py-0.5 rounded-full font-bold uppercase">Institute Admin</span>
-                        </h1>
-                        <p className="text-slate-500 mt-1 text-sm">Manage users, courses, tests, and guest enrollment requests.</p>
+            {activeTab !== 'study-material' && (
+                <div className="flex flex-col gap-4 mb-6">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div>
+                            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
+                                <span>{userInfo?.institute?.name || 'Institute Portal'}</span>
+                                <span className="text-xs bg-[#0b1329] text-white px-2.5 py-0.5 rounded-full font-bold uppercase">Institute Admin</span>
+                            </h1>
+                            <p className="text-slate-500 mt-1 text-sm">Manage users, courses, tests, and guest enrollment requests.</p>
+                        </div>
+                        <div className="relative w-full sm:w-auto flex justify-end" ref={dropdownRef}>
+                            <button
+                                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                                className="px-5 py-2.5 bg-[#0b1329] text-white rounded-2xl hover:bg-[#152244] hover:shadow-lg transition-all font-bold text-sm flex items-center justify-center gap-2 shadow-xl shadow-[#0b1329]/15 active:scale-95 w-full sm:w-auto z-25 cursor-pointer"
+                            >
+                                <Plus size={16} /> Add User
+                            </button>
+                            {isDropdownOpen && (
+                                <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-slate-100 rounded-2xl shadow-xl z-50 overflow-hidden py-1.5 transition-all duration-300">
+                                    {rolesList.map((item) => {
+                                        const Icon = item.icon;
+                                        return (
+                                            <button
+                                                key={item.label}
+                                                onClick={() => handleRoleClick(item)}
+                                                className="w-full text-left px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 transition-colors flex items-center gap-2.5 cursor-pointer"
+                                            >
+                                                <Icon size={15} className="text-slate-400 group-hover:text-indigo-600 transition-colors" />
+                                                {item.label}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
                     </div>
-                    <div className="relative w-full sm:w-auto flex justify-end" ref={dropdownRef}>
-                        <button
-                            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                            className="px-5 py-2.5 bg-[#0b1329] text-white rounded-2xl hover:bg-[#152244] hover:shadow-lg transition-all font-bold text-sm flex items-center justify-center gap-2 shadow-xl shadow-[#0b1329]/15 active:scale-95 w-full sm:w-auto z-25 cursor-pointer"
-                        >
-                            <Plus size={16} /> Add User
-                        </button>
-                        {isDropdownOpen && (
-                            <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-slate-100 rounded-2xl shadow-xl z-50 overflow-hidden py-1.5 transition-all duration-300">
-                                {rolesList.map((item) => {
-                                    const Icon = item.icon;
-                                    return (
-                                        <button
-                                            key={item.label}
-                                            onClick={() => handleRoleClick(item)}
-                                            className="w-full text-left px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 transition-colors flex items-center gap-2.5 cursor-pointer"
-                                        >
-                                            <Icon size={15} className="text-slate-400 group-hover:text-indigo-600 transition-colors" />
-                                            {item.label}
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        )}
-                    </div>
-                </div>
 
-                {/* Tab Switcher — scrollable on mobile */}
-                <div className="overflow-x-auto -mx-1 px-1">
-                    <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200 w-full sm:w-auto sm:inline-flex min-w-max">
-                        <button
-                            onClick={() => setActiveTab('overview')}
-                            className={`flex-1 sm:flex-none px-4 sm:px-5 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap ${activeTab === 'overview' ? 'bg-[#0b1329] text-white shadow-md' : 'text-slate-600 hover:text-slate-900'}`}
-                        >
-                            Overview
-                        </button>
-                        {user?.institute?.controls?.dashboard?.application !== false && (
-                            <button
-                                onClick={() => setActiveTab('applications')}
-                                className={`flex-1 sm:flex-none px-4 sm:px-5 py-2.5 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap ${activeTab === 'applications' ? 'bg-[#0b1329] text-white shadow-md' : 'text-slate-600 hover:text-slate-900'}`}
-                            >
-                                Applications
-                                {stats.pendingApps > 0 && (
-                                    <span className="bg-rose-500 text-white text-[9px] font-extrabold h-4 px-1.5 rounded-full flex items-center justify-center animate-pulse">
-                                        {stats.pendingApps}
-                                    </span>
-                                )}
-                            </button>
-                        )}
-                        {user?.institute?.controls?.dashboard?.staffRequest !== false && (
-                            <button
-                                onClick={() => setActiveTab('role-requests')}
-                                className={`flex-1 sm:flex-none px-4 sm:px-5 py-2.5 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap ${activeTab === 'role-requests' ? 'bg-[#0b1329] text-white shadow-md' : 'text-slate-650 hover:text-slate-900'}`}
-                            >
-                                Staff Requests
-                                {roleRequests.length > 0 && (
-                                    <span className="bg-rose-500 text-white text-[9px] font-extrabold h-4 px-1.5 rounded-full flex items-center justify-center animate-pulse">
-                                        {roleRequests.length}
-                                    </span>
-                                )}
-                            </button>
-                        )}
-                    </div>
+
                 </div>
-            </div>
+            )}
 
             {loading ? (
                 <div className="flex justify-center items-center py-40">
@@ -609,7 +574,7 @@ const InstituteDashboard = () => {
                 </div>
             ) : (
                 <>
-                    {activeTab === 'overview' ? (
+                    {activeTab !== 'study-material' ? (
                         /* OVERVIEW TAB */
                         <div className="space-y-8 animate-fade-in">
                             {/* Stats Cards Grid */}
@@ -664,7 +629,6 @@ const InstituteDashboard = () => {
                                     onAdd={() => { setQuickAddRole('Parent'); setIsUserModalOpen(true); }}
                                     onEdit={() => navigate('/institute/parents')}
                                 />
-
                                 <StatCard title="Courses" value={stats.courses || 0} icon={BookOpen} color="bg-sky-500 text-sky-500"
                                     onClick={() => navigate('/institute/courses')}
                                     onAdd={() => setIsCourseModalOpen(true)}
@@ -674,297 +638,8 @@ const InstituteDashboard = () => {
                                 <StatCard title="Activities" value={stats.tests || 0} icon={FileText} color="bg-purple-500 text-purple-500" onClick={() => navigate('/institute/activities')} />
                                 <StatCard title="Services" value={stats.services || 0} icon={Settings} color="bg-lime-600 text-lime-600" onClick={() => navigate('/institute/tools')} />
                             </div>
-
                         </div>
-                    ) : activeTab === 'applications' ? (
-                        /* APPLICATIONS TAB */
-                        <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden animate-fade-in">
-                            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-                                <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                                    <Inbox size={20} className="text-[#0b1329]" />
-                                    <span>Course Applications</span>
-                                </h3>
-                                <button
-                                    onClick={fetchDashboardData}
-                                    className="p-2 text-slate-500 hover:text-[#0b1329] hover:bg-slate-100 rounded-full transition-all"
-                                    title="Refresh Data"
-                                >
-                                    <RefreshCw size={16} />
-                                </button>
-                            </div>
-
-                            {applications.length === 0 ? (
-                                <div className="text-center py-24 select-none">
-                                    <Inbox size={48} className="mx-auto text-slate-300 mb-4" />
-                                    <h4 className="text-slate-700 font-bold text-lg">No Applications Found</h4>
-                                    <p className="text-slate-400 text-xs mt-1">Guest users applying for your courses on the landing page will appear here.</p>
-                                </div>
-                            ) : (
-                                <div className="overflow-x-auto">
-                                    <table className="min-w-full text-left border-collapse text-sm">
-                                        <thead>
-                                            <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 text-xs uppercase tracking-wider font-extrabold">
-                                                <th className="p-5">Applicant Details</th>
-                                                <th className="p-5">Applied Course</th>
-                                                <th className="p-5">Role</th>
-                                                <th className="p-5">Date</th>
-                                                <th className="p-5">Statement</th>
-                                                <th className="p-5 text-center">ID Status</th>
-                                                <th className="p-5 text-center">Status</th>
-                                                <th className="p-5 text-right">Actions</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-slate-100">
-                                            {applications.map((app) => (
-                                                <tr key={app._id} className="hover:bg-slate-50/50 transition-colors group">
-                                                    <td className="p-5 whitespace-nowrap">
-                                                        <div className="flex flex-col">
-                                                            <span className="font-extrabold text-slate-800 text-sm">{app.guestName}</span>
-                                                            <span className="text-slate-400 text-xs mt-0.5">{app.guestPhone}</span>
-                                                            {app.guestEmail && (
-                                                                <span className="text-slate-400 text-[10px] font-mono mt-0.5">{app.guestEmail}</span>
-                                                            )}
-                                                        </div>
-                                                    </td>
-                                                    <td className="p-5 whitespace-nowrap">
-                                                        <div className="flex flex-col">
-                                                            <span className="font-semibold text-slate-700">{app.course?.name || 'Unknown Course'}</span>
-                                                            <span className="text-slate-400 text-xs mt-0.5">{app.course?.code || 'N/A'}</span>
-                                                        </div>
-                                                    </td>
-                                                    <td className="p-5 whitespace-nowrap">
-                                                        <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${app.role === 'Teacher'
-                                                            ? 'bg-purple-50 text-purple-700 border border-purple-100'
-                                                            : 'bg-blue-50 text-blue-700 border border-blue-100'
-                                                            }`}>
-                                                            {app.role || 'Student'}
-                                                        </span>
-                                                    </td>
-                                                    <td className="p-5 whitespace-nowrap">
-                                                        <span className="text-slate-500 font-medium text-xs">
-                                                            {new Date(app.createdAt).toLocaleDateString(undefined, {
-                                                                year: 'numeric',
-                                                                month: 'short',
-                                                                day: 'numeric'
-                                                            })}
-                                                        </span>
-                                                    </td>
-                                                    <td className="p-5 max-w-[200px]">
-                                                        <p className="text-slate-500 text-xs truncate group-hover:whitespace-normal group-hover:text-slate-700 transition-all duration-300" title={app.statement}>
-                                                            {app.statement || <span className="italic text-slate-350">No statement provided</span>}
-                                                        </p>
-                                                    </td>
-                                                    <td className="p-5 whitespace-nowrap text-center">
-                                                        {app.user ? (
-                                                            <button
-                                                                onClick={() => handleToggleUserStatus(app._id, app.user._id, app.user.isActive)}
-                                                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${app.user.isActive !== false ? 'bg-emerald-500' : 'bg-slate-200'
-                                                                    }`}
-                                                                title={app.user.isActive !== false ? 'Click to Deactivate Account' : 'Click to Activate Account'}
-                                                            >
-                                                                <span
-                                                                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${app.user.isActive !== false ? 'translate-x-6' : 'translate-x-1'
-                                                                        }`}
-                                                                />
-                                                            </button>
-                                                        ) : (
-                                                            <span className="text-slate-300 text-xs select-none font-bold">—</span>
-                                                        )}
-                                                    </td>
-                                                    <td className="p-5 whitespace-nowrap text-center">
-                                                        <span className={`px-3 py-1 border rounded-full text-[10px] font-black uppercase tracking-wider ${getStatusBadgeClass(app.status)}`}>
-                                                            {app.status}
-                                                        </span>
-                                                    </td>
-                                                    <td className="p-5 text-right whitespace-nowrap">
-                                                        <div className="flex justify-end gap-1.5">
-                                                            <button
-                                                                onClick={() => handleUpdateStatus(app._id, 'Accepted')}
-                                                                disabled={updatingId === app._id || app.status === 'Accepted'}
-                                                                className={`p-1.5 rounded-lg border text-emerald-600 bg-emerald-50 border-emerald-100 hover:bg-emerald-100 hover:text-emerald-700 transition-all ${app.status === 'Accepted' ? 'opacity-30 cursor-not-allowed' : ''}`}
-                                                                title="Accept Application"
-                                                            >
-                                                                <Check size={14} className="stroke-[3px]" />
-                                                            </button>
-                                                            <button
-                                                                onClick={() => handleUpdateStatus(app._id, 'Under Review')}
-                                                                disabled={updatingId === app._id || app.status === 'Under Review' || app.status === 'Accepted'}
-                                                                className={`p-1.5 rounded-lg border text-amber-600 bg-amber-50 border-amber-100 hover:bg-amber-100 hover:text-amber-700 transition-all ${(app.status === 'Under Review' || app.status === 'Accepted') ? 'opacity-30 cursor-not-allowed' : ''}`}
-                                                                title="Put Under Review"
-                                                            >
-                                                                <Clock size={14} className="stroke-[3px]" />
-                                                            </button>
-                                                            <button
-                                                                onClick={() => handleUpdateStatus(app._id, 'Rejected')}
-                                                                disabled={updatingId === app._id || app.status === 'Rejected' || app.status === 'Accepted'}
-                                                                className={`p-1.5 rounded-lg border text-rose-600 bg-rose-50 border-rose-100 hover:bg-rose-100 hover:text-rose-700 transition-all ${(app.status === 'Rejected' || app.status === 'Accepted') ? 'opacity-30 cursor-not-allowed' : ''}`}
-                                                                title="Reject Application"
-                                                            >
-                                                                <X size={14} className="stroke-[3px]" />
-                                                            </button>
-                                                            <button
-                                                                onClick={() => handleDeleteApplication(app._id)}
-                                                                disabled={updatingId === app._id}
-                                                                className="p-1.5 rounded-lg border text-slate-500 bg-slate-50 border-slate-200 hover:bg-slate-100 hover:text-slate-700 transition-all"
-                                                                title="Delete Application"
-                                                            >
-                                                                <Trash2 size={14} className="stroke-[2.5px]" />
-                                                            </button>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            )}
-                        </div>
-                    ) : activeTab === 'role-requests' ? (
-                        /* STAFF REQUESTS TAB */
-                        <div className="space-y-8 animate-fade-in text-left">
-                            {/* Teacher Requests */}
-                            <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm space-y-4">
-                                <div className="border-b border-slate-100 pb-3 flex justify-between items-center">
-                                    <div>
-                                        <h2 className="text-lg font-extrabold text-slate-850">Teacher Joining Requests</h2>
-                                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">Approve requests for subject teachers</p>
-                                    </div>
-                                    <span className="bg-indigo-50 text-indigo-705 px-3 py-1 rounded-full text-xs font-bold font-mono">
-                                        Total: {roleRequests.filter(r => r.role === 'Teacher').length}
-                                    </span>
-                                </div>
-
-                                <div className="overflow-x-auto">
-                                    <table className="min-w-full text-left border-collapse">
-                                        <thead>
-                                            <tr className="bg-slate-50 border border-slate-200 text-slate-550 text-[10px] font-bold uppercase tracking-wider">
-                                                <th className="p-4 font-semibold whitespace-nowrap">Name</th>
-                                                <th className="p-4 font-semibold whitespace-nowrap">Email</th>
-                                                <th className="p-4 font-semibold whitespace-nowrap">Phone</th>
-                                                <th className="p-4 font-semibold whitespace-nowrap">Subject Specializations</th>
-                                                <th className="p-4 font-semibold text-right whitespace-nowrap">Actions</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-slate-100 text-slate-700 text-xs">
-                                            {loadingRoleRequests ? (
-                                                <tr>
-                                                    <td colSpan="5" className="p-8 text-center text-slate-400">Loading teacher requests...</td>
-                                                </tr>
-                                            ) : roleRequests.filter(r => r.role === 'Teacher').length > 0 ? (
-                                                roleRequests.filter(r => r.role === 'Teacher').map((req) => (
-                                                    <tr key={req._id} className="hover:bg-slate-50 transition-colors">
-                                                        <td className="p-4 whitespace-nowrap font-extrabold text-slate-850">{req.name}</td>
-                                                        <td className="p-4 whitespace-nowrap font-semibold">{req.email}</td>
-                                                        <td className="p-4 whitespace-nowrap font-semibold">{req.phone || 'N/A'}</td>
-                                                        <td className="p-4 whitespace-nowrap">
-                                                            <div className="flex flex-wrap gap-1">
-                                                                {req.subjectSpecialization ? req.subjectSpecialization.split(',').map((subj, sIdx) => (
-                                                                    <span key={sIdx} className="bg-emerald-50 text-emerald-705 px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider animate-fade-in">
-                                                                        {subj.trim()}
-                                                                    </span>
-                                                                )) : <span className="italic text-slate-400">None specified</span>}
-                                                            </div>
-                                                        </td>
-                                                        <td className="p-4 whitespace-nowrap text-right space-x-2">
-                                                            <button
-                                                                onClick={() => handleResolveRoleRequest(req._id, 'Approved')}
-                                                                disabled={resolvingRoleId !== null}
-                                                                className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider shadow-sm transition-all disabled:opacity-50"
-                                                            >
-                                                                Approve
-                                                            </button>
-                                                            <button
-                                                                onClick={() => handleResolveRoleRequest(req._id, 'Rejected')}
-                                                                disabled={resolvingRoleId !== null}
-                                                                className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider shadow-sm transition-all disabled:opacity-50"
-                                                            >
-                                                                Reject
-                                                            </button>
-                                                        </td>
-                                                    </tr>
-                                                ))
-                                            ) : (
-                                                <tr>
-                                                    <td colSpan="5" className="p-8 text-center text-slate-400 font-bold">
-                                                        No pending teacher joining requests.
-                                                    </td>
-                                                </tr>
-                                            )}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-
-                            {/* Editor Requests */}
-                            <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm space-y-4">
-                                <div className="border-b border-slate-100 pb-3 flex justify-between items-center">
-                                    <div>
-                                        <h2 className="text-lg font-extrabold text-slate-850">Editor Joining Requests</h2>
-                                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">Approve requests for curriculum editors</p>
-                                    </div>
-                                    <span className="bg-indigo-50 text-indigo-705 px-3 py-1 rounded-full text-xs font-bold font-mono">
-                                        Total: {roleRequests.filter(r => r.role === 'Editor').length}
-                                    </span>
-                                </div>
-
-                                <div className="overflow-x-auto">
-                                    <table className="min-w-full text-left border-collapse">
-                                        <thead>
-                                            <tr className="bg-slate-50 border border-slate-200 text-slate-550 text-[10px] font-bold uppercase tracking-wider">
-                                                <th className="p-4 font-semibold whitespace-nowrap">Name</th>
-                                                <th className="p-4 font-semibold whitespace-nowrap">Email</th>
-                                                <th className="p-4 font-semibold whitespace-nowrap">Phone</th>
-                                                <th className="p-4 font-semibold whitespace-nowrap">Eligibility / Qualifications Summary</th>
-                                                <th className="p-4 font-semibold text-right whitespace-nowrap">Actions</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-slate-100 text-slate-700 text-xs">
-                                            {loadingRoleRequests ? (
-                                                <tr>
-                                                    <td colSpan="5" className="p-8 text-center text-slate-400">Loading editor requests...</td>
-                                                </tr>
-                                            ) : roleRequests.filter(r => r.role === 'Editor').length > 0 ? (
-                                                roleRequests.filter(r => r.role === 'Editor').map((req) => (
-                                                    <tr key={req._id} className="hover:bg-slate-50 transition-colors">
-                                                        <td className="p-4 whitespace-nowrap font-extrabold text-slate-850">{req.name}</td>
-                                                        <td className="p-4 whitespace-nowrap font-semibold">{req.email}</td>
-                                                        <td className="p-4 whitespace-nowrap font-semibold">{req.phone || 'N/A'}</td>
-                                                        <td className="p-4 max-w-[300px]">
-                                                            <p className="text-slate-500 font-medium text-xs break-words" title={req.eligibility}>
-                                                                {req.eligibility || <span className="italic text-slate-350">No details provided</span>}
-                                                            </p>
-                                                        </td>
-                                                        <td className="p-4 whitespace-nowrap text-right space-x-2">
-                                                            <button
-                                                                onClick={() => handleResolveRoleRequest(req._id, 'Approved')}
-                                                                disabled={resolvingRoleId !== null}
-                                                                className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider shadow-sm transition-all disabled:opacity-50"
-                                                            >
-                                                                Approve
-                                                            </button>
-                                                            <button
-                                                                onClick={() => handleResolveRoleRequest(req._id, 'Rejected')}
-                                                                disabled={resolvingRoleId !== null}
-                                                                className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider shadow-sm transition-all disabled:opacity-50"
-                                                            >
-                                                                Reject
-                                                            </button>
-                                                        </td>
-                                                    </tr>
-                                                ))
-                                            ) : (
-                                                <tr>
-                                                    <td colSpan="5" className="p-8 text-center text-slate-400 font-bold">
-                                                        No pending editor joining requests.
-                                                    </td>
-                                                </tr>
-                                            )}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
-                    ) : activeTab === 'study-material' ? (
+                    ) : (
                         /* STUDY MATERIAL TAB */
                         (() => {
                             const uniqueMaterials = [];
@@ -1310,7 +985,7 @@ const InstituteDashboard = () => {
                                 </div>
                             );
                         })()
-                    ) : null}
+                    )}
                 </>
             )}
             <AddUserModal isOpen={isUserModalOpen} onClose={() => { setIsUserModalOpen(false); setQuickAddRole(null); }} role={quickAddRole || modalRole} onSuccess={fetchDashboardData} />
@@ -1383,7 +1058,7 @@ const InstituteDashboard = () => {
                     className="fixed inset-0 z-[99999] bg-[#F5F5F5] flex flex-col p-6 md:p-10 animate-fade-in text-left overflow-hidden"
                 >
                     <div
-                        className="w-full max-w-4xl mx-auto flex-1 flex flex-col"
+                        className="w-full max-w-7xl mx-auto flex-1 flex flex-col"
                     >
                         {/* Header */}
                         <div className="flex items-center justify-between mb-5 border-b border-slate-200 pb-3">

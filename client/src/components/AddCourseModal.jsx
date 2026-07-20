@@ -20,6 +20,7 @@ const AddCourseModal = ({ isOpen, onClose, refreshData, course = null, isDemoPre
     const [syllabusUploading, setSyllabusUploading] = useState(false);
     const [loading, setLoading] = useState(false);
     const syllabusFileRef = useRef(null);
+    const [showAllSelectedSubjects, setShowAllSelectedSubjects] = useState(false);
 
     const calculateSumOfDays = (subjectsString) => {
         if (!subjectsString) return 0;
@@ -42,6 +43,7 @@ const AddCourseModal = ({ isOpen, onClose, refreshData, course = null, isDemoPre
     useEffect(() => {
         if (isOpen) {
             setIsDurationManuallyEdited(false);
+            setShowAllSelectedSubjects(false);
             const fetchInstitutes = async () => {
                 const { data } = await axios.get('/api/setup/institutes');
                 setInstitutes(data);
@@ -352,24 +354,46 @@ const AddCourseModal = ({ isOpen, onClose, refreshData, course = null, isDemoPre
                                     className="w-full min-h-[46px] bg-slate-50 border border-slate-100 rounded-2xl p-2 flex flex-wrap gap-1.5 focus-within:ring-2 focus-within:ring-indigo-500/10 focus-within:border-indigo-300 transition-all cursor-text items-center"
                                 >
                                     {/* Selected subject pills */}
-                                    {formData.subjects ? formData.subjects.split(',').map(s => s.trim()).filter(Boolean).map((sub, idx) => (
-                                        <span 
-                                            key={idx}
-                                            className="bg-indigo-50 text-[#3E3ADD] font-extrabold text-[11px] px-2 py-1 rounded-xl flex items-center gap-1 border border-indigo-100 select-none animate-fade-in"
-                                        >
-                                            {sub}
-                                            <button
-                                                type="button"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    removeSubjectTag(idx);
-                                                }}
-                                                className="hover:text-indigo-900 transition-colors text-[10px] ml-0.5"
-                                            >
-                                                ✕
-                                            </button>
-                                        </span>
-                                    )) : null}
+                                    {(() => {
+                                        const tags = formData.subjects ? formData.subjects.split(',').map(s => s.trim()).filter(Boolean) : [];
+                                        if (tags.length === 0) return null;
+                                        const visibleTags = showAllSelectedSubjects ? tags : tags.slice(0, 1);
+                                        return (
+                                            <>
+                                                {visibleTags.map((sub, idx) => (
+                                                    <span 
+                                                        key={idx}
+                                                        className="bg-indigo-50 text-[#3E3ADD] font-extrabold text-[11px] px-2 py-1 rounded-xl flex items-center gap-1 border border-indigo-100 select-none animate-fade-in"
+                                                    >
+                                                        {sub}
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                const actualIndex = showAllSelectedSubjects ? idx : tags.indexOf(sub);
+                                                                removeSubjectTag(actualIndex !== -1 ? actualIndex : idx);
+                                                            }}
+                                                            className="hover:text-indigo-900 transition-colors text-[10px] ml-0.5"
+                                                        >
+                                                            ✕
+                                                        </button>
+                                                    </span>
+                                                ))}
+                                                {tags.length > 1 && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setShowAllSelectedSubjects(!showAllSelectedSubjects);
+                                                        }}
+                                                        className="bg-slate-200 hover:bg-slate-350 text-indigo-700 font-extrabold text-[10px] px-2.5 py-1 rounded-xl border border-indigo-100 transition-all select-none cursor-pointer"
+                                                    >
+                                                        {showAllSelectedSubjects ? 'Show Less' : `+${tags.length - 1} more`}
+                                                    </button>
+                                                )}
+                                            </>
+                                        );
+                                    })()}
 
                                     {/* Text Input */}
                                     <input

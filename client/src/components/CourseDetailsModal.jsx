@@ -1,7 +1,16 @@
+import { useState, useEffect } from 'react';
 import { X, BookOpen, FileText, Link as LinkIcon } from 'lucide-react';
 import { createPortal } from 'react-dom';
 
 const CourseDetailsModal = ({ isOpen, onClose, course }) => {
+    const [showAllSelectedSubjects, setShowAllSelectedSubjects] = useState(false);
+
+    useEffect(() => {
+        if (isOpen) {
+            setShowAllSelectedSubjects(false);
+        }
+    }, [isOpen]);
+
     if (!isOpen || !course) return null;
 
     return createPortal(
@@ -50,8 +59,35 @@ const CourseDetailsModal = ({ isOpen, onClose, course }) => {
                         </div>
                         <div>
                             <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-2 block">Subjects</label>
-                            <div className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3.5 px-4 text-sm font-bold text-slate-700 truncate">
-                                {Array.isArray(course.subjects) ? course.subjects.join(', ') : (course.subjects || 'N/A')}
+                            <div className="w-full min-h-[46px] bg-slate-50 border border-slate-100 rounded-2xl p-2 flex flex-wrap gap-1.5 items-center">
+                                {(() => {
+                                    const tags = Array.isArray(course.subjects) 
+                                        ? course.subjects 
+                                        : (course.subjects ? course.subjects.split(',').map(s => s.trim()).filter(Boolean) : []);
+                                    if (tags.length === 0) return <span className="text-sm font-bold text-slate-400">N/A</span>;
+                                    const visibleTags = showAllSelectedSubjects ? tags : tags.slice(0, 1);
+                                    return (
+                                        <>
+                                            {visibleTags.map((sub, idx) => (
+                                                <span 
+                                                    key={idx}
+                                                    className="bg-indigo-50 text-[#3E3ADD] font-extrabold text-[11px] px-2 py-1 rounded-xl border border-indigo-100 select-none animate-fade-in"
+                                                >
+                                                    {sub}
+                                                </span>
+                                            ))}
+                                            {tags.length > 1 && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowAllSelectedSubjects(!showAllSelectedSubjects)}
+                                                    className="bg-slate-200 hover:bg-slate-350 text-indigo-700 font-extrabold text-[10px] px-2.5 py-1 rounded-xl border border-indigo-100 transition-all select-none cursor-pointer"
+                                                >
+                                                    {showAllSelectedSubjects ? 'Show Less' : `+${tags.length - 1} more`}
+                                                </button>
+                                            )}
+                                        </>
+                                    );
+                                })()}
                             </div>
                         </div>
                     </div>

@@ -469,34 +469,11 @@ const AdminDashboard = () => {
                         </div>
                     </div>
 
-                    {/* Tab Switcher — scrollable on mobile */}
-                    <div className="overflow-x-auto -mx-1 px-1">
-                        <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200 w-full sm:w-auto sm:inline-flex min-w-max">
-                            <button
-                                onClick={() => handleTabChange('overview')}
-                                className={`flex-1 sm:flex-none px-4 sm:px-5 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap ${activeTab === 'overview' ? 'bg-[#0b1329] text-white shadow-md' : 'text-slate-600 hover:text-slate-900'}`}
-                            >
-                                Overview
-                            </button>
-                            <button
-                                onClick={() => handleTabChange('applications')}
-                                className={`flex-1 sm:flex-none px-4 sm:px-5 py-2.5 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap ${activeTab === 'applications' ? 'bg-[#0b1329] text-white shadow-md' : 'text-slate-600 hover:text-slate-900'}`}
-                            >
-                                Applications
-                            </button>
-                            <button
-                                onClick={() => handleTabChange('role-requests')}
-                                className={`flex-1 sm:flex-none px-4 sm:px-5 py-2.5 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap ${activeTab === 'role-requests' ? 'bg-[#0b1329] text-white shadow-md' : 'text-slate-600 hover:text-slate-900'}`}
-                            >
-                                Staff Requests
-                            </button>
-                        </div>
-                    </div>
                 </div>
             )}
 
             {/* Conditional Views */}
-            {activeTab === 'overview' && (
+            {activeTab !== 'study-material' && (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 sm:gap-4 mb-8">
                     <StatCard title="Total User" value={stats.totalUsers || 0} icon={Users} color="bg-slate-600 text-slate-600" onClick={() => navigate('/admin/users')} />
                     <StatCard title="Registered User" value={stats.registeredUsers || 0} icon={UserCheck} color="bg-indigo-600 text-indigo-600" onClick={() => navigate('/admin/users?tab=registered')} />
@@ -560,220 +537,6 @@ const AdminDashboard = () => {
                     <StatCard title="Subjects" value={stats.subjects || 0} icon={FolderOpen} color="bg-violet-500 text-violet-500" onClick={() => navigate('/admin/subjects')} />
                     <StatCard title="Activities" value={stats.tests || 0} icon={FileText} color="bg-purple-500 text-purple-500" onClick={() => navigate('/admin/activities')} />
                     <StatCard title="Services" value={stats.services || 0} icon={Settings} color="bg-lime-600 text-lime-600" onClick={() => navigate('/admin/drive')} />
-                </div>
-            )}
-
-            {activeTab === 'applications' && (
-                <div className="bg-white rounded-[2rem] p-6 border border-slate-100 shadow-sm animate-fade-in text-left">
-                    <div className="border-b border-slate-100 pb-4 mb-6 flex justify-between items-center">
-                        <div>
-                            <h2 className="text-xl font-extrabold text-slate-900">Student Registration Applications</h2>
-                            <p className="text-slate-500 text-xs mt-1">Review pending admission requests across all institutes</p>
-                        </div>
-                        <span className="bg-indigo-50 text-indigo-700 px-3.5 py-1.5 rounded-full text-xs font-black font-mono">
-                            Total: {applications.length}
-                        </span>
-                    </div>
-
-                    {loadingApps ? (
-                        <div className="flex justify-center items-center py-20">
-                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0b1329]"></div>
-                        </div>
-                    ) : applications.length === 0 ? (
-                        <div className="text-center py-16 text-slate-400 font-medium font-semibold">
-                            No applications found
-                        </div>
-                    ) : (
-                        <div className="overflow-x-auto rounded-2xl border border-slate-100">
-                            <table className="min-w-full text-left border-collapse">
-                                <thead>
-                                    <tr className="bg-slate-50 border-b border-slate-150 text-slate-500 text-[10px] font-black uppercase tracking-wider">
-                                        <th className="p-4 font-semibold">Applicant</th>
-                                        <th className="p-4 font-semibold">Institute</th>
-                                        <th className="p-4 font-semibold">Course</th>
-                                        <th className="p-4 font-semibold">Date</th>
-                                        <th className="p-4 font-semibold">Statement</th>
-                                        <th className="p-4 font-semibold text-center">Status</th>
-                                        <th className="p-4 font-semibold text-right">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-100 text-slate-700 text-xs font-semibold">
-                                    {applications.map((app) => (
-                                        <tr key={app._id} className="hover:bg-slate-50 transition-colors group">
-                                            <td className="p-4 whitespace-nowrap">
-                                                <div className="flex flex-col">
-                                                    <span className="font-bold text-slate-800">{app.name}</span>
-                                                    <span className="text-slate-400 text-[10px] font-semibold">{app.email}</span>
-                                                    <span className="text-slate-400 text-[10px] font-semibold">{app.phone || 'No Phone'}</span>
-                                                </div>
-                                            </td>
-                                            <td className="p-4 whitespace-nowrap">
-                                                <div className="flex flex-col">
-                                                    <span className="font-bold text-slate-800">{app.institute?.name || 'N/A'}</span>
-                                                    <span className="text-slate-400 text-[10px] font-mono">{app.institute?.code || 'N/A'}</span>
-                                                </div>
-                                            </td>
-                                            <td className="p-4 whitespace-nowrap">
-                                                <span className="font-bold text-slate-700">{app.course?.name || 'Unknown Course'}</span>
-                                            </td>
-                                            <td className="p-4 whitespace-nowrap">
-                                                <span className="text-slate-500 font-medium text-xs">
-                                                    {new Date(app.createdAt).toLocaleDateString(undefined, {
-                                                        year: 'numeric',
-                                                        month: 'short',
-                                                        day: 'numeric'
-                                                    })}
-                                                </span>
-                                            </td>
-                                            <td className="p-4 max-w-[200px] truncate" title={app.statement}>
-                                                {app.statement || <span className="italic text-slate-300">No statement</span>}
-                                            </td>
-                                            <td className="p-4 whitespace-nowrap text-center">
-                                                <span className={`px-3 py-1 border rounded-full text-[10px] font-black uppercase tracking-wider ${getStatusBadgeClass(app.status)}`}>
-                                                    {app.status}
-                                                </span>
-                                            </td>
-                                            <td className="p-4 text-right whitespace-nowrap">
-                                                <div className="flex justify-end gap-1.5">
-                                                    <button
-                                                        onClick={() => handleUpdateAppStatus(app._id, 'Accepted')}
-                                                        disabled={updatingAppId === app._id || app.status === 'Accepted'}
-                                                        className={`p-1.5 rounded-lg border text-emerald-600 bg-emerald-50 border-emerald-100 hover:bg-emerald-100 hover:text-emerald-700 transition-all cursor-pointer ${app.status === 'Accepted' ? 'opacity-30 cursor-not-allowed' : ''}`}
-                                                        title="Accept Application"
-                                                    >
-                                                        <Check size={14} className="stroke-[3px]" />
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleUpdateAppStatus(app._id, 'Under Review')}
-                                                        disabled={updatingAppId === app._id || app.status === 'Under Review' || app.status === 'Accepted'}
-                                                        className={`p-1.5 rounded-lg border text-amber-600 bg-amber-50 border-amber-100 hover:bg-amber-100 hover:text-amber-700 transition-all cursor-pointer ${(app.status === 'Under Review' || app.status === 'Accepted') ? 'opacity-30 cursor-not-allowed' : ''}`}
-                                                        title="Put Under Review"
-                                                    >
-                                                        <Clock size={14} className="stroke-[3px]" />
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleUpdateAppStatus(app._id, 'Rejected')}
-                                                        disabled={updatingAppId === app._id || app.status === 'Rejected' || app.status === 'Accepted'}
-                                                        className={`p-1.5 rounded-lg border text-rose-600 bg-rose-50 border-rose-100 hover:bg-rose-100 hover:text-rose-700 transition-all cursor-pointer ${(app.status === 'Rejected' || app.status === 'Accepted') ? 'opacity-30 cursor-not-allowed' : ''}`}
-                                                        title="Reject Application"
-                                                    >
-                                                        <X size={14} className="stroke-[3px]" />
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleDeleteApplication(app._id)}
-                                                        disabled={updatingAppId === app._id}
-                                                        className="p-1.5 rounded-lg border text-slate-500 bg-slate-50 border-slate-200 hover:bg-slate-100 hover:text-slate-700 transition-all cursor-pointer"
-                                                        title="Delete Application"
-                                                    >
-                                                        <Trash2 size={14} className="stroke-[2.5px]" />
-                                                    </button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
-                </div>
-            )}
-
-            {activeTab === 'role-requests' && (
-                <div className="space-y-8 animate-fade-in text-left">
-                    <div className="bg-white rounded-[2rem] p-6 border border-slate-100 shadow-sm space-y-4">
-                        <div className="border-b border-slate-100 pb-4 mb-6 flex justify-between items-center">
-                            <div>
-                                <h2 className="text-xl font-extrabold text-slate-900">Staff & Teacher Joining Requests</h2>
-                                <p className="text-slate-500 text-xs mt-1">Approve or reject teacher/editor recruitment requests across all institutes</p>
-                            </div>
-                            <span className="bg-indigo-50 text-indigo-705 px-3.5 py-1.5 rounded-full text-xs font-black font-mono">
-                                Total: {roleRequests.length}
-                            </span>
-                        </div>
-
-                        {loadingRequests ? (
-                            <div className="flex justify-center items-center py-20">
-                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0b1329]"></div>
-                            </div>
-                        ) : roleRequests.length === 0 ? (
-                            <div className="text-center py-16 text-slate-400 font-medium font-semibold">
-                                No staff joining requests found
-                            </div>
-                        ) : (
-                            <div className="overflow-x-auto rounded-2xl border border-slate-100">
-                                <table className="min-w-full text-left border-collapse">
-                                    <thead>
-                                        <tr className="bg-slate-50 border-b border-slate-150 text-slate-500 text-[10px] font-bold uppercase tracking-wider">
-                                            <th className="p-4 font-semibold">Applicant</th>
-                                            <th className="p-4 font-semibold">Target Institute</th>
-                                            <th className="p-4 font-semibold">Role</th>
-                                            <th className="p-4 font-semibold">Specialization / Details</th>
-                                            <th className="p-4 font-semibold text-right">Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-slate-100 text-slate-700 text-xs font-semibold">
-                                        {roleRequests.map((req) => (
-                                            <tr key={req._id} className="hover:bg-slate-50 transition-colors group">
-                                                <td className="p-4 whitespace-nowrap">
-                                                    <div className="flex flex-col">
-                                                        <span className="font-bold text-slate-800">{req.name}</span>
-                                                        <span className="text-slate-400 text-[10px] font-semibold">{req.email}</span>
-                                                        <span className="text-slate-400 text-[10px] font-semibold">{req.phone || 'No Phone'}</span>
-                                                    </div>
-                                                </td>
-                                                <td className="p-4 whitespace-nowrap">
-                                                    <div className="flex flex-col">
-                                                        <span className="font-bold text-slate-800">{req.targetInstitute?.name || 'N/A'}</span>
-                                                        <span className="text-slate-400 text-[10px] font-mono">{req.targetInstitute?.code || 'N/A'}</span>
-                                                    </div>
-                                                </td>
-                                                <td className="p-4 whitespace-nowrap">
-                                                    <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${req.role === 'Teacher'
-                                                        ? 'bg-purple-50 text-purple-700 border border-purple-100'
-                                                        : 'bg-blue-50 text-blue-700 border border-blue-100'
-                                                        }`}>
-                                                        {req.role}
-                                                    </span>
-                                                </td>
-                                                <td className="p-4">
-                                                    <div className="flex flex-col">
-                                                        {req.role === 'Teacher' ? (
-                                                            <>
-                                                                <span className="text-slate-500 font-medium">Specs: {req.subjectSpecialization || 'None'}</span>
-                                                                <span className="text-[10px] text-slate-400">Eligibility: {req.eligibility || 'N/A'}</span>
-                                                            </>
-                                                        ) : (
-                                                            <span className="text-slate-500 italic">No extra details</span>
-                                                        )}
-                                                    </div>
-                                                </td>
-                                                <td className="p-4 text-right whitespace-nowrap">
-                                                    <div className="flex justify-end gap-1.5">
-                                                        <button
-                                                            onClick={() => handleResolveRoleRequest(req._id, 'Approved')}
-                                                            disabled={resolvingRequestId === req._id}
-                                                            className="p-1.5 rounded-lg border text-emerald-600 bg-emerald-50 border-emerald-100 hover:bg-emerald-100 hover:text-emerald-700 transition-all cursor-pointer font-extrabold flex items-center gap-1 text-[10px]"
-                                                            title="Approve & Create Account"
-                                                        >
-                                                            <Check size={14} className="stroke-[3px]" /> Approve
-                                                        </button>
-                                                        <button
-                                                            onClick={() => handleResolveRoleRequest(req._id, 'Rejected')}
-                                                            disabled={resolvingRequestId === req._id}
-                                                            className="p-1.5 rounded-lg border text-rose-600 bg-rose-50 border-rose-100 hover:bg-rose-100 hover:text-rose-700 transition-all cursor-pointer font-extrabold flex items-center gap-1 text-[10px]"
-                                                            title="Reject Request"
-                                                        >
-                                                            <X size={14} className="stroke-[3px]" /> Reject
-                                                        </button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        )}
-                    </div>
                 </div>
             )}
 
@@ -1206,7 +969,7 @@ const AdminDashboard = () => {
                     className="fixed inset-0 z-[99999] bg-[#F5F5F5] flex flex-col p-6 md:p-10 animate-fade-in text-left overflow-hidden"
                 >
                     <div
-                        className="w-full max-w-4xl mx-auto flex-1 flex flex-col"
+                        className="w-full max-w-7xl mx-auto flex-1 flex flex-col"
                     >
                         {/* Header */}
                         <div className="flex items-center justify-between mb-5 border-b border-slate-250 pb-3">

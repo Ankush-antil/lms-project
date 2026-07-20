@@ -44,10 +44,18 @@ const getUsers = asyncHandler(async (req, res) => {
     const { role, course, institute } = req.query;
     const query = { isDeleted: { $ne: true }, role: { $ne: 'Admin' } };
     if (role) {
-        query.$or = [
-            { role: role },
-            { allowedRoles: role }
-        ];
+        const roles = role.split(',').map(r => r.trim()).filter(Boolean);
+        if (roles.length === 1) {
+            query.$or = [
+                { role: roles[0] },
+                { allowedRoles: roles[0] }
+            ];
+        } else {
+            query.$or = [
+                { role: { $in: roles } },
+                { allowedRoles: { $in: roles } }
+            ];
+        }
     }
     if (institute) query.institute = institute;
     if (course) {

@@ -118,13 +118,14 @@ const getTeacherStudents = asyncHandler(async (req, res) => {
                     stats: {
                         pending: subs.filter(s => s.status === 'submitted').length,
                         completed: subs.filter(s => s.status === 'evaluated').length,
+                        returned: subs.filter(s => s.status === 'returned').length,
                         total: subs.length
                     }
                 };
             } catch (err) {
                 console.error(`Error processing stats for student ${student._id}:`, err);
                 const fallbackObj = student.toObject();
-                return { ...fallbackObj, stats: { pending: 0, completed: 0, total: 0 } };
+                return { ...fallbackObj, stats: { pending: 0, completed: 0, returned: 0, total: 0 } };
             }
         });
 

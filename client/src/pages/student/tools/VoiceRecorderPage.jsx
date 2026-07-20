@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Mic, Clock, Settings, Cloud, Folder, RefreshCw, Database, Download, Trash, AlertTriangle, ArrowLeft, Play, Square, Pause, Scissors, Share2, Save, CheckCircle, X } from 'lucide-react';
 import DashboardLayout from '../../../components/layout/DashboardLayout';
+import { useAuth } from '../../../context/AuthContext';
 import toast from 'react-hot-toast';
 import axios from 'axios';
 import GoogleDriveModal from '../../../components/common/GoogleDriveModal';
@@ -409,6 +410,7 @@ const WaveformPlayer = ({ src, id, durationStr }) => {
 const VoiceRecorderPage = () => {
     const navigate = useNavigate();
     const location = useLocation();
+    const { user } = useAuth();
     const canvasRef = useRef(null);
     const recordingPeaksRef = useRef([]);
     const lastPeakTimeRef = useRef(0);
@@ -1706,7 +1708,7 @@ const VoiceRecorderPage = () => {
     };
 
     return (
-        <DashboardLayout role="Student" fullWidth={true}>
+        <DashboardLayout role={user?.role || 'Student'} fullWidth={true}>
             <div className="max-w-7xl mx-auto px-4 py-2 text-left">
                 {/* Back Link & Header Row */}
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 border-b border-slate-100 pb-3">
@@ -1766,7 +1768,9 @@ const VoiceRecorderPage = () => {
                     {/* Right: Back to Practice Tools */}
                     <button
                         onClick={() => {
-                            if (inboxParam) {
+                            if (user?.role && user.role !== 'Student') {
+                                navigate(`/${user.role.toLowerCase()}/tools`);
+                            } else if (inboxParam) {
                                 navigate('/student/tests');
                             } else {
                                 navigate(dateParam ? `/student/practice-tools?date=${dateParam}` : '/student/practice-tools');

@@ -369,11 +369,16 @@ function App() {
                                                 <InstituteStaffTask />
                                             </PrivateRoute>
                                         } />
-                                        <Route path="/institute/staff-task-detail/:staffName" element={
-                                            <PrivateRoute role="Institute">
-                                                <StaffTaskDetailPage />
-                                            </PrivateRoute>
-                                        } />
+                                         <Route path="/institute/staff-task-detail/:staffName" element={
+                                             <PrivateRoute role="Institute">
+                                                 <StaffTaskDetailPage />
+                                             </PrivateRoute>
+                                         } />
+                                         <Route path="/institute/assets" element={
+                                             <PrivateRoute role="Institute">
+                                                 <AssetManagement />
+                                             </PrivateRoute>
+                                         } />
 
                                         {/* Admin Routes */}
                                         <Route path="/admin" element={
@@ -521,11 +526,16 @@ function App() {
                                                 <AdminStaffSalary />
                                             </PrivateRoute>
                                         } />
-                                        <Route path="/admin/staff/task" element={
-                                            <PrivateRoute role="Admin">
-                                                <AdminStaffTask />
-                                            </PrivateRoute>
-                                        } />
+                                         <Route path="/admin/staff/task" element={
+                                             <PrivateRoute role="Admin">
+                                                 <AdminStaffTask />
+                                             </PrivateRoute>
+                                         } />
+                                         <Route path="/admin/assets" element={
+                                             <PrivateRoute role="Admin">
+                                                 <AssetManagement />
+                                             </PrivateRoute>
+                                         } />
 
                                         {/* Accountant Routes */}
                                         <Route path="/accountant" element={

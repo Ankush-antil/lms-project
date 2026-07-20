@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Phone, Video, Mic, Shield, Clock, Settings, Cloud, Folder, RefreshCw, Database, Download, Trash, AlertTriangle, ArrowLeft, Play, Square, Users, Cpu, PhoneOff, MicOff, VideoOff, MessageSquare, Eye, CheckCircle, X, Pause, Save } from 'lucide-react';
 import DashboardLayout from '../../../components/layout/DashboardLayout';
+import { useAuth } from '../../../context/AuthContext';
 import { useSocket } from '../../../context/SocketContext';
 import axios from 'axios';
 import toast from 'react-hot-toast';
@@ -13,6 +14,7 @@ import { parseDateToDdMmYyyy, getTodayDdMmYyyy } from '../../../utils/dateUtils'
 const WebCallingPage = () => {
     const navigate = useNavigate();
     const location = useLocation();
+    const { user } = useAuth();
 
     // Parse selected date and inbox param
     const searchParams = new URLSearchParams(location.search);
@@ -838,7 +840,7 @@ const WebCallingPage = () => {
     };
 
     return (
-        <DashboardLayout role="Student" fullWidth={true}>
+        <DashboardLayout role={user?.role || 'Student'} fullWidth={true}>
             <div className="max-w-7xl mx-auto px-4 py-4 text-left">
                 {/* Back Link & Header Row */}
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 border-b border-slate-100 pb-3">
@@ -898,7 +900,9 @@ const WebCallingPage = () => {
                     {/* Right: Back to Practice Tools */}
                     <button
                         onClick={() => {
-                            if (inboxParam) {
+                            if (user?.role && user.role !== 'Student') {
+                                navigate(`/${user.role.toLowerCase()}/tools`);
+                            } else if (inboxParam) {
                                 navigate('/student/tests');
                             } else {
                                 navigate(dateParam ? `/student/practice-tools?date=${dateParam}` : '/student/practice-tools');

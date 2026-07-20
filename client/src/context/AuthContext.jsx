@@ -133,7 +133,7 @@ export const AuthProvider = ({ children }) => {
             Marketer: 'marketer'
         };
 
-        const subdomain = roleSubdomains[userInfo.role] || 'landing';
+        const subdomain = roleSubdomains[userInfo.role] || 'www';
         const redirectPath = userInfo.role === 'Student' ? '/student/tests' : `/${userInfo.role.toLowerCase()}`;
         
         const hostname = window.location.hostname;

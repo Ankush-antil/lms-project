@@ -166,8 +166,8 @@ const SubdomainRedirectHandler = ({ children }) => {
 
         if (!user) {
             // Unauthenticated users are forced to landing page for login (except on public paths)
-            if (subdomain !== 'landing' && !isPublicPath) {
-                window.location.href = `${window.location.protocol}//landing.digitalstudyacademy.com/login`;
+            if (subdomain !== 'www' && subdomain !== 'landing' && !isPublicPath) {
+                window.location.href = `${window.location.protocol}//www.digitalstudyacademy.com/login`;
             }
             return;
         }
@@ -223,7 +223,7 @@ const SubdomainRedirectHandler = ({ children }) => {
             return;
         }
 
-        if ((subdomain === 'landing' || (expectedSubdomain && subdomain !== expectedSubdomain)) && !isPublicPath) {
+        if ((subdomain === 'www' || subdomain === 'landing' || parts.length === 2 || (expectedSubdomain && subdomain !== expectedSubdomain)) && !isPublicPath) {
             if (expectedSubdomain) {
                 const targetHost = `${expectedSubdomain}.digitalstudyacademy.com`;
                 const redirectPath = user.role === 'Student' ? '/student/tests' : `/${user.role.toLowerCase()}`;

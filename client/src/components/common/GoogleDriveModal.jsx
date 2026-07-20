@@ -1608,7 +1608,6 @@ const GoogleDriveModal = ({ isOpen, onClose, fileName, fileBlob, onSaveSuccess, 
                     )}
 
                 </div>
-            </div>
             
             <style dangerouslySetInnerHTML={{__html: `
                 @keyframes fadeIn {

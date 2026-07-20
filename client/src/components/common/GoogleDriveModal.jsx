@@ -536,7 +536,7 @@ const GoogleDriveModal = ({ isOpen, onClose, fileName, fileBlob, onSaveSuccess, 
             if (!res.ok) {
                 if (res.status === 401 || res.status === 403) {
                     clearGoogleAuth();
-                    throw new Error("Google Drive session expired. Please reconnect your account.");
+                    return; // silently reset to step 1
                 }
                 throw new Error(`Google Drive API returned status ${res.status}`);
             }

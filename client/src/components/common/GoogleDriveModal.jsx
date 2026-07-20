@@ -48,6 +48,7 @@ const GoogleDriveModal = ({ isOpen, onClose, fileName, fileBlob, onSaveSuccess, 
     const [driveFiles, setDriveFiles] = useState([]);
     const [loadingDriveFiles, setLoadingDriveFiles] = useState(false);
     const [importingFileId, setImportingFileId] = useState('');
+    const [importedFileIds, setImportedFileIds] = useState(new Set());
 
     // Folders & Upload state
     const [foldersMap, setFoldersMap] = useState({}); // { name: id }
@@ -599,6 +600,7 @@ const GoogleDriveModal = ({ isOpen, onClose, fileName, fileBlob, onSaveSuccess, 
             });
 
             toast.success(`"${file.name}" imported to LMS Drive!`, { id: toastId });
+            setImportedFileIds(prev => new Set([...prev, file.id]));
             if (onSaveSuccess) {
                 onSaveSuccess();
             }
@@ -1580,14 +1582,21 @@ const GoogleDriveModal = ({ isOpen, onClose, fileName, fileBlob, onSaveSuccess, 
                                                                         >
                                                                             <Download size={14} />
                                                                         </a>
-                                                                        <button
-                                                                            disabled={importingFileId === item.id}
-                                                                            onClick={() => handleImportToLMS(item)}
-                                                                            className="px-2.5 py-1.5 bg-[#3E3ADD] hover:bg-[#322fba] text-white rounded-lg text-[10px] font-black uppercase tracking-wider transition-all disabled:opacity-50"
-                                                                            title="Import this file to LMS Drive"
-                                                                        >
-                                                                            {importingFileId === item.id ? "Importing..." : "Import"}
-                                                                        </button>
+                                                                        {importedFileIds.has(item.id) ? (
+                                                                            <span className="px-2.5 py-1.5 bg-emerald-50 text-emerald-600 border border-emerald-200 rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-1">
+                                                                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                                                                                Imported
+                                                                            </span>
+                                                                        ) : (
+                                                                            <button
+                                                                                disabled={importingFileId === item.id}
+                                                                                onClick={() => handleImportToLMS(item)}
+                                                                                className="px-2.5 py-1.5 bg-[#3E3ADD] hover:bg-[#322fba] text-white rounded-lg text-[10px] font-black uppercase tracking-wider transition-all disabled:opacity-50"
+                                                                                title="Import this file to LMS Drive"
+                                                                            >
+                                                                                {importingFileId === item.id ? "Importing..." : "Import"}
+                                                                            </button>
+                                                                        )}
                                                                     </div>
                                                                 )}
                                                             </div>

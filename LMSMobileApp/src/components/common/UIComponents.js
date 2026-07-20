@@ -56,15 +56,18 @@ export const AppHeader = ({ title, showBack = false, rightAction, rightIcon, rig
     );
 };
 
-export const StatCard = ({ title, value, icon, color = colors.accent, bg = '#eef2ff' }) => (
-    <View style={[styles.statCard, { flex: 1 }]}>
-        <View style={[styles.statIcon, { backgroundColor: bg }]}>
-            <Ionicons name={icon} size={22} color={color} />
-        </View>
-        <Text style={styles.statValue}>{value ?? '–'}</Text>
-        <Text style={styles.statTitle}>{title}</Text>
-    </View>
-);
+export const StatCard = ({ title, value, icon, color = colors.accent, bg = '#eef2ff', onPress }) => {
+    const Component = onPress ? TouchableOpacity : View;
+    return (
+        <Component style={[styles.statCard, { flex: 1 }]} onPress={onPress} activeOpacity={0.8}>
+            <View style={[styles.statIcon, { backgroundColor: bg }]}>
+                <Ionicons name={icon} size={22} color={color} />
+            </View>
+            <Text style={styles.statValue}>{value ?? '–'}</Text>
+            <Text style={styles.statTitle}>{title}</Text>
+        </Component>
+    );
+};
 
 export const SectionCard = ({ children, style }) => (
     <View style={[styles.sectionCard, style]}>

@@ -73,6 +73,9 @@ import ChatScreen from '../screens/admin/ChatScreen';
 import DriveScreen from '../screens/admin/DriveScreen';
 import NotesScreen from '../screens/admin/NotesScreen';
 import AdminFeePortal from '../screens/admin/AdminFeePortal';
+import AssetMgtScreen from '../screens/admin/AssetMgtScreen';
+import LeadMgtScreen from '../screens/admin/LeadMgtScreen';
+import AdsMgtScreen from '../screens/admin/AdsMgtScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -157,6 +160,9 @@ const AdminStack = () => (
         <Stack.Screen name="Drive" component={DriveScreen} />
         <Stack.Screen name="Notes" component={NotesScreen} />
         <Stack.Screen name="AdminFeePortal" component={AdminFeePortal} />
+        <Stack.Screen name="AssetMgt" component={AssetMgtScreen} />
+        <Stack.Screen name="LeadMgt" component={LeadMgtScreen} />
+        <Stack.Screen name="AdsMgt" component={AdsMgtScreen} />
         <Stack.Screen name="AccountantFeePortal" component={AccountantFeePortal} />
         <Stack.Screen name="TeacherActivities" component={TeacherActivities} />
         <Stack.Screen name="StudentPracticeTools" component={StudentPracticeTools} />
@@ -196,23 +202,7 @@ const MarketerStack = () => (
     </Stack.Navigator>
 );
 
-// ─── Staff Stack ─────────────────────────────────────────────────────────────
-const StaffStack = () => (
-    <Stack.Navigator screenOptions={screenOptions}>
-        <Stack.Screen name="StaffDashboard" component={StaffDashboard} />
-        <Stack.Screen name="Drive" component={DriveScreen} />
-        <Stack.Screen name="Notes" component={NotesScreen} />
-        <Stack.Screen name="Chat" component={ChatScreen} />
-        <Stack.Screen name="StudentPracticeTools" component={StudentPracticeTools} />
-        <Stack.Screen name="VoiceRecorderPage" component={VoiceRecorderPage} />
-        <Stack.Screen name="VideoRecorderPage" component={VideoRecorderPage} />
-        <Stack.Screen name="ScreenRecorderPage" component={ScreenRecorderPage} />
-        <Stack.Screen name="ScreenshotToolPage" component={ScreenshotToolPage} />
-        <Stack.Screen name="WebCallingPage" component={WebCallingPage} />
-        <Stack.Screen name="Profile" component={ProfileScreen} />
-        <Stack.Screen name="FileUploadPage" component={FileUploadPage} />
-    </Stack.Navigator>
-);
+
 
 // ─── Parent Stack ─────────────────────────────────────────────────────────────
 const ParentStack = () => (
@@ -287,9 +277,7 @@ const AppNavigator = () => {
                 ) : user.role === 'Marketer' ? (
                     // Marketer
                     <Stack.Screen name="MarketerRoot" component={MarketerStack} />
-                ) : user.role === 'Staff' ? (
-                    // Staff
-                    <Stack.Screen name="StaffRoot" component={StaffStack} />
+
                 ) : user.role === 'Parent' ? (
                     // Parent
                     <Stack.Screen name="ParentRoot" component={ParentStack} />

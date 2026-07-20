@@ -12,8 +12,10 @@ import {
     KeyboardAvoidingView,
     Platform,
     Alert,
+    ActivityIndicator,
 } from 'react-native';
 import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../../context/AuthContext';
 import { AppHeader, StatCard, SectionCard, LoadingScreen, EmptyState, Badge } from '../../components/common/UIComponents';
 import { colors, spacing, fontSizes, borderRadius } from '../../theme/colors';
@@ -31,6 +33,16 @@ const TeacherDashboard = ({ navigation }) => {
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [switcherVisible, setSwitcherVisible] = useState(false);
+
+    // Staff Features States
+    const [activeTab, setActiveTab] = useState('home'); // 'home' | 'tasks' | 'attendance' | 'salary'
+    const [tasks, setTasks] = useState([]);
+    const [newTaskTitle, setNewTaskTitle] = useState('');
+    const [newTaskDesc, setNewTaskDesc] = useState('');
+    const [attendanceHistory, setAttendanceHistory] = useState([]);
+    const [leaveDate, setLeaveDate] = useState('');
+    const [leaveNote, setLeaveNote] = useState('');
+    const [submittingLeave, setSubmittingLeave] = useState(false);
 
     // Call and Chat States
     const [activeContact, setActiveContact] = useState(null);
@@ -128,20 +140,86 @@ const TeacherDashboard = ({ navigation }) => {
         }
     };
 
+    // Staff tasks & attendance logic
+    const loadTasks = async () => {
+        try {
+            const stored = await AsyncStorage.getItem(`staff_tasks_${user?._id}`);
+            if (stored) setTasks(JSON.parse(stored));
+            else setTasks([
+                { id: '1', title: 'Preparation for Daily Activities', description: 'Review scheduled materials', status: 'pending' },
+            ]);
+        } catch (e) {}
+    };
+
+    const saveTasks = async (newTasks) => {
+        try {
+            await AsyncStorage.setItem(`staff_tasks_${user?._id}`, JSON.stringify(newTasks));
+            setTasks(newTasks);
+        } catch (e) {}
+    };
+
+    const handleAddTask = () => {
+        if (!newTaskTitle.trim()) { Alert.alert('Error', 'Please enter task title'); return; }
+        const newTask = { id: Date.now().toString(), title: newTaskTitle.trim(), description: newTaskDesc.trim(), status: 'pending' };
+        saveTasks([newTask, ...tasks]);
+        setNewTaskTitle(''); setNewTaskDesc('');
+        Alert.alert('Success', 'Task created successfully');
+    };
+
+    const handleToggleTaskStatus = (id) => {
+        saveTasks(tasks.map(t => t.id === id ? { ...t, status: t.status === 'done' ? 'pending' : 'done' } : t));
+    };
+
+    const handleDeleteTask = (id) => {
+        Alert.alert('Delete Task', 'Are you sure?', [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Delete', style: 'destructive', onPress: () => saveTasks(tasks.filter(t => t.id !== id)) }
+        ]);
+    };
+
+    const fetchAttendanceAndHistory = async () => {
+        try {
+            if (user?._id) {
+                const { data } = await axios.get(`/attendance/staff/${user._id}/history`);
+                setAttendanceHistory(data.history || []);
+            }
+        } catch (e) {}
+    };
+
+    const handleApplyLeave = async () => {
+        if (!leaveDate || !leaveNote.trim()) { Alert.alert('Error', 'Please fill in leave date & reason'); return; }
+        try {
+            setSubmittingLeave(true);
+            const formData = new FormData();
+            formData.append('date', leaveDate);
+            formData.append('leaveNote', leaveNote.trim());
+            await axios.post('/attendance/leave-application', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+            Alert.alert('Success', 'Leave application submitted!');
+            setLeaveDate(''); setLeaveNote(''); fetchAttendanceAndHistory();
+        } catch (e) {
+            Alert.alert('Error', e.response?.data?.message || 'Failed to submit leave');
+        } finally { setSubmittingLeave(false); }
+    };
+
     const fetchData = async () => {
         try {
             const [profileRes, studentsRes] = await Promise.all([
-                axios.get('/users/profile'),
-                axios.get('/users/teacher-students').catch(() => ({ data: [] })),
+                axios.get('/users/profile').catch(e => { console.warn('/users/profile error:', e.message); return { data: null }; }),
+                axios.get('/users/teacher-students').catch(e => { console.warn('/users/teacher-students error:', e.message); return { data: [] }; }),
             ]);
-            setProfile(profileRes.data);
-            setStudents(studentsRes.data);
+            if (profileRes?.data) setProfile(profileRes.data);
+            if (studentsRes?.data) setStudents(Array.isArray(studentsRes.data) ? studentsRes.data : []);
         } catch (e) {
             console.warn('Fetch teacher stats error:', e.message);
-        } finally {
-            setLoading(false);
-            setRefreshing(false);
         }
+
+        try {
+            await loadTasks();
+            await fetchAttendanceAndHistory();
+        } catch (e) {}
+
+        setLoading(false);
+        setRefreshing(false);
     };
 
     useEffect(() => { fetchData(); }, []);
@@ -159,86 +237,180 @@ const TeacherDashboard = ({ navigation }) => {
                 rightLongAction={() => setSwitcherVisible(true)} 
             />
             
-            {/* Quick Actions top tab bar (Facebook style) */}
+            {/* Quick Actions top tab bar */}
             <View style={styles.topTabBar}>
-                <TouchableOpacity
-                    style={styles.tabBtn}
-                    onPress={() => scrollRef.current?.scrollTo({ y: 0, animated: true })}
-                    activeOpacity={0.7}
-                >
-                    <Ionicons name="home-outline" size={20} color="#3b82f6" />
-                    <Text style={styles.tabLabel}>Home</Text>
+                <TouchableOpacity style={styles.tabBtn} onPress={() => setActiveTab('home')} activeOpacity={0.7}>
+                    <Ionicons name="home-outline" size={20} color={activeTab === 'home' ? colors.teacher : colors.textSecondary} />
+                    <Text style={[styles.tabLabel, activeTab === 'home' && styles.tabLabelActive]}>Home</Text>
                 </TouchableOpacity>
-                <TouchableOpacity
-                    style={styles.tabBtn}
-                    onPress={() => navigation.navigate('TeacherSnapshots')}
-                    activeOpacity={0.7}
-                >
-                    <Ionicons name="calendar-outline" size={20} color="#ef4444" />
-                    <Text style={styles.tabLabel}>Attendance</Text>
+                <TouchableOpacity style={styles.tabBtn} onPress={() => setActiveTab('tasks')} activeOpacity={0.7}>
+                    <Ionicons name="checkmark-done-circle-outline" size={20} color={activeTab === 'tasks' ? colors.teacher : colors.textSecondary} />
+                    <Text style={[styles.tabLabel, activeTab === 'tasks' && styles.tabLabelActive]}>Tasks</Text>
                 </TouchableOpacity>
-                <TouchableOpacity
-                    style={styles.tabBtn}
-                    onPress={() => navigation.navigate('TeacherActivities')}
-                    activeOpacity={0.7}
-                >
-                    <Ionicons name="clipboard-outline" size={20} color="#8b5cf6" />
-                    <Text style={styles.tabLabel}>Activities</Text>
+                <TouchableOpacity style={styles.tabBtn} onPress={() => setActiveTab('attendance')} activeOpacity={0.7}>
+                    <Ionicons name="calendar-outline" size={20} color={activeTab === 'attendance' ? colors.teacher : colors.textSecondary} />
+                    <Text style={[styles.tabLabel, activeTab === 'attendance' && styles.tabLabelActive]}>Attendance</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.tabBtn} onPress={() => setActiveTab('salary')} activeOpacity={0.7}>
+                    <Ionicons name="card-outline" size={20} color={activeTab === 'salary' ? colors.teacher : colors.textSecondary} />
+                    <Text style={[styles.tabLabel, activeTab === 'salary' && styles.tabLabelActive]}>Salary</Text>
                 </TouchableOpacity>
             </View>
 
-            <ScrollView
-                ref={scrollRef}
-                style={styles.scroll}
-                contentContainerStyle={styles.scrollContent}
-                showsVerticalScrollIndicator={false}
-                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchData(); }} tintColor={colors.teacher} />}
-            >
-                {/* Stats */}
-                <View style={styles.statsRow}>
-                    <StatCard
-                        title="My Students"
-                        value={students.length}
-                        icon="people"
-                        color={colors.teacher}
-                        bg="#ecfdf5"
-                    />
-                    <StatCard
-                        title="Activities"
-                        value="–"
-                        icon="clipboard"
-                        color={colors.accent}
-                        bg="#eef2ff"
+            {activeTab === 'home' && (
+                <ScrollView
+                    ref={scrollRef}
+                    style={styles.scroll}
+                    contentContainerStyle={styles.scrollContent}
+                    showsVerticalScrollIndicator={false}
+                    refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchData(); }} tintColor={colors.teacher} />}
+                >
+                    {/* Stats */}
+                    <View style={styles.statsRow}>
+                        <StatCard
+                            title="My Students"
+                            value={students.length}
+                            icon="people"
+                            color={colors.teacher}
+                            bg="#ecfdf5"
+                            onPress={() => navigation.navigate('ContactStudents')}
+                        />
+                        <StatCard
+                            title="Activities"
+                            value="–"
+                            icon="clipboard"
+                            color={colors.accent}
+                            bg="#eef2ff"
+                            onPress={() => navigation.navigate('TeacherActivities')}
+                        />
+                    </View>
+
+                    {/* Teacher Actions Desk */}
+                    <SectionCard>
+                        <Text style={styles.sectionTitle}>Teacher Actions</Text>
+                        <View style={styles.actionsGrid}>
+                            <TouchableOpacity style={styles.actionCard} onPress={() => navigation.navigate('TeacherActivities')}>
+                                <Ionicons name="document-text-outline" size={24} color="#8b5cf6" />
+                                <Text style={styles.actionLabel}>Student Activities</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.actionCard} onPress={() => navigation.navigate('TeacherSnapshots')}>
+                                <Ionicons name="calendar-outline" size={24} color="#ef4444" />
+                                <Text style={styles.actionLabel}>Student Attendance</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.actionCard} onPress={() => navigation.navigate('EvaluatePage')}>
+                                <Ionicons name="checkmark-done-circle-outline" size={24} color="#10b981" />
+                                <Text style={styles.actionLabel}>Evaluate</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </SectionCard>
+
+                    {/* My Students */}
+                    <SectionCard>
+                        <Text style={styles.sectionTitle}>My Students ({students.length})</Text>
+                        {students.length > 0 ? students.slice(0, 5).map(student => (
+                            <TouchableOpacity 
+                                key={student._id} 
+                                style={styles.studentItem}
+                                onPress={() => navigation.navigate('ContactStudents')}
+                                activeOpacity={0.7}
+                            >
+                                <View style={[styles.studentAvatar, { backgroundColor: colors.teacher }]}>
+                                    <Text style={styles.studentAvatarText}>{student.name?.[0]}</Text>
+                                </View>
+                                <View style={styles.studentInfo}>
+                                    <Text style={styles.studentName}>{student.name}</Text>
+                                    <Text style={styles.studentEmail}>{student.email}</Text>
+                                </View>
+                                <Ionicons name="chevron-forward" size={16} color={colors.textMuted} style={{ marginRight: 4 }} />
+                            </TouchableOpacity>
+                        )) : (
+                            <EmptyState icon="people-outline" title="No students assigned" />
+                        )}
+                    </SectionCard>
+
+                </ScrollView>
+            )}
+
+            {activeTab === 'tasks' && (
+                <View style={styles.workspaceBody}>
+                    <SectionCard style={styles.addTaskCard}>
+                        <Text style={styles.sectionTitle}>Create Task</Text>
+                        <TextInput style={styles.inputField} placeholder="Task title..." placeholderTextColor={colors.textMuted} value={newTaskTitle} onChangeText={setNewTaskTitle} />
+                        <TextInput style={[styles.inputField, { height: 60 }]} placeholder="Task description..." placeholderTextColor={colors.textMuted} value={newTaskDesc} onChangeText={setNewTaskDesc} multiline />
+                        <TouchableOpacity style={styles.addBtn} onPress={handleAddTask} activeOpacity={0.8}>
+                            <Text style={styles.addBtnText}>Create Task</Text>
+                        </TouchableOpacity>
+                    </SectionCard>
+                    <FlatList
+                        data={tasks}
+                        keyExtractor={(item) => item.id}
+                        renderItem={({ item }) => (
+                            <View style={styles.taskItem}>
+                                <TouchableOpacity onPress={() => handleToggleTaskStatus(item.id)} style={styles.checkWrapper}>
+                                    <Ionicons name={item.status === 'done' ? 'checkmark-circle' : 'ellipse-outline'} size={22} color={item.status === 'done' ? '#10b981' : colors.textSecondary} />
+                                </TouchableOpacity>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={[styles.taskTitle, item.status === 'done' && styles.taskTitleDone]}>{item.title}</Text>
+                                    {item.description ? <Text style={styles.taskDesc}>{item.description}</Text> : null}
+                                </View>
+                                <TouchableOpacity onPress={() => handleDeleteTask(item.id)} style={styles.deleteBtn}>
+                                    <Ionicons name="trash-outline" size={18} color={colors.danger} />
+                                </TouchableOpacity>
+                            </View>
+                        )}
+                        ListEmptyComponent={<EmptyState icon="clipboard-outline" title="No tasks registered" />}
+                        contentContainerStyle={{ paddingHorizontal: spacing.md, paddingBottom: 100 }}
                     />
                 </View>
+            )}
 
-                {/* Quick Actions moved to sticky top tab bar */}
-
-                {/* My Students */}
-                <SectionCard>
-                    <Text style={styles.sectionTitle}>My Students ({students.length})</Text>
-                    {students.length > 0 ? students.slice(0, 5).map(student => (
-                        <TouchableOpacity 
-                            key={student._id} 
-                            style={styles.studentItem}
-                            onPress={() => navigation.navigate('ContactStudents')}
-                            activeOpacity={0.7}
-                        >
-                            <View style={[styles.studentAvatar, { backgroundColor: colors.teacher }]}>
-                                <Text style={styles.studentAvatarText}>{student.name?.[0]}</Text>
-                            </View>
-                            <View style={styles.studentInfo}>
-                                <Text style={styles.studentName}>{student.name}</Text>
-                                <Text style={styles.studentEmail}>{student.email}</Text>
-                            </View>
-                            <Ionicons name="chevron-forward" size={16} color={colors.textMuted} style={{ marginRight: 4 }} />
+            {activeTab === 'attendance' && (
+                <View style={styles.workspaceBody}>
+                    <SectionCard style={styles.leaveCard}>
+                        <Text style={styles.sectionTitle}>Apply Leave</Text>
+                        <TextInput style={styles.inputField} placeholder="Date (e.g. 2026-07-20)" placeholderTextColor={colors.textMuted} value={leaveDate} onChangeText={setLeaveDate} />
+                        <TextInput style={[styles.inputField, { height: 60 }]} placeholder="Reason for leave..." placeholderTextColor={colors.textMuted} value={leaveNote} onChangeText={setLeaveNote} multiline />
+                        <TouchableOpacity style={[styles.addBtn, submittingLeave && { opacity: 0.5 }]} onPress={handleApplyLeave} disabled={submittingLeave} activeOpacity={0.8}>
+                            {submittingLeave ? <ActivityIndicator color={colors.white} /> : <Text style={styles.addBtnText}>Submit Leave</Text>}
                         </TouchableOpacity>
-                    )) : (
-                        <EmptyState icon="people-outline" title="No students assigned" />
-                    )}
-                </SectionCard>
+                    </SectionCard>
+                    <FlatList
+                        data={attendanceHistory}
+                        keyExtractor={(item, index) => index.toString()}
+                        renderItem={({ item }) => (
+                            <View style={styles.historyItem}>
+                                <View>
+                                    <Text style={styles.historyDate}>{item.date}</Text>
+                                    <Text style={styles.historyDetails}>{item.checkInTime ? `In: ${item.checkInTime}` : ''}{item.checkOutTime ? ` • Out: ${item.checkOutTime}` : ''}</Text>
+                                </View>
+                                <Badge label={item.status} color={item.status === 'Present' ? '#10b981' : item.status === 'Absent' ? '#ef4444' : '#f59e0b'} />
+                            </View>
+                        )}
+                        ListEmptyComponent={<EmptyState icon="calendar-outline" title="No attendance logs found" />}
+                        contentContainerStyle={{ paddingHorizontal: spacing.md, paddingBottom: 100 }}
+                    />
+                </View>
+            )}
 
-            </ScrollView>
+            {activeTab === 'salary' && (
+                <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+                    <SectionCard>
+                        <Text style={styles.sectionTitle}>Salary Ledger Information</Text>
+                        <View style={styles.ledgerCard}>
+                            <Text style={styles.salaryHeader}>Contract Base Salary</Text>
+                            <Text style={styles.salaryAmt}>₹{Number(user?.teacherProfile?.salary || user?.staffProfile?.salary || 0).toLocaleString('en-IN')}</Text>
+                        </View>
+                    </SectionCard>
+                    <SectionCard style={{ marginTop: spacing.md }}>
+                        <Text style={styles.sectionTitle}>Status</Text>
+                        <View style={styles.statusRow}>
+                            <Text style={styles.statusLabel}>Salary Status</Text>
+                            <Badge label={user?.teacherProfile?.salaryStatus || 'Paid'} color="#10b981" />
+                        </View>
+                    </SectionCard>
+                    <View style={{ height: 80 }} />
+                </ScrollView>
+            )}
 
             {/* Calling Modal (Audio/Video) */}
             <Modal
@@ -960,6 +1132,90 @@ const styles = StyleSheet.create({
         color: colors.textMuted,
         marginTop: 2,
     },
+    actionsGrid: {
+        flexDirection: 'row',
+        gap: spacing.md,
+        marginTop: spacing.xs,
+    },
+    actionCard: {
+        flex: 1,
+        backgroundColor: colors.bg,
+        borderRadius: borderRadius.lg,
+        padding: spacing.md,
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: colors.borderLight,
+        elevation: 0.5,
+    },
+    actionLabel: {
+        fontSize: fontSizes.xs,
+        fontWeight: '700',
+        color: colors.textSecondary,
+        marginTop: 6,
+        textAlign: 'center',
+    },
+    tabLabelActive: { color: colors.teacher, fontWeight: '800' },
+    workspaceBody: { flex: 1, padding: spacing.md },
+    addTaskCard: { marginBottom: spacing.md },
+    inputField: {
+        backgroundColor: colors.bg,
+        borderWidth: 1,
+        borderColor: colors.borderLight,
+        borderRadius: borderRadius.md,
+        paddingHorizontal: spacing.md,
+        paddingVertical: 10,
+        color: colors.text,
+        fontSize: fontSizes.sm,
+        marginBottom: spacing.sm,
+    },
+    addBtn: {
+        backgroundColor: colors.teacher,
+        paddingVertical: 12,
+        borderRadius: borderRadius.md,
+        alignItems: 'center',
+    },
+    addBtnText: { color: colors.white, fontWeight: '700', fontSize: fontSizes.sm },
+    taskItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: colors.bgCard,
+        borderRadius: borderRadius.md,
+        padding: spacing.md,
+        marginBottom: spacing.xs,
+        gap: spacing.sm,
+        borderWidth: 1,
+        borderColor: colors.borderLight,
+    },
+    checkWrapper: { padding: 2 },
+    taskTitle: { fontSize: fontSizes.sm, fontWeight: '600', color: colors.text },
+    taskTitleDone: { textDecorationLine: 'line-through', color: colors.textMuted },
+    taskDesc: { fontSize: fontSizes.xs, color: colors.textMuted, marginTop: 2 },
+    deleteBtn: { padding: 4 },
+    leaveCard: { marginBottom: spacing.md },
+    historyItem: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        backgroundColor: colors.bgCard,
+        padding: spacing.md,
+        borderRadius: borderRadius.md,
+        marginBottom: spacing.xs,
+        borderWidth: 1,
+        borderColor: colors.borderLight,
+    },
+    historyDate: { fontSize: fontSizes.sm, fontWeight: '700', color: colors.text },
+    historyDetails: { fontSize: fontSizes.xs, color: colors.textMuted, marginTop: 2 },
+    ledgerCard: {
+        backgroundColor: colors.bgCard,
+        padding: spacing.md,
+        borderRadius: borderRadius.md,
+        borderWidth: 1,
+        borderColor: colors.borderLight,
+    },
+    salaryHeader: { fontSize: fontSizes.xs, color: colors.textMuted, textTransform: 'uppercase' },
+    salaryAmt: { fontSize: fontSizes.xxl, fontWeight: '900', color: colors.teacher, marginVertical: spacing.xs },
+    statusRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    statusLabel: { fontSize: fontSizes.sm, color: colors.textSecondary },
 });
 
 export default TeacherDashboard;

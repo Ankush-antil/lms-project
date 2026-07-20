@@ -12,8 +12,10 @@ import {
     Dimensions,
     Platform,
     SafeAreaView,
+    ActivityIndicator,
 } from 'react-native';
 import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../../context/AuthContext';
 import { AppHeader, StatCard, SectionCard, LoadingScreen, EmptyState, Badge } from '../../components/common/UIComponents';
 import { colors, spacing, fontSizes, borderRadius } from '../../theme/colors';
@@ -26,13 +28,22 @@ const MarketerDashboard = ({ navigation }) => {
     const tapTimeoutRef = React.useRef(null);
     const scrollRef = React.useRef(null);
 
-    const [activeTab, setActiveTab] = useState('home'); // 'home' | 'leads'
+    const [activeTab, setActiveTab] = useState('home'); // 'home' | 'leads' | 'tasks' | 'attendance' | 'salary'
     const [applications, setApplications] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('All');
     const [switcherVisible, setSwitcherVisible] = useState(false);
+
+    // Staff Features States
+    const [tasks, setTasks] = useState([]);
+    const [newTaskTitle, setNewTaskTitle] = useState('');
+    const [newTaskDesc, setNewTaskDesc] = useState('');
+    const [attendanceHistory, setAttendanceHistory] = useState([]);
+    const [leaveDate, setLeaveDate] = useState('');
+    const [leaveNote, setLeaveNote] = useState('');
+    const [submittingLeave, setSubmittingLeave] = useState(false);
 
     const handleQuickSwitch = async () => {
         if (savedAccounts && savedAccounts.length > 1) {
@@ -61,16 +72,82 @@ const MarketerDashboard = ({ navigation }) => {
         }
     };
 
+    // Staff tasks & attendance logic
+    const loadTasks = async () => {
+        try {
+            const stored = await AsyncStorage.getItem(`staff_tasks_${user?._id}`);
+            if (stored) setTasks(JSON.parse(stored));
+            else setTasks([
+                { id: '1', title: 'Preparation for Daily Activities', description: 'Review scheduled materials', status: 'pending' },
+            ]);
+        } catch (e) {}
+    };
+
+    const saveTasks = async (newTasks) => {
+        try {
+            await AsyncStorage.setItem(`staff_tasks_${user?._id}`, JSON.stringify(newTasks));
+            setTasks(newTasks);
+        } catch (e) {}
+    };
+
+    const handleAddTask = () => {
+        if (!newTaskTitle.trim()) { Alert.alert('Error', 'Please enter task title'); return; }
+        const newTask = { id: Date.now().toString(), title: newTaskTitle.trim(), description: newTaskDesc.trim(), status: 'pending' };
+        saveTasks([newTask, ...tasks]);
+        setNewTaskTitle(''); setNewTaskDesc('');
+        Alert.alert('Success', 'Task created successfully');
+    };
+
+    const handleToggleTaskStatus = (id) => {
+        saveTasks(tasks.map(t => t.id === id ? { ...t, status: t.status === 'done' ? 'pending' : 'done' } : t));
+    };
+
+    const handleDeleteTask = (id) => {
+        Alert.alert('Delete Task', 'Are you sure?', [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Delete', style: 'destructive', onPress: () => saveTasks(tasks.filter(t => t.id !== id)) }
+        ]);
+    };
+
+    const fetchAttendanceAndHistory = async () => {
+        try {
+            if (user?._id) {
+                const { data } = await axios.get(`/attendance/staff/${user._id}/history`);
+                setAttendanceHistory(data.history || []);
+            }
+        } catch (e) {}
+    };
+
+    const handleApplyLeave = async () => {
+        if (!leaveDate || !leaveNote.trim()) { Alert.alert('Error', 'Please fill in leave date & reason'); return; }
+        try {
+            setSubmittingLeave(true);
+            const formData = new FormData();
+            formData.append('date', leaveDate);
+            formData.append('leaveNote', leaveNote.trim());
+            await axios.post('/attendance/leave-application', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+            Alert.alert('Success', 'Leave application submitted!');
+            setLeaveDate(''); setLeaveNote(''); fetchAttendanceAndHistory();
+        } catch (e) {
+            Alert.alert('Error', e.response?.data?.message || 'Failed to submit leave');
+        } finally { setSubmittingLeave(false); }
+    };
+
     const fetchApplications = async () => {
         try {
             const { data } = await axios.get('/setup/institute-applications');
             setApplications(data || []);
         } catch (error) {
             console.warn('Error fetching applications for marketer:', error.message);
-        } finally {
-            setLoading(false);
-            setRefreshing(false);
         }
+
+        try {
+            await loadTasks();
+            await fetchAttendanceAndHistory();
+        } catch (e) {}
+
+        setLoading(false);
+        setRefreshing(false);
     };
 
     useEffect(() => {
@@ -183,9 +260,21 @@ const MarketerDashboard = ({ navigation }) => {
                     <Ionicons name="people-outline" size={20} color={activeTab === 'leads' ? colors.accent : colors.textSecondary} />
                     <Text style={[styles.tabLabel, activeTab === 'leads' && styles.tabLabelActive]}>Leads Desk</Text>
                 </TouchableOpacity>
+                <TouchableOpacity style={styles.tabBtn} onPress={() => setActiveTab('tasks')} activeOpacity={0.7}>
+                    <Ionicons name="checkmark-done-circle-outline" size={20} color={activeTab === 'tasks' ? colors.accent : colors.textSecondary} />
+                    <Text style={[styles.tabLabel, activeTab === 'tasks' && styles.tabLabelActive]}>Tasks</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.tabBtn} onPress={() => setActiveTab('attendance')} activeOpacity={0.7}>
+                    <Ionicons name="calendar-outline" size={20} color={activeTab === 'attendance' ? colors.accent : colors.textSecondary} />
+                    <Text style={[styles.tabLabel, activeTab === 'attendance' && styles.tabLabelActive]}>Attendance</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.tabBtn} onPress={() => setActiveTab('salary')} activeOpacity={0.7}>
+                    <Ionicons name="card-outline" size={20} color={activeTab === 'salary' ? colors.accent : colors.textSecondary} />
+                    <Text style={[styles.tabLabel, activeTab === 'salary' && styles.tabLabelActive]}>Salary</Text>
+                </TouchableOpacity>
             </View>
 
-            {activeTab === 'home' ? (
+            {activeTab === 'home' && (
                 <ScrollView
                     ref={scrollRef}
                     style={styles.container}
@@ -250,7 +339,9 @@ const MarketerDashboard = ({ navigation }) => {
 
                     <View style={{ height: 80 }} />
                 </ScrollView>
-            ) : (
+            )}
+
+            {activeTab === 'leads' && (
                 <View style={styles.leadsContainer}>
                     {/* Search and Filters */}
                     <View style={styles.searchFilterBar}>
@@ -357,6 +448,87 @@ const MarketerDashboard = ({ navigation }) => {
                         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />}
                     />
                 </View>
+            )}
+
+            {activeTab === 'tasks' && (
+                <View style={styles.workspaceBody}>
+                    <SectionCard style={styles.addTaskCard}>
+                        <Text style={styles.sectionTitle}>Create Task</Text>
+                        <TextInput style={styles.inputField} placeholder="Task title..." placeholderTextColor={colors.textMuted} value={newTaskTitle} onChangeText={setNewTaskTitle} />
+                        <TextInput style={[styles.inputField, { height: 60 }]} placeholder="Task description..." placeholderTextColor={colors.textMuted} value={newTaskDesc} onChangeText={setNewTaskDesc} multiline />
+                        <TouchableOpacity style={styles.addBtn} onPress={handleAddTask} activeOpacity={0.8}>
+                            <Text style={styles.addBtnText}>Create Task</Text>
+                        </TouchableOpacity>
+                    </SectionCard>
+                    <FlatList
+                        data={tasks}
+                        keyExtractor={(item) => item.id}
+                        renderItem={({ item }) => (
+                            <View style={styles.taskItem}>
+                                <TouchableOpacity onPress={() => handleToggleTaskStatus(item.id)} style={styles.checkWrapper}>
+                                    <Ionicons name={item.status === 'done' ? 'checkmark-circle' : 'ellipse-outline'} size={22} color={item.status === 'done' ? '#10b981' : colors.textSecondary} />
+                                </TouchableOpacity>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={[styles.taskTitle, item.status === 'done' && styles.taskTitleDone]}>{item.title}</Text>
+                                    {item.description ? <Text style={styles.taskDesc}>{item.description}</Text> : null}
+                                </View>
+                                <TouchableOpacity onPress={() => handleDeleteTask(item.id)} style={styles.deleteBtn}>
+                                    <Ionicons name="trash-outline" size={18} color={colors.danger} />
+                                </TouchableOpacity>
+                            </View>
+                        )}
+                        ListEmptyComponent={<EmptyState icon="clipboard-outline" title="No tasks registered" />}
+                        contentContainerStyle={{ paddingHorizontal: spacing.md, paddingBottom: 100 }}
+                    />
+                </View>
+            )}
+
+            {activeTab === 'attendance' && (
+                <View style={styles.workspaceBody}>
+                    <SectionCard style={styles.leaveCard}>
+                        <Text style={styles.sectionTitle}>Apply Leave</Text>
+                        <TextInput style={styles.inputField} placeholder="Date (e.g. 2026-07-20)" placeholderTextColor={colors.textMuted} value={leaveDate} onChangeText={setLeaveDate} />
+                        <TextInput style={[styles.inputField, { height: 60 }]} placeholder="Reason for leave..." placeholderTextColor={colors.textMuted} value={leaveNote} onChangeText={setLeaveNote} multiline />
+                        <TouchableOpacity style={[styles.addBtn, submittingLeave && { opacity: 0.5 }]} onPress={handleApplyLeave} disabled={submittingLeave} activeOpacity={0.8}>
+                            {submittingLeave ? <ActivityIndicator color={colors.white} /> : <Text style={styles.addBtnText}>Submit Leave</Text>}
+                        </TouchableOpacity>
+                    </SectionCard>
+                    <FlatList
+                        data={attendanceHistory}
+                        keyExtractor={(item, index) => index.toString()}
+                        renderItem={({ item }) => (
+                            <View style={styles.historyItem}>
+                                <View>
+                                    <Text style={styles.historyDate}>{item.date}</Text>
+                                    <Text style={styles.historyDetails}>{item.checkInTime ? `In: ${item.checkInTime}` : ''}{item.checkOutTime ? ` • Out: ${item.checkOutTime}` : ''}</Text>
+                                </View>
+                                <Badge label={item.status} color={item.status === 'Present' ? '#10b981' : item.status === 'Absent' ? '#ef4444' : '#f59e0b'} />
+                            </View>
+                        )}
+                        ListEmptyComponent={<EmptyState icon="calendar-outline" title="No attendance logs found" />}
+                        contentContainerStyle={{ paddingHorizontal: spacing.md, paddingBottom: 100 }}
+                    />
+                </View>
+            )}
+
+            {activeTab === 'salary' && (
+                <ScrollView style={styles.container} contentContainerStyle={{ padding: spacing.md }}>
+                    <SectionCard>
+                        <Text style={styles.sectionTitle}>Salary Ledger Information</Text>
+                        <View style={styles.ledgerCard}>
+                            <Text style={styles.salaryHeader}>Contract Base Salary</Text>
+                            <Text style={styles.salaryAmt}>₹{Number(user?.marketerProfile?.salary || user?.staffProfile?.salary || 0).toLocaleString('en-IN')}</Text>
+                        </View>
+                    </SectionCard>
+                    <SectionCard style={{ marginTop: spacing.md }}>
+                        <Text style={styles.sectionTitle}>Status</Text>
+                        <View style={styles.statusRow}>
+                            <Text style={styles.statusLabel}>Salary Status</Text>
+                            <Badge label={user?.marketerProfile?.salaryStatus || 'Paid'} color="#10b981" />
+                        </View>
+                    </SectionCard>
+                    <View style={{ height: 80 }} />
+                </ScrollView>
             )}
 
             {/* Sticky Bottom Tab Bar */}
@@ -627,6 +799,68 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     actionBtnText: { fontSize: 10, fontWeight: '800' },
+    tabLabelActive: { color: colors.accent, fontWeight: '800' },
+    workspaceBody: { flex: 1, padding: spacing.md },
+    addTaskCard: { marginBottom: spacing.md },
+    inputField: {
+        backgroundColor: colors.bg,
+        borderWidth: 1,
+        borderColor: colors.borderLight,
+        borderRadius: borderRadius.md,
+        paddingHorizontal: spacing.md,
+        paddingVertical: 10,
+        color: colors.text,
+        fontSize: fontSizes.sm,
+        marginBottom: spacing.sm,
+    },
+    addBtn: {
+        backgroundColor: colors.accent,
+        paddingVertical: 12,
+        borderRadius: borderRadius.md,
+        alignItems: 'center',
+    },
+    addBtnText: { color: colors.white, fontWeight: '700', fontSize: fontSizes.sm },
+    taskItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: colors.bgCard,
+        borderRadius: borderRadius.md,
+        padding: spacing.md,
+        marginBottom: spacing.xs,
+        gap: spacing.sm,
+        borderWidth: 1,
+        borderColor: colors.borderLight,
+    },
+    checkWrapper: { padding: 2 },
+    taskTitle: { fontSize: fontSizes.sm, fontWeight: '600', color: colors.text },
+    taskTitleDone: { textDecorationLine: 'line-through', color: colors.textMuted },
+    taskDesc: { fontSize: fontSizes.xs, color: colors.textMuted, marginTop: 2 },
+    deleteBtn: { padding: 4 },
+    leaveCard: { marginBottom: spacing.md },
+    historyItem: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        backgroundColor: colors.bgCard,
+        padding: spacing.md,
+        borderRadius: borderRadius.md,
+        marginBottom: spacing.xs,
+        borderWidth: 1,
+        borderColor: colors.borderLight,
+    },
+    historyDate: { fontSize: fontSizes.sm, fontWeight: '700', color: colors.text },
+    historyDetails: { fontSize: fontSizes.xs, color: colors.textMuted, marginTop: 2 },
+    ledgerCard: {
+        backgroundColor: colors.bgCard,
+        padding: spacing.md,
+        borderRadius: borderRadius.md,
+        borderWidth: 1,
+        borderColor: colors.borderLight,
+    },
+    salaryHeader: { fontSize: fontSizes.xs, color: colors.textMuted, textTransform: 'uppercase' },
+    salaryAmt: { fontSize: fontSizes.xxl, fontWeight: '900', color: colors.accent, marginVertical: spacing.xs },
+    statusRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    statusLabel: { fontSize: fontSizes.sm, color: colors.textSecondary },
 });
 
 export default MarketerDashboard;

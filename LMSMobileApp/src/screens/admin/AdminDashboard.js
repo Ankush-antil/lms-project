@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
     View, Text, StyleSheet, ScrollView, TouchableOpacity,
-    FlatList, RefreshControl, TextInput, Dimensions, Alert, Modal
+    FlatList, RefreshControl, TextInput, Dimensions, Alert, Modal, ActivityIndicator
 } from 'react-native';
 import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../../context/AuthContext';
 import { AppHeader, StatCard, SectionCard, LoadingScreen, EmptyState, Badge } from '../../components/common/UIComponents';
 import { colors, spacing, fontSizes, borderRadius } from '../../theme/colors';
@@ -29,6 +30,17 @@ const AdminDashboard = ({ navigation }) => {
     const [userMenuVisible, setUserMenuVisible] = useState(false);
     const [createMenuVisible, setCreateMenuVisible] = useState(false);
     const [servicesMenuVisible, setServicesMenuVisible] = useState(false);
+    const [managementMenuVisible, setManagementMenuVisible] = useState(false);
+
+    // Editor Staff View States
+    const [activeTab, setActiveTab] = useState('home'); // 'home' | 'tasks' | 'attendance' | 'salary'
+    const [tasks, setTasks] = useState([]);
+    const [newTaskTitle, setNewTaskTitle] = useState('');
+    const [newTaskDesc, setNewTaskDesc] = useState('');
+    const [attendanceHistory, setAttendanceHistory] = useState([]);
+    const [leaveDate, setLeaveDate] = useState('');
+    const [leaveNote, setLeaveNote] = useState('');
+    const [submittingLeave, setSubmittingLeave] = useState(false);
 
     const handleQuickSwitch = async () => {
         if (savedAccounts && savedAccounts.length > 1) {
@@ -57,8 +69,70 @@ const AdminDashboard = ({ navigation }) => {
         }
     };
 
+    // Editor Staff Tasks & Attendance Logic
+    const loadTasks = async () => {
+        try {
+            const stored = await AsyncStorage.getItem(`staff_tasks_${user?._id}`);
+            if (stored) setTasks(JSON.parse(stored));
+            else setTasks([
+                { id: '1', title: 'Preparation for Daily Activities', description: 'Review scheduled materials', status: 'pending' },
+            ]);
+        } catch (e) {}
+    };
+
+    const saveTasks = async (newTasks) => {
+        try {
+            await AsyncStorage.setItem(`staff_tasks_${user?._id}`, JSON.stringify(newTasks));
+            setTasks(newTasks);
+        } catch (e) {}
+    };
+
+    const handleAddTask = () => {
+        if (!newTaskTitle.trim()) { Alert.alert('Error', 'Please enter task title'); return; }
+        const newTask = { id: Date.now().toString(), title: newTaskTitle.trim(), description: newTaskDesc.trim(), status: 'pending' };
+        saveTasks([newTask, ...tasks]);
+        setNewTaskTitle(''); setNewTaskDesc('');
+        Alert.alert('Success', 'Task created successfully');
+    };
+
+    const handleToggleTaskStatus = (id) => {
+        saveTasks(tasks.map(t => t.id === id ? { ...t, status: t.status === 'done' ? 'pending' : 'done' } : t));
+    };
+
+    const handleDeleteTask = (id) => {
+        Alert.alert('Delete Task', 'Are you sure?', [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Delete', style: 'destructive', onPress: () => saveTasks(tasks.filter(t => t.id !== id)) }
+        ]);
+    };
+
+    const fetchAttendanceAndHistory = async () => {
+        try {
+            if (user?._id) {
+                const { data } = await axios.get(`/attendance/staff/${user._id}/history`);
+                setAttendanceHistory(data.history || []);
+            }
+        } catch (e) {}
+    };
+
+    const handleApplyLeave = async () => {
+        if (!leaveDate || !leaveNote.trim()) { Alert.alert('Error', 'Please fill in leave date & reason'); return; }
+        try {
+            setSubmittingLeave(true);
+            const formData = new FormData();
+            formData.append('date', leaveDate);
+            formData.append('leaveNote', leaveNote.trim());
+            await axios.post('/attendance/leave-application', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+            Alert.alert('Success', 'Leave application submitted!');
+            setLeaveDate(''); setLeaveNote(''); fetchAttendanceAndHistory();
+        } catch (e) {
+            Alert.alert('Error', e.response?.data?.message || 'Failed to submit leave');
+        } finally { setSubmittingLeave(false); }
+    };
+
     const fetchData = async () => {
         if (isEditor) {
+            await Promise.all([loadTasks(), fetchAttendanceAndHistory()]);
             setLoading(false);
             setRefreshing(false);
             return;
@@ -146,140 +220,253 @@ const AdminDashboard = ({ navigation }) => {
                 rightLongAction={() => setSwitcherVisible(true)} 
             />
 
-            {/* Quick Actions Top Tab Bar - Refactored */}
+            {/* Quick Actions Top Tab Bar */}
             <View style={styles.topTabBar}>
-                <TouchableOpacity
-                    style={styles.tabBtn}
-                    onPress={() => scrollRef.current?.scrollTo({ y: 0, animated: true })}
-                    activeOpacity={0.7}
-                >
-                    <Ionicons name="home-outline" size={20} color={colors.accent} />
-                    <Text style={styles.tabLabel}>Home</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                    style={styles.tabBtn}
-                    onPress={() => setUserMenuVisible(true)}
-                    activeOpacity={0.7}
-                >
-                    <Ionicons name="people-outline" size={20} color={colors.student} />
-                    <Text style={styles.tabLabel}>Users</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                    style={styles.tabBtn}
-                    onPress={() => setContentMenuVisible(true)}
-                    activeOpacity={0.7}
-                >
-                    <Ionicons name="albums-outline" size={20} color={colors.warning} />
-                    <Text style={styles.tabLabel}>Content</Text>
-                </TouchableOpacity>
+                {isEditor ? (
+                    <>
+                        <TouchableOpacity style={styles.tabBtn} onPress={() => setActiveTab('home')} activeOpacity={0.7}>
+                            <Ionicons name="home-outline" size={20} color={activeTab === 'home' ? colors.accent : colors.textSecondary} />
+                            <Text style={[styles.tabLabel, activeTab === 'home' && styles.tabLabelActive]}>Home</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.tabBtn} onPress={() => setActiveTab('tasks')} activeOpacity={0.7}>
+                            <Ionicons name="checkmark-done-circle-outline" size={20} color={activeTab === 'tasks' ? colors.accent : colors.textSecondary} />
+                            <Text style={[styles.tabLabel, activeTab === 'tasks' && styles.tabLabelActive]}>Tasks</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.tabBtn} onPress={() => setActiveTab('attendance')} activeOpacity={0.7}>
+                            <Ionicons name="calendar-outline" size={20} color={activeTab === 'attendance' ? colors.accent : colors.textSecondary} />
+                            <Text style={[styles.tabLabel, activeTab === 'attendance' && styles.tabLabelActive]}>Attendance</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.tabBtn} onPress={() => setActiveTab('salary')} activeOpacity={0.7}>
+                            <Ionicons name="card-outline" size={20} color={activeTab === 'salary' ? colors.accent : colors.textSecondary} />
+                            <Text style={[styles.tabLabel, activeTab === 'salary' && styles.tabLabelActive]}>Salary</Text>
+                        </TouchableOpacity>
+                    </>
+                ) : (
+                    <>
+                        <TouchableOpacity
+                            style={styles.tabBtn}
+                            onPress={() => scrollRef.current?.scrollTo({ y: 0, animated: true })}
+                            activeOpacity={0.7}
+                        >
+                            <Ionicons name="home-outline" size={20} color={colors.accent} />
+                            <Text style={styles.tabLabel}>Home</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={styles.tabBtn}
+                            onPress={() => setUserMenuVisible(true)}
+                            activeOpacity={0.7}
+                        >
+                            <Ionicons name="people-outline" size={20} color={colors.student} />
+                            <Text style={styles.tabLabel}>Users</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={styles.tabBtn}
+                            onPress={() => setContentMenuVisible(true)}
+                            activeOpacity={0.7}
+                        >
+                            <Ionicons name="albums-outline" size={20} color={colors.warning} />
+                            <Text style={styles.tabLabel}>Content</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={styles.tabBtn}
+                            onPress={() => setManagementMenuVisible(true)}
+                            activeOpacity={0.7}
+                        >
+                            <Ionicons name="settings-outline" size={20} color={colors.teacher} />
+                            <Text style={styles.tabLabel}>Management</Text>
+                        </TouchableOpacity>
+                    </>
+                )}
             </View>
 
-            <ScrollView
-                ref={scrollRef}
-                style={styles.scroll}
-                contentContainerStyle={styles.scrollContent}
-                showsVerticalScrollIndicator={false}
-                refreshControl={isEditor ? undefined : <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchData(); }} tintColor={colors.admin} />}
-            >
+            {(!isEditor || activeTab === 'home') && (
+                <ScrollView
+                    ref={scrollRef}
+                    style={styles.scroll}
+                    contentContainerStyle={styles.scrollContent}
+                    showsVerticalScrollIndicator={false}
+                    refreshControl={isEditor ? undefined : <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchData(); }} tintColor={colors.admin} />}
+                >
+                    {/* 2-Column Ecosystem Stat Cards Grid */}
+                    {!isEditor && (
+                        <View style={styles.statsGrid}>
+                            <View style={styles.gridRow}>
+                                <TouchableOpacity style={styles.gridCardCol} onPress={() => navigation.navigate('UserDirectory')} activeOpacity={0.85}>
+                                    <StatCard title="Total User" value={displayTotalUsers} icon="people-outline" color="#475569" bg="#f1f5f9" />
+                                </TouchableOpacity>
+                                <TouchableOpacity style={styles.gridCardCol} onPress={() => navigation.navigate('UserDirectory')} activeOpacity={0.85}>
+                                    <StatCard title="Registered User" value={displayRegisteredUsers} icon="person-add-outline" color="#4f46e5" bg="#eef2ff" />
+                                </TouchableOpacity>
+                            </View>
 
-                {/* 2-Column Ecosystem Stat Cards Grid */}
-                {!isEditor && (
-                    <View style={styles.statsGrid}>
-                        <View style={styles.gridRow}>
-                            <TouchableOpacity style={styles.gridCardCol} onPress={() => navigation.navigate('UserDirectory')} activeOpacity={0.85}>
-                                <StatCard title="Total User" value={displayTotalUsers} icon="people-outline" color="#475569" bg="#f1f5f9" />
-                            </TouchableOpacity>
-                            <TouchableOpacity style={styles.gridCardCol} onPress={() => navigation.navigate('UserDirectory')} activeOpacity={0.85}>
-                                <StatCard title="Registered User" value={displayRegisteredUsers} icon="person-add-outline" color="#4f46e5" bg="#eef2ff" />
-                            </TouchableOpacity>
+                            <View style={styles.gridRow}>
+                                <TouchableOpacity style={styles.gridCardCol} onPress={() => navigation.navigate('UserDirectory')} activeOpacity={0.85}>
+                                    <StatCard title="Guest User" value={displayGuestUsers} icon="person-outline" color="#d97706" bg="#fef3c7" />
+                                </TouchableOpacity>
+                                <TouchableOpacity style={styles.gridCardCol} onPress={() => navigation.navigate('UserDirectory')} activeOpacity={0.85}>
+                                    <StatCard title="Limited User" value={displayLimitedUsers} icon="person-remove-outline" color="#e11d48" bg="#ffe4e6" />
+                                </TouchableOpacity>
+                            </View>
+
+                            <View style={styles.gridRow}>
+                                <TouchableOpacity style={styles.gridCardCol} onPress={() => navigation.navigate('StudentsList')} activeOpacity={0.85}>
+                                    <StatCard title="Student" value={displayStudents} icon="school-outline" color="#3b82f6" bg="#eff6ff" />
+                                </TouchableOpacity>
+                                <TouchableOpacity style={styles.gridCardCol} onPress={() => navigation.navigate('TeachersList')} activeOpacity={0.85}>
+                                    <StatCard title="Teacher" value={displayTeachers} icon="checkmark-done-circle-outline" color="#10b981" bg="#ecfdf5" />
+                                </TouchableOpacity>
+                            </View>
+
+                            <View style={styles.gridRow}>
+                                <TouchableOpacity style={styles.gridCardCol} onPress={() => navigation.navigate('EditorsList')} activeOpacity={0.85}>
+                                    <StatCard title="Editor" value={displayEditors} icon="create-outline" color="#ec4899" bg="#fdf2f8" />
+                                </TouchableOpacity>
+                                <TouchableOpacity style={styles.gridCardCol} onPress={() => navigation.navigate('InstitutesList')} activeOpacity={0.85}>
+                                    <StatCard title="Institute" value={displayInstitutes} icon="business-outline" color="#f97316" bg="#fff7ed" />
+                                </TouchableOpacity>
+                            </View>
+
+                            <View style={styles.gridRow}>
+                                <TouchableOpacity style={styles.gridCardCol} onPress={() => navigation.navigate('StaffList')} activeOpacity={0.85}>
+                                    <StatCard title="Staff" value={displayStaff} icon="briefcase-outline" color="#0891b2" bg="#ecfeff" />
+                                </TouchableOpacity>
+                                <TouchableOpacity style={styles.gridCardCol} onPress={() => navigation.navigate('AccountantsList')} activeOpacity={0.85}>
+                                    <StatCard title="Accountants" value={displayAccountants} icon="calculator-outline" color="#0d9488" bg="#f0fdfa" />
+                                </TouchableOpacity>
+                            </View>
+
+                            <View style={styles.gridRow}>
+                                <TouchableOpacity style={styles.gridCardCol} onPress={() => navigation.navigate('MarketersList')} activeOpacity={0.85}>
+                                    <StatCard title="Marketers" value={displayMarketers} icon="megaphone-outline" color="#eab308" bg="#fef9c3" />
+                                </TouchableOpacity>
+                                <TouchableOpacity style={styles.gridCardCol} onPress={() => navigation.navigate('ParentsList')} activeOpacity={0.85}>
+                                    <StatCard title="Parents" value={displayParents} icon="heart-outline" color="#f43f5e" bg="#fff1f2" />
+                                </TouchableOpacity>
+                            </View>
+
+                            <View style={styles.gridRow}>
+                                <TouchableOpacity style={styles.gridCardCol} onPress={() => navigation.navigate('CoursesList')} activeOpacity={0.85}>
+                                    <StatCard title="Courses" value={displayCourses} icon="book-outline" color="#06b6d4" bg="#ecfeff" />
+                                </TouchableOpacity>
+                                <TouchableOpacity style={styles.gridCardCol} onPress={() => navigation.navigate('SubjectsList')} activeOpacity={0.85}>
+                                    <StatCard title="Subjects" value={displaySubjects} icon="folder-open-outline" color="#8b5cf6" bg="#f5f3ff" />
+                                </TouchableOpacity>
+                            </View>
+
+                            <View style={styles.gridRow}>
+                                <TouchableOpacity style={styles.gridCardCol} onPress={() => navigation.navigate('TeacherActivities')} activeOpacity={0.85}>
+                                    <StatCard title="Activities" value={displayActivities} icon="document-text-outline" color="#a855f7" bg="#faf5ff" />
+                                </TouchableOpacity>
+                                <TouchableOpacity style={styles.gridCardCol} onPress={() => setServicesMenuVisible(true)} activeOpacity={0.85}>
+                                    <StatCard title="Services" value={displayServices} icon="settings-outline" color="#65a30d" bg="#f7fee7" />
+                                </TouchableOpacity>
+                            </View>
                         </View>
+                    )}
 
-                        <View style={styles.gridRow}>
-                            <TouchableOpacity style={styles.gridCardCol} onPress={() => navigation.navigate('UserDirectory')} activeOpacity={0.85}>
-                                <StatCard title="Guest User" value={displayGuestUsers} icon="person-outline" color="#d97706" bg="#fef3c7" />
-                            </TouchableOpacity>
-                            <TouchableOpacity style={styles.gridCardCol} onPress={() => navigation.navigate('UserDirectory')} activeOpacity={0.85}>
-                                <StatCard title="Limited User" value={displayLimitedUsers} icon="person-remove-outline" color="#e11d48" bg="#ffe4e6" />
-                            </TouchableOpacity>
+                    {/* Quick Links */}
+                    <SectionCard>
+                        <Text style={styles.sectionTitle}>Manage</Text>
+                        <View style={styles.quickLinks}>
+                            {quickLinks.map(link => (
+                                <TouchableOpacity
+                                    key={link.label}
+                                    style={styles.quickLink}
+                                    onPress={() => navigation.navigate(link.screen)}
+                                    activeOpacity={0.8}
+                                >
+                                    <View style={[styles.quickLinkIcon, { backgroundColor: link.bg }]}>
+                                        <Ionicons name={link.icon} size={22} color={link.color} />
+                                    </View>
+                                    <Text style={styles.quickLinkLabel}>{link.label}</Text>
+                                    <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />
+                                </TouchableOpacity>
+                            ))}
                         </View>
+                    </SectionCard>
+                </ScrollView>
+            )}
 
-                        <View style={styles.gridRow}>
-                            <TouchableOpacity style={styles.gridCardCol} onPress={() => navigation.navigate('StudentsList')} activeOpacity={0.85}>
-                                <StatCard title="Student" value={displayStudents} icon="school-outline" color="#3b82f6" bg="#eff6ff" />
-                            </TouchableOpacity>
-                            <TouchableOpacity style={styles.gridCardCol} onPress={() => navigation.navigate('TeachersList')} activeOpacity={0.85}>
-                                <StatCard title="Teacher" value={displayTeachers} icon="checkmark-done-circle-outline" color="#10b981" bg="#ecfdf5" />
-                            </TouchableOpacity>
-                        </View>
-
-                        <View style={styles.gridRow}>
-                            <TouchableOpacity style={styles.gridCardCol} onPress={() => navigation.navigate('EditorsList')} activeOpacity={0.85}>
-                                <StatCard title="Editor" value={displayEditors} icon="create-outline" color="#ec4899" bg="#fdf2f8" />
-                            </TouchableOpacity>
-                            <TouchableOpacity style={styles.gridCardCol} onPress={() => navigation.navigate('InstitutesList')} activeOpacity={0.85}>
-                                <StatCard title="Institute" value={displayInstitutes} icon="business-outline" color="#f97316" bg="#fff7ed" />
-                            </TouchableOpacity>
-                        </View>
-
-                        <View style={styles.gridRow}>
-                            <TouchableOpacity style={styles.gridCardCol} onPress={() => navigation.navigate('StaffList')} activeOpacity={0.85}>
-                                <StatCard title="Staff" value={displayStaff} icon="briefcase-outline" color="#0891b2" bg="#ecfeff" />
-                            </TouchableOpacity>
-                            <TouchableOpacity style={styles.gridCardCol} onPress={() => navigation.navigate('AccountantsList')} activeOpacity={0.85}>
-                                <StatCard title="Accountants" value={displayAccountants} icon="calculator-outline" color="#0d9488" bg="#f0fdfa" />
-                            </TouchableOpacity>
-                        </View>
-
-                        <View style={styles.gridRow}>
-                            <TouchableOpacity style={styles.gridCardCol} onPress={() => navigation.navigate('MarketersList')} activeOpacity={0.85}>
-                                <StatCard title="Marketers" value={displayMarketers} icon="megaphone-outline" color="#eab308" bg="#fef9c3" />
-                            </TouchableOpacity>
-                            <TouchableOpacity style={styles.gridCardCol} onPress={() => navigation.navigate('ParentsList')} activeOpacity={0.85}>
-                                <StatCard title="Parents" value={displayParents} icon="heart-outline" color="#f43f5e" bg="#fff1f2" />
-                            </TouchableOpacity>
-                        </View>
-
-                        <View style={styles.gridRow}>
-                            <TouchableOpacity style={styles.gridCardCol} onPress={() => navigation.navigate('CoursesList')} activeOpacity={0.85}>
-                                <StatCard title="Courses" value={displayCourses} icon="book-outline" color="#06b6d4" bg="#ecfeff" />
-                            </TouchableOpacity>
-                            <TouchableOpacity style={styles.gridCardCol} onPress={() => navigation.navigate('SubjectsList')} activeOpacity={0.85}>
-                                <StatCard title="Subjects" value={displaySubjects} icon="folder-open-outline" color="#8b5cf6" bg="#f5f3ff" />
-                            </TouchableOpacity>
-                        </View>
-
-                        <View style={styles.gridRow}>
-                            <TouchableOpacity style={styles.gridCardCol} onPress={() => navigation.navigate('TeacherActivities')} activeOpacity={0.85}>
-                                <StatCard title="Activities" value={displayActivities} icon="document-text-outline" color="#a855f7" bg="#faf5ff" />
-                            </TouchableOpacity>
-                            <TouchableOpacity style={styles.gridCardCol} onPress={() => setServicesMenuVisible(true)} activeOpacity={0.85}>
-                                <StatCard title="Services" value={displayServices} icon="settings-outline" color="#65a30d" bg="#f7fee7" />
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                )}
-
-                {/* Quick Links */}
-                <SectionCard>
-                    <Text style={styles.sectionTitle}>Manage</Text>
-                    <View style={styles.quickLinks}>
-                        {quickLinks.map(link => (
-                            <TouchableOpacity
-                                key={link.label}
-                                style={styles.quickLink}
-                                onPress={() => navigation.navigate(link.screen)}
-                                activeOpacity={0.8}
-                            >
-                                <View style={[styles.quickLinkIcon, { backgroundColor: link.bg }]}>
-                                    <Ionicons name={link.icon} size={22} color={link.color} />
+            {isEditor && activeTab === 'tasks' && (
+                <View style={styles.workspaceBody}>
+                    <SectionCard style={styles.addTaskCard}>
+                        <Text style={styles.sectionTitle}>Create Task</Text>
+                        <TextInput style={styles.inputField} placeholder="Task title..." placeholderTextColor={colors.textMuted} value={newTaskTitle} onChangeText={setNewTaskTitle} />
+                        <TextInput style={[styles.inputField, { height: 60 }]} placeholder="Task description..." placeholderTextColor={colors.textMuted} value={newTaskDesc} onChangeText={setNewTaskDesc} multiline />
+                        <TouchableOpacity style={styles.addBtn} onPress={handleAddTask} activeOpacity={0.8}>
+                            <Text style={styles.addBtnText}>Create Task</Text>
+                        </TouchableOpacity>
+                    </SectionCard>
+                    <FlatList
+                        data={tasks}
+                        keyExtractor={(item) => item.id}
+                        renderItem={({ item }) => (
+                            <View style={styles.taskItem}>
+                                <TouchableOpacity onPress={() => handleToggleTaskStatus(item.id)} style={styles.checkWrapper}>
+                                    <Ionicons name={item.status === 'done' ? 'checkmark-circle' : 'ellipse-outline'} size={22} color={item.status === 'done' ? '#10b981' : colors.textSecondary} />
+                                </TouchableOpacity>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={[styles.taskTitle, item.status === 'done' && styles.taskTitleDone]}>{item.title}</Text>
+                                    {item.description ? <Text style={styles.taskDesc}>{item.description}</Text> : null}
                                 </View>
-                                <Text style={styles.quickLinkLabel}>{link.label}</Text>
-                                <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />
-                            </TouchableOpacity>
-                        ))}
-                    </View>
-                </SectionCard>
-            </ScrollView>
+                                <TouchableOpacity onPress={() => handleDeleteTask(item.id)} style={styles.deleteBtn}>
+                                    <Ionicons name="trash-outline" size={18} color={colors.danger} />
+                                </TouchableOpacity>
+                            </View>
+                        )}
+                        ListEmptyComponent={<EmptyState icon="clipboard-outline" title="No tasks registered" />}
+                        contentContainerStyle={{ paddingHorizontal: spacing.md, paddingBottom: 100 }}
+                    />
+                </View>
+            )}
+
+            {isEditor && activeTab === 'attendance' && (
+                <View style={styles.workspaceBody}>
+                    <SectionCard style={styles.leaveCard}>
+                        <Text style={styles.sectionTitle}>Apply Leave</Text>
+                        <TextInput style={styles.inputField} placeholder="Date (e.g. 2026-07-20)" placeholderTextColor={colors.textMuted} value={leaveDate} onChangeText={setLeaveDate} />
+                        <TextInput style={[styles.inputField, { height: 60 }]} placeholder="Reason for leave..." placeholderTextColor={colors.textMuted} value={leaveNote} onChangeText={setLeaveNote} multiline />
+                        <TouchableOpacity style={[styles.addBtn, submittingLeave && { opacity: 0.5 }]} onPress={handleApplyLeave} disabled={submittingLeave} activeOpacity={0.8}>
+                            {submittingLeave ? <ActivityIndicator color={colors.white} /> : <Text style={styles.addBtnText}>Submit Leave</Text>}
+                        </TouchableOpacity>
+                    </SectionCard>
+                    <FlatList
+                        data={attendanceHistory}
+                        keyExtractor={(item, index) => index.toString()}
+                        renderItem={({ item }) => (
+                            <View style={styles.historyItem}>
+                                <View>
+                                    <Text style={styles.historyDate}>{item.date}</Text>
+                                    <Text style={styles.historyDetails}>{item.checkInTime ? `In: ${item.checkInTime}` : ''}{item.checkOutTime ? ` • Out: ${item.checkOutTime}` : ''}</Text>
+                                </View>
+                                <Badge label={item.status} color={item.status === 'Present' ? '#10b981' : item.status === 'Absent' ? '#ef4444' : '#f59e0b'} />
+                            </View>
+                        )}
+                        ListEmptyComponent={<EmptyState icon="calendar-outline" title="No attendance logs found" />}
+                        contentContainerStyle={{ paddingHorizontal: spacing.md, paddingBottom: 100 }}
+                    />
+                </View>
+            )}
+
+            {isEditor && activeTab === 'salary' && (
+                <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+                    <SectionCard>
+                        <Text style={styles.sectionTitle}>Salary Ledger Information</Text>
+                        <View style={styles.ledgerCard}>
+                            <Text style={styles.salaryHeader}>Contract Base Salary</Text>
+                            <Text style={styles.salaryAmt}>₹{Number(user?.editorProfile?.salary || user?.staffProfile?.salary || 0).toLocaleString('en-IN')}</Text>
+                        </View>
+                    </SectionCard>
+                    <SectionCard style={{ marginTop: spacing.md }}>
+                        <Text style={styles.sectionTitle}>Status</Text>
+                        <View style={styles.statusRow}>
+                            <Text style={styles.statusLabel}>Salary Status</Text>
+                            <Badge label={user?.editorProfile?.salaryStatus || 'Paid'} color="#10b981" />
+                        </View>
+                    </SectionCard>
+                    <View style={{ height: 80 }} />
+                </ScrollView>
+            )}
 
             {/* Sticky 5-Element Bottom Tab Bar - Refactored */}
             <View style={styles.bottomTabBar}>
@@ -665,19 +852,7 @@ const AdminDashboard = ({ navigation }) => {
                                 <Text style={styles.bottomSheetLabel}>Editor</Text>
                             </TouchableOpacity>
 
-                            <TouchableOpacity
-                                style={styles.bottomSheetItem}
-                                onPress={() => {
-                                    setCreateMenuVisible(false);
-                                    navigation.navigate('CreateUser', { role: 'Staff' });
-                                }}
-                                activeOpacity={0.7}
-                            >
-                                <View style={[styles.bottomSheetIcon, { backgroundColor: '#ecfeff' }]}>
-                                    <Ionicons name="briefcase" size={22} color="#0891b2" />
-                                </View>
-                                <Text style={styles.bottomSheetLabel}>Staff</Text>
-                            </TouchableOpacity>
+
 
                             <TouchableOpacity
                                 style={styles.bottomSheetItem}
@@ -825,6 +1000,104 @@ const AdminDashboard = ({ navigation }) => {
                         <TouchableOpacity 
                             style={styles.closeDropdownBtn} 
                             onPress={() => setServicesMenuVisible(false)}
+                            activeOpacity={0.8}
+                        >
+                            <Text style={styles.closeDropdownText}>Close</Text>
+                        </TouchableOpacity>
+                    </View>
+                </TouchableOpacity>
+            </Modal>
+
+            {/* Management Selection Dropdown Modal */}
+            <Modal
+                visible={managementMenuVisible}
+                animationType="fade"
+                transparent={true}
+                onRequestClose={() => setManagementMenuVisible(false)}
+            >
+                <TouchableOpacity 
+                    style={styles.modalOverlay} 
+                    activeOpacity={1} 
+                    onPress={() => setManagementMenuVisible(false)}
+                >
+                    <View style={styles.dropdownContainer}>
+                        <Text style={styles.dropdownTitle}>Management Portal</Text>
+                        
+                        <TouchableOpacity
+                            style={styles.dropdownItem}
+                            onPress={() => {
+                                setManagementMenuVisible(false);
+                                navigation.navigate('StaffList');
+                            }}
+                            activeOpacity={0.7}
+                        >
+                            <View style={[styles.dropdownIconContainer, { backgroundColor: '#ecfeff' }]}>
+                                <Ionicons name="briefcase-outline" size={22} color="#0891b2" />
+                            </View>
+                            <View style={styles.dropdownTextContainer}>
+                                <Text style={styles.dropdownItemText}>Staff Mgt</Text>
+                                <Text style={styles.dropdownItemSub}>Manage system administration staff</Text>
+                            </View>
+                            <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={styles.dropdownItem}
+                            onPress={() => {
+                                setManagementMenuVisible(false);
+                                navigation.navigate('AssetMgt');
+                            }}
+                            activeOpacity={0.7}
+                        >
+                            <View style={[styles.dropdownIconContainer, { backgroundColor: '#eef2ff' }]}>
+                                <Ionicons name="cube-outline" size={22} color={colors.accent} />
+                            </View>
+                            <View style={styles.dropdownTextContainer}>
+                                <Text style={styles.dropdownItemText}>Asset Mgt</Text>
+                                <Text style={styles.dropdownItemSub}>Track hardware, IT & office assets</Text>
+                            </View>
+                            <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={styles.dropdownItem}
+                            onPress={() => {
+                                setManagementMenuVisible(false);
+                                navigation.navigate('LeadMgt');
+                            }}
+                            activeOpacity={0.7}
+                        >
+                            <View style={[styles.dropdownIconContainer, { backgroundColor: '#fef3c7' }]}>
+                                <Ionicons name="funnel-outline" size={22} color="#f59e0b" />
+                            </View>
+                            <View style={styles.dropdownTextContainer}>
+                                <Text style={styles.dropdownItemText}>Lead Mgt</Text>
+                                <Text style={styles.dropdownItemSub}>Track student leads & applications</Text>
+                            </View>
+                            <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={styles.dropdownItem}
+                            onPress={() => {
+                                setManagementMenuVisible(false);
+                                navigation.navigate('AdsMgt');
+                            }}
+                            activeOpacity={0.7}
+                        >
+                            <View style={[styles.dropdownIconContainer, { backgroundColor: '#ecfdf5' }]}>
+                                <Ionicons name="stats-chart-outline" size={22} color="#10b981" />
+                            </View>
+                            <View style={styles.dropdownTextContainer}>
+                                <Text style={styles.dropdownItemText}>Ads Mgt</Text>
+                                <Text style={styles.dropdownItemSub}>Manage meta/google campaigns & budgets</Text>
+                            </View>
+                            <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+                        </TouchableOpacity>
+
+                        <TouchableOpacity 
+                            style={styles.closeDropdownBtn} 
+                            onPress={() => setManagementMenuVisible(false)}
                             activeOpacity={0.8}
                         >
                             <Text style={styles.closeDropdownText}>Close</Text>
@@ -1124,6 +1397,68 @@ const styles = StyleSheet.create({
         color: colors.textSecondary,
         textAlign: 'center',
     },
+    tabLabelActive: { color: colors.accent, fontWeight: '800' },
+    workspaceBody: { flex: 1, padding: spacing.md },
+    addTaskCard: { marginBottom: spacing.md },
+    inputField: {
+        backgroundColor: colors.bg,
+        borderWidth: 1,
+        borderColor: colors.borderLight,
+        borderRadius: borderRadius.md,
+        paddingHorizontal: spacing.md,
+        paddingVertical: 10,
+        color: colors.text,
+        fontSize: fontSizes.sm,
+        marginBottom: spacing.sm,
+    },
+    addBtn: {
+        backgroundColor: colors.accent,
+        paddingVertical: 12,
+        borderRadius: borderRadius.md,
+        alignItems: 'center',
+    },
+    addBtnText: { color: colors.white, fontWeight: '700', fontSize: fontSizes.sm },
+    taskItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: colors.bgCard,
+        borderRadius: borderRadius.md,
+        padding: spacing.md,
+        marginBottom: spacing.xs,
+        gap: spacing.sm,
+        borderWidth: 1,
+        borderColor: colors.borderLight,
+    },
+    checkWrapper: { padding: 2 },
+    taskTitle: { fontSize: fontSizes.sm, fontWeight: '600', color: colors.text },
+    taskTitleDone: { textDecorationLine: 'line-through', color: colors.textMuted },
+    taskDesc: { fontSize: fontSizes.xs, color: colors.textMuted, marginTop: 2 },
+    deleteBtn: { padding: 4 },
+    leaveCard: { marginBottom: spacing.md },
+    historyItem: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        backgroundColor: colors.bgCard,
+        padding: spacing.md,
+        borderRadius: borderRadius.md,
+        marginBottom: spacing.xs,
+        borderWidth: 1,
+        borderColor: colors.borderLight,
+    },
+    historyDate: { fontSize: fontSizes.sm, fontWeight: '700', color: colors.text },
+    historyDetails: { fontSize: fontSizes.xs, color: colors.textMuted, marginTop: 2 },
+    ledgerCard: {
+        backgroundColor: colors.bgCard,
+        padding: spacing.md,
+        borderRadius: borderRadius.md,
+        borderWidth: 1,
+        borderColor: colors.borderLight,
+    },
+    salaryHeader: { fontSize: fontSizes.xs, color: colors.textMuted, textTransform: 'uppercase' },
+    salaryAmt: { fontSize: fontSizes.xxl, fontWeight: '900', color: colors.accent, marginVertical: spacing.xs },
+    statusRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    statusLabel: { fontSize: fontSizes.sm, color: colors.textSecondary },
 });
 
 export default AdminDashboard;

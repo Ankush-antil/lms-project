@@ -134,7 +134,8 @@ const PrivateRoute = ({ children, role }) => {
 
     if (role) {
         const roles = Array.isArray(role) ? role : [role];
-        if (!roles.includes(user.role)) {
+        const hasAccess = roles.includes(user.role) || (user.allowedRoles && roles.some(r => user.allowedRoles.includes(r)));
+        if (!hasAccess) {
             return <Navigate to="/" />;
         }
     }
@@ -521,22 +522,22 @@ function App() {
                                         } />
 
                                         <Route path="/admin/staff" element={
-                                            <PrivateRoute role="Admin">
+                                            <PrivateRoute role={['Admin', 'Staff']}>
                                                 <StaffList />
                                             </PrivateRoute>
                                         } />
                                         <Route path="/admin/staff/attendance" element={
-                                            <PrivateRoute role="Admin">
+                                            <PrivateRoute role={['Admin', 'Staff']}>
                                                 <AdminStaffAttendance />
                                             </PrivateRoute>
                                         } />
                                          <Route path="/admin/staff/salary" element={
-                                             <PrivateRoute role="Admin">
+                                             <PrivateRoute role={['Admin', 'Staff']}>
                                                  <AdminStaffSalary />
                                              </PrivateRoute>
                                          } />
                                          <Route path="/admin/staff/task" element={
-                                             <PrivateRoute role="Admin">
+                                             <PrivateRoute role={['Admin', 'Staff']}>
                                                  <AdminStaffTask />
                                              </PrivateRoute>
                                          } />

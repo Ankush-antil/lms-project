@@ -96,7 +96,7 @@ const ROLE_CONTROLS = {
     },
 };
 
-const ALL_ROLES = ['Student', 'Teacher', 'Editor', 'Accountant', 'Marketer', 'Staff', 'Parent'];
+const ALL_ROLES = ['Student', 'Teacher', 'Editor', 'Accountant', 'Marketer', 'Parent'];
 
 const HEADER_COLORS = {
     Student:    ['#1e3a5f', '#1e40af'],

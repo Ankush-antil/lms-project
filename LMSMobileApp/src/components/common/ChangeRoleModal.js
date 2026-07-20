@@ -76,12 +76,12 @@ const ChangeRoleModal = ({ visible, onClose }) => {
     const [showTeacherCoursesSelector, setShowTeacherCoursesSelector] = useState(false);
     const [showTeacherSectionsSelector, setShowTeacherSectionsSelector] = useState(false);
 
-    const allRoles = ['Admin', 'Teacher', 'Student', 'Editor', 'Institute', 'Accountant', 'Marketer', 'Staff', 'Parent'];
+    const allRoles = ['Admin', 'Teacher', 'Student', 'Editor', 'Institute', 'Accountant', 'Marketer', 'Parent'];
     const hasAdminPrivilege = user?.role === 'Admin' || user?.role === 'Institute' || user?.allowedRoles?.includes('Admin') || user?.allowedRoles?.includes('Institute');
     
-    const allowedRoles = hasAdminPrivilege
+    const allowedRoles = (hasAdminPrivilege
         ? allRoles
-        : (user?.allowedRoles?.length ? user.allowedRoles : [user?.role]);
+        : (user?.allowedRoles?.length ? user.allowedRoles : [user?.role])).filter(r => r !== 'Staff');
 
     // Roles that can be requested
     const requestableRoles = allRoles.filter(role => role !== 'Admin' && !allowedRoles.includes(role));

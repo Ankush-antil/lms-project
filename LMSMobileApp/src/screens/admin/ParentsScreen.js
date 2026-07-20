@@ -38,7 +38,7 @@ const CONTROL_LABELS = {
     activities: 'Activities',
 };
 
-const ALL_ROLES = ['Student', 'Teacher', 'Editor', 'Accountant', 'Marketer', 'Staff', 'Parent'];
+const ALL_ROLES = ['Student', 'Teacher', 'Editor', 'Accountant', 'Marketer', 'Parent'];
 
 /* ══════════════════════════════
    MAIN SCREEN

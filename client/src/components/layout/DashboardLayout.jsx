@@ -170,6 +170,7 @@ const menuItems = {
         { name: 'Tools', icon: PenTool, path: '/admin/tools' },
 
         { name: '_section_management', icon: Briefcase, path: null },
+        { name: 'Staff Mgt', icon: Users, path: '/admin/staff' },
         { name: 'Asset Mgt', icon: Package, path: '/admin/assets' },
         { name: 'Lead Mgt', icon: Users, path: '/admin/leads' },
         { name: 'Ads Mgt', icon: Megaphone, path: '/admin/ads' },

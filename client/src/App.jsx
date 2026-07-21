@@ -226,8 +226,18 @@ const SubdomainRedirectHandler = ({ children }) => {
         }
 
         // 1. Handle root '/' path routing
+        const allowedSubdomains = (user.allowedRoles || [user.role]).map(r => roleSubdomains[r]).filter(Boolean);
+        if (user.role === 'Admin') {
+            allowedSubdomains.push('admin', 'institute', 'teacher', 'student', 'editor', 'account', 'marketer');
+        }
+        if (user.role === 'Institute') {
+            allowedSubdomains.push('institute', 'admin');
+        }
+
+        const isSubdomainAllowed = allowedSubdomains.includes(subdomain);
+
         if (path === '/') {
-            if (subdomain === expectedSubdomain) {
+            if (isSubdomainAllowed || subdomain === expectedSubdomain) {
                 if (location.pathname !== expectedPath) {
                     safeRedirect(`${window.location.protocol}//${hostname}${expectedPath}`);
                 }
@@ -235,8 +245,8 @@ const SubdomainRedirectHandler = ({ children }) => {
             }
         }
 
-        // 2. Enforce role subdomain routing if logged in on wrong subdomain
-        if ((isApexOrWww || (expectedSubdomain && subdomain !== expectedSubdomain)) && !isPublicPath) {
+        // 2. Enforce role subdomain routing if logged in on apex/www or an unauthorized subdomain
+        if ((isApexOrWww || !isSubdomainAllowed) && !isPublicPath) {
             if (expectedSubdomain && expectedSubdomain !== 'www') {
                 const targetHost = `${expectedSubdomain}.digitalstudyacademy.com`;
                 if (hostname.toLowerCase() !== targetHost.toLowerCase()) {
@@ -535,7 +545,11 @@ function App() {
                                             </PrivateRoute>
                                         } />
 
-                                        <Route path="/admin/staff" element={<Navigate to="/admin" replace />} />
+                                        <Route path="/admin/staff" element={
+                                            <PrivateRoute role={['Admin', 'Staff']}>
+                                                <StaffList />
+                                            </PrivateRoute>
+                                        } />
                                         <Route path="/admin/staff/attendance" element={
                                             <PrivateRoute role={['Admin', 'Staff']}>
                                                 <AdminStaffAttendance />

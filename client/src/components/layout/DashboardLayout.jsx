@@ -187,8 +187,7 @@ const menuItems = {
         { name: 'Voice Recorder', icon: Mic, path: '/admin/tools/voice-recorder' },
         { name: 'Video Recorder', icon: MonitorPlay, path: '/admin/tools/video-recorder' },
         { name: 'Screenshot Tool', icon: Camera, path: '/admin/tools/screenshot' },
-        { name: 'Screen Recorder', icon: Video, path: '/admin/tools/screen-recorder' },
-        { name: 'Web Calling', icon: Phone, path: '/admin/tools/web-calling' }
+        { name: 'Screen Recorder', icon: Video, path: '/admin/tools/screen-recorder' }
     ],
     Institute: [
         { name: '_section_dashboard', icon: LayoutDashboard, path: null },

@@ -1056,24 +1056,6 @@ const AdminDashboard = ({ navigation }) => {
                                 </View>
                                 <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
                             </TouchableOpacity>
-
-                            <TouchableOpacity
-                                style={styles.dropdownItem}
-                                onPress={() => {
-                                    setServicesMenuVisible(false);
-                                    navigation.navigate('WebCallingPage');
-                                }}
-                                activeOpacity={0.7}
-                            >
-                                <View style={[styles.dropdownIconContainer, { backgroundColor: '#fdf2f8' }]}>
-                                    <Ionicons name="call-outline" size={22} color="#ec4899" />
-                                </View>
-                                <View style={styles.dropdownTextContainer}>
-                                    <Text style={styles.dropdownItemText}>Web Calling</Text>
-                                    <Text style={styles.dropdownItemSub}>Interactive voice calls & sessions</Text>
-                                </View>
-                                <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
-                            </TouchableOpacity>
                         </ScrollView>
 
                         <TouchableOpacity 

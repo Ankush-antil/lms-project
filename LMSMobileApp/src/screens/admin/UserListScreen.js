@@ -105,6 +105,10 @@ const UserListScreen = ({ navigation, route, endpoint, title, role, color, bg, b
 
                     <View style={styles.cardDetails}>
                         <View style={styles.detailRow}>
+                            <Ionicons name="business-outline" size={14} color={colors.textMuted} />
+                            <Text style={styles.detailLabel}>Institute: <Text style={styles.detailValue}>{item.institute?.name || 'N/A'}</Text></Text>
+                        </View>
+                        <View style={styles.detailRow}>
                             <Ionicons name="call-outline" size={14} color={colors.textMuted} />
                             <Text style={styles.detailLabel}>Mobile: <Text style={styles.detailValue}>{item.mobileNumber || 'N/A'}</Text></Text>
                         </View>
@@ -590,6 +594,10 @@ export const StudentsList = ({ navigation }) => {
                                 </View>
 
                                 <View style={styles.cardDetails}>
+                                    <View style={styles.detailRow}>
+                                        <Ionicons name="business-outline" size={14} color={colors.textMuted} />
+                                        <Text style={styles.detailLabel}>Institute: <Text style={styles.detailValue}>{student.institute?.name || 'N/A'}</Text></Text>
+                                    </View>
                                     <View style={styles.detailRow}>
                                         <Ionicons name="book-outline" size={14} color={colors.textMuted} />
                                         <Text style={styles.detailLabel}>Course: <Text style={styles.detailValue}>{courseName}</Text></Text>

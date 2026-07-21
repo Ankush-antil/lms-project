@@ -162,6 +162,11 @@ const UserDirectoryScreen = ({ navigation }) => {
                 <View style={styles.info}>
                     <Text style={styles.name}>{item.name}</Text>
                     <Text style={styles.email}>{item.email}</Text>
+                    {item.institute?.name && (
+                        <Text style={[styles.subText, { color: colors.textSecondary }]}>
+                            Institute: {item.institute.name}
+                        </Text>
+                    )}
                     {item.studentProfile?.course && (
                         <Text style={[styles.subText, { color }]}>
                             Course: {typeof item.studentProfile.course === 'object' ? item.studentProfile.course.name : item.studentProfile.course}

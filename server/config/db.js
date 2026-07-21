@@ -1,6 +1,12 @@
 const mongoose = require('mongoose');
 const dns = require('dns');
 
+// Force Node.js to use Google & Cloudflare Public DNS to prevent Ubuntu systemd-resolved timeouts
+dns.setServers(['8.8.8.8', '1.1.1.1']);
+if (dns.setDefaultResultOrder) {
+    dns.setDefaultResultOrder('ipv4first');
+}
+
 const DIRECT_MONGO_URI = 'mongodb://digitalstudy:DigitalStudy123@ac-khrbsml-shard-00-00.lzqs6z8.mongodb.net:27017,ac-khrbsml-shard-00-01.lzqs6z8.mongodb.net:27017,ac-khrbsml-shard-00-02.lzqs6z8.mongodb.net:27017/?ssl=true&replicaSet=atlas-khrbsml-shard-0&authSource=admin&retryWrites=true&w=majority';
 
 const connectDB = async (retries = 5) => {

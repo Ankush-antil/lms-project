@@ -316,10 +316,11 @@ const QuestionBuilderCard = ({
         );
     };
 
-    const label = element.label || 'Short Answer';
+    const label = element.label || 'Text Answer';
 
     const getElementIcon = (lbl) => {
         switch (lbl) {
+            case 'Text Answer':
             case 'Short Answer': return Type;
             case 'Paragraph Answer':
             case 'Paragraph': return AlignLeft;
@@ -725,7 +726,7 @@ const QuestionBuilderCard = ({
 
 
                             {/* Upload */}
-                            {label === 'Short Answer' ? (
+                            {['Short Answer', 'Text Answer'].includes(label) ? (
                                 element.uploadedResource ? (
                                     <div className="relative">
                                         <button
@@ -823,7 +824,7 @@ const QuestionBuilderCard = ({
                             )}
 
                             {/* Write / Note 1 */}
-                            {label === 'Short Answer' ? (
+                            {['Short Answer', 'Text Answer'].includes(label) ? (
                                 <div className="relative">
                                     {element.noteContent ? (
                                         <>
@@ -956,7 +957,7 @@ const QuestionBuilderCard = ({
                             )}
 
                             {/* Image / Media URL */}
-                            {label === 'Short Answer' ? (
+                            {['Short Answer', 'Text Answer'].includes(label) ? (
                                 <button
                                     type="button"
                                     onClick={() => setShowImageModal(true)}
@@ -980,7 +981,7 @@ const QuestionBuilderCard = ({
                             )}
 
                             {/* Duplicate */}
-                            {label !== 'Short Answer' && (
+                            {!['Short Answer', 'Text Answer'].includes(label) && (
                                 <button
                                     type="button"
                                     onClick={onDuplicate}
@@ -1003,8 +1004,7 @@ const QuestionBuilderCard = ({
                                 {showSwitcherMenu && (
                                     <div className="absolute right-0 mt-1.5 bg-white border border-slate-200 rounded-xl shadow-xl py-1.5 z-[100] flex flex-col min-w-[170px] text-xs font-semibold text-slate-700 animate-slide-up">
                                         {[
-                                            { label: 'Short Answer' },
-                                            { label: 'Paragraph' },
+                                            { label: 'Text Answer' },
                                             { label: 'Multiple Choice' },
                                             { label: 'Checkboxes' },
                                             { label: 'Dropdown' },
@@ -1120,8 +1120,8 @@ const QuestionBuilderCard = ({
                     </div>
 
                     {/* Rich text editor toolbar (Write mode / Enable Text Style) */}
-                    {((label === 'Short Answer' && particulars.enableTextStyle) || (label !== 'Short Answer' && writeMode)) && (
-                        label === 'Short Answer' ? (
+                    {((['Short Answer', 'Text Answer'].includes(label) && particulars.enableTextStyle) || (!['Short Answer', 'Text Answer'].includes(label) && writeMode)) && (
+                        ['Short Answer', 'Text Answer'].includes(label) ? (
                             <div className="flex items-center gap-1 bg-white p-1 border border-slate-200 rounded-xl shadow-sm text-slate-550 select-none overflow-x-auto whitespace-nowrap scrollbar-none mb-2 text-xs w-full">
                                 {/* Text Style Group */}
                                 <div className="flex items-center gap-0.5 border-r border-slate-100 pr-1">
@@ -1388,6 +1388,7 @@ const QuestionBuilderCard = ({
                                 handleAddOption
                             };
                             switch (label) {
+                                case 'Text Answer':
                                 case 'Short Answer':
                                     return (
                                         <ShortAnswerBuilder
@@ -1512,10 +1513,10 @@ const QuestionBuilderCard = ({
                                                 <label className="relative inline-flex items-center cursor-pointer">
                                                     <input
                                                         type="checkbox"
-                                                        checked={label === 'Short Answer' ? !!particulars.enableTextStyle : writeMode}
+                                                        checked={['Short Answer', 'Text Answer'].includes(label) ? !!particulars.enableTextStyle : writeMode}
                                                         onChange={(e) => {
                                                             const checked = e.target.checked;
-                                                            if (label === 'Short Answer') {
+                                                            if (['Short Answer', 'Text Answer'].includes(label)) {
                                                                 handleUpdateNestedField('particulars', 'enableTextStyle', checked);
                                                             } else {
                                                                 onUpdateField('writeMode', checked);
@@ -3139,8 +3140,7 @@ JSON Output Schema format (strictly return ONLY valid JSON matching this structu
     // Sidebar Elements Configuration
     const sidebarElements = [
         // 1-8: Input Elements
-        { icon: Type, label: 'Short Answer', category: 'Input Elements' },
-        { icon: AlignLeft, label: 'Paragraph Answer', category: 'Input Elements' },
+        { icon: Type, label: 'Text Answer', category: 'Input Elements' },
         { icon: CircleDot, label: 'Multiple choices', category: 'Input Elements' },
         { icon: CheckSquare, label: 'Checkbox', category: 'Input Elements' },
         { icon: List, label: 'Dropdown', category: 'Input Elements' },

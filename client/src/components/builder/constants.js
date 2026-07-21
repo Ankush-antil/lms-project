@@ -17,6 +17,7 @@ export const addonsList = [
 
 export const getElementIcon = (lbl) => {
     switch (lbl) {
+        case 'Text Answer':
         case 'Short Answer': return Type;
         case 'Paragraph Answer':
         case 'Paragraph': return AlignLeft;

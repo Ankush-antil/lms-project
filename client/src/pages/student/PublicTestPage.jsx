@@ -331,6 +331,76 @@ const PublicTestPage = () => {
         }
     }, [answers, viewState, test, testId, offlineWriting, guestEmail, guestName, guestPhone, guestOrg]);
 
+    const handleCopyPasteBlock = (e, q) => {
+        if (q?.validationSettings?.copyPasteDisabled || q?.particulars?.disablePaste) {
+            e.preventDefault();
+            toast.error("Pasting answer text is disabled!");
+        }
+    };
+
+    const handleQuestionCopy = (e, q) => {
+        if (q?.particulars?.disableCopy) {
+            e.preventDefault();
+            toast.error("Copying question text is disabled!");
+        }
+    };
+
+    // Global Anti-Cheating Enforcement Effect
+    useEffect(() => {
+        if (!test?.questions || viewState !== 'test') return;
+        const hasPreventTab = test.questions.some(q => q.particulars?.preventNewTab);
+        const hasPreventClose = test.questions.some(q => q.particulars?.preventTabClose);
+        const hasDisableInspect = test.questions.some(q => q.particulars?.disableInspect);
+
+        const handleVisibilityChange = () => {
+            if (hasPreventTab && document.hidden) {
+                toast.error("Warning: Switching tabs or leaving window is prohibited!");
+            }
+        };
+
+        const handleBeforeUnload = (e) => {
+            if (hasPreventClose) {
+                e.preventDefault();
+                e.returnValue = '';
+            }
+        };
+
+        const handleContextMenu = (e) => {
+            if (hasDisableInspect) {
+                e.preventDefault();
+                toast.error("Right-click context menu is disabled!");
+            }
+        };
+
+        const handleKeyDown = (e) => {
+            if (hasDisableInspect) {
+                const isF12 = e.key === 'F12';
+                const isInspectShortcut = (e.ctrlKey || e.metaKey) && e.shiftKey && ['I', 'J', 'C'].includes(e.key.toUpperCase());
+                const isSourceShortcut = (e.ctrlKey || e.metaKey) && e.key.toUpperCase() === 'U';
+                if (isF12 || isInspectShortcut || isSourceShortcut) {
+                    e.preventDefault();
+                    toast.error("Inspect element shortcuts are disabled!");
+                }
+            }
+        };
+
+        if (hasPreventTab) document.addEventListener('visibilitychange', handleVisibilityChange);
+        if (hasPreventClose) window.addEventListener('beforeunload', handleBeforeUnload);
+        if (hasDisableInspect) {
+            document.addEventListener('contextmenu', handleContextMenu);
+            document.addEventListener('keydown', handleKeyDown);
+        }
+
+        return () => {
+            if (hasPreventTab) document.removeEventListener('visibilitychange', handleVisibilityChange);
+            if (hasPreventClose) window.removeEventListener('beforeunload', handleBeforeUnload);
+            if (hasDisableInspect) {
+                document.removeEventListener('contextmenu', handleContextMenu);
+                document.removeEventListener('keydown', handleKeyDown);
+            }
+        };
+    }, [test, viewState]);
+
     // Per-question timer effect
     useEffect(() => {
         if (!test || !test.questions || viewState !== 'test') return;
@@ -536,12 +606,6 @@ const PublicTestPage = () => {
         setAnswers(prev => ({ ...prev, [idx]: val }));
     };
 
-    const handleCopyPasteBlock = (e, q) => {
-        if (q.validationSettings?.copyPasteDisabled) {
-            e.preventDefault();
-            toast.error("Copy and paste is disabled for this question!");
-        }
-    };
 
     const validateQuestionInput = (idx, q) => {
         const qValSettings = q.validationSettings || {};
@@ -1685,6 +1749,7 @@ const PublicTestPage = () => {
                                     <div className="flex justify-between items-start gap-4">
                                         <div className="space-y-1">
                                             <h3
+                                                onCopy={(e) => handleQuestionCopy(e, q)}
                                                 onClick={(e) => {
                                                     const anchor = e.target.closest('a');
                                                     if (anchor) {

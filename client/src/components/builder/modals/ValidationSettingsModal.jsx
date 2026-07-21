@@ -151,25 +151,7 @@ const ValidationSettingsModal = ({
                         />
                     </div>
 
-                    {/* 11. Copy paste Disabled */}
-                    <div className="flex items-center justify-between py-1 border-b border-slate-100/50">
-                        <span className="text-[11px] font-bold text-slate-700 leading-tight">Copy paste Disabled</span>
-                        <ToggleSwitch
-                            checked={!!draftValidationSettings.copyPasteDisabled}
-                            onChange={(val) => setDraftValidationSettings({ ...draftValidationSettings, copyPasteDisabled: val })}
-                        />
-                    </div>
-
-                    {/* 12. Going on chrome new tab disabled */}
-                    <div className="flex items-center justify-between py-1 border-b border-slate-100/50">
-                        <span className="text-[11px] font-bold text-slate-700 leading-tight">Going on chrome new tab disabled</span>
-                        <ToggleSwitch
-                            checked={!!draftValidationSettings.chromeNewTabDisabled}
-                            onChange={(val) => setDraftValidationSettings({ ...draftValidationSettings, chromeNewTabDisabled: val })}
-                        />
-                    </div>
-
-                    {/* 13. Include Characters */}
+                    {/* 11. Include Characters */}
                     <div className="flex items-center justify-between py-1">
                         <span className="text-[11px] font-bold text-slate-700 leading-tight">Include Characters</span>
                         <ToggleSwitch

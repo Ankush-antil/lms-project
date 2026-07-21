@@ -109,16 +109,7 @@ const LogicalSettingsModal = ({
                         />
                     </div>
 
-                    {/* 7. AI-based answer quality scoring */}
-                    <div className="flex items-center justify-between py-1 border-b border-slate-100/50">
-                        <span className="text-[11px] font-bold text-slate-700 leading-tight">AI-based answer quality scoring</span>
-                        <ToggleSwitch
-                            checked={!!draftLogicalSettings.aiQualityScoring}
-                            onChange={(val) => setDraftLogicalSettings({ ...draftLogicalSettings, aiQualityScoring: val })}
-                        />
-                    </div>
-
-                    {/* 8. Depth of explanation level */}
+                    {/* 7. Depth of explanation level */}
                     <div className="flex items-center justify-between py-1">
                         <span className="text-[11px] font-bold text-slate-700 leading-tight">Depth of explanation level</span>
                         <select

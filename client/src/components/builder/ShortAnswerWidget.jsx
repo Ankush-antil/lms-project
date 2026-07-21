@@ -196,7 +196,7 @@ const ShortAnswerWidget = ({ onDelete, onDuplicate, onUpdate, initialText = "" }
                     <div className="p-2 bg-indigo-600 rounded-lg text-white shadow-sm shadow-indigo-200">
                         <Pencil size={18} />
                     </div>
-                    <span className="font-bold text-slate-700 text-sm">Short Answer</span>
+                    <span className="font-bold text-slate-700 text-sm">Text Answer</span>
                 </div>
 
                 {/* Drag Handle */}

@@ -59,11 +59,11 @@ const ParticularsDrawer = ({
             </div>
 
             <div className="space-y-3 text-left">
-                {label === 'Short Answer' ? (
+                {['Short Answer', 'Text Answer'].includes(label) ? (
                     <div className="space-y-4">
-                        {/* Section 1: Short Answer Settings */}
+                        {/* Section 1: Text Answer Settings */}
                         <div className="bg-white p-3 rounded-lg border border-slate-150 space-y-3">
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Short Answer Configuration</span>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Text Answer Configuration</span>
                             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-xs">
                                 <div className="flex items-center gap-2 select-none pt-2">
                                     <input

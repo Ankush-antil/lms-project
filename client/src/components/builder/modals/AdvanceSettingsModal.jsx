@@ -64,16 +64,7 @@ const AdvanceSettingsModal = ({
                         />
                     </div>
 
-                    {/* 2. Auto-save answer */}
-                    <div className="flex items-center justify-between py-1 border-b border-slate-100/50">
-                        <span className="text-[11px] font-bold text-slate-700 leading-tight">Auto-save answer</span>
-                        <ToggleSwitch
-                            checked={!!draftParticulars.autoSave}
-                            onChange={(val) => setDraftParticulars({ ...draftParticulars, autoSave: val })}
-                        />
-                    </div>
-
-                    {/* 3. Allow answer editing after submit */}
+                    {/* 2. Allow answer editing after submit */}
                     <div className="flex items-center justify-between py-1 border-b border-slate-100/50">
                         <span className="text-[11px] font-bold text-slate-700 leading-tight">Allow answer editing after submit</span>
                         <ToggleSwitch
@@ -82,16 +73,7 @@ const AdvanceSettingsModal = ({
                         />
                     </div>
 
-                    {/* 4. Enable draft mode */}
-                    <div className="flex items-center justify-between py-1 border-b border-slate-100/50">
-                        <span className="text-[11px] font-bold text-slate-700 leading-tight">Enable draft mode</span>
-                        <ToggleSwitch
-                            checked={!!draftParticulars.enableDraftMode}
-                            onChange={(val) => setDraftParticulars({ ...draftParticulars, enableDraftMode: val })}
-                        />
-                    </div>
-
-                    {/* 5. Show word counter to student */}
+                    {/* 3. Show word counter to student */}
                     <div className="flex items-center justify-between py-1 border-b border-slate-100/50">
                         <span className="text-[11px] font-bold text-slate-700 leading-tight">Show word counter to student</span>
                         <ToggleSwitch
@@ -100,16 +82,57 @@ const AdvanceSettingsModal = ({
                         />
                     </div>
 
-                    {/* 6. Rich text editor enable */}
+                    {/* Security & Anti-Cheating Settings */}
+                    <div className="pt-2 pb-1 text-[11px] font-black uppercase text-indigo-600 tracking-wider border-t border-slate-100">
+                        Security & Anti-Cheating
+                    </div>
+
+                    {/* 5. Disable Question Copy */}
                     <div className="flex items-center justify-between py-1 border-b border-slate-100/50">
-                        <span className="text-[11px] font-bold text-slate-700 leading-tight">Rich text editor enable</span>
+                        <span className="text-[11px] font-bold text-slate-700 leading-tight">Disable Question Copy</span>
                         <ToggleSwitch
-                            checked={!!draftParticulars.richTextEditor}
-                            onChange={(val) => setDraftParticulars({ ...draftParticulars, richTextEditor: val })}
+                            checked={!!draftParticulars.disableCopy}
+                            onChange={(val) => setDraftParticulars({ ...draftParticulars, disableCopy: val })}
                         />
                     </div>
 
-                    {/* 7. Answer language restriction */}
+                    {/* 6. Disable Answer Paste */}
+                    <div className="flex items-center justify-between py-1 border-b border-slate-100/50">
+                        <span className="text-[11px] font-bold text-slate-700 leading-tight">Disable Answer Paste</span>
+                        <ToggleSwitch
+                            checked={!!draftParticulars.disablePaste}
+                            onChange={(val) => setDraftParticulars({ ...draftParticulars, disablePaste: val })}
+                        />
+                    </div>
+
+                    {/* 7. Prevent / Detect Tab Switching */}
+                    <div className="flex items-center justify-between py-1 border-b border-slate-100/50">
+                        <span className="text-[11px] font-bold text-slate-700 leading-tight">Prevent Tab Switching</span>
+                        <ToggleSwitch
+                            checked={!!draftParticulars.preventNewTab}
+                            onChange={(val) => setDraftParticulars({ ...draftParticulars, preventNewTab: val })}
+                        />
+                    </div>
+
+                    {/* 8. Prevent Tab Closing */}
+                    <div className="flex items-center justify-between py-1 border-b border-slate-100/50">
+                        <span className="text-[11px] font-bold text-slate-700 leading-tight">Prevent Tab Closing</span>
+                        <ToggleSwitch
+                            checked={!!draftParticulars.preventTabClose}
+                            onChange={(val) => setDraftParticulars({ ...draftParticulars, preventTabClose: val })}
+                        />
+                    </div>
+
+                    {/* 9. Disable Inspect Element (F12/Right-Click) */}
+                    <div className="flex items-center justify-between py-1 border-b border-slate-100/50">
+                        <span className="text-[11px] font-bold text-slate-700 leading-tight">Disable Inspect Element</span>
+                        <ToggleSwitch
+                            checked={!!draftParticulars.disableInspect}
+                            onChange={(val) => setDraftParticulars({ ...draftParticulars, disableInspect: val })}
+                        />
+                    </div>
+
+                    {/* 10. Answer language restriction */}
                     <div className="flex items-center justify-between py-1">
                         <span className="text-[11px] font-bold text-slate-700 leading-tight">Answer language restriction</span>
                         <input

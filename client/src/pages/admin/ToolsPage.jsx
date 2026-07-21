@@ -159,6 +159,8 @@ const ToolsPage = () => {
         }
     ];
 
+    const isAdmin = user?.role === 'Admin';
+
     const toolsList = [
         { 
             title: 'Form Builder Tool', 
@@ -185,7 +187,7 @@ const ToolsPage = () => {
             icon: Mic,
             color: 'bg-blue-600',
             disabled: false,
-            action: () => navigate('/student/practice-tools/voice-recorder')
+            action: () => navigate(`/${user?.role?.toLowerCase() || 'admin'}/tools/voice-recorder`)
         },
         {
             title: 'Video Recorder',
@@ -193,7 +195,7 @@ const ToolsPage = () => {
             icon: MonitorPlay,
             color: 'bg-purple-600',
             disabled: false,
-            action: () => navigate('/student/practice-tools/video-recorder')
+            action: () => navigate(`/${user?.role?.toLowerCase() || 'admin'}/tools/video-recorder`)
         },
         {
             title: 'File Uploader',
@@ -201,7 +203,7 @@ const ToolsPage = () => {
             icon: Upload,
             color: 'bg-amber-600',
             disabled: false,
-            action: () => navigate('/student/practice-tools/file-uploader')
+            action: () => navigate(`/${user?.role?.toLowerCase() || 'admin'}/tools/file-uploader`)
         },
         {
             title: 'Screenshot Tool',
@@ -209,7 +211,7 @@ const ToolsPage = () => {
             icon: Camera,
             color: 'bg-indigo-600',
             disabled: false,
-            action: () => navigate('/student/practice-tools/screenshot')
+            action: () => navigate(`/${user?.role?.toLowerCase() || 'admin'}/tools/screenshot`)
         },
         {
             title: 'Screen Recorder',
@@ -217,7 +219,7 @@ const ToolsPage = () => {
             icon: Video,
             color: 'bg-emerald-600',
             disabled: false,
-            action: () => navigate('/student/practice-tools/screen-recorder')
+            action: () => navigate(`/${user?.role?.toLowerCase() || 'admin'}/tools/screen-recorder`)
         },
         {
             title: 'Web-Calling Tool',
@@ -225,23 +227,35 @@ const ToolsPage = () => {
             icon: Phone,
             color: 'bg-pink-600',
             disabled: false,
-            action: () => navigate('/student/practice-tools/web-calling')
+            action: () => navigate(`/${user?.role?.toLowerCase() || 'admin'}/tools/web-calling`)
         }
-    ].filter(tool => !tool.disabled);
+    ].filter(tool => !tool.disabled && (!isAdmin || tool.title === 'Form Builder Tool' || tool.title === 'Database Creator Tool'));
 
     return (
         <DashboardLayout role={user?.role || 'Admin'}>
             <div className="max-w-7xl mx-auto px-4 py-5 font-sans">
                 
                 {/* Header Section */}
-                <div className="text-left border-b border-slate-100 pb-3 mb-6">
-                    <h2 className="text-2xl font-black text-slate-850 tracking-tight flex items-center gap-2">
-                        <span>🛠️</span>
-                        <span>Tools Portal</span>
-                    </h2>
-                    <p className="text-xs font-semibold text-slate-400 mt-1 uppercase tracking-wider">
-                        Explore and utilize available creator suite utilities
-                    </p>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-left border-b border-slate-100 pb-3 mb-6">
+                    <div>
+                        <h2 className="text-2xl font-black text-slate-850 tracking-tight flex items-center gap-2">
+                            <span>🛠️</span>
+                            <span>Tools Portal</span>
+                        </h2>
+                        <p className="text-xs font-semibold text-slate-400 mt-1 uppercase tracking-wider">
+                            Explore and utilize available creator suite utilities
+                        </p>
+                    </div>
+
+                    {isAdmin && (
+                        <button
+                            onClick={() => navigate('/admin/tools-analytics')}
+                            className="flex items-center gap-2 px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs rounded-xl border border-indigo-200 transition-all cursor-pointer self-start sm:self-auto shadow-sm"
+                        >
+                            <BarChart3 size={15} />
+                            <span>Tools Analytics</span>
+                        </button>
+                    )}
                 </div>
 
                 {/* Grid layout containing the active tools */}

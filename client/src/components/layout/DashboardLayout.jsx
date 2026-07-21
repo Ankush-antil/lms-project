@@ -7,7 +7,7 @@ import {
     ChevronLeft, ChevronRight, ChevronDown, MessageSquare, Bell, BellRing, Settings,
     BarChart3, UserPlus, Trash2, Wallet, CreditCard, HardDrive,
     Calculator, Megaphone, Calendar, StickyNote, Briefcase, DollarSign, CheckSquare,
-    RefreshCw, Award, Package
+    RefreshCw, Award, Package, Mic, MonitorPlay, Camera, Video, Phone
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useSocket } from '../../context/SocketContext';
@@ -167,7 +167,12 @@ const menuItems = {
         { name: 'Subjects', icon: BookOpen, path: '/admin/subjects' },
         { name: 'Study Material', icon: BookOpen, path: '/admin?tab=study-material' },
         { name: 'Activities', icon: FileText, path: '/admin/activities' },
+
+        { name: '_section_tools', icon: PenTool, path: null },
         { name: 'Tools', icon: PenTool, path: '/admin/tools' },
+
+        { name: '_section_tools_analytics', icon: BarChart3, path: null },
+        { name: 'Tools Analytics', icon: BarChart3, path: '/admin/tools-analytics' },
 
         { name: '_section_management', icon: Briefcase, path: null },
         { name: 'Staff Mgt', icon: Users, path: '/admin/staff' },
@@ -178,7 +183,12 @@ const menuItems = {
         { name: '_section_services', icon: Settings, path: null },
         { name: 'Drive', icon: HardDrive, path: '/admin/drive' },
         { name: 'Notes', icon: StickyNote, path: '/admin/notes' },
-        { name: 'Chat', icon: MessageSquare, path: '/admin/chat' }
+        { name: 'Chat', icon: MessageSquare, path: '/admin/chat' },
+        { name: 'Voice Recorder', icon: Mic, path: '/admin/tools/voice-recorder' },
+        { name: 'Video Recorder', icon: MonitorPlay, path: '/admin/tools/video-recorder' },
+        { name: 'Screenshot Tool', icon: Camera, path: '/admin/tools/screenshot' },
+        { name: 'Screen Recorder', icon: Video, path: '/admin/tools/screen-recorder' },
+        { name: 'Web Calling', icon: Phone, path: '/admin/tools/web-calling' }
     ],
     Institute: [
         { name: '_section_dashboard', icon: LayoutDashboard, path: null },
@@ -941,30 +951,19 @@ const Sidebar = ({ role = 'Admin', collapsed, onToggle, isMobileOpen }) => {
     const isActive = (path) => {
         if (!path) return false;
 
-        // Match practice tools sub-pages and notes pages to highlight the Tools or Notes sidebar item
-        const isToolSubPage = location.pathname.startsWith('/student/practice-tools') ||
-            location.pathname.startsWith('/student/notes') ||
-            location.pathname.includes('/practice-tools/');
-
-        if (isToolSubPage) {
-            if (safeRole !== 'Student') {
-                if (location.pathname.startsWith('/student/notes') || location.pathname.includes('/notes')) {
-                    if (path === `/${safeRole.toLowerCase()}/notes`) return true;
-                } else {
-                    if (path === `/${safeRole.toLowerCase()}/tools`) return true;
-                }
-            } else {
-                if (location.pathname.startsWith('/student/notes')) {
-                    if (path === '/student/notes') return true;
-                } else {
-                    if (path === '/student/practice-tools') return true;
-                }
-            }
-        }
+        // Exact match first
+        const currentFullPath = location.pathname + location.search;
+        if (path === currentFullPath || path === location.pathname) return true;
 
         if (path.includes('?')) {
             return (location.pathname + location.search).startsWith(path);
         }
+
+        // Avoid matching root tools page (/admin/tools) when visiting specific tool sub-routes (/admin/tools/...)
+        if (path === `/${safeRole.toLowerCase()}/tools` || path === '/admin/tools') {
+            return location.pathname === path;
+        }
+
         const baseRolePath = `/${safeRole.toLowerCase()}`;
         if (path === baseRolePath) return location.pathname === path && !location.search;
         return location.pathname.startsWith(path);
@@ -1034,13 +1033,13 @@ const Sidebar = ({ role = 'Admin', collapsed, onToggle, isMobileOpen }) => {
                                         key={item.name}
                                         type="button"
                                         onClick={() => toggleSection(item.name)}
-                                        className="w-full pt-5 pb-1.5 px-4 flex items-center justify-between text-slate-500 hover:text-slate-300 transition-all select-none border-none bg-transparent cursor-pointer"
+                                        className={`w-full pt-5 pb-1.5 px-4 flex items-center justify-between transition-all select-none border-none bg-transparent cursor-pointer group ${isExpanded ? 'text-white' : 'text-slate-400 hover:text-slate-200'}`}
                                     >
                                         <div className="flex items-center gap-2">
-                                            {item.icon && <item.icon size={13} className="text-slate-500" />}
-                                            <span className="text-[10px] font-black tracking-widest text-slate-500 uppercase">{label}</span>
+                                            {item.icon && <item.icon size={13} className={isExpanded ? 'text-white' : 'text-slate-400 group-hover:text-slate-200'} />}
+                                            <span className={`text-[10px] font-black tracking-widest uppercase ${isExpanded ? 'text-white' : 'text-slate-400 group-hover:text-slate-200'}`}>{label}</span>
                                         </div>
-                                        {isExpanded ? <ChevronDown size={12} className="text-slate-500" /> : <ChevronRight size={12} className="text-slate-500" />}
+                                        {isExpanded ? <ChevronDown size={12} className="text-white" /> : <ChevronRight size={12} className="text-slate-400 group-hover:text-slate-200" />}
                                     </button>
                                 );
                             }
@@ -1105,13 +1104,14 @@ const Sidebar = ({ role = 'Admin', collapsed, onToggle, isMobileOpen }) => {
                                             key={item.name}
                                             type="button"
                                             onClick={() => toggleSection(item.name)}
-                                            className="w-full pt-4 pb-1.5 px-4 flex items-center justify-between text-slate-400 hover:text-slate-200 transition-all select-none border-none bg-transparent cursor-pointer"
+                                            className={`w-full pt-4 pb-1.5 px-4 flex items-center justify-between transition-all select-none border-none bg-transparent cursor-pointer group ${isExpanded ? 'text-white' : 'text-slate-400 hover:text-slate-200'
+                                                }`}
                                         >
                                             <div className="flex items-center gap-2">
-                                                {item.icon && <item.icon size={13} className="text-slate-400" />}
-                                                <span className="text-[10px] font-black tracking-widest text-slate-400 uppercase">{label}</span>
+                                                {item.icon && <item.icon size={13} className={isExpanded ? 'text-white' : 'text-slate-400 group-hover:text-slate-200'} />}
+                                                <span className={`text-[10px] font-black tracking-widest uppercase ${isExpanded ? 'text-white' : 'text-slate-400 group-hover:text-slate-200'}`}>{label}</span>
                                             </div>
-                                            {isExpanded ? <ChevronDown size={12} className="text-slate-400" /> : <ChevronRight size={12} className="text-slate-400" />}
+                                            {isExpanded ? <ChevronDown size={12} className="text-white" /> : <ChevronRight size={12} className="text-slate-400 group-hover:text-slate-200" />}
                                         </button>
                                     );
                                 }
@@ -1158,12 +1158,13 @@ const Sidebar = ({ role = 'Admin', collapsed, onToggle, isMobileOpen }) => {
 /* ─────────────────────────────────────────
    Main DashboardLayout
 ───────────────────────────────────────── */
-const DashboardLayout = ({ children, role = 'Admin', fullWidth = false, noPadding = false }) => {
+const DashboardLayout = ({ children, role, fullWidth = false, noPadding = false }) => {
+    const { user } = useAuth();
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const location = useLocation();
 
-    const safeRole = role || 'Admin';
+    const safeRole = user?.role || role || 'Admin';
     const hasSidebar = !!menuItems[safeRole];
 
     // Close mobile menu on route change

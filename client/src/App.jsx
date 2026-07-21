@@ -31,6 +31,7 @@ const TestsList = lazy(() => import('./pages/admin/TestsList'));
 const TestBuilder = lazy(() => import('./pages/admin/TestBuilder'));
 const EditorDashboard = lazy(() => import('./pages/editor/EditorDashboard'));
 const ToolsPage = lazy(() => import('./pages/admin/ToolsPage'));
+const ToolsAnalyticsPage = lazy(() => import('./pages/admin/ToolsAnalyticsPage'));
 const InstitutesList = lazy(() => import('./pages/admin/InstitutesList'));
 const CoursesList = lazy(() => import('./pages/admin/CoursesList'));
 const StudentTests = lazy(() => import('./pages/student/StudentTests'));
@@ -560,6 +561,16 @@ function App() {
                                                  <AdminStaffSalary />
                                              </PrivateRoute>
                                          } />
+                                         <Route path="/admin/tools/web-calling" element={
+                                             <PrivateRoute role={['Admin', 'Staff']}>
+                                                 <WebCallingPage />
+                                             </PrivateRoute>
+                                         } />
+                                         <Route path="/admin/tools-analytics" element={
+                                             <PrivateRoute role={['Admin', 'Staff', 'Editor']}>
+                                                 <ToolsAnalyticsPage />
+                                             </PrivateRoute>
+                                         } />
                                          <Route path="/admin/staff/task" element={
                                              <PrivateRoute role={['Admin', 'Staff']}>
                                                  <AdminStaffTask />
@@ -905,6 +916,33 @@ function App() {
                                         <Route path="/student/practice-tools/file-uploader" element={
                                             <PrivateRoute role={['Student', 'Teacher', 'Admin', 'Editor', 'Institute']}>
                                                 <FileUploadPage />
+                                            </PrivateRoute>
+                                        } />
+
+                                        {/* Admin Tools Routes */}
+                                        <Route path="/admin/tools/screenshot" element={
+                                            <PrivateRoute role={['Admin', 'Staff']}>
+                                                <ScreenshotToolPage />
+                                            </PrivateRoute>
+                                        } />
+                                        <Route path="/admin/tools/screen-recorder" element={
+                                            <PrivateRoute role={['Admin', 'Staff']}>
+                                                <ScreenRecorderPage />
+                                            </PrivateRoute>
+                                        } />
+                                        <Route path="/admin/tools/voice-recorder" element={
+                                            <PrivateRoute role={['Admin', 'Staff']}>
+                                                <VoiceRecorderPage />
+                                            </PrivateRoute>
+                                        } />
+                                        <Route path="/admin/tools/video-recorder" element={
+                                            <PrivateRoute role={['Admin', 'Staff']}>
+                                                <VideoRecorderPage />
+                                            </PrivateRoute>
+                                        } />
+                                        <Route path="/admin/tools/web-calling" element={
+                                            <PrivateRoute role={['Admin', 'Staff']}>
+                                                <WebCallingPage />
                                             </PrivateRoute>
                                         } />
                                         <Route path="/student/notes" element={

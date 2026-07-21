@@ -31,6 +31,127 @@ const upload = multer({
     }
 });
 
+// @route   GET /api/practice-files/analytics
+// @desc    Get comprehensive tools usage analytics (who used which tool and how much)
+// @access  Private (Admin / Staff / Editor)
+router.get('/analytics', protect, async (req, res) => {
+    try {
+        const Note = require('../../models/Note');
+        const Activity = require('../../models/Activity');
+        const DriveItem = require('../../models/DriveItem');
+
+        // 1. Practice files usage grouped by toolType
+        const toolStats = await PracticeFile.aggregate([
+            {
+                $group: {
+                    _id: '$toolType',
+                    count: { $sum: 1 },
+                    totalSizeBytes: { $sum: '$size' }
+                }
+            }
+        ]);
+
+        // 2. Usage grouped by user and toolType
+        const userToolStats = await PracticeFile.aggregate([
+            {
+                $group: {
+                    _id: { user: '$user', toolType: '$toolType' },
+                    count: { $sum: 1 },
+                    totalSizeBytes: { $sum: '$size' },
+                    lastUsedAt: { $max: '$createdAt' }
+                }
+            },
+            {
+                $lookup: {
+                    from: 'users',
+                    localField: '_id.user',
+                    foreignField: '_id',
+                    as: 'userInfo'
+                }
+            },
+            { $unwind: '$userInfo' },
+            {
+                $project: {
+                    _id: 0,
+                    userId: '$_id.user',
+                    userName: '$userInfo.name',
+                    userEmail: '$userInfo.email',
+                    userRole: '$userInfo.role',
+                    toolType: '$_id.toolType',
+                    count: 1,
+                    totalSizeBytes: 1,
+                    lastUsedAt: 1
+                }
+            },
+            { $sort: { lastUsedAt: -1 } }
+        ]);
+
+        // 3. User total usage summary (across all tools)
+        const userSummary = await PracticeFile.aggregate([
+            {
+                $group: {
+                    _id: '$user',
+                    totalCount: { $sum: 1 },
+                    totalSizeBytes: { $sum: '$size' },
+                    toolsUsed: { $addToSet: '$toolType' },
+                    lastUsedAt: { $max: '$createdAt' }
+                }
+            },
+            {
+                $lookup: {
+                    from: 'users',
+                    localField: '_id',
+                    foreignField: '_id',
+                    as: 'userInfo'
+                }
+            },
+            { $unwind: '$userInfo' },
+            {
+                $project: {
+                    _id: 0,
+                    userId: '$_id',
+                    userName: '$userInfo.name',
+                    userEmail: '$userInfo.email',
+                    userRole: '$userInfo.role',
+                    totalCount: 1,
+                    totalSizeBytes: 1,
+                    toolsUsed: 1,
+                    lastUsedAt: 1
+                }
+            },
+            { $sort: { totalCount: -1 } }
+        ]);
+
+        // 4. Counts for other tools
+        const [formBuilderCount, notesCount, driveCount] = await Promise.all([
+            Activity.countDocuments().catch(() => 0),
+            Note.countDocuments().catch(() => 0),
+            DriveItem.countDocuments().catch(() => 0)
+        ]);
+
+        // 5. Recent 30 activity logs
+        const recentLogs = await PracticeFile.find()
+            .sort({ createdAt: -1 })
+            .limit(30)
+            .populate('user', 'name email role');
+
+        res.json({
+            toolStats,
+            userToolStats,
+            userSummary,
+            otherTools: {
+                formBuilder: formBuilderCount,
+                notes: notesCount,
+                drive: driveCount
+            },
+            recentLogs
+        });
+    } catch (err) {
+        console.error('[GET Tools Analytics Error]', err);
+        res.status(500).json({ message: 'Server error retrieving tools analytics.' });
+    }
+});
+
 // @route   GET /api/practice-files
 // @desc    Get all practice files uploaded by the student and the storage space usage
 // @access  Private (Student)

@@ -76,6 +76,7 @@ import AdminFeePortal from '../screens/admin/AdminFeePortal';
 import AssetMgtScreen from '../screens/admin/AssetMgtScreen';
 import LeadMgtScreen from '../screens/admin/LeadMgtScreen';
 import AdsMgtScreen from '../screens/admin/AdsMgtScreen';
+import AdminToolsAnalyticsScreen from '../screens/admin/AdminToolsAnalyticsScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -172,6 +173,7 @@ const AdminStack = () => (
         <Stack.Screen name="ScreenshotToolPage" component={ScreenshotToolPage} />
         <Stack.Screen name="WebCallingPage" component={WebCallingPage} />
         <Stack.Screen name="FileUploadPage" component={FileUploadPage} />
+        <Stack.Screen name="ToolsAnalytics" component={AdminToolsAnalyticsScreen} />
     </Stack.Navigator>
 );
 

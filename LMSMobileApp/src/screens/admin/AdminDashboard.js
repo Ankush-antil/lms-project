@@ -275,6 +275,14 @@ const AdminDashboard = ({ navigation }) => {
                             <Ionicons name="settings-outline" size={20} color={colors.teacher} />
                             <Text style={styles.tabLabel}>Management</Text>
                         </TouchableOpacity>
+                        <TouchableOpacity
+                            style={styles.tabBtn}
+                            onPress={() => navigation.navigate('ToolsAnalytics')}
+                            activeOpacity={0.7}
+                        >
+                            <Ionicons name="bar-chart-outline" size={20} color="#6366f1" />
+                            <Text style={styles.tabLabel}>Analytics</Text>
+                        </TouchableOpacity>
                     </>
                 )}
             </View>
@@ -922,59 +930,151 @@ const AdminDashboard = ({ navigation }) => {
                     <View style={styles.dropdownContainer}>
                         <Text style={styles.dropdownTitle}>Services Portal</Text>
                         
-                        <TouchableOpacity
-                            style={styles.dropdownItem}
-                            onPress={() => {
-                                setServicesMenuVisible(false);
-                                navigation.navigate('Drive');
-                            }}
-                            activeOpacity={0.7}
-                        >
-                            <View style={[styles.dropdownIconContainer, { backgroundColor: '#ecfeff' }]}>
-                                <Ionicons name="cloud-upload-outline" size={22} color="#06b6d4" />
-                            </View>
-                            <View style={styles.dropdownTextContainer}>
-                                <Text style={styles.dropdownItemText}>Drive</Text>
-                                <Text style={styles.dropdownItemSub}>Access ecosystem shared files & drives</Text>
-                            </View>
-                            <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
-                        </TouchableOpacity>
+                        <ScrollView style={{ maxHeight: 380 }} showsVerticalScrollIndicator={false}>
+                            <TouchableOpacity
+                                style={styles.dropdownItem}
+                                onPress={() => {
+                                    setServicesMenuVisible(false);
+                                    navigation.navigate('Drive');
+                                }}
+                                activeOpacity={0.7}
+                            >
+                                <View style={[styles.dropdownIconContainer, { backgroundColor: '#ecfeff' }]}>
+                                    <Ionicons name="cloud-upload-outline" size={22} color="#06b6d4" />
+                                </View>
+                                <View style={styles.dropdownTextContainer}>
+                                    <Text style={styles.dropdownItemText}>Drive</Text>
+                                    <Text style={styles.dropdownItemSub}>Access ecosystem shared files & drives</Text>
+                                </View>
+                                <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+                            </TouchableOpacity>
 
-                        <TouchableOpacity
-                            style={styles.dropdownItem}
-                            onPress={() => {
-                                setServicesMenuVisible(false);
-                                navigation.navigate('Notes');
-                            }}
-                            activeOpacity={0.7}
-                        >
-                            <View style={[styles.dropdownIconContainer, { backgroundColor: '#fdf2f8' }]}>
-                                <Ionicons name="create-outline" size={22} color="#ec4899" />
-                            </View>
-                            <View style={styles.dropdownTextContainer}>
-                                <Text style={styles.dropdownItemText}>Notes</Text>
-                                <Text style={styles.dropdownItemSub}>Write & manage study & class notes</Text>
-                            </View>
-                            <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
-                        </TouchableOpacity>
+                            <TouchableOpacity
+                                style={styles.dropdownItem}
+                                onPress={() => {
+                                    setServicesMenuVisible(false);
+                                    navigation.navigate('Notes');
+                                }}
+                                activeOpacity={0.7}
+                            >
+                                <View style={[styles.dropdownIconContainer, { backgroundColor: '#fdf2f8' }]}>
+                                    <Ionicons name="create-outline" size={22} color="#ec4899" />
+                                </View>
+                                <View style={styles.dropdownTextContainer}>
+                                    <Text style={styles.dropdownItemText}>Notes</Text>
+                                    <Text style={styles.dropdownItemSub}>Write & manage study & class notes</Text>
+                                </View>
+                                <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+                            </TouchableOpacity>
 
-                        <TouchableOpacity
-                            style={styles.dropdownItem}
-                            onPress={() => {
-                                setServicesMenuVisible(false);
-                                navigation.navigate('Chat');
-                            }}
-                            activeOpacity={0.7}
-                        >
-                            <View style={[styles.dropdownIconContainer, { backgroundColor: '#eef2ff' }]}>
-                                <Ionicons name="chatbubbles-outline" size={22} color={colors.accent} />
-                            </View>
-                            <View style={styles.dropdownTextContainer}>
-                                <Text style={styles.dropdownItemText}>Chat</Text>
-                                <Text style={styles.dropdownItemSub}>Discuss with teachers, peers & admins</Text>
-                            </View>
-                            <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
-                        </TouchableOpacity>
+                            <TouchableOpacity
+                                style={styles.dropdownItem}
+                                onPress={() => {
+                                    setServicesMenuVisible(false);
+                                    navigation.navigate('Chat');
+                                }}
+                                activeOpacity={0.7}
+                            >
+                                <View style={[styles.dropdownIconContainer, { backgroundColor: '#eef2ff' }]}>
+                                    <Ionicons name="chatbubbles-outline" size={22} color={colors.accent} />
+                                </View>
+                                <View style={styles.dropdownTextContainer}>
+                                    <Text style={styles.dropdownItemText}>Chat</Text>
+                                    <Text style={styles.dropdownItemSub}>Discuss with teachers, peers & admins</Text>
+                                </View>
+                                <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={styles.dropdownItem}
+                                onPress={() => {
+                                    setServicesMenuVisible(false);
+                                    navigation.navigate('VoiceRecorderPage');
+                                }}
+                                activeOpacity={0.7}
+                            >
+                                <View style={[styles.dropdownIconContainer, { backgroundColor: '#eff6ff' }]}>
+                                    <Ionicons name="mic-outline" size={22} color="#3b82f6" />
+                                </View>
+                                <View style={styles.dropdownTextContainer}>
+                                    <Text style={styles.dropdownItemText}>Voice Recorder</Text>
+                                    <Text style={styles.dropdownItemSub}>Record audio notes & speech practice</Text>
+                                </View>
+                                <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={styles.dropdownItem}
+                                onPress={() => {
+                                    setServicesMenuVisible(false);
+                                    navigation.navigate('VideoRecorderPage');
+                                }}
+                                activeOpacity={0.7}
+                            >
+                                <View style={[styles.dropdownIconContainer, { backgroundColor: '#faf5ff' }]}>
+                                    <Ionicons name="videocam-outline" size={22} color="#a855f7" />
+                                </View>
+                                <View style={styles.dropdownTextContainer}>
+                                    <Text style={styles.dropdownItemText}>Video Recorder</Text>
+                                    <Text style={styles.dropdownItemSub}>Capture video recordings</Text>
+                                </View>
+                                <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={styles.dropdownItem}
+                                onPress={() => {
+                                    setServicesMenuVisible(false);
+                                    navigation.navigate('ScreenshotToolPage');
+                                }}
+                                activeOpacity={0.7}
+                            >
+                                <View style={[styles.dropdownIconContainer, { backgroundColor: '#eef2ff' }]}>
+                                    <Ionicons name="camera-outline" size={22} color="#6366f1" />
+                                </View>
+                                <View style={styles.dropdownTextContainer}>
+                                    <Text style={styles.dropdownItemText}>Screenshot Tool</Text>
+                                    <Text style={styles.dropdownItemSub}>Capture viewport screenshots</Text>
+                                </View>
+                                <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={styles.dropdownItem}
+                                onPress={() => {
+                                    setServicesMenuVisible(false);
+                                    navigation.navigate('ScreenRecorderPage');
+                                }}
+                                activeOpacity={0.7}
+                            >
+                                <View style={[styles.dropdownIconContainer, { backgroundColor: '#ecfdf5' }]}>
+                                    <Ionicons name="tv-outline" size={22} color="#10b981" />
+                                </View>
+                                <View style={styles.dropdownTextContainer}>
+                                    <Text style={styles.dropdownItemText}>Screen Recorder</Text>
+                                    <Text style={styles.dropdownItemSub}>Record screen activities</Text>
+                                </View>
+                                <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={styles.dropdownItem}
+                                onPress={() => {
+                                    setServicesMenuVisible(false);
+                                    navigation.navigate('WebCallingPage');
+                                }}
+                                activeOpacity={0.7}
+                            >
+                                <View style={[styles.dropdownIconContainer, { backgroundColor: '#fdf2f8' }]}>
+                                    <Ionicons name="call-outline" size={22} color="#ec4899" />
+                                </View>
+                                <View style={styles.dropdownTextContainer}>
+                                    <Text style={styles.dropdownItemText}>Web Calling</Text>
+                                    <Text style={styles.dropdownItemSub}>Interactive voice calls & sessions</Text>
+                                </View>
+                                <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+                            </TouchableOpacity>
+                        </ScrollView>
 
                         <TouchableOpacity 
                             style={styles.closeDropdownBtn} 

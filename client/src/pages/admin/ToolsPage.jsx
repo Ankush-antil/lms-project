@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { FileSignature, Database, X, CreditCard, AppWindow, ShoppingCart, Table, GitBranch, FileText, PenTool, Sparkles, Trello, Mic, MonitorPlay, Upload, Camera, Video, Phone } from 'lucide-react';
+import { FileSignature, Database, X, CreditCard, AppWindow, ShoppingCart, Table, GitBranch, FileText, PenTool, Sparkles, Trello, Mic, MonitorPlay, Upload, Camera, Video, Phone, BarChart3 } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 

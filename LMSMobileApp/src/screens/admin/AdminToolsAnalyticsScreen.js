@@ -9,12 +9,12 @@ import { colors, spacing, borderRadius } from '../../theme/colors';
 import { Ionicons } from '@expo/vector-icons';
 
 const toolMeta = {
-    'voice-recorder': { label: 'Voice Recorder', icon: 'mic-outline', color: '#3b82f6', bg: '#eff6ff' },
+    'form-builder': { label: 'Form Builder Tool', icon: 'create-outline', color: '#f97316', bg: '#fff7ed' },
+    'database-creator': { label: 'Database Creator Tool', icon: 'server-outline', color: '#3b82f6', bg: '#eff6ff', isComingSoon: true },
+    'voice-recorder': { label: 'Voice Recorder', icon: 'mic-outline', color: '#0284c7', bg: '#f0f9ff' },
     'video-recorder': { label: 'Video Recorder', icon: 'videocam-outline', color: '#a855f7', bg: '#faf5ff' },
     'screenshot': { label: 'Screenshot Tool', icon: 'camera-outline', color: '#6366f1', bg: '#eef2ff' },
     'screen-recorder': { label: 'Screen Recorder', icon: 'tv-outline', color: '#10b981', bg: '#ecfdf5' },
-    'web-calling': { label: 'Web Calling', icon: 'call-outline', color: '#ec4899', bg: '#fdf2f8' },
-    'file-uploader': { label: 'File Uploader', icon: 'cloud-upload-outline', color: '#f59e0b', bg: '#fffbeb' },
 };
 
 const AdminToolsAnalyticsScreen = ({ navigation }) => {
@@ -61,20 +61,27 @@ const AdminToolsAnalyticsScreen = ({ navigation }) => {
         });
     };
 
-    const totalPracticeActions = (analyticsData?.toolStats || []).reduce((sum, t) => sum + t.count, 0);
-    const totalBytesUsed = (analyticsData?.toolStats || []).reduce((sum, t) => sum + t.totalSizeBytes, 0);
+    const practiceToolStats = (analyticsData?.toolStats || []).filter(
+        s => s._id !== 'web-calling' && s._id !== 'file-uploader'
+    );
+
+    const totalPracticeActions = practiceToolStats.reduce((sum, t) => sum + t.count, 0);
+    const totalBytesUsed = practiceToolStats.reduce((sum, t) => sum + t.totalSizeBytes, 0);
     const totalActiveUsers = (analyticsData?.userSummary || []).length;
+    const formBuilderCount = analyticsData?.otherTools?.formBuilder || 0;
 
-    const filteredUserToolStats = (analyticsData?.userToolStats || []).filter(item => {
-        const matchesSearch = 
-            item.userName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            item.userEmail?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            item.toolType?.toLowerCase().includes(searchTerm.toLowerCase());
-        
-        const matchesRole = selectedRole === 'All' || item.userRole === selectedRole;
+    const filteredUserToolStats = (analyticsData?.userToolStats || [])
+        .filter(item => item.toolType !== 'web-calling' && item.toolType !== 'file-uploader')
+        .filter(item => {
+            const matchesSearch = 
+                item.userName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                item.userEmail?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                item.toolType?.toLowerCase().includes(searchTerm.toLowerCase());
+            
+            const matchesRole = selectedRole === 'All' || item.userRole === selectedRole;
 
-        return matchesSearch && matchesRole;
-    });
+            return matchesSearch && matchesRole;
+        });
 
     return (
         <View style={styles.container}>
@@ -98,38 +105,64 @@ const AdminToolsAnalyticsScreen = ({ navigation }) => {
                     {/* Top Stats Cards */}
                     <View style={styles.statsGrid}>
                         <View style={styles.statCard}>
-                            <Ionicons name="layers-outline" size={24} color="#6366f1" />
+                            <Ionicons name="layers-outline" size={22} color="#6366f1" />
                             <Text style={styles.statValue}>{totalPracticeActions}</Text>
                             <Text style={styles.statLabel}>Total Uses</Text>
                         </View>
 
                         <View style={styles.statCard}>
-                            <Ionicons name="cloud-outline" size={24} color="#10b981" />
+                            <Ionicons name="cloud-outline" size={22} color="#10b981" />
                             <Text style={styles.statValue}>{formatBytes(totalBytesUsed)}</Text>
-                            <Text style={styles.statLabel}>Storage Used</Text>
+                            <Text style={styles.statLabel}>Storage</Text>
                         </View>
 
                         <View style={styles.statCard}>
-                            <Ionicons name="people-outline" size={24} color="#3b82f6" />
+                            <Ionicons name="people-outline" size={22} color="#3b82f6" />
                             <Text style={styles.statValue}>{totalActiveUsers}</Text>
-                            <Text style={styles.statLabel}>Active Users</Text>
+                            <Text style={styles.statLabel}>Users</Text>
+                        </View>
+
+                        <View style={styles.statCard}>
+                            <Ionicons name="create-outline" size={22} color="#f97316" />
+                            <Text style={styles.statValue}>{formBuilderCount}</Text>
+                            <Text style={styles.statLabel}>Forms</Text>
                         </View>
                     </View>
 
                     {/* Tool Summary Cards */}
-                    <Text style={styles.sectionHeader}>🛠️ Tool Usage Summary</Text>
+                    <Text style={styles.sectionHeader}>🛠️ Tool Wise Usage Summary</Text>
                     <View style={styles.toolsList}>
                         {Object.keys(toolMeta).map(toolKey => {
                             const meta = toolMeta[toolKey];
-                            const stat = (analyticsData?.toolStats || []).find(s => s._id === toolKey) || { count: 0, totalSizeBytes: 0 };
+
+                            let count = 0;
+                            let sizeBytes = 0;
+
+                            if (toolKey === 'form-builder') {
+                                count = formBuilderCount;
+                            } else if (toolKey === 'database-creator') {
+                                count = 0;
+                            } else {
+                                const stat = practiceToolStats.find(s => s._id === toolKey) || { count: 0, totalSizeBytes: 0 };
+                                count = stat.count;
+                                sizeBytes = stat.totalSizeBytes;
+                            }
+
                             return (
                                 <View key={toolKey} style={styles.toolCard}>
                                     <View style={[styles.toolIconBg, { backgroundColor: meta.bg }]}>
                                         <Ionicons name={meta.icon} size={22} color={meta.color} />
                                     </View>
                                     <View style={styles.toolCardInfo}>
-                                        <Text style={styles.toolName}>{meta.label}</Text>
-                                        <Text style={styles.toolStatsText}>{stat.count} uses • {formatBytes(stat.totalSizeBytes)}</Text>
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                            <Text style={styles.toolName}>{meta.label}</Text>
+                                            {meta.isComingSoon && (
+                                                <Text style={styles.soonBadge}>SOON</Text>
+                                            )}
+                                        </View>
+                                        <Text style={styles.toolStatsText}>
+                                            {count} {toolKey === 'form-builder' ? 'forms' : 'uses'} • {meta.isComingSoon ? 'N/A' : formatBytes(sizeBytes)}
+                                        </Text>
                                     </View>
                                 </View>
                             );
@@ -196,16 +229,17 @@ const styles = StyleSheet.create({
     loadingText: { marginTop: 10, fontSize: 13, color: '#64748b', fontWeight: '600' },
     scroll: { flex: 1 },
     scrollContent: { padding: spacing.md },
-    statsGrid: { flexDirection: 'row', gap: 10, marginBottom: 20 },
-    statCard: { flex: 1, backgroundColor: '#fff', borderRadius: borderRadius.xl, padding: 14, borderBottomWidth: 3, borderBottomColor: colors.admin, elevation: 1, alignItems: 'center' },
-    statValue: { fontSize: 16, fontWeight: '900', color: '#1e293b', marginTop: 4 },
-    statLabel: { fontSize: 10, fontWeight: '700', color: '#64748b', textTransform: 'uppercase' },
+    statsGrid: { flexDirection: 'row', gap: 8, marginBottom: 20 },
+    statCard: { flex: 1, backgroundColor: '#fff', borderRadius: borderRadius.lg, padding: 10, borderBottomWidth: 3, borderBottomColor: colors.admin, elevation: 1, alignItems: 'center' },
+    statValue: { fontSize: 15, fontWeight: '900', color: '#1e293b', marginTop: 4 },
+    statLabel: { fontSize: 9, fontWeight: '700', color: '#64748b', textTransform: 'uppercase' },
     sectionHeader: { fontSize: 15, fontWeight: '900', color: '#1e293b', marginTop: 10, marginBottom: 12 },
     toolsList: { gap: 10, marginBottom: 20 },
     toolCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', padding: 12, borderRadius: borderRadius.lg, elevation: 1 },
     toolIconBg: { width: 42, height: 42, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
-    toolCardInfo: { marginLeft: 12 },
+    toolCardInfo: { marginLeft: 12, flex: 1 },
     toolName: { fontSize: 14, fontWeight: '800', color: '#1e293b' },
+    soonBadge: { fontSize: 8, fontWeight: '900', color: '#d97706', backgroundColor: '#fef3c7', paddingHorizontal: 5, paddingVertical: 1, borderRadius: 4 },
     toolStatsText: { fontSize: 11, fontWeight: '600', color: '#64748b', marginTop: 2 },
     filterRow: { marginBottom: 12 },
     searchBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: borderRadius.md, paddingHorizontal: 12, height: 40, borderBottomWidth: 1, borderBottomColor: '#cbd5e1' },
@@ -215,8 +249,8 @@ const styles = StyleSheet.create({
     userName: { fontSize: 14, fontWeight: '800', color: '#1e293b' },
     userEmail: { fontSize: 11, fontWeight: '600', color: '#64748b' },
     roleBadge: { backgroundColor: '#eef2ff', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
-    roleBadgeText: { fontSize: 10, fontWeight: '800', color: colors.accent, uppercase: true },
-    userCardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 10, pt: 8, borderTopWidth: 1, borderTopColor: '#f1f5f9' },
+    roleBadgeText: { fontSize: 10, fontWeight: '800', color: colors.accent },
+    userCardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 10, paddingTop: 8, borderTopWidth: 1, borderTopColor: '#f1f5f9' },
     toolBadge: { flexDirection: 'row', alignItems: 'center', gap: 4 },
     toolBadgeText: { fontSize: 12, fontWeight: '800' },
     usageText: { fontSize: 12, fontWeight: '800', color: '#1e293b' },

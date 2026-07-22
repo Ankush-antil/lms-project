@@ -1,9 +1,10 @@
-import React from 'react';
-import { ArrowLeft, ShieldCheck, Lock, Mail } from 'lucide-react';
+import React, { useState } from 'react';
+import { ArrowLeft, ShieldCheck, Lock, Mail, FileText, Server, Smartphone, Eye, CheckCircle, AlertTriangle, Key, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const PrivacyPolicy = () => {
     const navigate = useNavigate();
+    const [activeTab, setActiveTab] = useState('privacy');
 
     return (
         <div style={{ minHeight: '100vh', background: '#f1f5f9', color: '#1e293b', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif', paddingBottom: '80px' }}>
@@ -19,194 +20,248 @@ const PrivacyPolicy = () => {
                     </button>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <ShieldCheck size={18} color="#6366f1" />
-                        <span style={{ fontWeight: 800, fontSize: '1rem', letterSpacing: '-0.01em' }}>DS Notebook & LMS Portal</span>
+                        <span style={{ fontWeight: 800, fontSize: '1rem', letterSpacing: '-0.01em' }}>Digital Study Academy — Legal & Security Hub</span>
                     </div>
                 </div>
                 <div style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 600 }}>
-                    Legal Terms & Privacy Policy
+                    App: <strong>DS Notebook</strong> | Platform: <strong>LMS Portal</strong>
                 </div>
             </header>
 
-            {/* Document Container */}
-            <div style={{ maxWidth: '860px', margin: '30px auto 0', padding: '0 16px' }}>
-                <div style={{ background: '#ffffff', borderRadius: '12px', border: '1px solid #cbd5e1', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', padding: '40px 48px' }}>
+            {/* Main Document Container */}
+            <div style={{ maxWidth: '960px', margin: '24px auto 0', padding: '0 16px' }}>
+                
+                {/* Header Title Card */}
+                <div style={{ background: '#ffffff', borderRadius: '16px', border: '1px solid #cbd5e1', boxShadow: '0 4px 12px rgba(0,0,0,0.04)', padding: '28px 36px', marginBottom: '20px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
+                        <div>
+                            <div style={{ fontSize: '0.75rem', fontWeight: 800, color: '#4f46e5', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '4px' }}>
+                                Enterprise Legal Documentation & Regulatory Compliance Suite
+                            </div>
+                            <h1 style={{ fontSize: '1.8rem', fontWeight: 900, color: '#0f172a', margin: '0 0 6px', letterSpacing: '-0.02em' }}>
+                                Digital Study Academy Legal Center
+                            </h1>
+                            <div style={{ fontSize: '0.82rem', color: '#64748b', fontWeight: 600 }}>
+                                Official Terms, Cyber Security Protocols, IP Safeguards & Privacy Rules for DS Notebook / LMS Portal
+                            </div>
+                        </div>
+                        <div style={{ background: '#eef2ff', padding: '8px 14px', borderRadius: '10px', border: '1px solid #c7d2fe', fontSize: '0.75rem', fontWeight: 800, color: '#4338ca', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <Lock size={14} /> Play Store & App Store Verified
+                        </div>
+                    </div>
+
+                    {/* Navigation Tabs */}
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '24px', borderBottom: '1px solid #e2e8f0', paddingBottom: '12px', overflowX: 'auto' }}>
+                        {[
+                            { id: 'privacy', label: '1. Privacy & DPDP Policy', icon: ShieldCheck },
+                            { id: 'terms', label: '2. Terms of Service & EULA', icon: FileText },
+                            { id: 'ip', label: '3. Intellectual Property', icon: Key },
+                            { id: 'ugc', label: '4. UGC & Abuse Prohibition', icon: AlertTriangle },
+                            { id: 'security', label: '5. Cyber Security Controls', icon: Server },
+                            { id: 'deletion', label: '6. Account Deletion Portal', icon: Trash2 }
+                        ].map(tab => {
+                            const Icon = tab.icon;
+                            const isSelected = activeTab === tab.id;
+                            return (
+                                <button
+                                    key={tab.id}
+                                    onClick={() => setActiveTab(tab.id)}
+                                    style={{
+                                        display: 'flex', alignItems: 'center', gap: '6px',
+                                        padding: '8px 14px', borderRadius: '8px', fontSize: '0.78rem', fontWeight: 800,
+                                        border: 'none', background: isSelected ? '#0f172a' : '#f8fafc',
+                                        color: isSelected ? '#ffffff' : '#64748b', cursor: 'pointer',
+                                        transition: 'all 0.15s ease', whiteSpace: 'nowrap',
+                                        boxShadow: isSelected ? '0 2px 8px rgba(15,23,42,0.15)' : 'none'
+                                    }}
+                                >
+                                    <Icon size={14} />
+                                    {tab.label}
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+
+                {/* Tab Content Box */}
+                <div style={{ background: '#ffffff', borderRadius: '16px', border: '1px solid #cbd5e1', boxShadow: '0 4px 12px rgba(0,0,0,0.04)', padding: '36px 40px' }}>
                     
-                    {/* Document Header */}
-                    <div style={{ borderBottom: '2px solid #e2e8f0', paddingBottom: '24px', marginBottom: '32px' }}>
-                        <div style={{ fontSize: '0.75rem', fontWeight: 800, color: '#4f46e5', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '6px' }}>
-                            Official Legal Document
-                        </div>
-                        <h1 style={{ fontSize: '1.9rem', fontWeight: 900, color: '#0f172a', margin: '0 0 8px', letterSpacing: '-0.02em' }}>
-                            Privacy Policy & Terms of Service
-                        </h1>
-                        <div style={{ fontSize: '0.82rem', color: '#64748b', fontWeight: 600 }}>
-                            Application Name: <strong>DS Notebook / LMS Portal</strong> • Effective Date: July 22, 2026 • Version: 1.0.0
-                        </div>
-                    </div>
-
-                    {/* Table of Contents Box */}
-                    <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '16px 20px', marginBottom: '32px' }}>
-                        <div style={{ fontWeight: 800, fontSize: '0.82rem', color: '#334155', textTransform: 'uppercase', tracking: '0.05em', marginBottom: '10px' }}>
-                            Table of Contents
-                        </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '6px', fontSize: '0.82rem', color: '#4f46e5', fontWeight: 600 }}>
-                            <div>1. Core Purpose & Paperless Education</div>
-                            <div>2. Information We Collect</div>
-                            <div>3. Mobile Device Permissions</div>
-                            <div>4. User Content & Abuse Prohibition</div>
-                            <div>5. Data Use & Security Controls</div>
-                            <div>6. Children & Student Privacy</div>
-                            <div>7. Data Sharing & Third Parties</div>
-                            <div>8. Account Termination & Rights</div>
-                        </div>
-                    </div>
-
-                    {/* Document Body */}
-                    <div style={{ fontSize: '0.88rem', lineHeight: '1.75', color: '#334155', display: 'flex', flexDirection: 'column', gap: '28px' }}>
-
-                        {/* Section 1 */}
-                        <section>
-                            <h2 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#0f172a', borderBottom: '1px solid #f1f5f9', paddingBottom: '6px', margin: '0 0 12px' }}>
-                                1. Core Purpose & Paperless Education Initiative
+                    {/* TAB 1: PRIVACY POLICY */}
+                    {activeTab === 'privacy' && (
+                        <div style={{ fontSize: '0.88rem', lineHeight: '1.75', color: '#334155', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                            <h2 style={{ fontSize: '1.2rem', fontWeight: 900, color: '#0f172a', margin: 0, borderBottom: '2px solid #e2e8f0', paddingBottom: '8px' }}>
+                                1. Privacy Policy & Compliance Framework
                             </h2>
-                            <p>
-                                <strong>DS Notebook (LMS Portal)</strong> is an educational management software application operating across Android mobile devices and web browsers. The primary purpose of this platform is strictly educational: facilitating paperless study ("Save Paper"), digital note-taking, online test evaluation, attendance management, fee tracking, and institute communication.
-                            </p>
-                            <p>
-                                The platform is intended solely for verified academic activities conducted by students, teachers, parents, institute managers, and authorized administrators.
-                            </p>
-                        </section>
 
-                        {/* Section 2 */}
-                        <section>
-                            <h2 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#0f172a', borderBottom: '1px solid #f1f5f9', paddingBottom: '6px', margin: '0 0 12px' }}>
-                                2. Comprehensive Information We Collect
-                            </h2>
-                            <p>
-                                To ensure secure authentication and proper delivery of educational services, we collect the following categories of data:
-                            </p>
-                            <ul style={{ paddingLeft: '20px', margin: '8px 0' }}>
-                                <li><strong>Personal Identity Data:</strong> Full Name, Email Address, Mobile Phone Number, Admission/ID Number, Assigned Academic Role (Student, Teacher, Parent, Admin, Staff), and Institute Name.</li>
-                                <li><strong>Academic & Attendance Records:</strong> Daily physical and LMS online attendance logs, test builder responses, assignment submissions, digital notes, teacher notes, and fee transaction logs.</li>
-                                <li><strong>Technical & Session Data:</strong> Device model, operating system, IP address, login timestamps, active app usage duration, and session tokens.</li>
-                            </ul>
-                        </section>
+                            <div>
+                                <h3 style={{ fontSize: '1rem', fontWeight: 800, color: '#0f172a', margin: '0 0 6px' }}>1.1 Statutory Basis & Compliance Mapping</h3>
+                                <p>
+                                    This policy is drafted in compliance with the <strong>Digital Personal Data Protection Act 2023 (DPDP Act - India)</strong>, <strong>Information Technology Act 2000</strong> (and 2021 Intermediary Guidelines), <strong>EU GDPR 2016/679</strong>, <strong>FERPA (U.S.)</strong>, and <strong>COPPA</strong>. It governs all data operations on <strong>DS Notebook</strong> and the <strong>LMS Portal</strong> by <strong>Digital Study Academy</strong>.
+                                </p>
+                            </div>
 
-                        {/* Section 3 */}
-                        <section>
-                            <h2 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#0f172a', borderBottom: '1px solid #f1f5f9', paddingBottom: '6px', margin: '0 0 12px' }}>
-                                3. Mobile Device Permissions & Justification
+                            <div>
+                                <h3 style={{ fontSize: '1rem', fontWeight: 800, color: '#0f172a', margin: '0 0 6px' }}>1.2 Data We Collect</h3>
+                                <ul style={{ paddingLeft: '20px', margin: '4px 0' }}>
+                                    <li><strong>Account Profile Data:</strong> Full Name, Email Address, Mobile Phone Number, Admission/ID Code, User Role (Student, Teacher, Parent, Admin, Editor, Accountant, Marketer, Staff, Guest), and Institute association.</li>
+                                    <li><strong>Academic & Evaluation Data:</strong> Daily physical & LMS attendance logs, digital notebook submissions, exam answer scripts, test metrics, fee payments, and teacher notes.</li>
+                                    <li><strong>Mobile Hardware Access Permissions:</strong>
+                                        <div style={{ margin: '8px 0', padding: '12px 16px', background: '#f8fafc', borderRadius: '8px', borderLeft: '3px solid #6366f1' }}>
+                                            • <strong>Location Access:</strong> Used strictly for verifying institute campus attendance geofencing. Continuous background tracking is disabled.<br />
+                                            • <strong>Camera Access:</strong> Used for scanning attendance QR codes, uploading profile avatars, snapping solution papers, and live interactive video classes.<br />
+                                            • <strong>Microphone Access:</strong> Used for oral exam submissions, voice notes, web calling tools, and virtual classroom audio.<br />
+                                            • <strong>Storage & Gallery Access:</strong> Used for saving digital study notes, course PDFs, and submitting PDF assignments.
+                                        </div>
+                                    </li>
+                                </ul>
+                            </div>
+
+                            <div>
+                                <h3 style={{ fontSize: '1rem', fontWeight: 800, color: '#0f172a', margin: '0 0 6px' }}>1.3 Children & Student Privacy Protection</h3>
+                                <p>
+                                    Minor accounts (under 18) are operated under institutional authority and parental registration. Parents can view attendance, test scores, and fee records. We strictly enforce a policy of <strong>never selling, trading, or monetizing student data</strong> to third-party commercial advertisers.
+                                </p>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* TAB 2: TERMS OF SERVICE */}
+                    {activeTab === 'terms' && (
+                        <div style={{ fontSize: '0.88rem', lineHeight: '1.75', color: '#334155', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                            <h2 style={{ fontSize: '1.2rem', fontWeight: 900, color: '#0f172a', margin: 0, borderBottom: '2px solid #e2e8f0', paddingBottom: '8px' }}>
+                                2. Terms of Service & End User License Agreement (EULA)
                             </h2>
-                            <p>
-                                To enable essential portal functionality, the Android app requests access to device features. Each permission is requested explicitly and used strictly for academic operations:
-                            </p>
-                            
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '12px' }}>
-                                <div style={{ background: '#f8fafc', padding: '12px 16px', borderRadius: '8px', borderLeft: '3px solid #6366f1' }}>
-                                    <strong style={{ color: '#0f172a' }}>• Location Access (GPS / Network Location):</strong> Used strictly for verifying institute geo-attendance marking, ensuring staff/students are on campus when recording physical attendance. Location data is never tracked continuously in the background.
+
+                            <div>
+                                <h3 style={{ fontSize: '1rem', fontWeight: 800, color: '#0f172a', margin: '0 0 6px' }}>2.1 License & Software Usage Rights</h3>
+                                <p>
+                                    Digital Study Academy grants users a revocable, non-exclusive, non-transferable license to access <strong>DS Notebook</strong> and <strong>LMS Portal</strong> exclusively for educational and institute management activities. Commercial resale or unauthorized distribution is prohibited.
+                                </p>
+                            </div>
+
+                            <div>
+                                <h3 style={{ fontSize: '1rem', fontWeight: 800, color: '#0f172a', margin: '0 0 6px' }}>2.2 User Account Responsibilities</h3>
+                                <p>
+                                    Users are responsible for safeguarding login credentials. Sharing accounts across unauthorized individuals or attempting multi-device credential abuse is forbidden and subject to account locking.
+                                </p>
+                            </div>
+
+                            <div>
+                                <h3 style={{ fontSize: '1rem', fontWeight: 800, color: '#0f172a', margin: '0 0 6px' }}>2.3 Limitation of Liability & Indemnification</h3>
+                                <p>
+                                    Digital Study Academy provides software services on an "as-is" basis. To the extent permitted by law, Digital Study Academy is not liable for indirect, incidental, or consequential losses stemming from network interruptions or unauthorized third-party access.
+                                </p>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* TAB 3: INTELLECTUAL PROPERTY */}
+                    {activeTab === 'ip' && (
+                        <div style={{ fontSize: '0.88rem', lineHeight: '1.75', color: '#334155', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                            <h2 style={{ fontSize: '1.2rem', fontWeight: 900, color: '#0f172a', margin: 0, borderBottom: '2px solid #e2e8f0', paddingBottom: '8px' }}>
+                                3. Intellectual Property, Source Code & Anti-Piracy Policy
+                            </h2>
+
+                            <div>
+                                <h3 style={{ fontSize: '1rem', fontWeight: 800, color: '#0f172a', margin: '0 0 6px' }}>3.1 Proprietary Ownership Statement</h3>
+                                <p>
+                                    All source code (React, React Native, Expo, Node.js, Express), database structures (MongoDB schemas), APIs, UI/UX designs, trademarks ("Digital Study Academy", "DS Notebook", "LMS Portal"), digital notebooks, test question banks, and lecture media are the exclusive property of <strong>Digital Study Academy</strong>.
+                                </p>
+                            </div>
+
+                            <div>
+                                <h3 style={{ fontSize: '1rem', fontWeight: 800, color: '#dc2626', margin: '0 0 6px' }}>3.2 Reverse Engineering & Anti-Cloning Prohibition</h3>
+                                <p style={{ background: '#fef2f2', border: '1px solid #fecaca', padding: '12px 16px', borderRadius: '8px', color: '#991b1b', fontWeight: 600 }}>
+                                    🚫 Reverse engineering, decompiling, disassembling, extracting source code, cloning UI layouts, or scraping database content is strictly illegal under Sections 65 and 66 of the Indian IT Act 2000 and Indian Copyright Act 1957.
+                                </p>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* TAB 4: UGC & CONTENT MODERATION */}
+                    {activeTab === 'ugc' && (
+                        <div style={{ fontSize: '0.88rem', lineHeight: '1.75', color: '#334155', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                            <h2 style={{ fontSize: '1.2rem', fontWeight: 900, color: '#0f172a', margin: 0, borderBottom: '2px solid #e2e8f0', paddingBottom: '8px' }}>
+                                4. User-Generated Content (UGC) & Abuse Prevention Policy
+                            </h2>
+
+                            <div>
+                                <h3 style={{ fontSize: '1rem', fontWeight: 800, color: '#dc2626', margin: '0 0 6px' }}>4.1 Zero Tolerance Abuse Policy</h3>
+                                <p style={{ background: '#fef2f2', border: '1px solid #fecaca', padding: '12px 16px', borderRadius: '8px', color: '#991b1b', fontWeight: 600 }}>
+                                    ⚠️ <strong>DS Notebook is exclusively a paperless educational system.</strong> Uploading, sending, or publishing non-educational, explicit, vulgar, violent, offensive, or illegal videos, images, messages, or files is strictly prohibited.
+                                </p>
+                            </div>
+
+                            <div>
+                                <h3 style={{ fontSize: '1rem', fontWeight: 800, color: '#0f172a', margin: '0 0 6px' }}>4.2 Administrative Enforcement & Law Enforcement Reporting</h3>
+                                <ul style={{ paddingLeft: '20px', margin: '4px 0' }}>
+                                    <li><strong>Immediate Deletion:</strong> Any non-study or abusive content will be deleted immediately without prior warning.</li>
+                                    <li><strong>Permanent Banning:</strong> Violators face instant account revocation and permanent banning across the network.</li>
+                                    <li><strong>Police Escalation:</strong> Criminal abuse or illegal content will be reported directly to law enforcement authorities alongside user telemetry, mobile numbers, and IP logs.</li>
+                                </ul>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* TAB 5: CYBER SECURITY */}
+                    {activeTab === 'security' && (
+                        <div style={{ fontSize: '0.88rem', lineHeight: '1.75', color: '#334155', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                            <h2 style={{ fontSize: '1.2rem', fontWeight: 900, color: '#0f172a', margin: 0, borderBottom: '2px solid #e2e8f0', paddingBottom: '8px' }}>
+                                5. Cyber Security, Encryption & System Control Policies
+                            </h2>
+
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '12px' }}>
+                                <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', padding: '14px', borderRadius: '10px' }}>
+                                    <div style={{ fontWeight: 800, color: '#0f172a' }}>🔒 Encryption Standards</div>
+                                    <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '4px' }}>TLS 1.3 in transit, AES-256 for cloud assets & databases. Passwords hashed using bcrypt (10 rounds).</div>
                                 </div>
-                                <div style={{ background: '#f8fafc', padding: '12px 16px', borderRadius: '8px', borderLeft: '3px solid #6366f1' }}>
-                                    <strong style={{ color: '#0f172a' }}>• Camera Access:</strong> Required for scanning attendance QR codes, uploading student profile avatars, taking photos of handwritten assignment sheets, and conducting video calling/live interactive study sessions.
+                                <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', padding: '14px', borderRadius: '10px' }}>
+                                    <div style={{ fontWeight: 800, color: '#0f172a' }}>🛡️ Role-Based Access (RBAC)</div>
+                                    <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '4px' }}>Enforced across 9 user roles with strict JWT token signatures and audit log tracking.</div>
                                 </div>
-                                <div style={{ background: '#f8fafc', padding: '12px 16px', borderRadius: '8px', borderLeft: '3px solid #6366f1' }}>
-                                    <strong style={{ color: '#0f172a' }}>• Microphone Access:</strong> Required for live classroom voice interaction, submitting voice notes for oral tests, and web calling tools within the study portal.
-                                </div>
-                                <div style={{ background: '#f8fafc', padding: '12px 16px', borderRadius: '8px', borderLeft: '3px solid #6366f1' }}>
-                                    <strong style={{ color: '#0f172a' }}>• Photos, Gallery & Media Storage Access:</strong> Required for saving study notebooks, downloading digital course PDFs, and uploading assignment solution files.
-                                </div>
-                                <div style={{ background: '#f8fafc', padding: '12px 16px', borderRadius: '8px', borderLeft: '3px solid #6366f1' }}>
-                                    <strong style={{ color: '#0f172a' }}>• Phone State & Notifications:</strong> Used for account multi-factor authentication, security alerts, class schedule updates, and fee receipt push notifications.
+                                <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', padding: '14px', borderRadius: '10px' }}>
+                                    <div style={{ fontWeight: 800, color: '#0f172a' }}>⚡ Rate Limiting & Defense</div>
+                                    <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '4px' }}>Automatic rate-limiting and bot-protection to prevent brute-force attacks and DDoS abuse.</div>
                                 </div>
                             </div>
-                        </section>
+                        </div>
+                    )}
 
-                        {/* Section 4 */}
-                        <section>
-                            <h2 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#dc2626', borderBottom: '1px solid #fee2e2', paddingBottom: '6px', margin: '0 0 12px' }}>
-                                4. User-Generated Content (UGC) Policy & Strict Misuse Prohibition
+                    {/* TAB 6: ACCOUNT DELETION PORTAL */}
+                    {activeTab === 'deletion' && (
+                        <div style={{ fontSize: '0.88rem', lineHeight: '1.75', color: '#334155', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                            <h2 style={{ fontSize: '1.2rem', fontWeight: 900, color: '#0f172a', margin: 0, borderBottom: '2px solid #e2e8f0', paddingBottom: '8px' }}>
+                                6. Mandatory Account & Data Deletion Portal
                             </h2>
-                            <p style={{ background: '#fef2f2', border: '1px solid #fecaca', padding: '14px 16px', borderRadius: '8px', color: '#991b1b', fontWeight: 600 }}>
-                                ⚠️ <strong>Zero Tolerance Policy:</strong> DS Notebook is exclusively a study platform. Uploading, sharing, or transmitting any non-educational, inappropriate, offensive, vulgar, political, or illegal content is strictly forbidden.
-                            </p>
-                            <p>
-                                All users (Students, Teachers, Staff, Admins) must comply with the following mandatory conduct rules:
-                            </p>
-                            <ul style={{ paddingLeft: '20px', margin: '8px 0' }}>
-                                <li><strong>Prohibited Uploads:</strong> You may NOT upload, post, or send sexually explicit content, violent media, hateful messages, abusive language, copyright-infringed materials, spam, or unlawful files.</li>
-                                <li><strong>Content Moderation:</strong> Platform administrators reserve the absolute right to inspect, filter, block, or delete any content uploaded to the portal that violates these terms.</li>
-                                <li><strong>Immediate Account Termination:</strong> Any user found posting inappropriate videos, images, or messages will face immediate, permanent account termination without prior warning.</li>
-                                <li><strong>Legal & Police Reporting:</strong> Illegal uploads, harassment, or severe violations will be reported directly to law enforcement agencies along with user IP logs and identity information.</li>
-                                <li><strong>Platform Limitation of Liability:</strong> DS Notebook is an educational software provider. The platform bears no legal liability for unauthorized user-submitted content posted in breach of this policy.</li>
-                            </ul>
-                        </section>
 
-                        {/* Section 5 */}
-                        <section>
-                            <h2 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#0f172a', borderBottom: '1px solid #f1f5f9', paddingBottom: '6px', margin: '0 0 12px' }}>
-                                5. Data Protection, Encryption & Storage
-                            </h2>
                             <p>
-                                All data transmitted between the Android mobile application, web browser, and backend servers is encrypted using standard SSL/TLS (HTTPS) encryption protocols.
-                            </p>
-                            <ul style={{ paddingLeft: '20px', margin: '8px 0' }}>
-                                <li>Passwords are securely hashed using bcrypt encryption before storage.</li>
-                                <li>We do <strong>NOT</strong> sell, trade, or rent user data, contact numbers, or student academic records to third-party commercial advertisers.</li>
-                                <li>Database infrastructure is protected by firewalls, restricted IP access rules, and automated backup routines.</li>
-                            </ul>
-                        </section>
-
-                        {/* Section 6 */}
-                        <section>
-                            <h2 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#0f172a', borderBottom: '1px solid #f1f5f9', paddingBottom: '6px', margin: '0 0 12px' }}>
-                                6. Children's & Student Data Protection (COPPA / FERPA Compliance)
-                            </h2>
-                            <p>
-                                Student accounts under the age of 18 are managed in strict coordination with educational institutes and registered parents. Parent accounts are linked to student profiles to provide transparent visibility over attendance logs, fee receipts, and test progress. No student personal information is collected for commercial profiling.
-                            </p>
-                        </section>
-
-                        {/* Section 7 */}
-                        <section>
-                            <h2 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#0f172a', borderBottom: '1px solid #f1f5f9', paddingBottom: '6px', margin: '0 0 12px' }}>
-                                7. Third-Party Service Providers
-                            </h2>
-                            <p>
-                                We may utilize trusted third-party cloud infrastructure providers (such as Google Play Services, MongoDB Atlas, Cloud Storage servers) strictly for hosting app binaries, database management, and delivering push notifications. All third-party providers adhere to standard industry data protection compliance.
-                            </p>
-                        </section>
-
-                        {/* Section 8 */}
-                        <section>
-                            <h2 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#0f172a', borderBottom: '1px solid #f1f5f9', paddingBottom: '6px', margin: '0 0 12px' }}>
-                                8. User Rights, Account Deletion & Contact Information
-                            </h2>
-                            <p>
-                                Users have the right to request access to their stored personal profile data, request corrections, or request complete account and data deletion.
-                            </p>
-                            <p>
-                                To submit a data deletion request or query regarding this legal policy, please contact our Data Protection Office:
+                                In accordance with Google Play Console, Apple App Store, and DPDP Act 2023 requirements, users have the full right to request the deletion of their account and associated data.
                             </p>
 
-                            <div style={{ background: '#f8fafc', border: '1px solid #cbd5e1', padding: '16px 20px', borderRadius: '8px', marginTop: '12px' }}>
-                                <div style={{ fontWeight: 800, color: '#0f172a', marginBottom: '4px' }}>DS Notebook Legal & Privacy Support Team</div>
-                                <div style={{ fontSize: '0.85rem', color: '#4f46e5', fontWeight: 700 }}>
-                                    Email: <a href="mailto:support@digitalstudyacademy.com" style={{ color: '#4f46e5', textDecoration: 'underline' }}>support@digitalstudyacademy.com</a>
+                            <div style={{ background: '#eef2ff', border: '1px solid #c7d2fe', padding: '20px', borderRadius: '12px' }}>
+                                <div style={{ fontWeight: 800, color: '#3730a3', fontSize: '0.95rem', marginBottom: '6px' }}>
+                                    📩 Submit Account Deletion Request
                                 </div>
-                                <div style={{ fontSize: '0.82rem', color: '#64748b', marginTop: '4px' }}>
-                                    Portal Website: <a href="https://www.digitalstudyacademy.com" target="_blank" rel="noreferrer" style={{ color: '#64748b', textDecoration: 'underline' }}>www.digitalstudyacademy.com</a>
+                                <p style={{ margin: '0 0 10px', fontSize: '0.82rem', color: '#475569' }}>
+                                    To permanently erase your account, email our Data Protection Office with your registered details:
+                                </p>
+                                <div style={{ fontSize: '0.85rem', fontWeight: 800, color: '#4f46e5' }}>
+                                    Email: <a href="mailto:support@digitalstudyacademy.com?subject=ACCOUNT%20DELETION%20REQUEST" style={{ color: '#4f46e5', textDecoration: 'underline' }}>support@digitalstudyacademy.com</a>
+                                </div>
+                                <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '6px' }}>
+                                    Processing Time: Verified deletion requests are executed within 30 days. Anonymized data may be retained solely for financial tax compliance.
                                 </div>
                             </div>
-                        </section>
+                        </div>
+                    )}
 
-                    </div>
-
-                    {/* Document Footer */}
-                    <div style={{ marginTop: '40px', paddingTop: '20px', borderTop: '1px solid #e2e8f0', textAlign: 'center', fontSize: '0.78rem', color: '#64748b', fontWeight: 600 }}>
-                        <p style={{ margin: '0 0 8px', color: '#0f172a', fontWeight: 700 }}>
+                    {/* Footer Legal Notice */}
+                    <div style={{ marginTop: '36px', paddingTop: '20px', borderTop: '1px solid #e2e8f0', textAlign: 'center' }}>
+                        <p style={{ margin: '0 0 6px', fontSize: '0.78rem', color: '#0f172a', fontWeight: 700 }}>
                             DS Notebook and Digital Study Academy are proprietary educational software and brands. Unauthorized copying, reproduction, reverse engineering, redistribution, or commercial use is strictly prohibited.
                         </p>
-                        <span style={{ color: '#94a3b8', fontSize: '0.72rem' }}>
-                            © 2026 DS Notebook / LMS Portal. All Rights Reserved. Official Legal Terms & Play Store Privacy Statement.
+                        <span style={{ color: '#94a3b8', fontSize: '0.72rem', fontWeight: 600 }}>
+                            © 2026 Digital Study Academy. All Rights Reserved. Enterprise Compliance & Legal Center.
                         </span>
                     </div>
 

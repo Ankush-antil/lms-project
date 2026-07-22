@@ -39,9 +39,22 @@ router.get('/analytics', protect, async (req, res) => {
         const Note = require('../../models/Note');
         const Activity = require('../../models/Activity');
         const DriveItem = require('../../models/DriveItem');
+        const User = require('../../models/User');
+
+        let practiceUserMatch = {};
+        let instId = null;
+        let userIds = [];
+
+        if (req.user && req.user.role === 'Institute') {
+            instId = req.user.institute || req.user._id;
+            const instUsers = await User.find({ institute: instId }).select('_id');
+            userIds = instUsers.map(u => u._id);
+            practiceUserMatch = { user: { $in: userIds } };
+        }
 
         // 1. Practice files usage grouped by toolType
         const toolStats = await PracticeFile.aggregate([
+            ...(req.user?.role === 'Institute' ? [{ $match: practiceUserMatch }] : []),
             {
                 $group: {
                     _id: '$toolType',
@@ -53,6 +66,7 @@ router.get('/analytics', protect, async (req, res) => {
 
         // 2. Usage grouped by user and toolType
         const userToolStats = await PracticeFile.aggregate([
+            ...(req.user?.role === 'Institute' ? [{ $match: practiceUserMatch }] : []),
             {
                 $group: {
                     _id: { user: '$user', toolType: '$toolType' },
@@ -88,6 +102,7 @@ router.get('/analytics', protect, async (req, res) => {
 
         // 3. User total usage summary (across all tools)
         const userSummary = await PracticeFile.aggregate([
+            ...(req.user?.role === 'Institute' ? [{ $match: practiceUserMatch }] : []),
             {
                 $group: {
                     _id: '$user',
@@ -124,13 +139,13 @@ router.get('/analytics', protect, async (req, res) => {
 
         // 4. Counts for other tools
         const [formBuilderCount, notesCount, driveCount] = await Promise.all([
-            Activity.countDocuments().catch(() => 0),
-            Note.countDocuments().catch(() => 0),
-            DriveItem.countDocuments().catch(() => 0)
+            Activity.countDocuments(req.user?.role === 'Institute' ? { institute: instId } : {}).catch(() => 0),
+            Note.countDocuments(req.user?.role === 'Institute' ? { student: { $in: userIds } } : {}).catch(() => 0),
+            DriveItem.countDocuments(req.user?.role === 'Institute' ? { uploadedBy: { $in: userIds } } : {}).catch(() => 0)
         ]);
 
         // 5. Recent 30 activity logs
-        const recentLogs = await PracticeFile.find()
+        const recentLogs = await PracticeFile.find(req.user?.role === 'Institute' ? practiceUserMatch : {})
             .sort({ createdAt: -1 })
             .limit(30)
             .populate('user', 'name email role');
@@ -163,8 +178,14 @@ router.get('/detailed-analytics', protect, async (req, res) => {
         const CallLog = require('../../models/CallLog');
         const User = require('../../models/User');
 
-        // 1. Get all active Student users
-        const students = await User.find({ role: 'Student', isDeleted: { $ne: true } })
+        const studentFilter = { role: 'Student', isDeleted: { $ne: true } };
+        if (req.user && req.user.role === 'Institute') {
+            const instId = req.user.institute || req.user._id;
+            studentFilter.institute = instId;
+        }
+
+        // 1. Get active Student users for target scope
+        const students = await User.find(studentFilter)
             .populate('institute', 'name')
             .select('name email role institute isActive studentProfile allowedRoles callEnabled mobileNumber batch section')
             .lean();

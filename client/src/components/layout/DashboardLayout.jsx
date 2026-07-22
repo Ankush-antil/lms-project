@@ -216,6 +216,15 @@ const menuItems = {
         { name: 'Announcements', icon: Megaphone, path: '/institute/announcements' },
         { name: 'Tools', icon: PenTool, path: '/institute/tools' },
 
+        { name: '_section_tools_analytics', icon: BarChart3, path: null },
+        { name: 'Drive Analytics', icon: HardDrive, path: '/institute/tools-analytics/drive' },
+        { name: 'Chat Analytics', icon: MessageSquare, path: '/institute/tools-analytics/chat' },
+        { name: 'Notes Analytics', icon: StickyNote, path: '/institute/tools-analytics/notes' },
+        { name: 'Sc. Analytics', icon: Camera, path: '/institute/tools-analytics/screenshot' },
+        { name: 'SR. Analytics', icon: Video, path: '/institute/tools-analytics/screen-recorder' },
+        { name: 'AR. Analytics', icon: Mic, path: '/institute/tools-analytics/voice-recorder' },
+        { name: 'VR. Analytics', icon: MonitorPlay, path: '/institute/tools-analytics/video-recorder' },
+
         { name: '_section_management', icon: Briefcase, path: null },
         { name: 'Staff Mgt', icon: Users, path: '/institute/staff' },
         { name: 'Asset Mgt', icon: Package, path: '/institute/assets' },

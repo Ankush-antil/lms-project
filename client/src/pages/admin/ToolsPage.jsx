@@ -247,9 +247,9 @@ const ToolsPage = () => {
                         </p>
                     </div>
 
-                    {isAdmin && (
+                    {(user?.role === 'Admin' || user?.role === 'Institute') && (
                         <button
-                            onClick={() => navigate('/admin/tools-analytics')}
+                            onClick={() => navigate(user?.role === 'Institute' ? '/institute/tools-analytics' : '/admin/tools-analytics')}
                             className="flex items-center gap-2 px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs rounded-xl border border-indigo-200 transition-all cursor-pointer self-start sm:self-auto shadow-sm"
                         >
                             <BarChart3 size={15} />

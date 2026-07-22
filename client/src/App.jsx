@@ -576,7 +576,12 @@ function App() {
                                              </PrivateRoute>
                                          } />
                                          <Route path="/admin/tools-analytics/:tab?" element={
-                                             <PrivateRoute role={['Admin', 'Staff', 'Editor']}>
+                                             <PrivateRoute role={['Admin', 'Staff', 'Editor', 'Institute']}>
+                                                 <ToolsAnalyticsPage />
+                                             </PrivateRoute>
+                                         } />
+                                         <Route path="/institute/tools-analytics/:tab?" element={
+                                             <PrivateRoute role={['Admin', 'Staff', 'Editor', 'Institute']}>
                                                  <ToolsAnalyticsPage />
                                              </PrivateRoute>
                                          } />

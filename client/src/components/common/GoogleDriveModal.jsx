@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { 
     X, CheckCircle2, ChevronRight, Lock, Eye, AlertCircle, Trash, 
     Folder, FolderOpen, ArrowLeft, RefreshCw, LogOut, Camera, Video, 
@@ -893,11 +894,11 @@ const GoogleDriveModal = ({ isOpen, onClose, fileName, fileBlob, onSaveSuccess, 
     if (inline && !isOpen) return null;
 
     const outerClass = inline
-        ? "bg-white rounded-3xl shadow-sm border border-slate-100 w-full overflow-hidden relative transition-all duration-300 flex flex-col text-left font-sans"
-        : "fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 text-left font-sans";
+        ? "bg-[#f5f5f5] rounded-3xl shadow-sm border border-slate-100 w-full overflow-hidden relative transition-all duration-300 flex flex-col text-left font-sans"
+        : "fixed inset-0 z-[9999] flex items-center justify-center bg-[whitesmoke]/80 backdrop-blur-sm p-4 text-left font-sans";
     const innerClass = inline
         ? ""
-        : "bg-white rounded-3xl shadow-2xl border border-slate-100 w-full max-w-2xl overflow-hidden relative transition-all duration-300 flex flex-col max-h-[85vh]";
+        : "bg-[#f5f5f5] rounded-3xl shadow-2xl border border-slate-100 w-full max-w-2xl overflow-hidden relative transition-all duration-300 flex flex-col max-h-[85vh]";
 
     const content = (
         <div className={inline ? outerClass : innerClass}>
@@ -1628,7 +1629,7 @@ const GoogleDriveModal = ({ isOpen, onClose, fileName, fileBlob, onSaveSuccess, 
 
     if (inline) return content;
 
-    return (
+    return createPortal(
         <div className={outerClass}>
             {content}
             <style dangerouslySetInnerHTML={{__html: `
@@ -1640,7 +1641,8 @@ const GoogleDriveModal = ({ isOpen, onClose, fileName, fileBlob, onSaveSuccess, 
                     animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
                 }
             `}} />
-        </div>
+        </div>,
+        document.body
     );
 };
 

@@ -642,64 +642,132 @@ const sendOtp = asyncHandler(async (req, res) => {
 
     if (!phone) {
         res.status(400);
-        throw new Error('Please provide a phone number');
+        throw new Error('Please provide a phone number or email');
     }
 
-    // Generate random 4-digit OTP code (fixed to 1234 by default as requested)
-    const otpCode = '1234';
+    const isEmail = phone.includes('@');
+    // Generate random 4-digit OTP code (random for email, fixed '1234' for phone simulation)
+    const otpCode = isEmail 
+        ? Math.floor(1000 + Math.random() * 9000).toString() 
+        : '1234';
 
-    // Check if Twilio config is available
-    const accountSid = process.env.TWILIO_ACCOUNT_SID;
-    const authToken = process.env.TWILIO_AUTH_TOKEN;
-    let fromPhone = process.env.TWILIO_PHONE_NUMBER;
+    let isSentViaEmail = false;
     let isSentViaTwilio = false;
 
-    if (accountSid && authToken && fromPhone) {
-        try {
-            const client = twilio(accountSid, authToken);
-
-            // Format recipient number (e.g. prepend +91 for India if not present and 10 digits)
-            let formattedPhone = phone.trim();
-            if (!formattedPhone.startsWith('+')) {
-                if (formattedPhone.length === 10) {
-                    formattedPhone = `+91${formattedPhone}`;
-                } else {
-                    formattedPhone = `+${formattedPhone}`;
+    if (isEmail) {
+        const nodemailer = require('nodemailer');
+        if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+            try {
+                const dns = require('dns');
+                if (typeof dns.setDefaultResultOrder === 'function') {
+                    dns.setDefaultResultOrder('ipv4first');
                 }
-            }
 
-            // Format sender number (typically US number starting with +1)
-            if (!fromPhone.startsWith('+')) {
-                if (fromPhone.length === 10) {
-                    fromPhone = `+1${fromPhone}`;
+                let mailConfig = {};
+                if (process.env.EMAIL_HOST && process.env.EMAIL_HOST !== 'smtp.gmail.com') {
+                    mailConfig = {
+                        host: process.env.EMAIL_HOST,
+                        port: parseInt(process.env.EMAIL_PORT, 10) || 465,
+                        secure: process.env.EMAIL_PORT === '465',
+                        auth: {
+                            user: process.env.EMAIL_USER,
+                            pass: process.env.EMAIL_PASS,
+                        },
+                        tls: {
+                            rejectUnauthorized: false
+                        }
+                    };
                 } else {
-                    fromPhone = `+${fromPhone}`;
+                    mailConfig = {
+                        service: 'gmail',
+                        auth: {
+                            user: process.env.EMAIL_USER,
+                            pass: process.env.EMAIL_PASS,
+                        },
+                        tls: {
+                            rejectUnauthorized: false
+                        }
+                    };
                 }
-            }
 
-            await client.messages.create({
-                body: `Your LMS verification OTP is ${otpCode}. It is valid for 5 minutes.`,
-                from: fromPhone,
-                to: formattedPhone
-            });
-            console.log(`[Twilio] OTP ${otpCode} sent successfully to ${formattedPhone}`);
-            isSentViaTwilio = true;
-        } catch (twilioErr) {
-            console.error("Twilio SMS sending failed:", twilioErr);
-            // Fallback console log in case credentials fail or credit finishes
+                const transporter = nodemailer.createTransport(mailConfig);
+
+                await transporter.sendMail({
+                    from: `"LMS Portal" <${process.env.EMAIL_USER}>`,
+                    to: phone.trim(),
+                    subject: "Verification Code for Course Application",
+                    text: `Your LMS verification OTP is ${otpCode}. It is valid for 5 minutes.`,
+                    html: `
+                        <div style="font-family: sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 10px; max-width: 500px;">
+                            <h2 style="color: #3E3ADD; margin-top: 0;">LMS Verification Code</h2>
+                            <p>Thank you for applying. Use the following OTP to verify your email address:</p>
+                            <div style="font-size: 24px; font-weight: bold; background: #f5f5f5; padding: 12px; text-align: center; border-radius: 8px; letter-spacing: 4px; color: #3E3ADD;">
+                                ${otpCode}
+                            </div>
+                            <p style="color: #666; font-size: 12px; margin-top: 15px;">This OTP is valid for 5 minutes.</p>
+                        </div>
+                    `
+                });
+                console.log(`[Email] OTP ${otpCode} sent successfully to ${phone}`);
+                isSentViaEmail = true;
+            } catch (mailErr) {
+                console.error("Nodemailer SMTP email sending failed:", mailErr);
+            }
+        }
+    } else {
+        // Check if Twilio config is available
+        const accountSid = process.env.TWILIO_ACCOUNT_SID;
+        const authToken = process.env.TWILIO_AUTH_TOKEN;
+        let fromPhone = process.env.TWILIO_PHONE_NUMBER;
+
+        if (accountSid && authToken && fromPhone) {
+            try {
+                const twilio = require('twilio');
+                const client = twilio(accountSid, authToken);
+
+                // Format recipient number (e.g. prepend +91 for India if not present and 10 digits)
+                let formattedPhone = phone.trim();
+                if (!formattedPhone.startsWith('+')) {
+                    if (formattedPhone.length === 10) {
+                        formattedPhone = `+91${formattedPhone}`;
+                    } else {
+                        formattedPhone = `+${formattedPhone}`;
+                    }
+                }
+
+                // Format sender number (typically US number starting with +1)
+                if (!fromPhone.startsWith('+')) {
+                    if (fromPhone.length === 10) {
+                        fromPhone = `+1${fromPhone}`;
+                    } else {
+                        fromPhone = `+${fromPhone}`;
+                    }
+                }
+
+                await client.messages.create({
+                    body: `Your LMS verification OTP is ${otpCode}. It is valid for 5 minutes.`,
+                    from: fromPhone,
+                    to: formattedPhone
+                });
+                console.log(`[Twilio] OTP ${otpCode} sent successfully to ${formattedPhone}`);
+                isSentViaTwilio = true;
+            } catch (twilioErr) {
+                console.error("Twilio SMS sending failed:", twilioErr);
+                // Fallback console log
+                console.log('\n======================================');
+                console.log('📬 [SMS GATEWAY FALLBACK] SENDING OTP');
+                console.log(`📱 Phone: ${phone}`);
+                console.log(`🔑 OTP Code: ${otpCode}`);
+                console.log('======================================\n');
+            }
+        } else {
+            // Fallback simulation
             console.log('\n======================================');
-            console.log('📬 [SMS GATEWAY FALLBACK] SENDING OTP');
+            console.log('📬 [SMS GATEWAY SIMULATION] SENDING OTP');
             console.log(`📱 Phone: ${phone}`);
             console.log(`🔑 OTP Code: ${otpCode}`);
             console.log('======================================\n');
         }
-    } else {
-        // Fallback simulation
-        console.log('\n======================================');
-        console.log('📬 [SMS GATEWAY SIMULATION] SENDING OTP');
-        console.log(`📱 Phone: ${phone}`);
-        console.log(`🔑 OTP Code: ${otpCode}`);
-        console.log('======================================\n');
     }
 
     // Save to DB (or update if an OTP exists for this phone)
@@ -710,9 +778,11 @@ const sendOtp = asyncHandler(async (req, res) => {
     );
 
     res.json({
-        message: isSentViaTwilio
-            ? 'OTP sent successfully to your mobile number.'
-            : 'OTP sent successfully. Please check the server console logs.'
+        message: isSentViaEmail
+            ? 'OTP sent successfully to your email.'
+            : isSentViaTwilio
+                ? 'OTP sent successfully to your mobile number.'
+                : 'OTP simulated successfully. Please check the server console logs.'
     });
 });
 
@@ -730,8 +800,10 @@ const verifyOtp = asyncHandler(async (req, res) => {
     // Find the OTP document
     const otpDoc = await Otp.findOne({ phone });
 
-    // Allow '1234' as default/fixed OTP bypass, otherwise check DB
-    if (otp !== '1234' && (!otpDoc || otpDoc.otp !== otp)) {
+    const isEmail = phone.includes('@');
+    const isBypassAllowed = !isEmail && otp === '1234';
+
+    if (!isBypassAllowed && (!otpDoc || otpDoc.otp !== otp)) {
         res.status(400);
         throw new Error('Invalid or expired OTP code');
     }

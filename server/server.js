@@ -135,6 +135,7 @@ app.use('/api/attendance', require('./routes/common/attendanceRoutes'));
 app.use('/api/fees', require('./routes/feeRoutes'));
 app.use('/api/sync', require('./routes/syncRoutes'));
 app.use('/api/drive', require('./routes/driveRoutes'));
+app.use('/api/announcements', require('./routes/announcementRoutes'));
 
 // Serve static assets if client/dist exists (necessary for mobile WebView call page in dev/prod)
 const distPath = path.resolve(__dirname, '../client/dist');

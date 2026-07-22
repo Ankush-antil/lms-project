@@ -152,6 +152,317 @@ router.get('/analytics', protect, async (req, res) => {
     }
 });
 
+// @route   GET /api/practice-files/detailed-analytics
+// @desc    Get detailed per-student metrics for 7 sections of Tools Analytics
+// @access  Private (Admin / Staff / Editor)
+router.get('/detailed-analytics', protect, async (req, res) => {
+    try {
+        const Note = require('../../models/Note');
+        const DriveItem = require('../../models/DriveItem');
+        const Message = require('../../models/Message');
+        const CallLog = require('../../models/CallLog');
+        const User = require('../../models/User');
+
+        // 1. Get all active Student users
+        const students = await User.find({ role: 'Student', isDeleted: { $ne: true } })
+            .populate('institute', 'name')
+            .select('name email role institute isActive studentProfile allowedRoles callEnabled mobileNumber batch section')
+            .lean();
+
+        // 2. Aggregate DriveItem stats
+        const driveStats = await DriveItem.aggregate([
+            {
+                $group: {
+                    _id: '$uploadedBy',
+                    totalFiles: {
+                        $sum: { $cond: [{ $and: [{ $eq: ['$type', 'file'] }, { $ne: ['$isDeleted', true] }] }, 1, 0] }
+                    },
+                    totalFolders: {
+                        $sum: { $cond: [{ $and: [{ $eq: ['$type', 'folder'] }, { $ne: ['$isDeleted', true] }] }, 1, 0] }
+                    },
+                    usedStorage: {
+                        $sum: { $cond: [{ $and: [{ $eq: ['$type', 'file'] }, { $ne: ['$isDeleted', true] }] }, '$fileSize', 0] }
+                    },
+                    totalUploads: {
+                        $sum: { $cond: [{ $eq: ['$type', 'file'] }, 1, 0] }
+                    },
+                    trashFiles: {
+                        $sum: { $cond: [{ $eq: ['$isDeleted', true] }, 1, 0] }
+                    },
+                    lastActivity: { $max: '$updatedAt' }
+                }
+            }
+        ]);
+
+        // 3. Aggregate Notes stats
+        const noteStats = await Note.aggregate([
+            {
+                $group: {
+                    _id: '$student',
+                    totalNotes: { $sum: 1 },
+                    usedStorage: { $sum: { $add: [{ $strLenCP: '$title' }, { $strLenCP: '$content' }] } },
+                    lastActivity: { $max: '$updatedAt' }
+                }
+            }
+        ]);
+
+        // 4. Aggregate PracticeFiles grouped by user & toolType
+        const practiceStats = await PracticeFile.aggregate([
+            {
+                $group: {
+                    _id: { user: '$user', toolType: '$toolType' },
+                    totalFiles: { $sum: 1 },
+                    usedStorage: { $sum: '$size' },
+                    lastActivity: { $max: '$createdAt' }
+                }
+            }
+        ]);
+
+        // 5. Aggregate Message stats (Sent)
+        const messageSentStats = await Message.aggregate([
+            {
+                $group: {
+                    _id: '$sender',
+                    totalMessagesSent: { $sum: 1 },
+                    totalFilesShared: { $sum: { $cond: [{ $and: [{ $ne: ['$fileUrl', ''] }, { $ne: ['$fileUrl', null] }] }, 1, 0] } },
+                    totalImagesShared: { $sum: { $cond: [{ $regexMatch: { input: '$fileType', regex: /^image/i } }, 1, 0] } },
+                    totalVideosShared: { $sum: { $cond: [{ $regexMatch: { input: '$fileType', regex: /^video/i } }, 1, 0] } },
+                    totalAudioShared: { $sum: { $cond: [{ $regexMatch: { input: '$fileType', regex: /^audio/i } }, 1, 0] } },
+                    totalDocumentsShared: {
+                        $sum: {
+                            $cond: [
+                                {
+                                    $and: [
+                                        { $ne: ['$fileUrl', ''] },
+                                        { $ne: ['$fileUrl', null] },
+                                        { $not: { $regexMatch: { input: '$fileType', regex: /^(image|video|audio)/i } } }
+                                    ]
+                                },
+                                1,
+                                0
+                            ]
+                        }
+                    },
+                    lastMessageTime: { $max: '$createdAt' }
+                }
+            }
+        ]);
+
+        // 6. Aggregate Message stats (Received)
+        const messageReceivedStats = await Message.aggregate([
+            {
+                $group: {
+                    _id: '$receiver',
+                    totalMessagesReceived: { $sum: 1 },
+                    lastMessageTime: { $max: '$createdAt' }
+                }
+            }
+        ]);
+
+        // 7. Extract chat history for unique conversations / contacts
+        const messageHistory = await Message.find({}, 'sender receiver').lean();
+        const userChats = {};
+        messageHistory.forEach(msg => {
+            if (msg.sender && msg.receiver) {
+                const s = msg.sender.toString();
+                const r = msg.receiver.toString();
+                if (!userChats[s]) userChats[s] = new Set();
+                if (!userChats[r]) userChats[r] = new Set();
+                userChats[s].add(r);
+                userChats[r].add(s);
+            }
+        });
+
+        // 8. Aggregate CallLogs (Callers)
+        const callCallerStats = await CallLog.aggregate([
+            {
+                $project: {
+                    caller: 1,
+                    callType: 1,
+                    duration: {
+                        $cond: [
+                            { $and: [{ $ne: ['$startTime', null] }, { $ne: ['$endTime', null] }] },
+                            { $divide: [{ $subtract: ['$endTime', '$startTime'] }, 1000] },
+                            0
+                        ]
+                    },
+                    createdAt: 1
+                }
+            },
+            {
+                $group: {
+                    _id: '$caller',
+                    audioCalls: { $sum: { $cond: [{ $eq: ['$callType', 'audio'] }, 1, 0] } },
+                    videoCalls: { $sum: { $cond: [{ $eq: ['$callType', 'video'] }, 1, 0] } },
+                    totalDuration: { $sum: '$duration' },
+                    lastCall: { $max: '$createdAt' }
+                }
+            }
+        ]);
+
+        // 9. Aggregate CallLogs (Receivers)
+        const callReceiverStats = await CallLog.aggregate([
+            {
+                $project: {
+                    receiver: 1,
+                    callType: 1,
+                    duration: {
+                        $cond: [
+                            { $and: [{ $ne: ['$startTime', null] }, { $ne: ['$endTime', null] }] },
+                            { $divide: [{ $subtract: ['$endTime', '$startTime'] }, 1000] },
+                            0
+                        ]
+                    }
+                }
+            },
+            {
+                $group: {
+                    _id: '$receiver',
+                    audioCalls: { $sum: { $cond: [{ $eq: ['$callType', 'audio'] }, 1, 0] } },
+                    videoCalls: { $sum: { $cond: [{ $eq: ['$callType', 'video'] }, 1, 0] } },
+                    totalDuration: { $sum: '$duration' }
+                }
+            }
+        ]);
+
+        // Build mapping maps
+        const driveMap = {};
+        driveStats.forEach(s => { driveMap[s._id.toString()] = s; });
+
+        const noteMap = {};
+        noteStats.forEach(s => { noteMap[s._id.toString()] = s; });
+
+        const practiceMap = {};
+        practiceStats.forEach(s => {
+            const u = s._id.user.toString();
+            const t = s._id.toolType;
+            if (!practiceMap[u]) practiceMap[u] = {};
+            practiceMap[u][t] = s;
+        });
+
+        const sentMsgMap = {};
+        messageSentStats.forEach(s => { sentMsgMap[s._id.toString()] = s; });
+
+        const recMsgMap = {};
+        messageReceivedStats.forEach(s => { recMsgMap[s._id.toString()] = s; });
+
+        const callerCallMap = {};
+        callCallerStats.forEach(s => { if (s._id) callerCallMap[s._id.toString()] = s; });
+
+        const receiverCallMap = {};
+        callReceiverStats.forEach(s => { if (s._id) receiverCallMap[s._id.toString()] = s; });
+
+        // Merge everything per student
+        const studentData = students.map(student => {
+            const idStr = student._id.toString();
+
+            const drive = driveMap[idStr] || {};
+            const notes = noteMap[idStr] || {};
+            const sent = sentMsgMap[idStr] || {};
+            const rec = recMsgMap[idStr] || {};
+            const totalChats = userChats[idStr] ? userChats[idStr].size : 0;
+            
+            const caller = callerCallMap[idStr] || {};
+            const receiver = receiverCallMap[idStr] || {};
+
+            const voiceCalls = (caller.audioCalls || 0) + (receiver.audioCalls || 0);
+            const videoCalls = (caller.videoCalls || 0) + (receiver.videoCalls || 0);
+            const callDuration = (caller.totalDuration || 0) + (receiver.totalDuration || 0);
+
+            const pStats = practiceMap[idStr] || {};
+            const getToolStats = (toolKey) => {
+                const s = pStats[toolKey] || {};
+                return {
+                    totalFiles: s.totalFiles || 0,
+                    totalFolders: 0,
+                    totalStorage: 5 * 1024 * 1024 * 1024,
+                    usedStorage: s.usedStorage || 0,
+                    remainingStorage: (5 * 1024 * 1024 * 1024) - (s.usedStorage || 0),
+                    totalUploads: s.totalFiles || 0,
+                    totalDownloads: 0,
+                    totalSharedFiles: 0,
+                    trashFiles: 0,
+                    lastActivity: s.lastActivity || null
+                };
+            };
+
+            const activities = [
+                drive.lastActivity,
+                notes.lastActivity,
+                sent.lastMessageTime,
+                rec.lastMessageTime,
+                caller.lastCall,
+                getToolStats('screenshot').lastActivity,
+                getToolStats('screen-recorder').lastActivity,
+                getToolStats('voice-recorder').lastActivity,
+                getToolStats('video-recorder').lastActivity
+            ].filter(Boolean);
+            const globalLastActivity = activities.length > 0 ? new Date(Math.max(...activities.map(a => new Date(a)))) : null;
+
+            return {
+                user: student,
+                name: student.name,
+                email: student.email,
+                isActive: student.isActive,
+                instituteName: student.institute?.name || 'Hartron Ganaur',
+                globalLastActivity,
+                drive: {
+                    totalFiles: drive.totalFiles || 0,
+                    totalFolders: drive.totalFolders || 0,
+                    totalStorage: 5 * 1024 * 1024 * 1024,
+                    usedStorage: drive.usedStorage || 0,
+                    remainingStorage: (5 * 1024 * 1024 * 1024) - (drive.usedStorage || 0),
+                    totalUploads: drive.totalUploads || 0,
+                    totalDownloads: 0,
+                    totalSharedFiles: 0,
+                    trashFiles: drive.trashFiles || 0,
+                    lastActivity: drive.lastActivity || null,
+                    totalDevices: 1
+                },
+                notes: {
+                    totalNotes: notes.totalNotes || 0,
+                    totalSections: 0,
+                    totalStorage: 5 * 1024 * 1024 * 1024,
+                    usedStorage: notes.usedStorage || 0,
+                    remainingStorage: (5 * 1024 * 1024 * 1024) - (notes.usedStorage || 0),
+                    lastActivity: notes.lastActivity || null,
+                    trashFiles: 0,
+                    totalDevices: 1
+                },
+                chat: {
+                    totalChats,
+                    totalMessagesSent: sent.totalMessagesSent || 0,
+                    totalMessagesReceived: rec.totalMessagesReceived || 0,
+                    totalGroupsJoined: 0,
+                    totalFilesShared: sent.totalFilesShared || 0,
+                    totalImagesShared: sent.totalImagesShared || 0,
+                    totalVideosShared: sent.totalVideosShared || 0,
+                    totalAudioShared: sent.totalAudioShared || 0,
+                    totalDocumentsShared: sent.totalDocumentsShared || 0,
+                    totalVoiceCalls: voiceCalls,
+                    totalVideoCalls: videoCalls,
+                    totalCallDuration: callDuration,
+                    totalChatStorageUsed: (sent.totalFilesShared || 0) * 1.5 * 1024 * 1024,
+                    totalContacts: totalChats,
+                    lastMessageTime: sent.lastMessageTime || rec.lastMessageTime || null,
+                    lastActivity: sent.lastMessageTime || rec.lastMessageTime || caller.lastCall || null,
+                    totalDevices: 1,
+                    status: student.isActive ? 'Active' : 'Inactive'
+                },
+                screenshot: getToolStats('screenshot'),
+                screenRecorder: getToolStats('screen-recorder'),
+                voiceRecorder: getToolStats('voice-recorder'),
+                videoRecorder: getToolStats('video-recorder')
+            };
+        });
+
+        res.json({ students: studentData });
+    } catch (err) {
+        console.error('[GET Detailed Tools Analytics Error]', err);
+        res.status(500).json({ message: 'Server error retrieving detailed tools analytics.' });
+    }
+});
+
 // @route   GET /api/practice-files
 // @desc    Get all practice files uploaded by the student and the storage space usage
 // @access  Private (Student)

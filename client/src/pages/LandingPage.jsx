@@ -648,7 +648,6 @@ const LandingPage = () => {
         try {
             await axios.post('/api/setup/send-otp', { phone: applyEmail });
             setEmailOtpSent(true);
-            setEmailOtp('1234'); // Auto-fill mock OTP for convenience
             toast.success("OTP sent to your email!");
         } catch (err) {
             console.error("Email OTP failed:", err);
@@ -1453,7 +1452,7 @@ const LandingPage = () => {
                                                                                 {/* Email OTP Verification Field */}
                                                                                 {emailOtpSent && !emailOtpVerified && (
                                                                                     <div className="border-b border-slate-200 focus-within:border-indigo-500 py-1 transition-all animate-fadeIn">
-                                                                                        <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-1">Enter Email OTP (Default: 1234)</label>
+                                                                                        <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-1">Enter Email OTP</label>
                                                                                         <div className="flex items-center gap-2">
                                                                                             <input
                                                                                                 type="text"

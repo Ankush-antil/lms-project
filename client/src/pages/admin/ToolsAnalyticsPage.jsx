@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { 
@@ -7,6 +8,7 @@ import {
 } from 'lucide-react';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { useAuth } from '../../context/AuthContext';
+import EditUserModal from '../../components/EditUserModal';
 
 const toolMeta = {
     'form-builder': { label: 'Form Builder Tool', icon: FileSignature, color: 'text-orange-500 bg-orange-50 border-orange-200' },
@@ -19,19 +21,62 @@ const toolMeta = {
 
 const ToolsAnalyticsPage = () => {
     const { user } = useAuth();
+    const { tab } = useParams();
+    const navigate = useNavigate();
     const [loading, setLoading] = useState(true);
     const [analyticsData, setAnalyticsData] = useState(null);
+    const [detailedData, setDetailedData] = useState([]);
 
-    // Filters & Search
+    // Tabs mapping
+    const tabMapping = {
+        'drive': 'drive',
+        'chat': 'chat',
+        'notes': 'notes',
+        'screenshot': 'screenshot',
+        'screen-recorder': 'screenRecorder',
+        'voice-recorder': 'voiceRecorder',
+        'video-recorder': 'videoRecorder'
+    };
+    
+    const activeTab = tabMapping[tab] || 'drive';
+
+    const activeToolKeys = {
+        'screenshot': ['screenshot'],
+        'screenRecorder': ['screen-recorder'],
+        'voiceRecorder': ['voice-recorder'],
+        'videoRecorder': ['video-recorder']
+    }[activeTab] || [];
+
+    const setActiveTab = (tabId) => {
+        const revMapping = {
+            'drive': 'drive',
+            'chat': 'chat',
+            'notes': 'notes',
+            'screenshot': 'screenshot',
+            'screenRecorder': 'screen-recorder',
+            'voiceRecorder': 'voice-recorder',
+            'videoRecorder': 'video-recorder'
+        };
+        navigate(`/admin/tools-analytics/${revMapping[tabId]}`);
+    };
+
+    // Filters
     const [searchTerm, setSearchTerm] = useState('');
-    const [selectedRole, setSelectedRole] = useState('All');
-    const [selectedTool, setSelectedTool] = useState('All');
+    const [selectedInstitute, setSelectedInstitute] = useState('All');
+
+    // Edit User Modal State
+    const [selectedUserToEdit, setSelectedUserToEdit] = useState(null);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
     const fetchAnalytics = async () => {
         setLoading(true);
         try {
-            const { data } = await axios.get('/api/practice-files/analytics');
-            setAnalyticsData(data);
+            const [summaryRes, detailedRes] = await Promise.all([
+                axios.get('/api/practice-files/analytics'),
+                axios.get('/api/practice-files/detailed-analytics')
+            ]);
+            setAnalyticsData(summaryRes.data);
+            setDetailedData(detailedRes.data.students || []);
         } catch (err) {
             console.error('[Fetch Tools Analytics Error]', err);
             toast.error('Failed to load tools analytics data.');
@@ -64,22 +109,103 @@ const ToolsAnalyticsPage = () => {
         });
     };
 
-    // Filter user tool stats & remove web-calling/file-uploader
-    const userToolStats = (analyticsData?.userToolStats || []).filter(
-        item => item.toolType !== 'web-calling' && item.toolType !== 'file-uploader'
-    );
-
-    const filteredUserToolStats = userToolStats.filter(item => {
-        const matchesSearch = 
-            item.userName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            item.userEmail?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            item.toolType?.toLowerCase().includes(searchTerm.toLowerCase());
+    const formatDuration = (seconds = 0) => {
+        if (seconds === 0) return '0s';
+        const hrs = Math.floor(seconds / 3600);
+        const mins = Math.floor((seconds % 3600) / 60);
+        const secs = Math.floor(seconds % 60);
         
-        const matchesRole = selectedRole === 'All' || item.userRole === selectedRole;
-        const matchesTool = selectedTool === 'All' || item.toolType === selectedTool;
+        let res = [];
+        if (hrs > 0) res.push(`${hrs}h`);
+        if (mins > 0) res.push(`${mins}m`);
+        if (secs > 0 || res.length === 0) res.push(`${secs}s`);
+        return res.join(' ');
+    };
 
-        return matchesSearch && matchesRole && matchesTool;
+    const handleEditAccess = (studentUser) => {
+        setSelectedUserToEdit(studentUser);
+        setIsEditModalOpen(true);
+    };
+
+    // Filter Students
+    const filteredStudents = detailedData.filter(student => {
+        const matchesSearch = 
+            student.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            student.email?.toLowerCase().includes(searchTerm.toLowerCase());
+        
+        const matchesInstitute = selectedInstitute === 'All' || student.instituteName === selectedInstitute;
+        
+        if (!matchesSearch || !matchesInstitute) return false;
+
+        // Only show students who have actually worked/created data for the current tab
+        if (activeTab === 'drive') {
+            return student.drive && (student.drive.totalFiles > 0 || student.drive.totalFolders > 0 || student.drive.usedStorage > 0);
+        }
+        if (activeTab === 'chat') {
+            return student.chat && (student.chat.totalChats > 0 || student.chat.totalMessagesSent > 0 || student.chat.totalMessagesReceived > 0);
+        }
+        if (activeTab === 'notes') {
+            return student.notes && student.notes.totalNotes > 0;
+        }
+        if (activeTab === 'screenshot') {
+            return student.screenshot && student.screenshot.totalFiles > 0;
+        }
+        if (activeTab === 'screenRecorder') {
+            return student.screenRecorder && student.screenRecorder.totalFiles > 0;
+        }
+        if (activeTab === 'voiceRecorder') {
+            return student.voiceRecorder && student.voiceRecorder.totalFiles > 0;
+        }
+        if (activeTab === 'videoRecorder') {
+            return student.videoRecorder && student.videoRecorder.totalFiles > 0;
+        }
+
+        return true;
     });
+
+    // Dynamic Institute List
+    const institutesList = ['All', ...new Set(detailedData.map(item => item.instituteName).filter(Boolean))];
+
+    // Pagination State
+    const [currentPage, setCurrentPage] = useState(1);
+    const [entriesPerPage, setEntriesPerPage] = useState(10);
+
+    // Reset pagination when filter changes
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchTerm, selectedInstitute]);
+
+    const limit = parseInt(entriesPerPage, 10) || 10;
+    const indexOfLastEntry = currentPage * limit;
+    const indexOfFirstEntry = indexOfLastEntry - limit;
+    const currentEntries = filteredStudents.slice(indexOfFirstEntry, indexOfLastEntry);
+    const totalPages = Math.ceil(filteredStudents.length / limit);
+
+    const getPageNumbers = () => {
+        const pages = [];
+        if (totalPages <= 6) {
+            for (let i = 1; i <= totalPages; i++) {
+                pages.push(i);
+            }
+        } else {
+            pages.push(1);
+            if (currentPage > 3) {
+                pages.push('...');
+            }
+            const start = Math.max(2, currentPage - 1);
+            const end = Math.min(totalPages - 1, currentPage + 1);
+            for (let i = start; i <= end; i++) {
+                if (i !== 1 && i !== totalPages) {
+                    pages.push(i);
+                }
+            }
+            if (currentPage < totalPages - 2) {
+                pages.push('...');
+            }
+            pages.push(totalPages);
+        }
+        return pages;
+    };
 
     // Practice tools stats without web-calling & file-uploader
     const practiceToolStats = (analyticsData?.toolStats || []).filter(
@@ -90,6 +216,16 @@ const ToolsAnalyticsPage = () => {
     const totalBytesUsed = practiceToolStats.reduce((sum, t) => sum + t.totalSizeBytes, 0);
     const totalActiveUsers = (analyticsData?.userSummary || []).length;
     const formBuilderCount = analyticsData?.otherTools?.formBuilder || 0;
+
+    const tabs = [
+        { id: 'drive', label: 'Drive Usage Analytics', icon: HardDrive },
+        { id: 'chat', label: 'Chat Usage Analytics', icon: Users },
+        { id: 'notes', label: 'Notes Usage Analytics', icon: FileSignature },
+        { id: 'screenshot', label: 'Screenshot Analytics', icon: Camera },
+        { id: 'screenRecorder', label: 'Screen Recording Usage Analytics', icon: Video },
+        { id: 'voiceRecorder', label: 'Audio Recording Usage Analytics', icon: Mic },
+        { id: 'videoRecorder', label: 'Video Recording Usage Analytics', icon: MonitorPlay }
+    ];
 
     return (
         <DashboardLayout role={user?.role || 'Admin'}>
@@ -168,92 +304,111 @@ const ToolsAnalyticsPage = () => {
                         </div>
 
                         {/* Tool-wise Usage Grid */}
-                        <div className="mb-8">
-                            <h3 className="text-lg font-black text-slate-800 mb-4 flex items-center gap-2 text-left">
-                                <span>🛠️</span> Tool Wise Usage Summary
-                            </h3>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                {Object.keys(toolMeta).map(toolKey => {
-                                    const meta = toolMeta[toolKey];
-                                    const ToolIcon = meta.icon;
-                                    
-                                    let count = 0;
-                                    let sizeBytes = 0;
+                        {activeToolKeys.length > 0 && (
+                            <div className="mb-8 animate-fade-in">
+                                <h3 className="text-lg font-black text-slate-800 mb-4 flex items-center gap-2 text-left">
+                                    <span>🛠️</span> Tool Wise Usage Summary
+                                </h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    {activeToolKeys.map(toolKey => {
+                                        const meta = toolMeta[toolKey];
+                                        const ToolIcon = meta.icon;
+                                        
+                                        let count = 0;
+                                        let sizeBytes = 0;
 
-                                    if (toolKey === 'form-builder') {
-                                        count = formBuilderCount;
-                                    } else if (toolKey === 'database-creator') {
-                                        count = 0;
-                                    } else {
-                                        const stat = practiceToolStats.find(s => s._id === toolKey) || { count: 0, totalSizeBytes: 0 };
-                                        count = stat.count;
-                                        sizeBytes = stat.totalSizeBytes;
-                                    }
+                                        if (toolKey === 'form-builder') {
+                                            count = formBuilderCount;
+                                        } else if (toolKey === 'database-creator') {
+                                            count = 0;
+                                        } else {
+                                            const stat = practiceToolStats.find(s => s._id === toolKey) || { count: 0, totalSizeBytes: 0 };
+                                            count = stat.count;
+                                            sizeBytes = stat.totalSizeBytes;
+                                        }
 
-                                    const percentage = totalPracticeActions > 0 && toolKey !== 'form-builder' && toolKey !== 'database-creator' 
-                                        ? Math.round((count / totalPracticeActions) * 100) 
-                                        : 0;
+                                        const percentage = totalPracticeActions > 0 && toolKey !== 'form-builder' && toolKey !== 'database-creator' 
+                                            ? Math.round((count / totalPracticeActions) * 100) 
+                                            : 0;
 
-                                    return (
-                                        <div key={toolKey} className="bg-white p-5 rounded-2xl border border-slate-200/60 shadow-sm hover:shadow-md transition-all flex flex-col justify-between">
-                                            <div>
-                                                <div className="flex items-center justify-between mb-3">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className={`p-2.5 rounded-xl border ${meta.color}`}>
-                                                            <ToolIcon size={20} />
+                                        return (
+                                            <div key={toolKey} className="bg-white p-5 rounded-2xl border border-slate-200/60 shadow-sm hover:shadow-md transition-all flex flex-col justify-between">
+                                                <div>
+                                                    <div className="flex items-center justify-between mb-3">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className={`p-2.5 rounded-xl border ${meta.color}`}>
+                                                                <ToolIcon size={20} />
+                                                            </div>
+                                                            <div className="text-left">
+                                                                <h4 className="font-extrabold text-slate-800 text-sm">{meta.label}</h4>
+                                                                <p className="text-[10px] font-bold text-slate-400 uppercase">{count} {toolKey === 'form-builder' ? 'Forms' : 'Actions'}</p>
+                                                            </div>
                                                         </div>
-                                                        <div className="text-left">
-                                                            <h4 className="font-extrabold text-slate-800 text-sm">{meta.label}</h4>
-                                                            <p className="text-[10px] font-bold text-slate-400 uppercase">{count} {toolKey === 'form-builder' ? 'Forms' : 'Actions'}</p>
-                                                        </div>
-                                                    </div>
-                                                    {meta.isComingSoon ? (
-                                                        <span className="text-[9px] font-black uppercase text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded">
-                                                            Soon
-                                                        </span>
-                                                    ) : (
-                                                        percentage > 0 && (
-                                                            <span className="text-xs font-black text-indigo-650 bg-indigo-50 px-2.5 py-1 rounded-lg">
-                                                                {percentage}%
+                                                        {meta.isComingSoon ? (
+                                                            <span className="text-[9px] font-black uppercase text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded">
+                                                                Soon
                                                             </span>
-                                                        )
+                                                        ) : (
+                                                            percentage > 0 && (
+                                                                <span className="text-xs font-black text-indigo-650 bg-indigo-50 px-2.5 py-1 rounded-lg">
+                                                                    {percentage}%
+                                                                </span>
+                                                            )
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                <div className="space-y-1.5 mt-4 pt-3 border-t border-slate-50">
+                                                    <div className="flex justify-between text-xs font-bold text-slate-500">
+                                                        <span>Storage Consumed</span>
+                                                        <span>{meta.isComingSoon ? 'N/A' : formatBytes(sizeBytes)}</span>
+                                                    </div>
+                                                    {!meta.isComingSoon && (
+                                                        <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                                                            <div 
+                                                                className="bg-indigo-650 h-2 rounded-full transition-all duration-500" 
+                                                                style={{ width: `${Math.min(100, percentage)}%` }} 
+                                                            />
+                                                        </div>
                                                     )}
                                                 </div>
                                             </div>
-
-                                            <div className="space-y-1.5 mt-4 pt-3 border-t border-slate-50">
-                                                <div className="flex justify-between text-xs font-bold text-slate-500">
-                                                    <span>Storage Consumed</span>
-                                                    <span>{meta.isComingSoon ? 'N/A' : formatBytes(sizeBytes)}</span>
-                                                </div>
-                                                {!meta.isComingSoon && (
-                                                    <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-                                                        <div 
-                                                            className="bg-indigo-650 h-2 rounded-full transition-all duration-500" 
-                                                            style={{ width: `${Math.min(100, percentage)}%` }} 
-                                                        />
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-                                    );
-                                })}
+                                        );
+                                    })}
+                                </div>
                             </div>
-                        </div>
+                        )}
 
-                        {/* Detailed Per-User Tool Usage Breakdown */}
+                        {/* Detailed Table Section */}
                         <div className="bg-white rounded-3xl border border-slate-200/60 shadow-sm overflow-hidden mb-8">
                             
                             {/* Table Header & Controls */}
                             <div className="p-5 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
                                 <div className="text-left">
                                     <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">
-                                        <span>👤</span> User Wise Tool Usage ("Kisne Kon Sa Tool Kitna Use Kiya")
+                                        <span>📊</span> {tabs.find(t => t.id === activeTab)?.label}
                                     </h3>
-                                    <p className="text-xs font-semibold text-slate-400 mt-0.5">Detailed log of every user's usage per tool</p>
+                                    <p className="text-xs font-semibold text-slate-400 mt-0.5">Detailed usage breakdown for all registered student users</p>
                                 </div>
 
                                 <div className="flex flex-wrap items-center gap-3">
+                                    {/* Entries Selector */}
+                                    <div className="flex items-center gap-1.5 text-[10px] font-black text-slate-400 tracking-wider uppercase">
+                                        <span>Show</span>
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            value={entriesPerPage}
+                                            onChange={(e) => {
+                                                const val = e.target.value;
+                                                setEntriesPerPage(val === '' ? '' : Math.max(1, parseInt(val, 10)));
+                                                setCurrentPage(1);
+                                            }}
+                                            className="w-14 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-full text-xs font-black text-slate-700 text-center outline-none focus:border-indigo-650 focus:ring-1 focus:ring-indigo-650/20 transition-all"
+                                        />
+                                        <span>Entries</span>
+                                    </div>
+
                                     {/* Search Bar */}
                                     <div className="relative">
                                         <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -261,109 +416,349 @@ const ToolsAnalyticsPage = () => {
                                             type="text"
                                             value={searchTerm}
                                             onChange={(e) => setSearchTerm(e.target.value)}
-                                            placeholder="Search user or email..."
+                                            placeholder="Search student or email..."
                                             className="pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:border-indigo-500 transition-all w-52"
                                         />
                                     </div>
 
-                                    {/* Role Filter */}
+                                    {/* Institute Filter */}
                                     <select
-                                        value={selectedRole}
-                                        onChange={(e) => setSelectedRole(e.target.value)}
+                                        value={selectedInstitute}
+                                        onChange={(e) => setSelectedInstitute(e.target.value)}
                                         className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none cursor-pointer"
                                     >
-                                        <option value="All">All Roles</option>
-                                        <option value="Student">Student</option>
-                                        <option value="Teacher">Teacher</option>
-                                        <option value="Admin">Admin</option>
-                                        <option value="Editor">Editor</option>
-                                    </select>
-
-                                    {/* Tool Filter */}
-                                    <select
-                                        value={selectedTool}
-                                        onChange={(e) => setSelectedTool(e.target.value)}
-                                        className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none cursor-pointer"
-                                    >
-                                        <option value="All">All Tools</option>
-                                        <option value="form-builder">Form Builder Tool</option>
-                                        <option value="database-creator">Database Creator Tool</option>
-                                        <option value="voice-recorder">Voice Recorder</option>
-                                        <option value="video-recorder">Video Recorder</option>
-                                        <option value="screenshot">Screenshot Tool</option>
-                                        <option value="screen-recorder">Screen Recorder</option>
+                                        {institutesList.map(inst => (
+                                            <option key={inst} value={inst}>
+                                                {inst === 'All' ? 'All Institutes' : inst}
+                                            </option>
+                                        ))}
                                     </select>
                                 </div>
                             </div>
 
-                            {/* User Usage Table */}
+                            {/* Dynamic Tables depending on Active Tab */}
                             <div className="overflow-x-auto">
-                                <table className="w-full text-left border-collapse">
-                                    <thead>
-                                        <tr className="bg-slate-50/70 text-slate-400 font-extrabold text-[11px] uppercase tracking-wider border-b border-slate-100">
-                                            <th className="py-3.5 px-6">User</th>
-                                            <th className="py-3.5 px-4">Role</th>
-                                            <th className="py-3.5 px-4">Tool Used</th>
-                                            <th className="py-3.5 px-4 text-center">Usage Count</th>
-                                            <th className="py-3.5 px-4 text-right">Size Consumed</th>
-                                            <th className="py-3.5 px-6 text-right">Last Used</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-slate-100 text-xs font-bold text-slate-700">
-                                        {filteredUserToolStats.length === 0 ? (
-                                            <tr>
-                                                <td colSpan="6" className="text-center py-10 text-slate-400 font-semibold">
-                                                    No tool usage records found matching criteria.
-                                                </td>
-                                            </tr>
-                                        ) : (
-                                            filteredUserToolStats.map((row, idx) => {
-                                                const meta = toolMeta[row.toolType] || { label: row.toolType, icon: Layers, color: 'text-slate-600 bg-slate-100' };
-                                                const ToolIcon = meta.icon;
-
-                                                return (
-                                                    <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
-                                                        <td className="py-3.5 px-6">
-                                                            <div>
-                                                                <p className="font-extrabold text-slate-800">{row.userName || 'Unknown User'}</p>
-                                                                <p className="text-[10px] text-slate-400 font-semibold">{row.userEmail || '-'}</p>
-                                                            </div>
-                                                        </td>
-                                                        <td className="py-3.5 px-4">
-                                                            <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${
-                                                                row.userRole === 'Admin' ? 'bg-purple-100 text-purple-700' :
-                                                                row.userRole === 'Teacher' ? 'bg-blue-100 text-blue-700' :
-                                                                row.userRole === 'Student' ? 'bg-emerald-100 text-emerald-700' :
-                                                                'bg-slate-100 text-slate-700'
-                                                            }`}>
-                                                                {row.userRole || 'User'}
-                                                            </span>
-                                                        </td>
-                                                        <td className="py-3.5 px-4">
-                                                            <div className="flex items-center gap-2">
-                                                                <div className={`p-1.5 rounded-lg border ${meta.color}`}>
-                                                                    <ToolIcon size={14} />
-                                                                </div>
-                                                                <span className="font-extrabold text-slate-800">{meta.label}</span>
-                                                            </div>
-                                                        </td>
-                                                        <td className="py-3.5 px-4 text-center">
-                                                            <span className="bg-slate-100 text-slate-800 px-2.5 py-1 rounded-lg font-black">
-                                                                {row.count} times
-                                                            </span>
-                                                        </td>
-                                                        <td className="py-3.5 px-4 text-right font-extrabold text-slate-800">
-                                                            {formatBytes(row.totalSizeBytes)}
-                                                        </td>
-                                                        <td className="py-3.5 px-6 text-right text-slate-400 font-semibold">
-                                                            {formatDate(row.lastUsedAt)}
-                                                        </td>
+                                <table className="w-full text-left border-collapse whitespace-nowrap">
+                                    
+                                    {/* Tab 1: Drive Usage Analytics */}
+                                    {activeTab === 'drive' && (
+                                        <>
+                                            <thead>
+                                                <tr className="bg-slate-50/70 text-slate-400 font-extrabold text-[11px] uppercase tracking-wider border-b border-slate-100">
+                                                    <th className="py-3.5 px-6">Student Name</th>
+                                                    <th className="py-3.5 px-4">Institute Name</th>
+                                                    <th className="py-3.5 px-4 text-center">Total Files</th>
+                                                    <th className="py-3.5 px-4 text-center">Total Folders</th>
+                                                    <th className="py-3.5 px-4 text-right">Total Storage</th>
+                                                    <th className="py-3.5 px-4 text-right">Used Storage</th>
+                                                    <th className="py-3.5 px-4 text-right">Remaining Storage</th>
+                                                    <th className="py-3.5 px-4 text-center">Total Uploads</th>
+                                                    <th className="py-3.5 px-4 text-center">Total Downloads</th>
+                                                    <th className="py-3.5 px-4 text-center">Total Shared Files</th>
+                                                    <th className="py-3.5 px-4 text-right">Last Activity</th>
+                                                    <th className="py-3.5 px-4 text-center">Trash Files</th>
+                                                    <th className="py-3.5 px-4 text-center">Total Devices</th>
+                                                    <th className="py-3.5 px-6 text-right">Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-100 text-xs font-bold text-slate-700">
+                                                {currentEntries.length === 0 ? (
+                                                    <tr>
+                                                        <td colSpan="14" className="text-center py-10 text-slate-400">No student records found.</td>
                                                     </tr>
-                                                );
-                                            })
-                                        )}
-                                    </tbody>
+                                                ) : (
+                                                    currentEntries.map((row, idx) => (
+                                                        <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
+                                                            <td className="py-3.5 px-6 font-extrabold text-slate-850">{row.name}</td>
+                                                            <td className="py-3.5 px-4 font-semibold text-slate-500">{row.instituteName}</td>
+                                                            <td className="py-3.5 px-4 text-center">{row.drive.totalFiles}</td>
+                                                            <td className="py-3.5 px-4 text-center">{row.drive.totalFolders}</td>
+                                                            <td className="py-3.5 px-4 text-right font-medium text-slate-400">{formatBytes(row.drive.totalStorage)}</td>
+                                                            <td className="py-3.5 px-4 text-right font-black text-indigo-650">{formatBytes(row.drive.usedStorage)}</td>
+                                                            <td className="py-3.5 px-4 text-right font-extrabold text-emerald-600">{formatBytes(row.drive.remainingStorage)}</td>
+                                                            <td className="py-3.5 px-4 text-center text-slate-600">{row.drive.totalUploads}</td>
+                                                            <td className="py-3.5 px-4 text-center text-slate-400 font-medium">{row.drive.totalDownloads}</td>
+                                                            <td className="py-3.5 px-4 text-center text-slate-400 font-medium">{row.drive.totalSharedFiles}</td>
+                                                            <td className="py-3.5 px-4 text-right text-slate-400 font-semibold">{formatDate(row.drive.lastActivity)}</td>
+                                                            <td className="py-3.5 px-4 text-center text-amber-600">{row.drive.trashFiles}</td>
+                                                            <td className="py-3.5 px-4 text-center text-slate-600">{row.drive.totalDevices}</td>
+                                                            <td className="py-3.5 px-6 text-right">
+                                                                <button 
+                                                                    onClick={() => handleEditAccess(row.user)}
+                                                                    className="px-3.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-650 text-[10px] font-black rounded-xl border border-indigo-100 transition-all cursor-pointer"
+                                                                >
+                                                                    Edit access & features
+                                                                </button>
+                                                            </td>
+                                                        </tr>
+                                                    ))
+                                                )}
+                                            </tbody>
+                                        </>
+                                    )}
+
+                                    {/* Tab 2: Chat Usage Analytics */}
+                                    {activeTab === 'chat' && (
+                                        <>
+                                            <thead>
+                                                <tr className="bg-slate-50/70 text-slate-400 font-extrabold text-[11px] uppercase tracking-wider border-b border-slate-100">
+                                                    <th className="py-3.5 px-6">Student Name</th>
+                                                    <th className="py-3.5 px-4">Institute Name</th>
+                                                    <th className="py-3.5 px-4 text-center">Total Chats</th>
+                                                    <th className="py-3.5 px-4 text-center">Sent</th>
+                                                    <th className="py-3.5 px-4 text-center">Received</th>
+                                                    <th className="py-3.5 px-4 text-center">Groups</th>
+                                                    <th className="py-3.5 px-4 text-center">Files</th>
+                                                    <th className="py-3.5 px-4 text-center">Images</th>
+                                                    <th className="py-3.5 px-4 text-center">Videos</th>
+                                                    <th className="py-3.5 px-4 text-center">Audio</th>
+                                                    <th className="py-3.5 px-4 text-center">Docs</th>
+                                                    <th className="py-3.5 px-4 text-center">Voice Calls</th>
+                                                    <th className="py-3.5 px-4 text-center">Video Calls</th>
+                                                    <th className="py-3.5 px-4 text-right">Duration</th>
+                                                    <th className="py-3.5 px-4 text-right">Storage</th>
+                                                    <th className="py-3.5 px-4 text-center">Contacts</th>
+                                                    <th className="py-3.5 px-4 text-right">Last Msg</th>
+                                                    <th className="py-3.5 px-4 text-right">Last Activity</th>
+                                                    <th className="py-3.5 px-4 text-center">Devices</th>
+                                                    <th className="py-3.5 px-4 text-center">Status</th>
+                                                    <th className="py-3.5 px-6 text-right">Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-100 text-xs font-bold text-slate-700">
+                                                {currentEntries.length === 0 ? (
+                                                    <tr>
+                                                        <td colSpan="21" className="text-center py-10 text-slate-400">No student records found.</td>
+                                                    </tr>
+                                                ) : (
+                                                    currentEntries.map((row, idx) => (
+                                                        <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
+                                                            <td className="py-3.5 px-6 font-extrabold text-slate-850">{row.name}</td>
+                                                            <td className="py-3.5 px-4 font-semibold text-slate-500">{row.instituteName}</td>
+                                                            <td className="py-3.5 px-4 text-center">{row.chat.totalChats}</td>
+                                                            <td className="py-3.5 px-4 text-center text-slate-650">{row.chat.totalMessagesSent}</td>
+                                                            <td className="py-3.5 px-4 text-center text-slate-650">{row.chat.totalMessagesReceived}</td>
+                                                            <td className="py-3.5 px-4 text-center text-slate-400 font-medium">{row.chat.totalGroupsJoined}</td>
+                                                            <td className="py-3.5 px-4 text-center text-indigo-600">{row.chat.totalFilesShared}</td>
+                                                            <td className="py-3.5 px-4 text-center text-slate-600">{row.chat.totalImagesShared}</td>
+                                                            <td className="py-3.5 px-4 text-center text-slate-600">{row.chat.totalVideosShared}</td>
+                                                            <td className="py-3.5 px-4 text-center text-slate-600">{row.chat.totalAudioShared}</td>
+                                                            <td className="py-3.5 px-4 text-center text-slate-600">{row.chat.totalDocumentsShared}</td>
+                                                            <td className="py-3.5 px-4 text-center text-emerald-600">{row.chat.totalVoiceCalls}</td>
+                                                            <td className="py-3.5 px-4 text-center text-purple-650">{row.chat.totalVideoCalls}</td>
+                                                            <td className="py-3.5 px-4 text-right font-black text-slate-800">{formatDuration(row.chat.totalCallDuration)}</td>
+                                                            <td className="py-3.5 px-4 text-right text-slate-500 font-medium">{formatBytes(row.chat.totalChatStorageUsed)}</td>
+                                                            <td className="py-3.5 px-4 text-center">{row.chat.totalContacts}</td>
+                                                            <td className="py-3.5 px-4 text-right text-slate-400 font-semibold">{formatDate(row.chat.lastMessageTime)}</td>
+                                                            <td className="py-3.5 px-4 text-right text-slate-400 font-semibold">{formatDate(row.chat.lastActivity)}</td>
+                                                            <td className="py-3.5 px-4 text-center text-slate-600">{row.chat.totalDevices}</td>
+                                                            <td className="py-3.5 px-4 text-center">
+                                                                <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase ${
+                                                                    row.isActive 
+                                                                        ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' 
+                                                                        : 'bg-slate-100 text-slate-450'
+                                                                }`}>
+                                                                    {row.chat.status}
+                                                                </span>
+                                                            </td>
+                                                            <td className="py-3.5 px-6 text-right">
+                                                                <button 
+                                                                    onClick={() => handleEditAccess(row.user)}
+                                                                    className="px-3.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-650 text-[10px] font-black rounded-xl border border-indigo-100 transition-all cursor-pointer"
+                                                                >
+                                                                    Edit Access & Features
+                                                                </button>
+                                                            </td>
+                                                        </tr>
+                                                    ))
+                                                )}
+                                            </tbody>
+                                        </>
+                                    )}
+
+                                    {/* Tab 3: Notes Usage Analytics */}
+                                    {activeTab === 'notes' && (
+                                        <>
+                                            <thead>
+                                                <tr className="bg-slate-50/70 text-slate-400 font-extrabold text-[11px] uppercase tracking-wider border-b border-slate-100">
+                                                    <th className="py-3.5 px-6">Student Name</th>
+                                                    <th className="py-3.5 px-4">Institute Name</th>
+                                                    <th className="py-3.5 px-4 text-center">Total Notes</th>
+                                                    <th className="py-3.5 px-4 text-center">Total Sections</th>
+                                                    <th className="py-3.5 px-4 text-right">Total Storage</th>
+                                                    <th className="py-3.5 px-4 text-right">Used Storage</th>
+                                                    <th className="py-3.5 px-4 text-right">Remaining Storage</th>
+                                                    <th className="py-3.5 px-4 text-right">Last Activity</th>
+                                                    <th className="py-3.5 px-4 text-center">Trash Files</th>
+                                                    <th className="py-3.5 px-4 text-center">Total Devices</th>
+                                                    <th className="py-3.5 px-6 text-right">Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-100 text-xs font-bold text-slate-700">
+                                                {currentEntries.length === 0 ? (
+                                                    <tr>
+                                                        <td colSpan="11" className="text-center py-10 text-slate-400">No student records found.</td>
+                                                    </tr>
+                                                ) : (
+                                                    currentEntries.map((row, idx) => (
+                                                        <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
+                                                            <td className="py-3.5 px-6 font-extrabold text-slate-850">{row.name}</td>
+                                                            <td className="py-3.5 px-4 font-semibold text-slate-500">{row.instituteName}</td>
+                                                            <td className="py-3.5 px-4 text-center text-slate-800">{row.notes.totalNotes}</td>
+                                                            <td className="py-3.5 px-4 text-center text-slate-400 font-medium">{row.notes.totalSections}</td>
+                                                            <td className="py-3.5 px-4 text-right font-medium text-slate-400">{formatBytes(row.notes.totalStorage)}</td>
+                                                            <td className="py-3.5 px-4 text-right font-black text-indigo-650">{formatBytes(row.notes.usedStorage)}</td>
+                                                            <td className="py-3.5 px-4 text-right font-extrabold text-emerald-600">{formatBytes(row.notes.remainingStorage)}</td>
+                                                            <td className="py-3.5 px-4 text-right text-slate-400 font-semibold">{formatDate(row.notes.lastActivity)}</td>
+                                                            <td className="py-3.5 px-4 text-center text-slate-400 font-medium">{row.notes.trashFiles}</td>
+                                                            <td className="py-3.5 px-4 text-center text-slate-600">{row.notes.totalDevices}</td>
+                                                            <td className="py-3.5 px-6 text-right">
+                                                                <button 
+                                                                    onClick={() => handleEditAccess(row.user)}
+                                                                    className="px-3.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-650 text-[10px] font-black rounded-xl border border-indigo-100 transition-all cursor-pointer"
+                                                                >
+                                                                    Edit access & features
+                                                                </button>
+                                                            </td>
+                                                        </tr>
+                                                    ))
+                                                )}
+                                            </tbody>
+                                        </>
+                                    )}
+
+                                    {/* Tabs 4-7: Screenshot, ScreenRecording, AudioRecording, VideoRecording */}
+                                    {['screenshot', 'screenRecorder', 'voiceRecorder', 'videoRecorder'].includes(activeTab) && (
+                                        <>
+                                            <thead>
+                                                <tr className="bg-slate-50/70 text-slate-400 font-extrabold text-[11px] uppercase tracking-wider border-b border-slate-100">
+                                                    <th className="py-3.5 px-6">Student Name</th>
+                                                    <th className="py-3.5 px-4">Institute Name</th>
+                                                    <th className="py-3.5 px-4 text-center">Total Files</th>
+                                                    <th className="py-3.5 px-4 text-center">Total Folders</th>
+                                                    <th className="py-3.5 px-4 text-right">Total Storage</th>
+                                                    <th className="py-3.5 px-4 text-right">Used Storage</th>
+                                                    <th className="py-3.5 px-4 text-right">Remaining Storage</th>
+                                                    <th className="py-3.5 px-4 text-center">Total Uploads</th>
+                                                    <th className="py-3.5 px-4 text-center">Total Downloads</th>
+                                                    <th className="py-3.5 px-4 text-center">Total Shared Files</th>
+                                                    <th className="py-3.5 px-4 text-right">Last Activity</th>
+                                                    <th className="py-3.5 px-4 text-center">Trash Files</th>
+                                                    <th className="py-3.5 px-6 text-right">Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-100 text-xs font-bold text-slate-700">
+                                                {currentEntries.length === 0 ? (
+                                                    <tr>
+                                                        <td colSpan="13" className="text-center py-10 text-slate-400">No student records found.</td>
+                                                    </tr>
+                                                ) : (
+                                                    currentEntries.map((row, idx) => {
+                                                        const tool = row[activeTab] || {
+                                                            totalFiles: 0, totalFolders: 0, totalStorage: 5 * 1024 * 1024 * 1024,
+                                                            usedStorage: 0, remainingStorage: 5 * 1024 * 1024 * 1024,
+                                                            totalUploads: 0, totalDownloads: 0, totalSharedFiles: 0,
+                                                            lastActivity: null, trashFiles: 0
+                                                        };
+                                                        return (
+                                                            <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
+                                                                <td className="py-3.5 px-6 font-extrabold text-slate-850">{row.name}</td>
+                                                                <td className="py-3.5 px-4 font-semibold text-slate-500">{row.instituteName}</td>
+                                                                <td className="py-3.5 px-4 text-center">{tool.totalFiles}</td>
+                                                                <td className="py-3.5 px-4 text-center text-slate-400 font-medium">{tool.totalFolders}</td>
+                                                                <td className="py-3.5 px-4 text-right font-medium text-slate-400">{formatBytes(tool.totalStorage)}</td>
+                                                                <td className="py-3.5 px-4 text-right font-black text-indigo-650">{formatBytes(tool.usedStorage)}</td>
+                                                                <td className="py-3.5 px-4 text-right font-extrabold text-emerald-600">{formatBytes(tool.remainingStorage)}</td>
+                                                                <td className="py-3.5 px-4 text-center text-slate-600">{tool.totalUploads}</td>
+                                                                <td className="py-3.5 px-4 text-center text-slate-400 font-medium">{tool.totalDownloads}</td>
+                                                                <td className="py-3.5 px-4 text-center text-slate-400 font-medium">{tool.totalSharedFiles}</td>
+                                                                <td className="py-3.5 px-4 text-right text-slate-400 font-semibold">{formatDate(tool.lastActivity)}</td>
+                                                                <td className="py-3.5 px-4 text-center text-slate-400 font-medium">{tool.trashFiles}</td>
+                                                                <td className="py-3.5 px-6 text-right">
+                                                                    <button 
+                                                                        onClick={() => handleEditAccess(row.user)}
+                                                                        className="px-3.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-650 text-[10px] font-black rounded-xl border border-indigo-100 transition-all cursor-pointer"
+                                                                    >
+                                                                        Edit access & features
+                                                                    </button>
+                                                                </td>
+                                                            </tr>
+                                                        );
+                                                    })
+                                                )}
+                                            </tbody>
+                                        </>
+                                    )}
+
                                 </table>
+                            </div>
+
+                            {/* Table Footer with Pagination */}
+                            <div className="p-5 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                <div className="text-xs font-semibold text-slate-400">
+                                    Showing {filteredStudents.length > 0 ? indexOfFirstEntry + 1 : 0} to {Math.min(indexOfLastEntry, filteredStudents.length)} of {filteredStudents.length} entries
+                                </div>
+                                
+                                <div className="flex items-center gap-3">
+                                    {/* Navigation Buttons exactly like mock */}
+                                    {totalPages > 1 && (
+                                        <div className="flex items-center gap-2 select-none">
+                                            {/* Previous button */}
+                                            <button
+                                                disabled={currentPage === 1}
+                                                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                                                className={`px-4 py-2 rounded-full border text-xs font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer ${
+                                                    currentPage === 1
+                                                        ? 'bg-slate-50 border-slate-200 text-slate-400'
+                                                        : 'bg-white hover:bg-slate-50 border-slate-250 text-slate-700'
+                                                }`}
+                                            >
+                                                Previous
+                                            </button>
+
+                                            {/* Page numbers and Ellipses */}
+                                            <div className="flex items-center gap-1">
+                                                {getPageNumbers().map((pageNum, idx) => {
+                                                    if (pageNum === '...') {
+                                                        return (
+                                                            <span key={idx} className="w-8 h-8 text-slate-400 font-bold text-xs flex items-center justify-center">
+                                                                ...
+                                                            </span>
+                                                        );
+                                                    }
+                                                    
+                                                    const isPageActive = currentPage === pageNum;
+                                                    return (
+                                                        <button
+                                                            key={idx}
+                                                            onClick={() => setCurrentPage(pageNum)}
+                                                            className={`w-8 h-8 rounded-full font-bold text-xs flex items-center justify-center transition-all cursor-pointer ${
+                                                                isPageActive
+                                                                    ? 'bg-[#0b1329] text-white shadow-md shadow-black/10'
+                                                                    : 'hover:bg-slate-100 text-slate-700'
+                                                            }`}
+                                                        >
+                                                            {pageNum}
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+
+                                            {/* Next button */}
+                                            <button
+                                                disabled={currentPage === totalPages || totalPages === 0}
+                                                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                                                className={`px-4 py-2 rounded-full border text-xs font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer ${
+                                                    (currentPage === totalPages || totalPages === 0)
+                                                        ? 'bg-slate-50 border-slate-200 text-slate-400'
+                                                        : 'bg-white hover:bg-slate-50 border-slate-250 text-slate-700'
+                                                }`}
+                                            >
+                                                Next
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </div>
 
@@ -371,6 +766,23 @@ const ToolsAnalyticsPage = () => {
                 )}
 
             </div>
+
+            {/* Reusable Edit Access & Controls Modal */}
+            {isEditModalOpen && selectedUserToEdit && (
+                <EditUserModal 
+                    user={selectedUserToEdit} 
+                    isOpen={isEditModalOpen} 
+                    onClose={() => {
+                        setIsEditModalOpen(false);
+                        setSelectedUserToEdit(null);
+                    }} 
+                    onSuccess={() => {
+                        setIsEditModalOpen(false);
+                        setSelectedUserToEdit(null);
+                        fetchAnalytics();
+                    }} 
+                />
+            )}
         </DashboardLayout>
     );
 };

@@ -32,6 +32,7 @@ const TestBuilder = lazy(() => import('./pages/admin/TestBuilder'));
 const EditorDashboard = lazy(() => import('./pages/editor/EditorDashboard'));
 const ToolsPage = lazy(() => import('./pages/admin/ToolsPage'));
 const ToolsAnalyticsPage = lazy(() => import('./pages/admin/ToolsAnalyticsPage'));
+const AdminAnnouncements = lazy(() => import('./pages/admin/AdminAnnouncements'));
 const InstitutesList = lazy(() => import('./pages/admin/InstitutesList'));
 const CoursesList = lazy(() => import('./pages/admin/CoursesList'));
 const StudentTests = lazy(() => import('./pages/student/StudentTests'));
@@ -574,9 +575,29 @@ function App() {
                                                  <WebCallingPage />
                                              </PrivateRoute>
                                          } />
-                                         <Route path="/admin/tools-analytics" element={
+                                         <Route path="/admin/tools-analytics/:tab?" element={
                                              <PrivateRoute role={['Admin', 'Staff', 'Editor']}>
                                                  <ToolsAnalyticsPage />
+                                             </PrivateRoute>
+                                         } />
+                                         <Route path="/admin/announcements" element={
+                                             <PrivateRoute role={['Admin', 'Staff', 'Editor', 'Institute', 'Teacher', 'Student']}>
+                                                 <AdminAnnouncements />
+                                             </PrivateRoute>
+                                         } />
+                                         <Route path="/institute/announcements" element={
+                                             <PrivateRoute role={['Admin', 'Staff', 'Editor', 'Institute', 'Teacher', 'Student']}>
+                                                 <AdminAnnouncements />
+                                             </PrivateRoute>
+                                         } />
+                                         <Route path="/teacher/announcements" element={
+                                             <PrivateRoute role={['Admin', 'Staff', 'Editor', 'Institute', 'Teacher', 'Student']}>
+                                                 <AdminAnnouncements />
+                                             </PrivateRoute>
+                                         } />
+                                         <Route path="/student/announcements" element={
+                                             <PrivateRoute role={['Admin', 'Staff', 'Editor', 'Institute', 'Teacher', 'Student']}>
+                                                 <AdminAnnouncements />
                                              </PrivateRoute>
                                          } />
                                          <Route path="/admin/staff/task" element={

@@ -1774,7 +1774,7 @@ const UsersList = () => {
                                                 </div>
                                             ) : viewTab === 'applications' ? (
                                                 <div className="flex items-center justify-end gap-1.5">
-                                                    {u.status === 'Pending' ? (
+                                                    {(u.status === 'Applied' || u.status === 'Pending' || u.status === 'Under Review') ? (
                                                         <>
                                                             <button
                                                                 onClick={() => handleUpdateAppStatus(u._id, 'Accepted')}

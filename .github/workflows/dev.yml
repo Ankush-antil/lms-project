@@ -1,4 +1,4 @@
-name: Deploy LMS DEV
+name: Deploy LMS DEV & PROD
 
 on:
   push:
@@ -17,21 +17,32 @@ jobs:
           username: root
           password: ${{ secrets.VPS_PASSWORD }}
           script: |
-            cd /var/www/lms-dev/lms-project
+            # 1. Deploy LMS DEV
+            if [ -d "/var/www/lms-dev/lms-project" ]; then
+              cd /var/www/lms-dev/lms-project
+              git remote prune origin
+              git fetch --prune --all
+              git reset --hard origin/main
+              npm install
+              cd client
+              npm install
+              npm run build
+              cd ../server
+              npm install
+              pm2 restart lms-dev --update-env || pm2 start server.js --name "lms-dev"
+            fi
 
-            git remote prune origin
-            git fetch --prune --all
-            git reset --hard origin/main
-
-            npm install
-
-            cd client
-            npm install
-            npm run build
-
-            cd ../server
-            npm install
-
-            pm2 restart lms-dev --update-env || pm2 start server.js --name "lms-dev"
-
-
+            # 2. Deploy LMS PROD
+            if [ -d "/var/www/lms-prod/lms-project" ]; then
+              cd /var/www/lms-prod/lms-project
+              git remote prune origin
+              git fetch --prune --all
+              git reset --hard origin/main
+              npm install
+              cd client
+              npm install
+              npm run build
+              cd ../server
+              npm install
+              pm2 restart lms-prod --update-env || pm2 start server.js --name "lms-prod"
+            fi

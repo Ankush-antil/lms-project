@@ -649,12 +649,12 @@ const InstituteStaff = () => {
     const fetchStaff = async () => {
         try {
             const token = localStorage.getItem('authToken');
-            const { data } = await axios.get('/api/users?role=Teacher,Editor,Accountant,Marketer', {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+            const { data } = await axios.get('/api/users?role=Teacher,Editor,Accountant,Marketer,Staff,Institute', config);
             const fetched = Array.isArray(data) ? data : data.users || [];
             setStaffList(fetched);
-        } catch {
+        } catch (err) {
+            console.error("Error fetching institute staff:", err);
             setStaffList([]);
         } finally {
             setLoading(false);
@@ -979,11 +979,11 @@ const InstituteStaff = () => {
         setIsPointsStaffPreselected(true);
         setPointsType(log.type);
         setPointsModalRows([
-            { 
-                title: log.taskTitle || '', 
-                description: log.reason || '', 
-                valuation: log.points ? log.points.toString() : '', 
-                date: log.date || new Date().toISOString().split('T')[0] 
+            {
+                title: log.taskTitle || '',
+                description: log.reason || '',
+                valuation: log.points ? log.points.toString() : '',
+                date: log.date || new Date().toISOString().split('T')[0]
             }
         ]);
         setEditingLogId(log.id);
@@ -1098,7 +1098,7 @@ const InstituteStaff = () => {
                     headers: { Authorization: `Bearer ${token}` }
                 });
                 const currentProfile = (data?.user || data)?.staffProfile || {};
-                
+
                 await axios.put(`/api/users/${staffId}`, {
                     staffProfile: {
                         ...currentProfile,
@@ -1257,13 +1257,13 @@ const InstituteStaff = () => {
                                 }} />
                             </div>
 
-                            <select 
-                                value={filterDepartment} 
-                                onChange={e => setFilterDepartment(e.target.value)} 
+                            <select
+                                value={filterDepartment}
+                                onChange={e => setFilterDepartment(e.target.value)}
                                 style={{
                                     paddingLeft: 12, paddingRight: 12, paddingTop: 9, paddingBottom: 9,
                                     border: '1.5px solid #e2e8f0', borderRadius: '12px', fontSize: '0.8rem',
-                                    fontWeight: 600, color: '#374151', background: '#fff', outline: 'none', 
+                                    fontWeight: 600, color: '#374151', background: '#fff', outline: 'none',
                                     fontFamily: 'inherit', cursor: 'pointer'
                                 }}
                             >
@@ -1273,13 +1273,13 @@ const InstituteStaff = () => {
                                 ))}
                             </select>
 
-                            <select 
-                                value={filterDesignation} 
-                                onChange={e => setFilterDesignation(e.target.value)} 
+                            <select
+                                value={filterDesignation}
+                                onChange={e => setFilterDesignation(e.target.value)}
                                 style={{
                                     paddingLeft: 12, paddingRight: 12, paddingTop: 9, paddingBottom: 9,
                                     border: '1.5px solid #e2e8f0', borderRadius: '12px', fontSize: '0.8rem',
-                                    fontWeight: 600, color: '#374151', background: '#fff', outline: 'none', 
+                                    fontWeight: 600, color: '#374151', background: '#fff', outline: 'none',
                                     fontFamily: 'inherit', cursor: 'pointer'
                                 }}
                             >
@@ -1376,7 +1376,7 @@ const InstituteStaff = () => {
                         { id: 'attendance', label: 'Attendance Management', icon: Calendar },
                         { id: 'salary', label: 'Salary & Payouts', icon: DollarSign },
                         { id: 'task', label: 'Task Assignments', icon: CheckSquare },
-                        
+
                     ].map(t => {
                         const Icon = t.icon;
                         const isSel = activeTab === t.id;
@@ -1421,32 +1421,32 @@ const InstituteStaff = () => {
                                                 <th key={h} style={{ padding: '13px 16px', textAlign: 'left', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{h}</th>
                                             ))}
                                         </tr>
-                                     </thead>
-                                     <tbody>
-                                         {displayList.length === 0 ? (
-                                             <tr><td colSpan={7} style={{ padding: '48px', textAlign: 'center', color: '#94a3b8', fontWeight: 700 }}>No staff found</td></tr>
-                                         ) : displayList.map((s, i) => (
-                                             <tr key={s._id || i} style={{ borderBottom: '1px solid #f8fafc' }}
-                                                 onMouseEnter={e => e.currentTarget.style.background = '#fafafa'}
-                                                 onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                                                 <td style={{ padding: '13px 16px', fontSize: '0.78rem', fontWeight: 700, color: '#94a3b8' }}>{i + 1}</td>
-                                                 <td style={{ padding: '13px 16px' }}>
-                                                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                                         <div style={{ width: 32, height: 32, borderRadius: '10px', background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '0.78rem', fontWeight: 900 }}>
-                                                             {s.name?.[0]?.toUpperCase() || '?'}
-                                                         </div>
-                                                         <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                                             <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#0f172a' }}>{s.name}</span>
-                                                             <span style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 650 }}>{s.email}</span>
-                                                         </div>
-                                                     </div>
-                                                 </td>
-                                                 <td style={{ padding: '13px 16px', fontSize: '0.78rem', fontWeight: 700, color: '#374151' }}>{s.staffProfile?.designation || '—'}</td>
-                                                 <td style={{ padding: '13px 16px', fontSize: '0.78rem', fontWeight: 600, color: '#64748b' }}>{s.staffProfile?.department || '—'}</td>
-                                                 <td style={{ padding: '13px 16px', fontSize: '0.78rem', fontWeight: 800, color: s.staffProfile?.minusPoints > 0 ? '#ef4444' : '#64748b' }}>
-                                                     {s.staffProfile?.minusPoints !== undefined ? s.staffProfile.minusPoints : 0}
-                                                 </td>
-                                                 <td style={{ padding: '13px 16px' }}>
+                                    </thead>
+                                    <tbody>
+                                        {displayList.length === 0 ? (
+                                            <tr><td colSpan={7} style={{ padding: '48px', textAlign: 'center', color: '#94a3b8', fontWeight: 700 }}>No staff found</td></tr>
+                                        ) : displayList.map((s, i) => (
+                                            <tr key={s._id || i} style={{ borderBottom: '1px solid #f8fafc' }}
+                                                onMouseEnter={e => e.currentTarget.style.background = '#fafafa'}
+                                                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                                                <td style={{ padding: '13px 16px', fontSize: '0.78rem', fontWeight: 700, color: '#94a3b8' }}>{i + 1}</td>
+                                                <td style={{ padding: '13px 16px' }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                        <div style={{ width: 32, height: 32, borderRadius: '10px', background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '0.78rem', fontWeight: 900 }}>
+                                                            {s.name?.[0]?.toUpperCase() || '?'}
+                                                        </div>
+                                                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                                            <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#0f172a' }}>{s.name}</span>
+                                                            <span style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 650 }}>{s.email}</span>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td style={{ padding: '13px 16px', fontSize: '0.78rem', fontWeight: 700, color: '#374151' }}>{s.staffProfile?.designation || '—'}</td>
+                                                <td style={{ padding: '13px 16px', fontSize: '0.78rem', fontWeight: 600, color: '#64748b' }}>{s.staffProfile?.department || '—'}</td>
+                                                <td style={{ padding: '13px 16px', fontSize: '0.78rem', fontWeight: 800, color: s.staffProfile?.minusPoints > 0 ? '#ef4444' : '#64748b' }}>
+                                                    {s.staffProfile?.minusPoints !== undefined ? s.staffProfile.minusPoints : 0}
+                                                </td>
+                                                <td style={{ padding: '13px 16px' }}>
                                                     <span style={{ background: s.isActive !== false ? '#dcfce7' : '#fee2e2', color: s.isActive !== false ? '#16a34a' : '#dc2626', borderRadius: '999px', padding: '3px 10px', fontSize: '0.65rem', fontWeight: 900 }}>
                                                         {s.isActive !== false ? 'Active' : 'Inactive'}
                                                     </span>
@@ -2451,10 +2451,10 @@ const InstituteStaff = () => {
                     </div>
                 )}
 
-                
+
 
                 {/* Add / Edit Points Modal */}
-                
+
             </div>
 
             {/* Add/Edit Staff Modal (Rendered globally using React Portal) */}
@@ -2475,7 +2475,7 @@ const InstituteStaff = () => {
                                 { label: 'Email *', key: 'email', type: 'email', placeholder: 'e.g. ravi@institute.com' },
                                 { label: 'Designation', key: 'designation', type: 'text', placeholder: 'e.g. Office Clerk' },
                                 { label: 'Department', key: 'department', type: 'text', placeholder: 'e.g. Administration' },
-                                
+
                             ].map(f => (
                                 <div key={f.key}>
                                     <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#374151', marginBottom: '5px' }}>{f.label}</label>

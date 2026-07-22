@@ -1,10 +1,10 @@
+require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
 const mongoose = require('mongoose');
 
 const uris = [
-  { name: 'ENV_CURRENT', uri: 'mongodb+srv://digitalstudy:digitalstudy%23%405555@digitalstudy.lzqs6z8.mongodb.net/digitalstudy?retryWrites=true&w=majority&appName=Digitalstudy' },
-  { name: 'DEV_URI', uri: 'mongodb+srv://digitalstudy5555_db_user:digital%235555@digitalstudy.lzqs6z8.mongodb.net/?appName=DigitalStudyCluster' },
-  { name: 'PROD_URI', uri: 'mongodb+srv://digitalstudy5555_db_user:digital%235555@digitalstudycluster.tkpcaax.mongodb.net/?appName=DigitalStudyCluster' }
-];
+  { name: 'ENV_MONGO_URI', uri: process.env.MONGO_URI },
+  { name: 'ENV_DIRECT_MONGO_URI', uri: process.env.DIRECT_MONGO_URI }
+].filter(u => Boolean(u.uri));
 
 async function testAll() {
   for (const {name, uri} of uris) {

@@ -7,15 +7,15 @@ if (dns.setDefaultResultOrder) {
     dns.setDefaultResultOrder('ipv4first');
 }
 
-const DIRECT_MONGO_URI = 'mongodb://digitalstudy:DigitalStudy123@ac-khrbsml-shard-00-00.lzqs6z8.mongodb.net:27017,ac-khrbsml-shard-00-01.lzqs6z8.mongodb.net:27017,ac-khrbsml-shard-00-02.lzqs6z8.mongodb.net:27017/?ssl=true&replicaSet=atlas-khrbsml-shard-0&authSource=admin&retryWrites=true&w=majority';
-
 const connectDB = async (retries = 5) => {
     while (retries > 0) {
         try {
-            const uri = process.env.MONGO_URI || DIRECT_MONGO_URI;
+            const primaryUri = process.env.MONGO_URI;
+            const directUri = process.env.DIRECT_MONGO_URI || primaryUri;
+
             console.log("Connecting to MongoDB...");
 
-            const conn = await mongoose.connect(uri, {
+            const conn = await mongoose.connect(primaryUri, {
                 serverSelectionTimeoutMS: 15000,
                 maxPoolSize: 10,
                 minPoolSize: 2,
@@ -25,7 +25,8 @@ const connectDB = async (retries = 5) => {
         } catch (error) {
             console.error(`SRV Connection Failed (${error.message}). Trying Direct Replica Set URI...`);
             try {
-                const conn = await mongoose.connect(DIRECT_MONGO_URI, {
+                const directUri = process.env.DIRECT_MONGO_URI || process.env.MONGO_URI;
+                const conn = await mongoose.connect(directUri, {
                     serverSelectionTimeoutMS: 15000,
                     maxPoolSize: 10,
                     minPoolSize: 2,

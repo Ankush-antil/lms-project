@@ -204,17 +204,19 @@ initAttendanceCron();
 
 const PORT = process.env.PORT || 5000;
 
-const startServer = () => {
+const startServer = async () => {
+    try {
+        await connectDB();
+    } catch (error) {
+        console.error('Initial DB Connection Error:', error.message);
+    }
+
     server.listen(PORT, '0.0.0.0', () => {
         console.log(`=========================================`);
         console.log(`Server running on: http://0.0.0.0:${PORT}`);
         console.log(`LMS API v1.0.1 Started with Socket.IO`);
         console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
         console.log(`=========================================`);
-    });
-
-    connectDB().catch(error => {
-        console.error('Initial DB Connection Error:', error.message);
     });
 };
 

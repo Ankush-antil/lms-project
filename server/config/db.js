@@ -1,43 +1,48 @@
 const mongoose = require('mongoose');
 const dns = require('dns');
 
-// Force Node.js to use Google & Cloudflare Public DNS to prevent Ubuntu systemd-resolved timeouts
-dns.setServers(['8.8.8.8', '1.1.1.1']);
-if (dns.setDefaultResultOrder) {
-    dns.setDefaultResultOrder('ipv4first');
+// Safely configure DNS to prevent resolution timeouts on hosts with systemd-resolved
+try {
+    dns.setServers(['8.8.8.8', '1.1.1.1']);
+} catch (dnsErr) {
+    console.warn('Custom DNS setServers skipped:', dnsErr.message);
 }
+if (dns.setDefaultResultOrder) {
+    try {
+        dns.setDefaultResultOrder('ipv4first');
+    } catch (dnsErr) {}
+}
+
+const mongoOptions = {
+    serverSelectionTimeoutMS: 10000,
+    connectTimeoutMS: 10000,
+    socketTimeoutMS: 45000,
+    maxPoolSize: 10,
+    minPoolSize: 2,
+    family: 4 // Force IPv4 resolution to prevent socket secureConnect timeouts
+};
 
 const connectDB = async (retries = 5) => {
     while (retries > 0) {
         try {
             const primaryUri = process.env.MONGO_URI;
-            const directUri = process.env.DIRECT_MONGO_URI || primaryUri;
+            console.log("Connecting to MongoDB Atlas...");
 
-            console.log("Connecting to MongoDB...");
-
-            const conn = await mongoose.connect(primaryUri, {
-                serverSelectionTimeoutMS: 15000,
-                maxPoolSize: 10,
-                minPoolSize: 2,
-            });
-            console.log(`MongoDB Connected: ${conn.connection.host}`);
+            const conn = await mongoose.connect(primaryUri, mongoOptions);
+            console.log(`MongoDB Connected successfully: ${conn.connection.host}`);
             return conn;
         } catch (error) {
-            console.error(`SRV Connection Failed (${error.message}). Trying Direct Replica Set URI...`);
+            console.error(`Primary Mongo Connection Failed (${error.message}). Retrying fallback URI...`);
             try {
-                const directUri = process.env.DIRECT_MONGO_URI || process.env.MONGO_URI;
-                const conn = await mongoose.connect(directUri, {
-                    serverSelectionTimeoutMS: 15000,
-                    maxPoolSize: 10,
-                    minPoolSize: 2,
-                });
-                console.log(`MongoDB Connected via Direct Replica Set: ${conn.connection.host}`);
+                const fallbackUri = process.env.DIRECT_MONGO_URI || process.env.MONGO_FALLBACK_URI || 'mongodb+srv://digitalstudy5555_db_user:DigitalStudy123@cluster0.lstfruc.mongodb.net/?appName=Cluster0';
+                const conn = await mongoose.connect(fallbackUri, mongoOptions);
+                console.log(`MongoDB Connected via Fallback URI: ${conn.connection.host}`);
                 return conn;
             } catch (fallbackError) {
                 retries -= 1;
                 console.error(`Direct DB Error (${retries} retries left): ${fallbackError.message}`);
                 if (retries === 0) {
-                    console.error("MongoDB Connection temporarily failed. Retrying in background in 10s...");
+                    console.error("MongoDB Connection temporarily failed. Will retry in background in 10s...");
                     setTimeout(() => connectDB(5), 10000);
                     return;
                 }
@@ -48,3 +53,4 @@ const connectDB = async (retries = 5) => {
 };
 
 module.exports = connectDB;
+

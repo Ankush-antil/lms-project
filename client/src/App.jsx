@@ -167,6 +167,10 @@ const SubdomainRedirectHandler = ({ children }) => {
         const lowerPath = (path || '').toLowerCase().replace(/\/+$/, '') || '/';
         const isPublicPath = lowerPath.startsWith('/share/') || lowerPath === '/track-applications' || lowerPath.startsWith('/mobile-call') || lowerPath === '/login' || lowerPath === '/privacy-policy' || lowerPath === '/privacy';
 
+        if (isPublicPath) {
+            return;
+        }
+
         const safeRedirect = (targetUrl) => {
             try {
                 const now = Date.now();

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lms-offline-cache-v1';
+const CACHE_NAME = 'lms-offline-cache-v3';
 const STATIC_ASSETS = [
     '/',
     '/index.html',

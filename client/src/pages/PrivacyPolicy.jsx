@@ -201,8 +201,13 @@ const PrivacyPolicy = () => {
                     </div>
 
                     {/* Document Footer */}
-                    <div style={{ marginTop: '40px', paddingTop: '20px', borderTop: '1px solid #e2e8f0', textAlign: 'center', fontSize: '0.78rem', color: '#94a3b8', fontWeight: 600 }}>
-                        © 2026 DS Notebook / LMS Portal. All Rights Reserved. Official Legal Terms & Play Store Privacy Statement.
+                    <div style={{ marginTop: '40px', paddingTop: '20px', borderTop: '1px solid #e2e8f0', textAlign: 'center', fontSize: '0.78rem', color: '#64748b', fontWeight: 600 }}>
+                        <p style={{ margin: '0 0 8px', color: '#0f172a', fontWeight: 700 }}>
+                            DS Notebook and Digital Study Academy are proprietary educational software and brands. Unauthorized copying, reproduction, reverse engineering, redistribution, or commercial use is strictly prohibited.
+                        </p>
+                        <span style={{ color: '#94a3b8', fontSize: '0.72rem' }}>
+                            © 2026 DS Notebook / LMS Portal. All Rights Reserved. Official Legal Terms & Play Store Privacy Statement.
+                        </span>
                     </div>
 
                 </div>

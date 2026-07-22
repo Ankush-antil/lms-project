@@ -1852,9 +1852,14 @@ const LandingPage = () => {
                                                                         </div>
                                                                     </div>
 
-                                                                    <div className="text-[10px] text-slate-400 border-t border-slate-100 pt-4 mt-6 flex justify-between items-center">
-                                                                        <span>LMS Portal &copy; 2026</span>
-                                                                        <span className="flex items-center gap-1 text-slate-500"><GraduationCap size={12} /> Secure Connection</span>
+                                                                    <div className="text-[10px] text-slate-400 border-t border-slate-100 pt-4 mt-6 flex flex-col gap-2">
+                                                                        <div className="flex justify-between items-center">
+                                                                            <span>LMS Portal &copy; 2026</span>
+                                                                            <span className="flex items-center gap-1 text-slate-500"><GraduationCap size={12} /> Secure Connection</span>
+                                                                        </div>
+                                                                        <p className="text-[9px] text-slate-400 font-medium leading-relaxed">
+                                                                            DS Notebook and Digital Study Academy are proprietary educational software and brands. Unauthorized copying, reproduction, reverse engineering, redistribution, or commercial use is strictly prohibited.
+                                                                        </p>
                                                                     </div>
                                                                 </div>
 

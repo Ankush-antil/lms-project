@@ -1203,6 +1203,15 @@ const DashboardLayout = ({ children, role, fullWidth = false, noPadding = false 
                 <div className={`${fullWidth ? 'w-full' : 'max-w-7xl mx-auto'} ${noPadding ? 'h-full' : ''} animate-fade-in relative`}>
                     {children}
                 </div>
+
+                {/* Footer Proprietary Copyright Notice */}
+                {!noPadding && (
+                    <footer className="mt-12 pt-6 border-t border-slate-200/80 text-center px-4">
+                        <p className="text-[11px] font-semibold text-slate-400 max-w-4xl mx-auto leading-relaxed">
+                            DS Notebook and Digital Study Academy are proprietary educational software and brands. Unauthorized copying, reproduction, reverse engineering, redistribution, or commercial use is strictly prohibited.
+                        </p>
+                    </footer>
+                )}
             </main>
 
             <style dangerouslySetInnerHTML={{

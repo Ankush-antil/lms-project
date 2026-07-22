@@ -57,8 +57,7 @@ const ToolsAnalyticsPage = () => {
             'voiceRecorder': 'voice-recorder',
             'videoRecorder': 'video-recorder'
         };
-        const basePath = user?.role === 'Institute' ? '/institute/tools-analytics' : '/admin/tools-analytics';
-        navigate(`${basePath}/${revMapping[tabId]}`);
+        navigate(`/admin/tools-analytics/${revMapping[tabId]}`);
     };
 
     // Filters
@@ -423,19 +422,17 @@ const ToolsAnalyticsPage = () => {
                                     </div>
 
                                     {/* Institute Filter */}
-                                    {user?.role !== 'Institute' && (
-                                        <select
-                                            value={selectedInstitute}
-                                            onChange={(e) => setSelectedInstitute(e.target.value)}
-                                            className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none cursor-pointer"
-                                        >
-                                            {institutesList.map(inst => (
-                                                <option key={inst} value={inst}>
-                                                    {inst === 'All' ? 'All Institutes' : inst}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    )}
+                                    <select
+                                        value={selectedInstitute}
+                                        onChange={(e) => setSelectedInstitute(e.target.value)}
+                                        className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none cursor-pointer"
+                                    >
+                                        {institutesList.map(inst => (
+                                            <option key={inst} value={inst}>
+                                                {inst === 'All' ? 'All Institutes' : inst}
+                                            </option>
+                                        ))}
+                                    </select>
                                 </div>
                             </div>
 

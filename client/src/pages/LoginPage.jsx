@@ -199,6 +199,8 @@ const LoginPage = () => {
                             alt="Student Portal Illustration"
                             className="w-full h-auto max-h-[260px] object-contain select-none pointer-events-none"
                         />
+                    </div>
+
                     {/* Privacy Policy & Proprietary Notice */}
                     <div className="z-10 mt-auto pt-4 text-center px-4">
                         <a href="/privacy-policy" target="_blank" rel="noreferrer" className="text-[11px] font-bold text-slate-300 hover:text-white transition-colors underline block mb-2">

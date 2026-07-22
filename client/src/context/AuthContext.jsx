@@ -42,18 +42,23 @@ export const AuthProvider = ({ children }) => {
     const fetchUser = async () => {
         try {
             setLoading(true);
+            const storedToken = localStorage.getItem('authToken');
+            if (!storedToken) {
+                setUser(null);
+                setLoading(false);
+                return;
+            }
+
             const { data } = await axios.get('/api/auth/me');
             setUser(data);
             
-            // Sync token to localStorage if we got it back or if we can read it
-            const storedToken = localStorage.getItem('authToken') || data.token;
             if (storedToken) {
-                localStorage.setItem('authToken', storedToken);
                 saveAccountToList(storedToken, data);
             }
         } catch (error) {
-            console.error("Auth verification failed:", error.response?.status);
-            localStorage.removeItem('authToken');
+            if (error.response?.status === 401) {
+                localStorage.removeItem('authToken');
+            }
             setUser(null);
         } finally {
             setLoading(false);

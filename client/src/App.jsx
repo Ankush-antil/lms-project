@@ -79,7 +79,7 @@ const AdminStaffSalary = lazy(() => import('./pages/admin/AdminStaffSalary'));
 const AdminStaffTask = lazy(() => import('./pages/admin/AdminStaffTask'));
 const InstituteStaff = lazy(() => import('./pages/institute/InstituteStaff'));
 const StaffTaskDetailPage = lazy(() => import('./pages/institute/StaffTaskDetailPage'));
-const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
+import PrivacyPolicy from './pages/PrivacyPolicy';
 
 // Destructured imports (can be lazily imported individually or kept static)
 import { InstituteStaffAttendance, InstituteStaffSalary, InstituteStaffTask } from './pages/institute/InstituteStaffPages';
@@ -164,7 +164,8 @@ const SubdomainRedirectHandler = ({ children }) => {
 
         const subdomain = parts[0].toLowerCase();
         const isApexOrWww = subdomain === 'www' || subdomain === 'landing' || subdomain === 'digitalstudyacademy' || parts.length <= 2;
-        const isPublicPath = path.startsWith('/share/') || path === '/track-applications' || path.startsWith('/mobile-call') || path === '/login' || path === '/privacy-policy' || path === '/privacy';
+        const lowerPath = (path || '').toLowerCase().replace(/\/+$/, '') || '/';
+        const isPublicPath = lowerPath.startsWith('/share/') || lowerPath === '/track-applications' || lowerPath.startsWith('/mobile-call') || lowerPath === '/login' || lowerPath === '/privacy-policy' || lowerPath === '/privacy';
 
         const safeRedirect = (targetUrl) => {
             try {

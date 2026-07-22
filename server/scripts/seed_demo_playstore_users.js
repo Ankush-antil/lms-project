@@ -40,6 +40,18 @@ const DEMO_USERS = [
         email: 'demo.parent@digitalstudyacademy.com',
         password: 'PlayStore123!',
         role: 'Parent'
+    },
+    {
+        name: 'Demo Institute',
+        email: 'demo.institute@digitalstudyacademy.com',
+        password: 'PlayStore123!',
+        role: 'Institute'
+    },
+    {
+        name: 'Demo Marketer',
+        email: 'demo.marketer@digitalstudyacademy.com',
+        password: 'PlayStore123!',
+        role: 'Marketer'
     }
 ];
 

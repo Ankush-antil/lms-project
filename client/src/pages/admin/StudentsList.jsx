@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../components/layout/DashboardLayout';
-import { Download,  Upload,  Search, Filter, Plus, Trash2, Edit, ChevronDown, Calendar, CheckCircle, XCircle, FileText, Sun, Save, UserCheck, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Download,  Upload,  Search, Filter, Plus, Trash2, Edit, ChevronDown, Calendar, CheckCircle, XCircle, FileText, Sun, Save, UserCheck, ChevronLeft, ChevronRight, Laptop } from 'lucide-react';
 import AddUserModal from '../../components/AddUserModal';
 import EditUserModal from '../../components/EditUserModal';
 import BulkEditModal from '../../components/common/BulkEditModal';
@@ -839,17 +839,27 @@ const StudentsList = () => {
                         className={`pb-3 px-3 sm:px-4 font-bold text-xs sm:text-sm transition-all border-b-2 flex items-center gap-1.5 sm:gap-2 cursor-pointer whitespace-nowrap ${
                             activeTab === 'attendance' 
                                 ? 'border-indigo-650 text-indigo-650' 
-                                : 'border-transparent text-slate-400 hover:text-slate-600'
+                                : 'border-slate-400 hover:text-slate-600 border-transparent'
                         }`}
                     >
-                        <Calendar size={15} /> Daily Attendance Log
+                        <Calendar size={15} /> Physical Attendance
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('lms-attendance')}
+                        className={`pb-3 px-3 sm:px-4 font-bold text-xs sm:text-sm transition-all border-b-2 flex items-center gap-1.5 sm:gap-2 cursor-pointer whitespace-nowrap ${
+                            activeTab === 'lms-attendance' 
+                                ? 'border-indigo-650 text-indigo-650' 
+                                : 'border-slate-400 hover:text-slate-600 border-transparent'
+                        }`}
+                    >
+                        <Laptop size={15} /> LMS Attendance
                     </button>
                     <button
                         onClick={() => setActiveTab('fee')}
                         className={`pb-3 px-3 sm:px-4 font-bold text-xs sm:text-sm transition-all border-b-2 flex items-center gap-1.5 sm:gap-2 cursor-pointer whitespace-nowrap ${
                             activeTab === 'fee' 
                                 ? 'border-indigo-650 text-indigo-650' 
-                                : 'border-transparent text-slate-400 hover:text-slate-600'
+                                : 'border-slate-400 hover:text-slate-600 border-transparent'
                         }`}
                     >
                         <Plus size={15} /> Fee Management
@@ -1634,6 +1644,242 @@ const StudentsList = () => {
                                 </div>
                             </div>
                         )}
+                    </div>
+                </div>
+            )}
+
+            {activeTab === 'lms-attendance' && (
+                <div className="space-y-6 animate-fade-in">
+                    {/* Attendance Filter Row */}
+                    <div className="bg-white p-3 rounded-2xl shadow-sm border border-slate-100 flex flex-row items-center gap-3 flex-wrap md:flex-nowrap w-full">
+                        <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:flex-1 sm:max-w-md animate-fade-in">
+                            <div className="relative w-full sm:flex-1">
+                                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                                <input
+                                    type="text"
+                                    placeholder="Search by Name or ID..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl pl-10 pr-4 py-2.5 text-sm font-bold text-slate-700 placeholder-slate-400 outline-none focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500/50 transition-all"
+                                />
+                            </div>
+                            <div className="flex items-center gap-2 w-full sm:w-auto">
+                                <select
+                                    value={bulkAction}
+                                    onChange={(e) => setBulkAction(e.target.value)}
+                                    className="bg-slate-50 border border-slate-100 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 outline-none cursor-pointer h-[38px] min-w-[120px]"
+                                >
+                                    <option value="">Bulk Action</option>
+                                    <option value="delete">Delete Selected</option>
+                                </select>
+                                <button
+                                    type="button"
+                                    onClick={handleApplyBulkAction}
+                                    disabled={selectedIds.size === 0 || !bulkAction}
+                                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-100 disabled:text-slate-400 text-white rounded-xl text-xs font-bold transition-all disabled:cursor-not-allowed cursor-pointer whitespace-nowrap h-[38px] active:scale-95 flex items-center justify-center border border-transparent disabled:border-slate-100"
+                                >
+                                    Apply to All ({selectedIds.size})
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="flex flex-row items-center gap-2.5 flex-wrap md:flex-nowrap">
+                            <div className="flex items-center gap-2 mr-2">
+                                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider select-none">Show</span>
+                                <input
+                                    type="number"
+                                    min={5}
+                                    max={filteredStudents.length}
+                                    value={itemsPerPage}
+                                    onChange={(e) => {
+                                        const val = parseInt(e.target.value);
+                                        if (isNaN(val)) {
+                                            setItemsPerPage('');
+                                        } else {
+                                            const maxVal = filteredStudents.length > 5 ? filteredStudents.length : 5;
+                                            setItemsPerPage(Math.min(val, maxVal));
+                                        }
+                                    }}
+                                    className="w-16 bg-slate-50 border border-slate-100 rounded-2xl py-2 px-3 text-center text-sm font-bold text-slate-700 outline-none"
+                                />
+                                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider select-none">entries</span>
+                            </div>
+
+                            {user?.role === 'Admin' && (
+                                <div className="relative w-[180px]">
+                                    <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                                    <select
+                                        value={filterInstitute}
+                                        onChange={(e) => setFilterInstitute(e.target.value)}
+                                        className="w-full bg-slate-50 border border-slate-100 rounded-2xl pl-9 pr-8 py-3 text-sm font-bold text-slate-700 outline-none appearance-none cursor-pointer"
+                                    >
+                                        <option value="All">All Institutes</option>
+                                        {institutes.map(inst => (
+                                            <option key={inst._id} value={inst._id}>{inst.name}</option>
+                                        ))}
+                                    </select>
+                                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
+                                </div>
+                            )}
+
+                            <div className="relative w-[150px]">
+                                <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                                <select
+                                    value={filterClass}
+                                    onChange={(e) => setFilterClass(e.target.value)}
+                                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl pl-9 pr-8 py-3 text-sm font-bold text-slate-700 outline-none appearance-none cursor-pointer"
+                                >
+                                    <option value="All">All Courses</option>
+                                    {courses.map(course => (
+                                        <option key={course._id} value={course.name}>{course.name}</option>
+                                    ))}
+                                </select>
+                                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
+                            </div>
+
+                            <div className="relative w-[150px]">
+                                <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                                <select
+                                    value={filterSubject}
+                                    onChange={(e) => setFilterSubject(e.target.value)}
+                                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl pl-9 pr-8 py-3 text-sm font-bold text-slate-700 outline-none appearance-none cursor-pointer"
+                                >
+                                    <option value="All">All Subjects</option>
+                                    {uniqueSubjects.map(sub => (
+                                        <option key={sub} value={sub}>{sub}</option>
+                                    ))}
+                                </select>
+                                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Controls Row */}
+                    <div className="bg-white p-4 rounded-2xl border border-slate-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                        <div className="flex items-center gap-3">
+                            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">LMS Attendance Date:</span>
+                            <div className="relative">
+                                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                                <input
+                                    type="date"
+                                    value={attendanceDate}
+                                    onChange={(e) => setAttendanceDate(e.target.value)}
+                                    max={new Date().toISOString().split('T')[0]}
+                                    className="bg-slate-50 border border-slate-100 rounded-xl pl-9 pr-3 py-2 text-sm font-bold text-slate-700 outline-none cursor-pointer"
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* LMS Attendance Table */}
+                    <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                        <div className="w-full overflow-hidden">
+                            <table className="w-full text-left border-collapse table-fixed">
+                                <thead>
+                                    <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 text-xs uppercase tracking-wider">
+                                        <th className="p-4 w-[5%] text-left">
+                                            <input
+                                                type="checkbox"
+                                                checked={paginatedStudents.length > 0 && selectedIds.size === paginatedStudents.length}
+                                                onChange={() => {
+                                                    if (selectedIds.size === paginatedStudents.length) {
+                                                        setSelectedIds(new Set());
+                                                    } else {
+                                                        setSelectedIds(new Set(paginatedStudents.map(item => item._id)));
+                                                    }
+                                                }}
+                                                className="w-4 h-4 rounded text-indigo-650 focus:ring-indigo-500 cursor-pointer accent-indigo-650"
+                                            />
+                                        </th>
+                                        <th className="p-4 font-bold w-[22%] text-left">Student Name</th>
+                                        <th className="p-4 font-bold text-center w-[12%]">ID</th>
+                                        <th className="p-4 font-bold w-[22%] text-left">Course & Section</th>
+                                        <th className="p-4 font-bold text-center w-[15%]">LMS Status</th>
+                                        <th className="p-4 font-bold text-center w-[14%]">Time Spent on LMS</th>
+                                        <th className="p-4 font-bold text-center w-[10%]">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {paginatedStudents.length > 0 ? (
+                                        paginatedStudents.map((student) => {
+                                            const rec = attendanceRecords[student._id] || { status: '', checkInTime: '', checkOutTime: '' };
+                                            const courseName = student.studentProfile?.course?.name || student.studentProfile?.course || 'N/A';
+                                            const sectionName = student.studentProfile?.section ? `Section ${student.studentProfile.section}` : 'N/A';
+                                            const lmsStatus = rec.status === 'Present' ? 'Present' : rec.status === 'Absent' ? 'Absent' : rec.status === 'Leave' ? 'Leave' : 'Absent';
+                                            const spendingTime = calculateSpendingTime(rec.checkInTime, rec.checkOutTime);
+
+                                            return (
+                                                <tr key={student._id} className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
+                                                    <td className="p-4">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={selectedIds.has(student._id)}
+                                                            onChange={() => {
+                                                                setSelectedIds(prev => {
+                                                                    const next = new Set(prev);
+                                                                    if (next.has(student._id)) next.delete(student._id);
+                                                                    else next.add(student._id);
+                                                                    return next;
+                                                                });
+                                                            }}
+                                                            className="w-4 h-4 rounded text-indigo-650 focus:ring-indigo-500 cursor-pointer accent-indigo-650"
+                                                        />
+                                                    </td>
+                                                    <td className="p-4">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
+                                                                {student.name?.[0]?.toUpperCase() || '?'}
+                                                            </div>
+                                                            <div className="flex flex-col">
+                                                                <span className="font-bold text-slate-800 text-xs">{student.name}</span>
+                                                                <span className="text-slate-400 text-[11px]">{student.email}</span>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                    <td className="p-4 text-center">
+                                                        <span className="inline-flex items-center px-2 py-0.5 rounded-lg text-xs font-bold font-mono bg-indigo-50 text-indigo-700 border border-indigo-100">
+                                                            {student.admissionNo || (student._id ? `#${student._id.slice(-6)}` : 'N/A')}
+                                                        </span>
+                                                    </td>
+                                                    <td className="p-4">
+                                                        <div className="flex flex-col">
+                                                            <span className="text-xs font-bold text-slate-700">{courseName}</span>
+                                                            <span className="text-[11px] font-semibold text-slate-400">{sectionName}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="p-4 text-center">
+                                                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-extrabold ${
+                                                            lmsStatus === 'Present'
+                                                                ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
+                                                                : 'bg-rose-100 text-rose-700 border border-rose-200'
+                                                        }`}>
+                                                            {lmsStatus}
+                                                        </span>
+                                                    </td>
+                                                    <td className="p-4 text-center text-xs font-bold text-slate-700">
+                                                        {lmsStatus === 'Present' && spendingTime !== '—' ? spendingTime : '0 mins'}
+                                                    </td>
+                                                    <td className="p-4 text-center">
+                                                        <button
+                                                            onClick={() => setSelectedStudentId(student._id)}
+                                                            className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-650 rounded-xl text-xs font-bold transition-all border border-indigo-200/60"
+                                                        >
+                                                            Logs
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })
+                                    ) : (
+                                        <tr>
+                                            <td colSpan="8" className="p-8 text-center text-slate-500 font-bold">
+                                                No students found.
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             )}

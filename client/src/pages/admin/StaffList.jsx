@@ -134,6 +134,8 @@ const StaffList = () => {
     const [attendanceDate, setAttendanceDate] = useState(new Date().toISOString().split('T')[0]);
     const [attendanceRecords, setAttendanceRecords] = useState({});
     const [submittingAttendance, setSubmittingAttendance] = useState(false);
+    const [viewAttendanceStaff, setViewAttendanceStaff] = useState(null);
+    const [viewTaskStaffRecord, setViewTaskStaffRecord] = useState(null);
     const [editingId, setEditingId] = useState(null);
     const [editRecord, setEditRecord] = useState({ status: '', checkInTime: '', checkOutTime: '' });
 
@@ -235,10 +237,14 @@ const StaffList = () => {
         if (!staffList.length) return;
         const init = {};
         staffList.forEach(s => {
-            const existing = s.staffProfile?.physicalAttendance?.find(a => a.date === attendanceDate);
+            const attendanceList = s.staffProfile?.physicalAttendance || s.teacherProfile?.physicalAttendance || s.studentProfile?.physicalAttendance || [];
+            const existing = attendanceList.find(a => a.date === attendanceDate);
             init[s._id] = {
                 status: existing ? (existing.status || 'Present') : '',
-                note: existing?.teacherNote || '',
+                attendanceType: existing?.source || 'Physical',
+                markedBy: existing?.markedBy || (existing ? 'Admin' : '—'),
+                teacherNote: existing?.teacherNote || existing?.note || '',
+                studentNote: existing?.studentNote || existing?.leaveNote || '',
                 checkInTime: existing?.checkInTime || '',
                 checkOutTime: existing?.checkOutTime || '',
             };
@@ -265,27 +271,44 @@ const StaffList = () => {
         setEditingId(staffId);
         setEditRecord({
             status: currentRecord.status || 'Present',
+            attendanceType: currentRecord.attendanceType || 'Physical',
+            markedBy: currentRecord.markedBy || 'Admin',
+            teacherNote: currentRecord.teacherNote || '',
+            studentNote: currentRecord.studentNote || '',
             checkInTime: currentRecord.checkInTime || '',
             checkOutTime: currentRecord.checkOutTime || ''
         });
     };
 
+    const handleAttendanceFieldChange = (staffId, field, value) => {
+        setAttendanceRecords(prev => ({
+            ...prev,
+            [staffId]: {
+                ...(prev[staffId] || { status: '', attendanceType: 'Physical', markedBy: 'Admin', teacherNote: '', studentNote: '', checkInTime: '', checkOutTime: '' }),
+                [field]: value
+            }
+        }));
+    };
+
     const handleSaveSingleAttendance = async (staffId) => {
         try {
             setSubmittingAttendance(true);
+            const dataToSave = editingId === staffId ? editRecord : (attendanceRecords[staffId] || {});
             await axios.post('/api/users/bulk-physical-attendance', {
                 date: attendanceDate,
                 attendanceRecords: [{
                     studentId: staffId,
-                    status: editRecord.status,
-                    checkInTime: editRecord.checkInTime || '',
-                    checkOutTime: editRecord.checkOutTime || '',
-                    note: ''
+                    status: dataToSave.status || 'Present',
+                    source: dataToSave.attendanceType || 'Physical',
+                    markedBy: dataToSave.markedBy || 'Admin',
+                    note: dataToSave.teacherNote || '',
+                    studentNote: dataToSave.studentNote || '',
+                    checkInTime: dataToSave.checkInTime || '',
+                    checkOutTime: dataToSave.checkOutTime || ''
                 }]
             });
-            toast.success('Attendance updated successfully!');
+            toast.success('Attendance record updated successfully!');
             setEditingId(null);
-
             await fetchStaffData();
         } catch (err) {
             console.error(err);
@@ -301,7 +324,10 @@ const StaffList = () => {
             const recordsToSave = Object.entries(attendanceRecords).map(([staffId, data]) => ({
                 studentId: staffId,
                 status: data.status,
-                note: data.note || '',
+                source: data.attendanceType || 'Physical',
+                markedBy: data.markedBy || 'Admin',
+                note: data.teacherNote || data.note || '',
+                studentNote: data.studentNote || '',
                 checkInTime: data.checkInTime || '',
                 checkOutTime: data.checkOutTime || '',
             }));
@@ -319,16 +345,6 @@ const StaffList = () => {
         } finally {
             setSubmittingAttendance(false);
         }
-    };
-
-    const handleAttendanceStatusChange = (staffId, status) => {
-        setAttendanceRecords(prev => ({
-            ...prev,
-            [staffId]: {
-                ...(prev[staffId] || { note: '', checkInTime: '', checkOutTime: '' }),
-                status
-            }
-        }));
     };
 
     const filtered = staffList.filter(s =>
@@ -1023,7 +1039,7 @@ const StaffList = () => {
                                                             className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer accent-indigo-650"
                                                         />
                                                     </th>
-                                                    {['#', 'Name', 'Department', 'Institute', 'Status', 'Actions'].map(h => (
+                                                    {['Name', 'Department', 'Institute', 'Status', 'Actions'].map(h => (
                                                         <th key={h} style={{ padding: '13px 16px', textAlign: h === 'Actions' ? 'right' : 'left', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                                                             {h}
                                                         </th>
@@ -1033,7 +1049,7 @@ const StaffList = () => {
                                             <tbody>
                                                 {displayList.length === 0 ? (
                                                     <tr>
-                                                        <td colSpan={7} style={{ padding: '48px', textAlign: 'center', color: '#94a3b8', fontWeight: 700 }}>
+                                                        <td colSpan={6} style={{ padding: '48px', textAlign: 'center', color: '#94a3b8', fontWeight: 700 }}>
                                                             No staff found
                                                         </td>
                                                     </tr>
@@ -1060,7 +1076,6 @@ const StaffList = () => {
                                                                 className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer accent-indigo-650"
                                                             />
                                                         </td>
-                                                        <td style={{ padding: '13px 16px', fontSize: '0.78rem', fontWeight: 700, color: '#94a3b8' }}>{i + 1}</td>
                                                         <td style={{ padding: '13px 16px' }}>
                                                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                                                 <div style={{
@@ -1212,115 +1227,137 @@ const StaffList = () => {
                                             outline: 'none', fontFamily: 'inherit', cursor: 'pointer'
                                         }}
                                     />
-                                    <button
-                                        onClick={handleSaveAttendance}
-                                        disabled={submittingAttendance}
-                                        style={{
-                                            display: 'flex', alignItems: 'center', gap: '6px',
-                                            padding: '8px 18px', background: '#4f46e5', color: '#fff',
-                                            border: 'none', borderRadius: '12px', fontSize: '0.82rem',
-                                            fontWeight: 800, cursor: submittingAttendance ? 'not-allowed' : 'pointer',
-                                            opacity: submittingAttendance ? 0.7 : 1, transition: 'all 0.15s'
-                                        }}
-                                    >
-                                        <Check size={15} /> {submittingAttendance ? 'Saving...' : 'Save All'}
-                                    </button>
                                 </div>
                             </div>
 
-                            {/* Attendance Table */}
+                             {/* Attendance Table */}
                             <div style={{ background: '#fff', borderRadius: '20px', overflow: 'hidden', border: '1px solid #f1f5f9', boxShadow: '0 2px 12px rgba(0,0,0,0.04)' }}>
                                 <div style={{ overflowX: 'auto' }}>
-                                    <table style={{ width: '100%', minWidth: '700px', borderCollapse: 'collapse' }}>
+                                    <table style={{ width: '100%', minWidth: '1000px', borderCollapse: 'collapse' }}>
                                         <thead>
                                             <tr style={{ background: '#f8fafc', borderBottom: '1px solid #f1f5f9' }}>
-                                                {['#', 'Name', 'Role', 'Status', 'Check-In', 'Check-Out', 'Time Spent', 'Action'].map(h => (
-                                                    <th key={h} style={{ padding: '13px 16px', textAlign: 'left', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{h}</th>
+                                                {[
+                                                    'Name',
+                                                    'Role',
+                                                    'Attendance Type',
+                                                    'Attendance By',
+                                                    'Attendance Status',
+                                                    'Admin Note',
+                                                    'Staff Note',
+                                                    'Check-In',
+                                                    'Check-Out',
+                                                    'Time Spent',
+                                                    'Action'
+                                                ].map(h => (
+                                                    <th key={h} style={{ padding: '13px 14px', textAlign: h === 'Action' ? 'center' : 'left', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
+                                                        {h}
+                                                    </th>
                                                 ))}
                                             </tr>
                                         </thead>
                                         <tbody>
                                             {displayList.length === 0 ? (
-                                                <tr><td colSpan={8} style={{ padding: '48px', textAlign: 'center', color: '#94a3b8', fontWeight: 700 }}>No staff found</td></tr>
+                                                <tr><td colSpan={10} style={{ padding: '48px', textAlign: 'center', color: '#94a3b8', fontWeight: 700 }}>No staff found</td></tr>
                                             ) : displayList.map((s, i) => {
-                                                const rec = attendanceRecords[s._id] || { status: '', checkInTime: '', checkOutTime: '' };
-                                                const isEditing = editingId === s._id;
+                                                const rec = attendanceRecords[s._id] || { status: '', attendanceType: 'Physical', markedBy: 'Admin', teacherNote: '', studentNote: '', checkInTime: '', checkOutTime: '' };
                                                 return (
                                                     <tr key={s._id || i} style={{ borderBottom: '1px solid #f8fafc' }}>
-                                                        <td style={{ padding: '13px 16px', fontSize: '0.78rem', fontWeight: 700, color: '#94a3b8' }}>{i + 1}</td>
-                                                        <td style={{ padding: '13px 16px' }}>
+                                                        {/* 1. Name */}
+                                                        <td style={{ padding: '12px 14px', minWidth: '170px' }}>
                                                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                                                 <div style={{ width: 34, height: 34, borderRadius: '10px', background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '0.8rem', fontWeight: 900 }}>
                                                                     {s.name?.[0]?.toUpperCase() || '?'}
                                                                 </div>
                                                                 <div>
-                                                                    <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#0f172a', display: 'block' }}>{s.name}</span>
-                                                                    <span style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 650 }}>{s.email}</span>
+                                                                    <span style={{ fontSize: '0.83rem', fontWeight: 800, color: '#0f172a', display: 'block' }}>{s.name}</span>
+                                                                    <span style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 600 }}>{s.email}</span>
                                                                 </div>
                                                             </div>
                                                         </td>
-                                                        <td style={{ padding: '13px 16px' }}>
+
+                                                        {/* 3. Role */}
+                                                        <td style={{ padding: '12px 14px' }}>
                                                             <span style={{
                                                                 padding: '3px 10px', fontSize: '0.68rem', fontWeight: 800, borderRadius: '8px',
                                                                 background: s.role === 'Teacher' ? '#eef2ff' : s.role === 'Editor' ? '#fef3c7' : s.role === 'Accountant' ? '#dcfce7' : '#fce7f3',
                                                                 color: s.role === 'Teacher' ? '#4f46e5' : s.role === 'Editor' ? '#d97706' : s.role === 'Accountant' ? '#16a34a' : '#db2777'
                                                             }}>{s.role || '—'}</span>
                                                         </td>
-                                                        <td style={{ padding: '13px 16px' }}>
-                                                            {isEditing ? (
-                                                                <select
-                                                                    value={editRecord.status}
-                                                                    onChange={e => setEditRecord(prev => ({ ...prev, status: e.target.value }))}
-                                                                    style={{ padding: '6px 10px', border: '1.5px solid #e2e8f0', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 700, outline: 'none', cursor: 'pointer' }}
-                                                                >
-                                                                    <option value="">Select</option>
-                                                                    <option value="Present">Present</option>
-                                                                    <option value="Absent">Absent</option>
-                                                                    <option value="Leave">Leave</option>
-                                                                    <option value="Holiday">Holiday</option>
-                                                                </select>
-                                                            ) : (
-                                                                <select
-                                                                    value={rec.status}
-                                                                    onChange={e => handleAttendanceStatusChange(s._id, e.target.value)}
-                                                                    style={{ padding: '6px 10px', border: '1.5px solid #e2e8f0', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 700, outline: 'none', cursor: 'pointer' }}
-                                                                >
-                                                                    <option value="">Not Marked</option>
-                                                                    <option value="Present">Present</option>
-                                                                    <option value="Absent">Absent</option>
-                                                                    <option value="Leave">Leave</option>
-                                                                    <option value="Holiday">Holiday</option>
-                                                                </select>
-                                                            )}
+
+                                                        {/* 4. Attendance Type */}
+                                                        <td style={{ padding: '12px 14px' }}>
+                                                            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#475569', background: '#f8fafc', padding: '4px 8px', borderRadius: '6px', border: '1px solid #e2e8f0', display: 'inline-block' }}>
+                                                                {rec.attendanceType || 'Physical'}
+                                                            </span>
                                                         </td>
-                                                        <td style={{ padding: '13px 16px' }}>
-                                                            {isEditing ? (
-                                                                <input type="time" value={editRecord.checkInTime} onChange={e => setEditRecord(prev => ({ ...prev, checkInTime: e.target.value }))} style={{ padding: '6px 10px', border: '1.5px solid #e2e8f0', borderRadius: '8px', fontSize: '0.8rem', outline: 'none' }} />
-                                                            ) : (
-                                                                <span style={{ fontSize: '0.78rem', fontWeight: 600, color: '#64748b' }}>{rec.checkInTime || '—'}</span>
-                                                            )}
+
+                                                        {/* 5. Attendance By */}
+                                                        <td style={{ padding: '12px 14px' }}>
+                                                            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#475569', background: '#f8fafc', padding: '4px 8px', borderRadius: '6px', border: '1px solid #e2e8f0', display: 'inline-block' }}>
+                                                                {rec.markedBy || 'Admin'}
+                                                            </span>
                                                         </td>
-                                                        <td style={{ padding: '13px 16px' }}>
-                                                            {isEditing ? (
-                                                                <input type="time" value={editRecord.checkOutTime} onChange={e => setEditRecord(prev => ({ ...prev, checkOutTime: e.target.value }))} style={{ padding: '6px 10px', border: '1.5px solid #e2e8f0', borderRadius: '8px', fontSize: '0.8rem', outline: 'none' }} />
-                                                            ) : (
-                                                                <span style={{ fontSize: '0.78rem', fontWeight: 600, color: '#64748b' }}>{rec.checkOutTime || '—'}</span>
-                                                            )}
+
+                                                        {/* 6. Attendance Status */}
+                                                        <td style={{ padding: '12px 14px' }}>
+                                                            {renderStatusBadge(rec.status)}
                                                         </td>
-                                                        <td style={{ padding: '13px 16px', fontSize: '0.78rem', fontWeight: 600, color: '#64748b' }}>
-                                                            {calculateSpendingTime(isEditing ? editRecord.checkInTime : rec.checkInTime, isEditing ? editRecord.checkOutTime : rec.checkOutTime)}
+
+                                                        {/* 7. Admin Note */}
+                                                        <td style={{ padding: '12px 14px', minWidth: '130px' }}>
+                                                            <span style={{ fontSize: '0.78rem', color: rec.teacherNote ? '#334155' : '#94a3b8', fontWeight: 600 }}>
+                                                                {rec.teacherNote || '—'}
+                                                            </span>
                                                         </td>
-                                                        <td style={{ padding: '13px 16px' }}>
-                                                            {isEditing ? (
-                                                                <div style={{ display: 'flex', gap: '6px' }}>
-                                                                    <button onClick={() => handleSaveSingleAttendance(s._id)} disabled={submittingAttendance} style={{ padding: '5px 12px', background: '#4f46e5', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '0.75rem', fontWeight: 800, cursor: 'pointer' }}>Save</button>
-                                                                    <button onClick={() => setEditingId(null)} style={{ padding: '5px 10px', background: '#f1f5f9', color: '#64748b', border: 'none', borderRadius: '8px', fontSize: '0.75rem', fontWeight: 800, cursor: 'pointer' }}>Cancel</button>
-                                                                </div>
-                                                            ) : (
-                                                                <button onClick={() => handleStartEdit(s._id, rec)} style={{ padding: '5px 12px', background: '#f1f5f9', color: '#4f46e5', border: 'none', borderRadius: '8px', fontSize: '0.75rem', fontWeight: 800, cursor: 'pointer' }}>
-                                                                    <Edit size={13} />
-                                                                </button>
-                                                            )}
+
+                                                        {/* 8. Staff Note */}
+                                                        <td style={{ padding: '12px 14px', minWidth: '130px' }}>
+                                                            <span style={{ fontSize: '0.78rem', color: rec.studentNote ? '#334155' : '#94a3b8', fontWeight: 600 }}>
+                                                                {rec.studentNote || '—'}
+                                                            </span>
+                                                        </td>
+
+                                                        {/* 9. Check-in */}
+                                                        <td style={{ padding: '12px 14px' }}>
+                                                            <span style={{ fontSize: '0.78rem', fontWeight: 600, color: '#64748b' }}>
+                                                                {rec.checkInTime || '—'}
+                                                            </span>
+                                                        </td>
+
+                                                        {/* 10. Check-out */}
+                                                        <td style={{ padding: '12px 14px' }}>
+                                                            <span style={{ fontSize: '0.78rem', fontWeight: 600, color: '#64748b' }}>
+                                                                {rec.checkOutTime || '—'}
+                                                            </span>
+                                                        </td>
+
+                                                        {/* 11. Time spent */}
+                                                        <td style={{ padding: '12px 14px', fontSize: '0.78rem', fontWeight: 700, color: '#475569', whiteSpace: 'nowrap' }}>
+                                                            {calculateSpendingTime(rec.checkInTime, rec.checkOutTime)}
+                                                        </td>
+
+                                                        {/* 12. Action */}
+                                                        <td style={{ padding: '12px 14px', textAlign: 'center' }}>
+                                                            <button
+                                                                onClick={() => setViewAttendanceStaff(s)}
+                                                                title="View Staff Attendance Record"
+                                                                style={{
+                                                                    padding: '6px 12px',
+                                                                    background: '#eef2ff',
+                                                                    color: '#4f46e5',
+                                                                    border: '1px solid #c7d2fe',
+                                                                    borderRadius: '8px',
+                                                                    fontSize: '0.75rem',
+                                                                    fontWeight: 800,
+                                                                    cursor: 'pointer',
+                                                                    display: 'inline-flex',
+                                                                    alignItems: 'center',
+                                                                    gap: '6px',
+                                                                    whiteSpace: 'nowrap'
+                                                                }}
+                                                            >
+                                                                <Eye size={15} /> View Record
+                                                            </button>
                                                         </td>
                                                     </tr>
                                                 );
@@ -1451,34 +1488,126 @@ const StaffList = () => {
                             </div>
 
                             {/* Task Table */}
-                            <div style={{ border: '1px solid #e2e8f0', borderRadius: '16px', overflow: 'hidden' }}>
-                                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.78rem' }}>
+                            <div style={{ border: '1px solid #e2e8f0', borderRadius: '16px', overflowX: 'auto' }}>
+                                <table style={{ width: '100%', minWidth: '1100px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.78rem' }}>
                                     <thead>
-                                        <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', color: '#64748b', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                                            {['Staff', 'Task', 'Due Date', 'Priority', 'Status'].map(h => (
-                                                <th key={h} style={{ padding: '12px 16px' }}>{h}</th>
+                                        <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', color: '#64748b', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
+                                            {[
+                                                '1. Staff',
+                                                '2. Role',
+                                                '3. Institute',
+                                                '4. Today’s surrendered task',
+                                                '5. Self created',
+                                                '6. Due Date',
+                                                '7. Priority',
+                                                '8. Status with Evidence',
+                                                '9. Verification Status',
+                                                '10. Individually all record'
+                                            ].map(h => (
+                                                <th key={h} style={{ padding: '12px 14px', textAlign: h.includes('Individually') ? 'center' : 'left' }}>{h}</th>
                                             ))}
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {tasks
                                             .filter(t => (!taskPriorityFilter || t.priority === taskPriorityFilter) && (!taskStatusFilter || t.status === taskStatusFilter))
-                                            .map(t => (
-                                                <tr key={t.id} style={{ borderBottom: '1px solid #f8fafc' }}>
-                                                    <td style={{ padding: '12px 16px', fontWeight: 800, color: '#334155' }}>{t.staffName}</td>
-                                                    <td style={{ padding: '12px 16px', fontWeight: 700, color: '#0f172a' }}>{t.title}</td>
-                                                    <td style={{ padding: '12px 16px', color: '#64748b', fontWeight: 600 }}>{t.due ? new Date(t.due).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}</td>
-                                                    <td style={{ padding: '12px 16px' }}>
-                                                        <span style={{ background: t.priority === 'High' ? '#fee2e2' : t.priority === 'Medium' ? '#fffbeb' : '#dcfce7', color: t.priority === 'High' ? '#ef4444' : t.priority === 'Medium' ? '#d97706' : '#16a34a', fontSize: '0.68rem', fontWeight: 900, padding: '2px 8px', borderRadius: '12px' }}>{t.priority}</span>
-                                                    </td>
-                                                    <td style={{ padding: '12px 16px' }}>
-                                                        <span style={{ background: t.status === 'done' ? '#dcfce7' : t.status === 'inprogress' ? '#fffbeb' : '#fee2e2', color: t.status === 'done' ? '#16a34a' : t.status === 'inprogress' ? '#d97706' : '#ef4444', borderRadius: '999px', padding: '3px 10px', fontSize: '0.68rem', fontWeight: 900 }}>{t.status}</span>
-                                                    </td>
-                                                </tr>
-                                            ))
+                                            .map(t => {
+                                                const staffMember = staffList.find(s => s._id === t.staffId || s.name === t.staffName) || {};
+                                                const isSelfCreated = t.isSelfCreated || t.source === 'Self';
+                                                const surrenderTask = t.title || t.surrenderedTask || '—';
+                                                const verificationStatus = t.verificationStatus || (t.status === 'done' ? 'Verified' : 'Pending');
+
+                                                return (
+                                                    <tr key={t.id} style={{ borderBottom: '1px solid #f8fafc' }}>
+                                                        {/* 1. Staff */}
+                                                        <td style={{ padding: '12px 14px', fontWeight: 800, color: '#334155', minWidth: '160px' }}>
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                                <div style={{ width: 30, height: 30, borderRadius: '8px', background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '0.75rem', fontWeight: 900 }}>
+                                                                    {t.staffName?.[0]?.toUpperCase() || '?'}
+                                                                </div>
+                                                                <div>
+                                                                    <div style={{ fontSize: '0.8rem', fontWeight: 800, color: '#0f172a' }}>{t.staffName}</div>
+                                                                    <div style={{ fontSize: '0.7rem', color: '#64748b' }}>{staffMember.email || '—'}</div>
+                                                                </div>
+                                                            </div>
+                                                        </td>
+
+                                                        {/* 2. Role */}
+                                                        <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>
+                                                            <span style={{ padding: '3px 8px', borderRadius: '6px', fontSize: '0.7rem', fontWeight: 800, background: '#f1f5f9', color: '#475569' }}>
+                                                                {staffMember.role || t.role || 'Staff'}
+                                                            </span>
+                                                        </td>
+
+                                                        {/* 3. Institute */}
+                                                        <td style={{ padding: '12px 14px', color: '#475569', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                                                            {staffMember.instituteName || staffMember.institute?.name || 'All Institutes'}
+                                                        </td>
+
+                                                        {/* 4. Today's surrendered task */}
+                                                        <td style={{ padding: '12px 14px', minWidth: '180px' }}>
+                                                            <div style={{ fontWeight: 800, color: '#0f172a' }}>{surrenderTask}</div>
+                                                            {t.description && <div style={{ fontSize: '0.7rem', color: '#64748b', marginTop: '2px' }}>{t.description}</div>}
+                                                        </td>
+
+                                                        {/* 5. Self created */}
+                                                        <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>
+                                                            <span style={{ padding: '3px 8px', borderRadius: '6px', fontSize: '0.7rem', fontWeight: 800, background: isSelfCreated ? '#e0e7ff' : '#f1f5f9', color: isSelfCreated ? '#4338ca' : '#64748b' }}>
+                                                                {isSelfCreated ? 'Yes (Self)' : 'No (Admin)'}
+                                                            </span>
+                                                        </td>
+
+                                                        {/* 6. Due Date */}
+                                                        <td style={{ padding: '12px 14px', color: '#64748b', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                                                            {t.due ? new Date(t.due).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
+                                                        </td>
+
+                                                        {/* 7. Priority */}
+                                                        <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>
+                                                            <span style={{ background: t.priority === 'High' ? '#fee2e2' : t.priority === 'Medium' ? '#fffbeb' : '#dcfce7', color: t.priority === 'High' ? '#ef4444' : t.priority === 'Medium' ? '#d97706' : '#16a34a', fontSize: '0.68rem', fontWeight: 900, padding: '2px 8px', borderRadius: '12px' }}>
+                                                                {t.priority}
+                                                            </span>
+                                                        </td>
+
+                                                        {/* 8. Status with Evidence */}
+                                                        <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                                <span style={{ background: t.status === 'done' ? '#dcfce7' : t.status === 'inprogress' ? '#fffbeb' : '#fee2e2', color: t.status === 'done' ? '#16a34a' : t.status === 'inprogress' ? '#d97706' : '#ef4444', borderRadius: '999px', padding: '3px 10px', fontSize: '0.68rem', fontWeight: 900 }}>
+                                                                    {t.status}
+                                                                </span>
+                                                                {t.evidenceFile ? (
+                                                                    <a href={t.evidenceFile} target="_blank" rel="noreferrer" title="View Evidence File" style={{ color: '#4f46e5', textDecoration: 'underline', fontSize: '0.7rem', fontWeight: 800 }}>
+                                                                        📎 Evidence
+                                                                    </a>
+                                                                ) : (
+                                                                    <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>No Evidence</span>
+                                                                )}
+                                                            </div>
+                                                        </td>
+
+                                                        {/* 9. Verification Status */}
+                                                        <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>
+                                                            <span style={{ padding: '3px 8px', borderRadius: '999px', fontSize: '0.68rem', fontWeight: 900, background: verificationStatus === 'Verified' ? '#ecfdf5' : verificationStatus === 'Rejected' ? '#fef2f2' : '#fffbeb', color: verificationStatus === 'Verified' ? '#047857' : verificationStatus === 'Rejected' ? '#b91c1c' : '#b45309' }}>
+                                                                {verificationStatus}
+                                                            </span>
+                                                        </td>
+
+                                                        {/* 10. Individually all record */}
+                                                        <td style={{ padding: '12px 14px', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                                                            <button
+                                                                onClick={() => setViewTaskStaffRecord(staffMember._id ? staffMember : { name: t.staffName })}
+                                                                title="View All Task Records"
+                                                                style={{ padding: '6px 12px', background: '#eef2ff', color: '#4f46e5', border: '1px solid #c7d2fe', borderRadius: '8px', fontSize: '0.75rem', fontWeight: 800, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                                                            >
+                                                                <Eye size={13} /> View Record
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })
                                         }
                                         {tasks.filter(t => (!taskPriorityFilter || t.priority === taskPriorityFilter) && (!taskStatusFilter || t.status === taskStatusFilter)).length === 0 && (
-                                            <tr><td colSpan={5} style={{ padding: '40px', textAlign: 'center', color: '#94a3b8', fontWeight: 700 }}>No tasks match the filters</td></tr>
+                                            <tr><td colSpan={10} style={{ padding: '40px', textAlign: 'center', color: '#94a3b8', fontWeight: 700 }}>No tasks match the filters</td></tr>
                                         )}
                                     </tbody>
                                 </table>
@@ -2049,6 +2178,235 @@ const StaffList = () => {
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>,
+                document.body
+            )}
+            {viewAttendanceStaff && createPortal(
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', zIndex: 99999, display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: '60px 20px 40px', overflowY: 'auto' }}>
+                    <div style={{ background: '#fff', borderRadius: '24px', padding: '32px', width: '100%', maxWidth: '1000px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', margin: '0 auto', position: 'relative', border: '1px solid #e2e8f0' }}>
+
+                        {/* Header */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', paddingBottom: '16px', borderBottom: '1px solid #f1f5f9' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                                <div style={{ width: 48, height: 48, borderRadius: '14px', background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '1.2rem', fontWeight: 900 }}>
+                                    {viewAttendanceStaff.name?.[0]?.toUpperCase() || '?'}
+                                </div>
+                                <div>
+                                    <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 900, color: '#0f172a' }}>{viewAttendanceStaff.name}</h3>
+                                    <p style={{ margin: '2px 0 0', fontSize: '0.8rem', color: '#64748b', fontWeight: 600 }}>{viewAttendanceStaff.email} • <span style={{ color: '#4f46e5', fontWeight: 800 }}>{viewAttendanceStaff.role}</span></p>
+                                </div>
+                            </div>
+                            <button onClick={() => setViewAttendanceStaff(null)} style={{ background: '#f1f5f9', border: 'none', width: 36, height: 36, borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#64748b' }}>
+                                <X size={18} />
+                            </button>
+                        </div>
+
+                        {/* Attendance History Stats */}
+                        {(() => {
+                            const logs = viewAttendanceStaff.staffProfile?.physicalAttendance || viewAttendanceStaff.teacherProfile?.physicalAttendance || viewAttendanceStaff.studentProfile?.physicalAttendance || [];
+                            const presentCount = logs.filter(l => l.status === 'Present').length;
+                            const absentCount = logs.filter(l => l.status === 'Absent').length;
+                            const leaveCount = logs.filter(l => l.status === 'Leave').length;
+                            const holidayCount = logs.filter(l => l.status === 'Holiday').length;
+
+                            return (
+                                <>
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '12px', marginBottom: '24px' }}>
+                                        <div style={{ background: '#f8fafc', padding: '14px', borderRadius: '14px', border: '1px solid #e2e8f0' }}>
+                                            <div style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 800, textTransform: 'uppercase' }}>Total Days Recorded</div>
+                                            <div style={{ fontSize: '1.3rem', fontWeight: 900, color: '#0f172a', marginTop: '4px' }}>{logs.length}</div>
+                                        </div>
+                                        <div style={{ background: '#ecfdf5', padding: '14px', borderRadius: '14px', border: '1px solid #a7f3d0' }}>
+                                            <div style={{ fontSize: '0.7rem', color: '#059669', fontWeight: 800, textTransform: 'uppercase' }}>Present</div>
+                                            <div style={{ fontSize: '1.3rem', fontWeight: 900, color: '#047857', marginTop: '4px' }}>{presentCount}</div>
+                                        </div>
+                                        <div style={{ background: '#fef2f2', padding: '14px', borderRadius: '14px', border: '1px solid #fecaca' }}>
+                                            <div style={{ fontSize: '0.7rem', color: '#dc2626', fontWeight: 800, textTransform: 'uppercase' }}>Absent</div>
+                                            <div style={{ fontSize: '1.3rem', fontWeight: 900, color: '#b91c1c', marginTop: '4px' }}>{absentCount}</div>
+                                        </div>
+                                        <div style={{ background: '#fffbeb', padding: '14px', borderRadius: '14px', border: '1px solid #fde68a' }}>
+                                            <div style={{ fontSize: '0.7rem', color: '#d97706', fontWeight: 800, textTransform: 'uppercase' }}>Leave</div>
+                                            <div style={{ fontSize: '1.3rem', fontWeight: 900, color: '#b45309', marginTop: '4px' }}>{leaveCount}</div>
+                                        </div>
+                                        <div style={{ background: '#eff6ff', padding: '14px', borderRadius: '14px', border: '1px solid #bfdbfe' }}>
+                                            <div style={{ fontSize: '0.7rem', color: '#2563eb', fontWeight: 800, textTransform: 'uppercase' }}>Holiday</div>
+                                            <div style={{ fontSize: '1.3rem', fontWeight: 900, color: '#1d4ed8', marginTop: '4px' }}>{holidayCount}</div>
+                                        </div>
+                                    </div>
+
+                                    {/* History Table */}
+                                    <h4 style={{ margin: '0 0 12px', fontSize: '0.9rem', fontWeight: 800, color: '#0f172a' }}>Full Attendance History Logs</h4>
+                                    {logs.length === 0 ? (
+                                        <div style={{ padding: '24px', textAlign: 'center', background: '#f8fafc', borderRadius: '14px', color: '#94a3b8', fontWeight: 700, fontSize: '0.85rem' }}>
+                                            No attendance records found for this staff member.
+                                        </div>
+                                    ) : (
+                                        <div style={{ overflowX: 'auto', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
+                                            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                                                <thead>
+                                                    <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                                                        {['Date', 'Status', 'Attendance Type', 'Marked By', 'Admin Note', 'Staff Note', 'Check-In', 'Check-Out', 'Time Spent'].map(th => (
+                                                            <th key={th} style={{ padding: '10px 12px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{th}</th>
+                                                        ))}
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {logs.map((log, idx) => (
+                                                        <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                                            <td style={{ padding: '10px 12px', fontSize: '0.78rem', fontWeight: 800, color: '#0f172a', whiteSpace: 'nowrap' }}>
+                                                                📅 {log.date}
+                                                            </td>
+                                                            <td style={{ padding: '10px 12px' }}>
+                                                                {renderStatusBadge(log.status)}
+                                                            </td>
+                                                            <td style={{ padding: '10px 12px', fontSize: '0.75rem', fontWeight: 700, color: '#475569' }}>
+                                                                {log.source || 'Physical'}
+                                                            </td>
+                                                            <td style={{ padding: '10px 12px', fontSize: '0.75rem', fontWeight: 700, color: '#475569' }}>
+                                                                {log.markedBy || 'Admin'}
+                                                            </td>
+                                                            <td style={{ padding: '10px 12px', fontSize: '0.75rem', color: '#64748b' }}>
+                                                                {log.teacherNote || log.note || '—'}
+                                                            </td>
+                                                            <td style={{ padding: '10px 12px', fontSize: '0.75rem', color: '#64748b' }}>
+                                                                {log.studentNote || log.leaveNote || '—'}
+                                                            </td>
+                                                            <td style={{ padding: '10px 12px', fontSize: '0.75rem', color: '#64748b' }}>
+                                                                {log.checkInTime || '—'}
+                                                            </td>
+                                                            <td style={{ padding: '10px 12px', fontSize: '0.75rem', color: '#64748b' }}>
+                                                                {log.checkOutTime || '—'}
+                                                            </td>
+                                                            <td style={{ padding: '10px 12px', fontSize: '0.75rem', fontWeight: 700, color: '#475569', whiteSpace: 'nowrap' }}>
+                                                                {calculateSpendingTime(log.checkInTime, log.checkOutTime)}
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    )}
+                                </>
+                            );
+                        })()}
+                    </div>
+                </div>,
+                document.body
+            )}
+            {viewTaskStaffRecord && createPortal(
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', zIndex: 99999, display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: '60px 20px 40px', overflowY: 'auto' }}>
+                    <div style={{ background: '#fff', borderRadius: '24px', padding: '32px', width: '100%', maxWidth: '1000px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', margin: '0 auto', position: 'relative', border: '1px solid #e2e8f0' }}>
+
+                        {/* Header */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', paddingBottom: '16px', borderBottom: '1px solid #f1f5f9' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                                <div style={{ width: 48, height: 48, borderRadius: '14px', background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '1.2rem', fontWeight: 900 }}>
+                                    {viewTaskStaffRecord.name?.[0]?.toUpperCase() || '?'}
+                                </div>
+                                <div>
+                                    <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 900, color: '#0f172a' }}>{viewTaskStaffRecord.name} — Task History Record</h3>
+                                    <p style={{ margin: '2px 0 0', fontSize: '0.8rem', color: '#64748b', fontWeight: 600 }}>{viewTaskStaffRecord.email || 'Staff Member'} • <span style={{ color: '#4f46e5', fontWeight: 800 }}>{viewTaskStaffRecord.role || 'Staff'}</span></p>
+                                </div>
+                            </div>
+                            <button onClick={() => setViewTaskStaffRecord(null)} style={{ background: '#f1f5f9', border: 'none', width: 36, height: 36, borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#64748b' }}>
+                                <X size={18} />
+                            </button>
+                        </div>
+
+                        {/* Task History Stats & Table */}
+                        {(() => {
+                            const staffTasksList = tasks.filter(t => t.staffId === viewTaskStaffRecord._id || t.staffName === viewTaskStaffRecord.name);
+                            const doneCount = staffTasksList.filter(t => t.status === 'done').length;
+                            const inProgressCount = staffTasksList.filter(t => t.status === 'inprogress').length;
+                            const pendingCount = staffTasksList.filter(t => t.status === 'pending').length;
+                            const selfCount = staffTasksList.filter(t => t.isSelfCreated || t.source === 'Self').length;
+
+                            return (
+                                <>
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '12px', marginBottom: '24px' }}>
+                                        <div style={{ background: '#f8fafc', padding: '14px', borderRadius: '14px', border: '1px solid #e2e8f0' }}>
+                                            <div style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 800, textTransform: 'uppercase' }}>Total Tasks Assigned</div>
+                                            <div style={{ fontSize: '1.3rem', fontWeight: 900, color: '#0f172a', marginTop: '4px' }}>{staffTasksList.length}</div>
+                                        </div>
+                                        <div style={{ background: '#ecfdf5', padding: '14px', borderRadius: '14px', border: '1px solid #a7f3d0' }}>
+                                            <div style={{ fontSize: '0.7rem', color: '#059669', fontWeight: 800, textTransform: 'uppercase' }}>Done / Completed</div>
+                                            <div style={{ fontSize: '1.3rem', fontWeight: 900, color: '#047857', marginTop: '4px' }}>{doneCount}</div>
+                                        </div>
+                                        <div style={{ background: '#fffbeb', padding: '14px', borderRadius: '14px', border: '1px solid #fde68a' }}>
+                                            <div style={{ fontSize: '0.7rem', color: '#d97706', fontWeight: 800, textTransform: 'uppercase' }}>In Progress</div>
+                                            <div style={{ fontSize: '1.3rem', fontWeight: 900, color: '#b45309', marginTop: '4px' }}>{inProgressCount}</div>
+                                        </div>
+                                        <div style={{ background: '#fef2f2', padding: '14px', borderRadius: '14px', border: '1px solid #fecaca' }}>
+                                            <div style={{ fontSize: '0.7rem', color: '#dc2626', fontWeight: 800, textTransform: 'uppercase' }}>Pending</div>
+                                            <div style={{ fontSize: '1.3rem', fontWeight: 900, color: '#b91c1c', marginTop: '4px' }}>{pendingCount}</div>
+                                        </div>
+                                        <div style={{ background: '#eef2ff', padding: '14px', borderRadius: '14px', border: '1px solid #c7d2fe' }}>
+                                            <div style={{ fontSize: '0.7rem', color: '#4338ca', fontWeight: 800, textTransform: 'uppercase' }}>Self Created Tasks</div>
+                                            <div style={{ fontSize: '1.3rem', fontWeight: 900, color: '#3730a3', marginTop: '4px' }}>{selfCount}</div>
+                                        </div>
+                                    </div>
+
+                                    {/* Task Table */}
+                                    <h4 style={{ margin: '0 0 12px', fontSize: '0.9rem', fontWeight: 800, color: '#0f172a' }}>All Task Logs & Verification History</h4>
+                                    {staffTasksList.length === 0 ? (
+                                        <div style={{ padding: '24px', textAlign: 'center', background: '#f8fafc', borderRadius: '14px', color: '#94a3b8', fontWeight: 700, fontSize: '0.85rem' }}>
+                                            No task assignment records found for this staff member.
+                                        </div>
+                                    ) : (
+                                        <div style={{ overflowX: 'auto', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
+                                            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                                                <thead>
+                                                    <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                                                        {['Task Title & Description', 'Self Created', 'Due Date', 'Priority', 'Status', 'Evidence File', 'Verification'].map(th => (
+                                                            <th key={th} style={{ padding: '10px 12px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{th}</th>
+                                                        ))}
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {staffTasksList.map((task, idx) => (
+                                                        <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                                            <td style={{ padding: '10px 12px', fontSize: '0.78rem', fontWeight: 800, color: '#0f172a' }}>
+                                                                <div>{task.title}</div>
+                                                                {task.description && <div style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 500 }}>{task.description}</div>}
+                                                            </td>
+                                                            <td style={{ padding: '10px 12px', fontSize: '0.75rem', fontWeight: 700, color: '#475569' }}>
+                                                                {task.isSelfCreated || task.source === 'Self' ? 'Yes (Self)' : 'No (Admin)'}
+                                                            </td>
+                                                            <td style={{ padding: '10px 12px', fontSize: '0.75rem', fontWeight: 700, color: '#64748b', whiteSpace: 'nowrap' }}>
+                                                                {task.due ? new Date(task.due).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
+                                                            </td>
+                                                            <td style={{ padding: '10px 12px' }}>
+                                                                <span style={{ background: task.priority === 'High' ? '#fee2e2' : task.priority === 'Medium' ? '#fffbeb' : '#dcfce7', color: task.priority === 'High' ? '#ef4444' : task.priority === 'Medium' ? '#d97706' : '#16a34a', fontSize: '0.68rem', fontWeight: 900, padding: '2px 8px', borderRadius: '12px' }}>
+                                                                    {task.priority}
+                                                                </span>
+                                                            </td>
+                                                            <td style={{ padding: '10px 12px' }}>
+                                                                <span style={{ background: task.status === 'done' ? '#dcfce7' : task.status === 'inprogress' ? '#fffbeb' : '#fee2e2', color: task.status === 'done' ? '#16a34a' : task.status === 'inprogress' ? '#d97706' : '#ef4444', borderRadius: '999px', padding: '3px 10px', fontSize: '0.68rem', fontWeight: 900 }}>
+                                                                    {task.status}
+                                                                </span>
+                                                            </td>
+                                                            <td style={{ padding: '10px 12px', fontSize: '0.75rem' }}>
+                                                                {task.evidenceFile ? (
+                                                                    <a href={task.evidenceFile} target="_blank" rel="noreferrer" style={{ color: '#4f46e5', fontWeight: 800, textDecoration: 'underline' }}>
+                                                                        📎 View Evidence
+                                                                    </a>
+                                                                ) : '—'}
+                                                            </td>
+                                                            <td style={{ padding: '10px 12px', fontSize: '0.75rem' }}>
+                                                                <span style={{ padding: '3px 8px', borderRadius: '999px', fontSize: '0.68rem', fontWeight: 900, background: (task.verificationStatus || 'Verified') === 'Verified' ? '#ecfdf5' : '#fffbeb', color: (task.verificationStatus || 'Verified') === 'Verified' ? '#047857' : '#b45309' }}>
+                                                                    {task.verificationStatus || (task.status === 'done' ? 'Verified' : 'Pending')}
+                                                                </span>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    )}
+                                </>
+                            );
+                        })()}
                     </div>
                 </div>,
                 document.body

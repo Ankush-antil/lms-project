@@ -79,6 +79,7 @@ const AdminStaffSalary = lazy(() => import('./pages/admin/AdminStaffSalary'));
 const AdminStaffTask = lazy(() => import('./pages/admin/AdminStaffTask'));
 const InstituteStaff = lazy(() => import('./pages/institute/InstituteStaff'));
 const StaffTaskDetailPage = lazy(() => import('./pages/institute/StaffTaskDetailPage'));
+const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
 
 // Destructured imports (can be lazily imported individually or kept static)
 import { InstituteStaffAttendance, InstituteStaffSalary, InstituteStaffTask } from './pages/institute/InstituteStaffPages';
@@ -163,7 +164,7 @@ const SubdomainRedirectHandler = ({ children }) => {
 
         const subdomain = parts[0].toLowerCase();
         const isApexOrWww = subdomain === 'www' || subdomain === 'landing' || subdomain === 'digitalstudyacademy' || parts.length <= 2;
-        const isPublicPath = path.startsWith('/share/') || path === '/track-applications' || path.startsWith('/mobile-call') || path === '/login';
+        const isPublicPath = path.startsWith('/share/') || path === '/track-applications' || path.startsWith('/mobile-call') || path === '/login' || path === '/privacy-policy' || path === '/privacy';
 
         const safeRedirect = (targetUrl) => {
             try {
@@ -284,6 +285,8 @@ function App() {
                                         <Route path="/share/screenshot/:id" element={<SharedScreenshotPage />} />
                                         <Route path="/track-applications" element={<ApplicationsTrackingPage />} />
                                         <Route path="/mobile-call" element={<MobileCallPage />} />
+                                        <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+                                        <Route path="/privacy" element={<PrivacyPolicy />} />
 
                                         {/* Institute Routes */}
                                         <Route path="/institute" element={

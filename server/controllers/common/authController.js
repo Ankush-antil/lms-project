@@ -213,9 +213,17 @@ const validateAccounts = async (req, res) => {
             return res.status(400).json({ message: 'Invalid emails list' });
         }
         
-        // Find existing, active users
+        const validEmails = emails
+            .filter(e => e && typeof e === 'string' && e.trim().length > 0)
+            .map(e => e.trim());
+
+        if (validEmails.length === 0) {
+            return res.json({ activeEmails: [] });
+        }
+
+        // Find existing, active users safely
         const activeUsers = await User.find({
-            email: { $in: emails.map(e => new RegExp(`^${e.trim()}$`, 'i')) },
+            email: { $in: validEmails.map(e => new RegExp(`^${e.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i')) },
             isDeleted: { $ne: true }
         }).select('email');
         

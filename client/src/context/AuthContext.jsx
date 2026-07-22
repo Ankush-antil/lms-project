@@ -79,7 +79,9 @@ export const AuthProvider = ({ children }) => {
                 if (existingStr) {
                     const accounts = JSON.parse(existingStr);
                     if (Array.isArray(accounts) && accounts.length > 0) {
-                        const emails = accounts.map(acc => acc.user?.email).filter(Boolean);
+                        const emails = accounts
+                            .map(acc => acc.user?.email)
+                            .filter(e => e && typeof e === 'string' && e.trim());
                         if (emails.length > 0) {
                             const { data } = await axios.post('/api/auth/validate-accounts', { emails });
                             if (data && Array.isArray(data.activeEmails)) {

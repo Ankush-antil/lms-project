@@ -149,11 +149,12 @@ const ChatNotificationBar = () => {
 
 const menuItems = {
     Admin: [
-        { name: '_section_dashboard', icon: LayoutDashboard, path: null },
         { name: 'Dashboard', icon: LayoutDashboard, path: '/admin' },
 
         { name: '_section_Users', icon: Users, path: null },
         { name: 'Users', icon: User, path: '/admin/users' },
+        { name: 'Guest Users', icon: Users, path: '/admin/users?tab=limited' },
+        { name: 'Limited Users', icon: Users, path: '/admin/users?tab=guest' },
         { name: 'Students', icon: Users, path: '/admin/students' },
         { name: 'Teachers', icon: GraduationCap, path: '/admin/teachers' },
         { name: 'Editors', icon: Users, path: '/admin/editors' },
@@ -172,7 +173,7 @@ const menuItems = {
         { name: '_section_tools', icon: PenTool, path: null },
         { name: 'Tools', icon: PenTool, path: '/admin/tools' },
 
-        { name: '_section_tools_analytics', icon: BarChart3, path: null },
+        { name: '_section_service_analytics', icon: BarChart3, path: null },
         { name: 'Drive Analytics', icon: HardDrive, path: '/admin/tools-analytics/drive' },
         { name: 'Chat Analytics', icon: MessageSquare, path: '/admin/tools-analytics/chat' },
         { name: 'Notes Analytics', icon: StickyNote, path: '/admin/tools-analytics/notes' },
@@ -197,11 +198,12 @@ const menuItems = {
         { name: 'Screen Recorder', icon: Video, path: '/admin/tools/screen-recorder' }
     ],
     Institute: [
-        { name: '_section_dashboard', icon: LayoutDashboard, path: null },
         { name: 'Dashboard', icon: LayoutDashboard, path: '/institute' },
 
         { name: '_section_Users', icon: Users, path: null },
         { name: 'Users', icon: User, path: '/institute/users' },
+        { name: 'Guest Users', icon: Users, path: '/institute/users?tab=limited' },
+        { name: 'Limited Users', icon: Users, path: '/institute/users?tab=guest' },
         { name: 'Students', icon: Users, path: '/institute/students' },
         { name: 'Teachers', icon: GraduationCap, path: '/institute/teachers' },
         { name: 'Editors', icon: Users, path: '/institute/editors' },
@@ -962,11 +964,18 @@ const Sidebar = ({ role = 'Admin', collapsed, onToggle, isMobileOpen }) => {
 
         // Exact match first
         const currentFullPath = location.pathname + location.search;
-        if (path === currentFullPath || path === location.pathname) return true;
+        if (path === currentFullPath) return true;
 
         if (path.includes('?')) {
-            return (location.pathname + location.search).startsWith(path);
+            return currentFullPath.startsWith(path);
         }
+
+        // If current URL contains a sidebar query parameter but this path is just the base path, it's not active.
+        if (location.search && (location.search.includes('tab=limited') || location.search.includes('tab=guest') || location.search.includes('tab=study-material'))) {
+            return false;
+        }
+
+        if (path === location.pathname) return true;
 
         // Avoid matching root tools page (/admin/tools) when visiting specific tool sub-routes (/admin/tools/...)
         if (path === `/${safeRole.toLowerCase()}/tools` || path === '/admin/tools') {

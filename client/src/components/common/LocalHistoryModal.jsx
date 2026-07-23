@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { 
     X, ChevronRight, Eye, Trash, Folder, FolderOpen, 
     ArrowLeft, RefreshCw, Camera, Video, Mic, Phone, FileText, Download, Loader2, Upload
@@ -790,9 +791,9 @@ Log saved locally.`;
 
     if (!isOpen) return null;
 
-    return (
+    return createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 text-left font-sans">
-            <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 w-full max-w-2xl overflow-hidden relative transition-all duration-300 flex flex-col max-h-[85vh]">
+            <div className="bg-[#f5f5f5] rounded-3xl shadow-2xl border border-slate-100 w-full max-w-2xl overflow-hidden relative transition-all duration-300 flex flex-col max-h-[85vh]">
                 
                 {/* Header */}
                 <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100 bg-slate-50/50 shrink-0">
@@ -1150,7 +1151,8 @@ Log saved locally.`;
                     animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
                 }
             `}} />
-        </div>
+        </div>,
+        document.body
     );
 };
 

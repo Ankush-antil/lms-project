@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import * as XLSX from 'xlsx';
 import axios from 'axios';
 import toast from 'react-hot-toast';
@@ -580,9 +581,9 @@ const AssetManagement = () => {
             </div>
 
             {/* Modal: Add Asset */}
-            {isAddModalOpen && (
+            {isAddModalOpen && createPortal(
                 <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-3xl p-6 md:p-8 w-full max-w-xl shadow-2xl border border-slate-100">
+                    <div className="bg-[#f5f5f5] rounded-3xl p-6 md:p-8 w-full max-w-xl shadow-2xl border border-slate-200">
                         <div className="flex items-center justify-between mb-6">
                             <h3 className="text-xl font-black text-slate-800">Add New Inventory Asset</h3>
                             <button onClick={() => setIsAddModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-xl text-slate-400 hover:text-slate-700 transition-all cursor-pointer">
@@ -706,13 +707,14 @@ const AssetManagement = () => {
                             </div>
                         </form>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
 
             {/* Modal: Edit Asset */}
-            {isEditModalOpen && (
+            {isEditModalOpen && createPortal(
                 <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-3xl p-6 md:p-8 w-full max-w-xl shadow-2xl border border-slate-100">
+                    <div className="bg-[#f5f5f5] rounded-3xl p-6 md:p-8 w-full max-w-xl shadow-2xl border border-slate-200">
                         <div className="flex items-center justify-between mb-6">
                             <h3 className="text-xl font-black text-slate-800">Edit Asset Details ({selectedAsset?.id})</h3>
                             <button onClick={() => setIsEditModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-xl text-slate-400 hover:text-slate-700 transition-all cursor-pointer">
@@ -831,13 +833,14 @@ const AssetManagement = () => {
                             </div>
                         </form>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
 
             {/* Modal: Maintenance Logs & Tracker */}
-            {isMaintenanceModalOpen && (
+            {isMaintenanceModalOpen && createPortal(
                 <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-3xl p-6 md:p-8 w-full max-w-2xl shadow-2xl border border-slate-100 max-h-[85vh] overflow-y-auto">
+                    <div className="bg-[#f5f5f5] rounded-3xl p-6 md:p-8 w-full max-w-2xl shadow-2xl border border-slate-200 max-h-[85vh] overflow-y-auto">
                         <div className="flex items-center justify-between mb-6">
                             <div>
                                 <h3 className="text-xl font-black text-slate-800">Maintenance Desk</h3>
@@ -957,7 +960,8 @@ const AssetManagement = () => {
                             </div>
                         </form>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
         </DashboardLayout>
     );

@@ -318,7 +318,7 @@ const AdminDashboard = () => {
         { label: 'Accountant', modal: 'user', role: 'Accountant', icon: Calculator },
         { label: 'Marketer', modal: 'user', role: 'Marketer', icon: Megaphone },
         { label: 'Parent', modal: 'user', role: 'Parent', icon: Heart },
-        { label: 'Limited User', modal: 'limited', role: 'Limited User', icon: UserX }
+        { label: 'Guest User', modal: 'limited', role: 'Limited User', icon: UserX }
     ];
 
     useEffect(() => {
@@ -336,7 +336,7 @@ const AdminDashboard = () => {
         if (item.modal === 'institute') {
             setIsInstituteModalOpen(true);
         } else if (item.role === 'Limited User') {
-            toast('Limited Users are created automatically when candidates submit a public test. Share a public test link to register them.', {
+            toast('Guest Users are created automatically when candidates submit a public test. Share a public test link to register them.', {
                 icon: 'ℹ️',
                 duration: 6000
             });
@@ -477,8 +477,8 @@ const AdminDashboard = () => {
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 sm:gap-4 mb-8">
                     <StatCard title="Total User" value={stats.totalUsers || 0} icon={Users} color="bg-slate-600 text-slate-600" onClick={() => navigate('/admin/users')} />
                     <StatCard title="Registered User" value={stats.registeredUsers || 0} icon={UserCheck} color="bg-indigo-600 text-indigo-600" onClick={() => navigate('/admin/users?tab=registered')} />
-                    <StatCard title="Guest User" value={stats.guestUsers || 0} icon={UserMinus} color="bg-amber-50 text-amber-500" onClick={() => navigate('/admin/users?tab=guest')} />
-                    <StatCard title="Limited User" value={stats.limitedUsers || 0} icon={UserX} color="bg-rose-500 text-rose-500" onClick={() => navigate('/admin/users?tab=limited')} />
+                    <StatCard title="Limited User" value={stats.guestUsers || 0} icon={UserMinus} color="bg-amber-50 text-amber-500" onClick={() => navigate('/admin/users?tab=guest')} />
+                    <StatCard title="Guest User" value={stats.limitedUsers || 0} icon={UserX} color="bg-rose-500 text-rose-500" onClick={() => navigate('/admin/users?tab=limited')} />
 
                     <StatCard
                         title="Student" value={stats.students || 0} icon={GraduationCap} color="bg-blue-500 text-blue-500"

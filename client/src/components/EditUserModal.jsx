@@ -1287,7 +1287,7 @@ const handleSubmit = async (e) => {
                     <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center gap-3">
                             <h3 className="text-xl font-medium font-black text-white tracking-tight">
-                                Edit {selectedRoleToEdit}: {user.name}
+                                Edit {selectedRoleToEdit === 'Guest' ? 'Limited User' : selectedRoleToEdit}: {user.name}
                             </h3>
                             {user.allowedRoles && user.allowedRoles.length > 1 && (
                                 <button

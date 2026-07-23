@@ -592,90 +592,53 @@ const AdminAnnouncements = () => {
                                     />
                                 </div>
 
-                                <div className="space-y-1 text-left">
-                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Attachment (Optional)</label>
-                                    <div className="flex items-center gap-3">
-                                        <input
-                                            type="file"
-                                            onChange={(e) => {
-                                                setAttachmentFile(e.target.files[0]);
-                                                setClearAttachment(false);
-                                            }}
-                                            className="hidden"
-                                            id="announcement-file-upload"
-                                        />
-                                        <label
-                                            htmlFor="announcement-file-upload"
-                                            className="px-4 py-2 bg-slate-50 border border-slate-200 border-dashed rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 hover:border-slate-350 cursor-pointer transition-all flex items-center gap-1.5 shrink-0"
-                                        >
-                                            <span>📎</span> {attachmentFile ? 'Change File' : 'Choose File'}
-                                        </label>
-                                        {attachmentFile && (
-                                            <div className="flex items-center gap-1.5 bg-slate-100 px-3 py-1.5 rounded-xl text-xs font-bold text-slate-655 truncate max-w-xs">
-                                                <span className="truncate max-w-[120px]">{attachmentFile.name}</span>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setAttachmentFile(null)}
-                                                    className="text-slate-400 hover:text-slate-600 cursor-pointer"
-                                                >
-                                                    <X size={14} />
-                                                </button>
-                                            </div>
-                                        )}
-                                        {!attachmentFile && selectedAnnouncement?.attachmentUrl && !clearAttachment && (
-                                            <div className="flex items-center gap-1.5 bg-indigo-50 border border-indigo-100 px-3 py-1.5 rounded-xl text-xs font-bold text-[#3E3ADD] truncate max-w-xs">
-                                                <span className="truncate max-w-[120px]">{selectedAnnouncement.attachmentName || 'Attached File'}</span>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setClearAttachment(true)}
-                                                    className="text-indigo-400 hover:text-indigo-650 cursor-pointer"
-                                                    title="Delete attachment"
-                                                >
-                                                    <X size={14} />
-                                                </button>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div className="space-y-1 text-left">
-                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Target Audience</label>
-                                        <select
-                                            value={formData.targetAudience}
-                                            onChange={(e) => setFormData({ ...formData, targetAudience: e.target.value })}
-                                            className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none cursor-pointer focus:border-indigo-500 transition-all"
-                                        >
-                                            <option value="All">Everyone (All)</option>
-                                            <option value="Student">Students Only</option>
-                                            <option value="Teacher">Teachers Only</option>
-                                            <option value="Editor">Editor Only</option>
-                                            <option value="Accountant">Accountants Only</option>
-                                            <option value="Marketer">Marketers Only</option>
-                                            <option value="Parent">Parents Only</option>
-                                            <option value="limited">Guest Users Only</option>
-                                            <option value="guest">Limited Users Only</option>
-                                        </select>
-                                    </div>
- 
-                                    {user?.role === 'Admin' && (
-                                        <div className="space-y-1 text-left">
-                                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Institute Scope</label>
-                                            <select
-                                                value={formData.instituteId}
-                                                onChange={(e) => setFormData({ ...formData, instituteId: e.target.value })}
-                                                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none cursor-pointer focus:border-indigo-500 transition-all"
+                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Attachment (Optional)</label>
+                                        <div className="flex items-center gap-3">
+                                            <input
+                                                type="file"
+                                                onChange={(e) => {
+                                                    setAttachmentFile(e.target.files[0]);
+                                                    setClearAttachment(false);
+                                                }}
+                                                className="hidden"
+                                                id="announcement-file-upload"
+                                            />
+                                            <label
+                                                htmlFor="announcement-file-upload"
+                                                className="px-4 py-2 bg-slate-50 border border-slate-200 border-dashed rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 hover:border-slate-350 cursor-pointer transition-all flex items-center gap-1.5 shrink-0"
                                             >
-                                                <option value="">Global (All Institutes)</option>
-                                                {institutes.map(inst => (
-                                                    <option key={inst._id} value={inst._id}>{inst.name}</option>
-                                                ))}
-                                            </select>
+                                                <span>📎</span> {attachmentFile ? 'Change File' : 'Choose File'}
+                                            </label>
+                                            {attachmentFile && (
+                                                <div className="flex items-center gap-1.5 bg-slate-100 px-3 py-1.5 rounded-xl text-xs font-bold text-slate-655 truncate max-w-xs">
+                                                    <span className="truncate max-w-[120px]">{attachmentFile.name}</span>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setAttachmentFile(null)}
+                                                        className="text-slate-400 hover:text-slate-600 cursor-pointer"
+                                                    >
+                                                        <X size={14} />
+                                                    </button>
+                                                </div>
+                                            )}
+                                            {!attachmentFile && selectedAnnouncement?.attachmentUrl && !clearAttachment && (
+                                                <div className="flex items-center gap-1.5 bg-indigo-50 border border-indigo-100 px-3 py-1.5 rounded-xl text-xs font-bold text-[#3E3ADD] truncate max-w-xs">
+                                                    <span className="truncate max-w-[120px]">{selectedAnnouncement.attachmentName || 'Attached File'}</span>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setClearAttachment(true)}
+                                                        className="text-indigo-400 hover:text-indigo-650 cursor-pointer"
+                                                        title="Delete attachment"
+                                                    >
+                                                        <X size={14} />
+                                                    </button>
+                                                </div>
+                                            )}
                                         </div>
-                                    )}
-                                </div>
+                                    </div>
 
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div className="space-y-1 text-left">
                                         <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Ending Date (Optional)</label>
                                         <input
@@ -685,6 +648,64 @@ const AdminAnnouncements = () => {
                                             className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:border-indigo-500 transition-all cursor-pointer"
                                         />
                                     </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    {user?.role === 'Admin' ? (
+                                        <>
+                                            <div className="space-y-1 text-left">
+                                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Institute Scope</label>
+                                                <select
+                                                    value={formData.instituteId}
+                                                    onChange={(e) => setFormData({ ...formData, instituteId: e.target.value })}
+                                                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none cursor-pointer focus:border-indigo-500 transition-all"
+                                                >
+                                                    <option value="">Global (All Institutes)</option>
+                                                    {institutes.map(inst => (
+                                                        <option key={inst._id} value={inst._id}>{inst.name}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+
+                                            <div className="space-y-1 text-left">
+                                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Target Audience</label>
+                                                <select
+                                                    value={formData.targetAudience}
+                                                    onChange={(e) => setFormData({ ...formData, targetAudience: e.target.value })}
+                                                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none cursor-pointer focus:border-indigo-500 transition-all"
+                                                >
+                                                    <option value="All">Everyone (All)</option>
+                                                    <option value="Student">Students Only</option>
+                                                    <option value="Teacher">Teachers Only</option>
+                                                    <option value="Editor">Editor Only</option>
+                                                    <option value="Accountant">Accountants Only</option>
+                                                    <option value="Marketer">Marketers Only</option>
+                                                    <option value="Parent">Parents Only</option>
+                                                    <option value="limited">Guest Users Only</option>
+                                                    <option value="guest">Limited Users Only</option>
+                                                </select>
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <div className="space-y-1 text-left col-span-1 sm:col-span-2">
+                                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Target Audience</label>
+                                            <select
+                                                value={formData.targetAudience}
+                                                onChange={(e) => setFormData({ ...formData, targetAudience: e.target.value })}
+                                                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none cursor-pointer focus:border-indigo-500 transition-all"
+                                            >
+                                                <option value="All">Everyone (All)</option>
+                                                <option value="Student">Students Only</option>
+                                                <option value="Teacher">Teachers Only</option>
+                                                <option value="Editor">Editor Only</option>
+                                                <option value="Accountant">Accountants Only</option>
+                                                <option value="Marketer">Marketers Only</option>
+                                                <option value="Parent">Parents Only</option>
+                                                <option value="limited">Guest Users Only</option>
+                                                <option value="guest">Limited Users Only</option>
+                                            </select>
+                                        </div>
+                                    )}
                                 </div>
 
                                 {formData.targetAudience === 'Student' && (

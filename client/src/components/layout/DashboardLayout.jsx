@@ -1359,6 +1359,150 @@ const Sidebar = ({ role = 'Admin', collapsed, onToggle, isMobileOpen }) => {
 };
 
 /* ─────────────────────────────────────────
+   Global Note Reminder Listener
+───────────────────────────────────────── */
+const GlobalNoteReminderListener = () => {
+    const navigate = useNavigate();
+    const { user } = useAuth();
+    const [triggeredReminder, setTriggeredReminder] = useState(null);
+    const rungNotesRef = useRef(new Set());
+
+    // Load persisted rung reminder IDs from localStorage
+    useEffect(() => {
+        try {
+            const saved = localStorage.getItem('lms_rung_reminders');
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                parsed.forEach(id => rungNotesRef.current.add(id));
+            }
+        } catch (e) {
+            console.error("Error reading rung reminders:", e);
+        }
+    }, []);
+
+    const markReminderRung = async (note) => {
+        try {
+            rungNotesRef.current.add(note._id);
+            const currentRung = Array.from(rungNotesRef.current);
+            localStorage.setItem('lms_rung_reminders', JSON.stringify(currentRung));
+            
+            // Clear reminderAt in backend DB so it never rings again
+            await axios.post('/api/notes', {
+                id: note._id,
+                title: note.title,
+                content: note.content,
+                reminderAt: ''
+            });
+        } catch (err) {
+            console.error("Error clearing note reminder in DB:", err);
+        }
+    };
+
+    useEffect(() => {
+        if (!user) return;
+
+        const playAlarmSound = () => {
+            try {
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                if (!AudioCtx) return;
+                const ctx = new AudioCtx();
+
+                const playTone = (freq, duration, delay) => {
+                    setTimeout(() => {
+                        const osc = ctx.createOscillator();
+                        const gain = ctx.createGain();
+                        osc.type = 'sine';
+                        osc.frequency.setValueAtTime(freq, ctx.currentTime);
+                        gain.gain.setValueAtTime(0.4, ctx.currentTime);
+                        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+                        osc.connect(gain);
+                        gain.connect(ctx.destination);
+                        osc.start();
+                        osc.stop(ctx.currentTime + duration);
+                    }, delay);
+                };
+
+                playTone(587.33, 0.4, 0);   // D5
+                playTone(880, 0.5, 350);    // A5
+                playTone(1174.66, 0.7, 750); // D6
+            } catch (e) {
+                console.error("Audio playback error:", e);
+            }
+        };
+
+        const checkReminders = async () => {
+            try {
+                const { data: notes } = await axios.get('/api/notes?all=true');
+                const now = new Date().getTime();
+
+                notes.forEach(note => {
+                    if (note.reminderAt && !rungNotesRef.current.has(note._id)) {
+                        const remTime = new Date(note.reminderAt).getTime();
+                        if (now >= remTime) {
+                            markReminderRung(note);
+                            playAlarmSound();
+                            setTriggeredReminder(note);
+
+                            if ("Notification" in window && Notification.permission === "granted") {
+                                new Notification(`⏰ Reminder: ${note.title || 'Note Reminder'}`, {
+                                    body: note.content ? note.content.substring(0, 100) : 'Scheduled note reminder time reached!',
+                                });
+                            }
+                        }
+                    }
+                });
+            } catch (err) {
+                // Silent catch if offline or not student
+            }
+        };
+
+        const interval = setInterval(checkReminders, 8000);
+        checkReminders();
+        return () => clearInterval(interval);
+    }, [user]);
+
+    if (!triggeredReminder) return null;
+
+    return createPortal(
+        <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-md z-[99999] flex items-center justify-center p-4">
+            <div className="bg-white rounded-3xl w-full max-w-sm shadow-2xl border border-amber-200 overflow-hidden flex flex-col text-center p-6 space-y-4 animate-bounce-short">
+                <div className="w-16 h-16 rounded-full bg-amber-100 text-amber-600 mx-auto flex items-center justify-center">
+                    <BellRing size={32} className="animate-bounce" />
+                </div>
+                <div>
+                    <span className="text-[10px] font-black text-amber-600 uppercase tracking-widest">⏰ Note Reminder Alert</span>
+                    <h3 className="text-lg font-black text-slate-800 mt-1">{triggeredReminder.title || 'Untitled Note'}</h3>
+                    <p className="text-xs text-slate-500 mt-1 line-clamp-3 leading-relaxed">{triggeredReminder.content || 'Your scheduled reminder time has arrived.'}</p>
+                </div>
+                <div className="flex flex-col gap-2 pt-2">
+                    <button
+                        type="button"
+                        onClick={() => {
+                            const noteId = triggeredReminder._id;
+                            setTriggeredReminder(null);
+                            const rolePath = user?.role ? `/${user.role.toLowerCase()}/tools/notes` : '/student/tools/notes';
+                            navigate(`${rolePath}?noteId=${noteId}`);
+                        }}
+                        className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-2xl text-xs transition-all cursor-pointer shadow-md active:scale-95 flex items-center justify-center gap-1.5"
+                    >
+                        <StickyNote size={14} />
+                        <span>View Note in LMS</span>
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setTriggeredReminder(null)}
+                        className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-2xl text-xs transition-all cursor-pointer"
+                    >
+                        Dismiss Alarm
+                    </button>
+                </div>
+            </div>
+        </div>,
+        document.body
+    );
+};
+
+/* ─────────────────────────────────────────
    Main DashboardLayout
 ───────────────────────────────────────── */
 const DashboardLayout = ({ children, role, fullWidth = false, noPadding = false }) => {
@@ -1384,6 +1528,9 @@ const DashboardLayout = ({ children, role, fullWidth = false, noPadding = false 
                 onMobileMenuToggle={() => setIsMobileMenuOpen(prev => !prev)}
                 isMobileMenuOpen={isMobileMenuOpen}
             />
+
+            {/* Global Note Reminder Listener for whole LMS */}
+            <GlobalNoteReminderListener />
 
             {/* Left sidebar & mobile drawer */}
             {hasSidebar && (

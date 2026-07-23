@@ -10,8 +10,6 @@ import {
 } from 'lucide-react';
 
 import GoogleDriveModal from '../../components/common/GoogleDriveModal';
-import OneDriveModal from '../../components/common/OneDriveModal';
-import GoogleCalendarModal from '../../components/common/GoogleCalendarModal';
 
 const VIEW_MODE_OPTIONS = [
     { value: 'extra-large', label: 'Giant Gallery', icon: Grid },
@@ -67,8 +65,6 @@ const AdminDrive = () => {
     const [folderName, setFolderName] = useState('');
     const [showGDriveModal, setShowGDriveModal] = useState(false);
     const [showIntegrationSection, setShowIntegrationSection] = useState(false);
-    const [showOneDriveSection, setShowOneDriveSection] = useState(false);
-    const [showCalendarSection, setShowCalendarSection] = useState(false);
     
     // File/Folder upload progress states
     const [uploadProgress, setUploadProgress] = useState({ uploading: false, current: 0, total: 0 });
@@ -724,46 +720,6 @@ const AdminDrive = () => {
                                 <span>Drive</span>
                             </button>
                         )}
-
-                        {/* OneDrive Button */}
-                        {canPerform('drive', 'integrateDrive') && (
-                            <button
-                                onClick={() => setShowOneDriveSection(prev => !prev)}
-                                className={`flex items-center gap-2.5 px-5 py-3.5 rounded-full border shadow-sm hover:shadow font-bold text-sm transition-all cursor-pointer active:scale-95 ${
-                                    showOneDriveSection
-                                        ? 'bg-blue-50 border-blue-200 text-blue-700'
-                                        : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700'
-                                }`}
-                            >
-                                <svg className="w-5 h-5 shrink-0" viewBox="0 0 48 48">
-                                    <path fill="#0078D4" d="M28.6 18.8c1.3-.7 2.8-1.1 4.4-1.1 5.3 0 9.6 4.3 9.6 9.6 0 .3 0 .7-.1 1H43c2.2 0 4 1.8 4 4s-1.8 4-4 4H15c-3.3 0-6-2.7-6-6 0-3 2.2-5.5 5-5.9v-.1c0-5.5 4.5-10 10-10 1.9 0 3.6.5 5.1 1.4z"/>
-                                    <path fill="#28A8E0" d="M14.2 22.4C11.8 22.9 10 25.1 10 27.7c0 3 2.5 5.5 5.6 5.5H28c.7-1.1 1-2.4 1-3.7 0-4.4-3.8-7.9-8.3-7.7-.8-1.7-2.1-3-3.8-3.8-1-.5-2.1-.7-3.2-.6z"/>
-                                </svg>
-                                <span>OneDrive</span>
-                            </button>
-                        )}
-
-                        {/* Google Calendar Button */}
-                        {canPerform('drive', 'integrateDrive') && (
-                            <button
-                                onClick={() => setShowCalendarSection(prev => !prev)}
-                                className={`flex items-center gap-2.5 px-5 py-3.5 rounded-full border shadow-sm hover:shadow font-bold text-sm transition-all cursor-pointer active:scale-95 ${
-                                    showCalendarSection
-                                        ? 'bg-red-50 border-red-200 text-red-700'
-                                        : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700'
-                                }`}
-                            >
-                                <svg className="w-5 h-5 shrink-0" viewBox="0 0 48 48">
-                                    <rect width="48" height="48" rx="6" fill="#fff"/>
-                                    <path fill="#EA4335" d="M35 13H13v4h22v-4z"/>
-                                    <path fill="#1967D2" d="M13 13h4V9h-4v4z"/>
-                                    <path fill="#1967D2" d="M31 13h4V9h-4v4z"/>
-                                    <rect x="13" y="17" width="22" height="22" rx="2" fill="#1967D2"/>
-                                    <rect x="14" y="18" width="20" height="20" rx="1" fill="#fff"/>
-                                </svg>
-                                <span>Calendar</span>
-                            </button>
-                        )}
                     </div>
 
                     {/* Hidden Inputs for upload */}
@@ -861,38 +817,6 @@ const AdminDrive = () => {
                             onClose={() => setShowIntegrationSection(false)}
                             currentParentId={currentParentId}
                             onSaveSuccess={fetchItems}
-                            inline={true}
-                        />
-                    </div>
-                )}
-
-                {/* OneDrive Integration - Inline Section */}
-                {showOneDriveSection && canPerform('drive', 'integrateDrive') && (
-                    <div className="mt-2">
-                        <div className="flex items-center gap-2 mb-3">
-                            <svg className="w-4 h-4" viewBox="0 0 48 48"><path fill="#0078D4" d="M28.6 18.8c1.3-.7 2.8-1.1 4.4-1.1 5.3 0 9.6 4.3 9.6 9.6 0 .3 0 .7-.1 1H43c2.2 0 4 1.8 4 4s-1.8 4-4 4H15c-3.3 0-6-2.7-6-6 0-3 2.2-5.5 5-5.9v-.1c0-5.5 4.5-10 10-10 1.9 0 3.6.5 5.1 1.4z"/><path fill="#28A8E0" d="M14.2 22.4C11.8 22.9 10 25.1 10 27.7c0 3 2.5 5.5 5.6 5.5H28c.7-1.1 1-2.4 1-3.7 0-4.4-3.8-7.9-8.3-7.7-.8-1.7-2.1-3-3.8-3.8-1-.5-2.1-.7-3.2-.6z"/></svg>
-                            <h3 className="text-sm font-bold text-slate-700">OneDrive Integration</h3>
-                        </div>
-                        <OneDriveModal
-                            isOpen={showOneDriveSection}
-                            onClose={() => setShowOneDriveSection(false)}
-                            currentParentId={currentParentId}
-                            onSaveSuccess={fetchItems}
-                            inline={true}
-                        />
-                    </div>
-                )}
-
-                {/* Google Calendar Integration - Inline Section */}
-                {showCalendarSection && canPerform('drive', 'integrateDrive') && (
-                    <div className="mt-2">
-                        <div className="flex items-center gap-2 mb-3">
-                            <svg className="w-4 h-4" viewBox="0 0 48 48"><rect width="48" height="48" rx="6" fill="#fff"/><path fill="#EA4335" d="M35 13H13v4h22v-4z"/><path fill="#1967D2" d="M13 13h4V9h-4v4zM31 13h4V9h-4v4z"/><rect x="13" y="17" width="22" height="22" rx="2" fill="#1967D2"/><rect x="14" y="18" width="20" height="20" rx="1" fill="#fff"/></svg>
-                            <h3 className="text-sm font-bold text-slate-700">Google Calendar Integration</h3>
-                        </div>
-                        <GoogleCalendarModal
-                            isOpen={showCalendarSection}
-                            onClose={() => setShowCalendarSection(false)}
                             inline={true}
                         />
                     </div>

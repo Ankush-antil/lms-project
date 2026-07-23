@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import axios from 'axios';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import DashboardLayout from '../../components/layout/DashboardLayout';
@@ -11,7 +12,7 @@ import {
 
 const AdsManagement = () => {
     const { user } = useAuth();
-    // Convincing Demo Data for Ad Campaigns
+    // Convincing Demo Data for Ad Campaigns with Individual Ads List
     const [campaigns, setCampaigns] = useState([
         {
             _id: 'camp_1',
@@ -21,13 +22,21 @@ const AdsManagement = () => {
             instituteName: 'HARTRON GANAUR',
             totalAds: 6,
             status: 'Active',
-            budget: 15000, // Monthly in INR
+            budget: 15000,
             spent: 8400,
             impressions: 48500,
             clicks: 3120,
             leads: 185,
             startDate: '2026-06-01',
-            endDate: '2026-08-31'
+            endDate: '2026-08-31',
+            adsList: [
+                { id: 'ad_101', name: 'Become Full Stack Web Developer 2026', type: 'Search Text Ad', impressions: 18500, clicks: 1250, leads: 78, status: 'Active' },
+                { id: 'ad_102', name: 'Learn React & Node.js with 100% Placement', type: 'Search Text Ad', impressions: 14200, clicks: 920, leads: 54, status: 'Active' },
+                { id: 'ad_103', name: 'Web Dev Certificate Course - Apply Now', type: 'Display Banner', impressions: 8400, clicks: 510, leads: 32, status: 'Active' },
+                { id: 'ad_104', name: 'Zero to Coding Hero in 6 Months', type: 'Responsive Search Ad', impressions: 4200, clicks: 280, leads: 12, status: 'Active' },
+                { id: 'ad_105', name: 'Weekend Batch Web Dev Training', type: 'Text Ad', impressions: 2100, clicks: 110, leads: 6, status: 'Disabled' },
+                { id: 'ad_106', name: 'Scholarship Offer Web Dev Academy', type: 'Callout Extension Ad', impressions: 1100, clicks: 50, leads: 3, status: 'Disabled' }
+            ]
         },
         {
             _id: 'camp_2',
@@ -43,7 +52,13 @@ const AdsManagement = () => {
             clicks: 2840,
             leads: 142,
             startDate: '2026-06-15',
-            endDate: '2026-07-31'
+            endDate: '2026-07-31',
+            adsList: [
+                { id: 'ad_201', name: 'Switch your career to IT in 90 Days', type: 'Carousel Image Ad', impressions: 32000, clicks: 1350, leads: 72, status: 'Active' },
+                { id: 'ad_202', name: 'Student Testimonials & Salary Proof', type: 'Video Ad', impressions: 24000, clicks: 910, leads: 48, status: 'Active' },
+                { id: 'ad_203', name: 'Free Tech Career Consultation Booking', type: 'Single Image Lead Ad', impressions: 11000, clicks: 420, leads: 18, status: 'Active' },
+                { id: 'ad_204', name: 'Limited Seats Left for July Batch', type: 'Urgency Post Ad', impressions: 5000, clicks: 160, leads: 4, status: 'Disabled' }
+            ]
         },
         {
             _id: 'camp_3',
@@ -59,7 +74,17 @@ const AdsManagement = () => {
             clicks: 6540,
             leads: 298,
             startDate: '2026-05-10',
-            endDate: '2026-06-10'
+            endDate: '2026-06-10',
+            adsList: [
+                { id: 'ad_301', name: 'Build AI Bots in Python Reel', type: 'Reel Video Ad', impressions: 45000, clicks: 2800, leads: 130, status: 'Active' },
+                { id: 'ad_302', name: 'Python vs Java Salary Comparison Reel', type: 'Reel Video Ad', impressions: 35000, clicks: 2100, leads: 95, status: 'Active' },
+                { id: 'ad_303', name: 'Automate Excel with Python Demo', type: 'Reel Video Ad', impressions: 18000, clicks: 980, leads: 42, status: 'Active' },
+                { id: 'ad_304', name: 'Python Data Science Bootcamp Promo', type: 'Story Ad', impressions: 7000, clicks: 410, leads: 21, status: 'Active' },
+                { id: 'ad_305', name: 'Free Python Cheat Sheet Download', type: 'Image Post Ad', impressions: 3000, clicks: 150, leads: 7, status: 'Disabled' },
+                { id: 'ad_306', name: 'Django Web App Crash Course', type: 'Video Ad', impressions: 1200, clicks: 60, leads: 3, status: 'Disabled' },
+                { id: 'ad_307', name: 'Top 5 Python Libraries in 2026', type: 'Carousel Ad', impressions: 500, clicks: 25, leads: 0, status: 'Disabled' },
+                { id: 'ad_308', name: 'Live Coding Webinar Invitation', type: 'Story Event Ad', impressions: 300, clicks: 15, leads: 0, status: 'Disabled' }
+            ]
         },
         {
             _id: 'camp_4',
@@ -75,7 +100,12 @@ const AdsManagement = () => {
             clicks: 4120,
             leads: 89,
             startDate: '2026-06-10',
-            endDate: '2026-09-10'
+            endDate: '2026-09-10',
+            adsList: [
+                { id: 'ad_401', name: 'Ethical Hacking Demo Video (Skippable)', type: 'In-Stream Video Ad', impressions: 85000, clicks: 2400, leads: 52, status: 'Active' },
+                { id: 'ad_402', name: 'Cyber Security Career Opportunities', type: 'In-Feed Video Ad', impressions: 42000, clicks: 1210, leads: 28, status: 'Active' },
+                { id: 'ad_403', name: 'CEH Certification Prep Course', type: 'Bumper Ad (6s)', impressions: 18000, clicks: 510, leads: 9, status: 'Active' }
+            ]
         },
         {
             _id: 'camp_5',
@@ -91,16 +121,38 @@ const AdsManagement = () => {
             clicks: 1980,
             leads: 52,
             startDate: '2026-04-01',
-            endDate: '2026-05-01'
+            endDate: '2026-05-01',
+            adsList: [
+                { id: 'ad_501', name: 'Master Figma & UI Design Banner 728x90', type: 'Leaderboard Banner', impressions: 150000, clicks: 880, leads: 24, status: 'Active' },
+                { id: 'ad_502', name: 'UX Research & Prototyping Square 300x250', type: 'Inline Rectangle Banner', impressions: 110000, clicks: 620, leads: 16, status: 'Active' },
+                { id: 'ad_503', name: 'Build Portfolio in UI/UX Mobile Banner', type: 'Mobile Banner 320x50', impressions: 50000, clicks: 310, leads: 8, status: 'Active' },
+                { id: 'ad_504', name: 'Design Systems Workshop Promo', type: 'Responsive Display Ad', impressions: 20000, clicks: 120, leads: 3, status: 'Disabled' },
+                { id: 'ad_505', name: 'Figma to Code Workflow Banner', type: 'Skyscraper Banner', impressions: 10000, clicks: 50, leads: 1, status: 'Disabled' }
+            ]
         }
     ]);
 
     const [searchTerm, setSearchTerm] = useState('');
     const [platformFilter, setPlatformFilter] = useState('All');
     const [statusFilter, setStatusFilter] = useState('All');
+    const [instituteFilter, setInstituteFilter] = useState('All');
+    const [institutes, setInstitutes] = useState([]);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [editingCampaign, setEditingCampaign] = useState(null);
     const [editBudget, setEditBudget] = useState('');
+    const [previewModalCampaign, setPreviewModalCampaign] = useState(null);
+
+    useEffect(() => {
+        const fetchInsts = async () => {
+            try {
+                const res = await axios.get('/api/setup/institutes');
+                setInstitutes(Array.isArray(res.data) ? res.data : []);
+            } catch (err) {
+                console.error("Error fetching institutes:", err);
+            }
+        };
+        fetchInsts();
+    }, []);
 
     // Pagination State
     const [currentPage, setCurrentPage] = useState(1);
@@ -108,7 +160,7 @@ const AdsManagement = () => {
 
     useEffect(() => {
         setCurrentPage(1);
-    }, [searchTerm, platformFilter, statusFilter]);
+    }, [searchTerm, platformFilter, statusFilter, instituteFilter]);
 
     // Form state for new campaign
     const [newCampaignForm, setNewCampaignForm] = useState({
@@ -171,6 +223,67 @@ const AdsManagement = () => {
         toast.success("Campaign deleted");
     };
 
+    const handleToggleAdStatus = (campaignId, adId) => {
+        setCampaigns(prev => prev.map(c => {
+            if (c._id === campaignId) {
+                const currentAds = c.adsList || [];
+                const updatedAds = currentAds.map(ad => 
+                    ad.id === adId ? { ...ad, status: ad.status === 'Active' ? 'Disabled' : 'Active' } : ad
+                );
+                const activeAdsCount = updatedAds.filter(ad => ad.status === 'Active').length;
+                return {
+                    ...c,
+                    adsList: updatedAds,
+                    status: activeAdsCount > 0 ? 'Active' : 'Paused'
+                };
+            }
+            return c;
+        }));
+
+        if (previewModalCampaign && previewModalCampaign._id === campaignId) {
+            setPreviewModalCampaign(prev => {
+                if (!prev) return null;
+                const currentAds = prev.adsList || [];
+                const updatedAds = currentAds.map(ad => 
+                    ad.id === adId ? { ...ad, status: ad.status === 'Active' ? 'Disabled' : 'Active' } : ad
+                );
+                return { ...prev, adsList: updatedAds };
+            });
+        }
+        toast.success("Ad status updated!");
+    };
+
+    const handleDeleteSingleAd = (campaignId, adId) => {
+        if (!window.confirm("Are you sure you want to delete this ad?")) return;
+
+        setCampaigns(prev => prev.map(c => {
+            if (c._id === campaignId) {
+                const currentAds = c.adsList || [];
+                const updatedAds = currentAds.filter(ad => ad.id !== adId);
+                return {
+                    ...c,
+                    totalAds: updatedAds.length,
+                    adsList: updatedAds
+                };
+            }
+            return c;
+        }));
+
+        if (previewModalCampaign && previewModalCampaign._id === campaignId) {
+            setPreviewModalCampaign(prev => {
+                if (!prev) return null;
+                const currentAds = prev.adsList || [];
+                const updatedAds = currentAds.filter(ad => ad.id !== adId);
+                return {
+                    ...prev,
+                    totalAds: updatedAds.length,
+                    adsList: updatedAds
+                };
+            });
+        }
+        toast.success("Ad deleted from campaign!");
+    };
+
     const handleSaveBudget = (id) => {
         if (!editBudget || isNaN(editBudget)) {
             toast.error("Invalid budget amount");
@@ -187,7 +300,9 @@ const AdsManagement = () => {
         const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase());
         const matchesPlatform = platformFilter === 'All' || c.platform === platformFilter;
         const matchesStatus = statusFilter === 'All' || c.status === statusFilter;
-        return matchesSearch && matchesPlatform && matchesStatus;
+        const instName = c.instituteName || 'HARTRON GANAUR';
+        const matchesInstitute = instituteFilter === 'All' || instName === instituteFilter;
+        return matchesSearch && matchesPlatform && matchesStatus && matchesInstitute;
     });
 
     const totalCampaignsCount = filteredCampaigns.length;
@@ -289,6 +404,20 @@ const AdsManagement = () => {
                     
                     <div className="flex flex-wrap gap-3">
                         <div className="flex items-center gap-1.5 bg-slate-50 px-3.5 py-2.5 rounded-2xl border border-slate-150">
+                            <span className="text-[10px] font-bold text-slate-450 uppercase tracking-wide">Institute:</span>
+                            <select
+                                value={instituteFilter}
+                                onChange={(e) => setInstituteFilter(e.target.value)}
+                                className="bg-transparent text-xs font-bold text-slate-700 outline-none cursor-pointer"
+                            >
+                                <option value="All">All Institutes</option>
+                                {institutes.map(inst => (
+                                    <option key={inst._id || inst.name} value={inst.name}>{inst.name}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 bg-slate-50 px-3.5 py-2.5 rounded-2xl border border-slate-150">
                             <span className="text-[10px] font-bold text-slate-450 uppercase tracking-wide">Platform:</span>
                             <select
                                 value={platformFilter}
@@ -347,14 +476,13 @@ const AdsManagement = () => {
                                 <th className="p-4 font-semibold">Leads</th>
                                 <th className="p-4 font-semibold">CPA</th>
                                 <th className="p-4 font-semibold">Dates</th>
-                                <th className="p-4 font-semibold text-center">Status</th>
-                                <th className="p-4 font-semibold text-right">Delete</th>
+                                <th className="p-4 font-semibold text-right">Actions</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 text-slate-700 text-xs font-semibold">
                             {currentCampaigns.length === 0 ? (
                                 <tr>
-                                    <td colSpan={11} className="p-12 text-center text-slate-400 font-semibold text-sm">
+                                    <td colSpan={10} className="p-12 text-center text-slate-400 font-semibold text-sm">
                                         No campaigns found matching your criteria.
                                     </td>
                                 </tr>
@@ -378,9 +506,13 @@ const AdsManagement = () => {
                                             {c.instituteName || 'HARTRON GANAUR'}
                                         </td>
                                         <td className="p-4 whitespace-nowrap text-center">
-                                            <span className="px-2.5 py-1 bg-indigo-50 text-indigo-700 rounded-full font-extrabold text-xs">
-                                                {c.totalAds || 1} Ads
-                                            </span>
+                                            <button
+                                                onClick={() => setPreviewModalCampaign(c)}
+                                                className="px-3 py-1 bg-indigo-50 border border-indigo-150 hover:bg-indigo-100 text-indigo-700 rounded-full font-extrabold text-xs inline-flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs"
+                                                title="Click to Preview Ads in Table"
+                                            >
+                                                <Eye size={12} /> {c.adsList?.length || c.totalAds || 1} Ads
+                                            </button>
                                         </td>
                                         <td className="p-4 min-w-[150px] whitespace-nowrap">
                                             <div className="flex flex-col justify-center">
@@ -411,32 +543,26 @@ const AdsManagement = () => {
                                         <td className="p-4 whitespace-nowrap text-slate-600 font-medium text-xs">
                                             {c.startDate} — {c.endDate}
                                         </td>
-                                        <td className="p-4 text-center whitespace-nowrap">
-                                            <span className={`px-2.5 py-1 border rounded-full text-[10px] font-black uppercase tracking-wider ${
-                                                c.status === 'Active' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-slate-50 text-slate-400 border-slate-150'
-                                            }`}>
-                                                {c.status}
-                                            </span>
-                                        </td>
                                         <td className="p-4 text-right whitespace-nowrap">
-                                            <div className="flex justify-end gap-1.5">
+                                            <div className="flex items-center justify-end gap-2">
+                                                {/* Preview Button */}
+                                                <button
+                                                    onClick={() => setPreviewModalCampaign(c)}
+                                                    className="p-1.5 bg-indigo-50 border border-indigo-100 text-indigo-650 hover:bg-indigo-100 hover:text-indigo-750 rounded-lg transition-all cursor-pointer flex items-center gap-1 font-bold text-xs"
+                                                    title="Preview Ads Table"
+                                                >
+                                                    <Eye size={14} /> Preview
+                                                </button>
+
+                                                {/* Status Toggle Badge / Button */}
                                                 <button
                                                     onClick={() => handleToggleStatus(c._id, c.status)}
-                                                    className={`p-1.5 rounded-lg border transition-all cursor-pointer ${
-                                                        c.status === 'Active' 
-                                                            ? 'text-amber-600 bg-amber-50 border-amber-100 hover:bg-amber-100' 
-                                                            : 'text-emerald-600 bg-emerald-50 border-emerald-100 hover:bg-emerald-100'
+                                                    className={`px-2.5 py-1 border rounded-full text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer shadow-2xs ${
+                                                        c.status === 'Active' ? 'bg-emerald-50 text-emerald-600 border-emerald-150 hover:bg-emerald-100' : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'
                                                     }`}
-                                                    title={c.status === 'Active' ? 'Pause Campaign' : 'Resume Campaign'}
+                                                    title="Click to Toggle Active / Paused"
                                                 >
-                                                    {c.status === 'Active' ? <Pause size={14} /> : <Play size={14} />}
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDeleteCampaign(c._id)}
-                                                    className="p-1.5 bg-rose-50 border border-rose-100 text-rose-600 hover:bg-rose-100 rounded-lg cursor-pointer"
-                                                    title="Delete Campaign"
-                                                >
-                                                    <Trash2 size={14} />
+                                                    {c.status}
                                                 </button>
                                             </div>
                                         </td>
@@ -642,6 +768,132 @@ const AdsManagement = () => {
                             </button>
                         </div>
                     </form>
+                </div>,
+                document.body
+            )}
+
+            {/* Preview Ads Table Modal */}
+            {previewModalCampaign && createPortal(
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[150] flex items-center justify-center p-4">
+                    <div className="bg-white rounded-3xl w-full max-w-4xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh] text-left animate-slide-up">
+                        {/* Modal Header */}
+                        <div className="bg-[#0b132b] text-white p-6 flex items-center justify-between">
+                            <div>
+                                <span className="text-[10px] font-black uppercase tracking-wider text-indigo-400 bg-indigo-950/60 border border-indigo-800/60 px-2.5 py-0.5 rounded-full">
+                                    {previewModalCampaign.platform}
+                                </span>
+                                <h2 className="text-lg font-black mt-1.5 flex items-center gap-2">
+                                    <Megaphone size={18} className="text-indigo-400" />
+                                    {previewModalCampaign.name}
+                                </h2>
+                                <p className="text-xs text-slate-350 mt-1">
+                                    Institute: <span className="text-white font-bold">{previewModalCampaign.instituteName || 'HARTRON GANAUR'}</span> · Created By: <span className="text-white font-bold">{previewModalCampaign.createdBy || 'Ankush Antil'}</span>
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => setPreviewModalCampaign(null)}
+                                className="p-2 hover:bg-white/10 text-slate-300 hover:text-white rounded-xl transition-all cursor-pointer"
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        {/* Content Body / Ads Table */}
+                        <div className="p-6 overflow-y-auto space-y-4">
+                            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-slate-50 p-4 rounded-2xl border border-slate-150 gap-2">
+                                <div className="text-xs font-bold text-slate-600">
+                                    Total Ads in this Campaign: <span className="text-indigo-650 font-black text-sm ml-1">{previewModalCampaign.adsList?.length || previewModalCampaign.totalAds || 0} Ads</span>
+                                </div>
+                                <div className="text-xs font-bold text-slate-500">
+                                    Enabled: <span className="text-emerald-600 font-extrabold mr-2">{previewModalCampaign.adsList?.filter(a => a.status === 'Active').length || 0}</span>
+                                    Disabled: <span className="text-rose-500 font-extrabold">{previewModalCampaign.adsList?.filter(a => a.status !== 'Active').length || 0}</span>
+                                </div>
+                            </div>
+
+                            {/* Ads Table */}
+                            <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+                                <div className="responsive-table-wrapper">
+                                    <table className="min-w-full text-left border-collapse">
+                                        <thead>
+                                            <tr className="bg-slate-100/70 border-b border-slate-200 text-slate-600 text-[10px] font-black uppercase tracking-wider">
+                                                <th className="p-3.5 pl-5 font-semibold">Ad Headline / Creative</th>
+                                                <th className="p-3.5 font-semibold">Format / Type</th>
+                                                <th className="p-3.5 font-semibold">Traffic Stats</th>
+                                                <th className="p-3.5 font-semibold">Leads</th>
+                                                <th className="p-3.5 pr-5 text-right font-semibold">Enable / Disable</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-150 text-xs font-semibold text-slate-700">
+                                            {(!previewModalCampaign.adsList || previewModalCampaign.adsList.length === 0) ? (
+                                                <tr>
+                                                    <td colSpan={5} className="p-8 text-center text-slate-400 font-semibold text-xs">
+                                                        No individual ads found in this campaign.
+                                                    </td>
+                                                </tr>
+                                            ) : (
+                                                previewModalCampaign.adsList.map((ad, idx) => (
+                                                    <tr key={ad.id || idx} className="hover:bg-slate-50/80 transition-colors">
+                                                        <td className="p-3.5 pl-5">
+                                                            <div className="flex flex-col">
+                                                                <span className="font-bold text-slate-800 text-xs">{ad.name}</span>
+                                                                <span className="text-[10px] font-mono text-slate-400">ID: {ad.id}</span>
+                                                            </div>
+                                                        </td>
+                                                        <td className="p-3.5 whitespace-nowrap">
+                                                            <span className="px-2.5 py-1 bg-slate-100 border border-slate-200 rounded-lg text-[10px] font-bold text-slate-700">
+                                                                {ad.type}
+                                                            </span>
+                                                        </td>
+                                                        <td className="p-3.5 whitespace-nowrap">
+                                                            <div className="flex flex-col text-[11px]">
+                                                                <span className="font-bold text-slate-800">{ad.clicks.toLocaleString()} Clicks</span>
+                                                                <span className="text-[10px] text-slate-400">{ad.impressions.toLocaleString()} Views</span>
+                                                            </div>
+                                                        </td>
+                                                        <td className="p-3.5 whitespace-nowrap font-extrabold text-emerald-600">
+                                                            {ad.leads} Leads
+                                                        </td>
+                                                        <td className="p-3.5 pr-5 text-right whitespace-nowrap">
+                                                            <div className="flex items-center justify-end gap-2">
+                                                                <button
+                                                                    onClick={() => handleToggleAdStatus(previewModalCampaign._id, ad.id)}
+                                                                    className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer shadow-2xs border ${
+                                                                        ad.status === 'Active'
+                                                                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
+                                                                            : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'
+                                                                    }`}
+                                                                    title="Click to Enable or Disable this Ad"
+                                                                >
+                                                                    {ad.status === 'Active' ? '✓ Enabled' : '✕ Disabled'}
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => handleDeleteSingleAd(previewModalCampaign._id, ad.id)}
+                                                                    className="p-1.5 bg-rose-50 border border-rose-100 text-rose-600 hover:bg-rose-100 rounded-lg cursor-pointer transition-all"
+                                                                    title="Delete Ad from Campaign"
+                                                                >
+                                                                    <Trash2 size={14} />
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                ))
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Footer */}
+                        <div className="p-4 bg-slate-50 border-t border-slate-200 flex justify-end">
+                            <button
+                                onClick={() => setPreviewModalCampaign(null)}
+                                className="px-5 py-2 bg-slate-800 text-white rounded-xl text-xs font-bold hover:bg-slate-900 transition-all cursor-pointer shadow-sm"
+                            >
+                                Close Preview
+                            </button>
+                        </div>
+                    </div>
                 </div>,
                 document.body
             )}

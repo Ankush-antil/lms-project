@@ -4,7 +4,8 @@ const {
     saveNote, 
     getNotes, 
     getSharedNotes, 
-    deleteNote 
+    deleteNote,
+    deleteNotebookNotes
 } = require('../controllers/noteController');
 const { protect } = require('../middleware/authMiddleware');
 
@@ -14,6 +15,9 @@ router.route('/')
 
 router.route('/shared')
     .get(protect, getSharedNotes);
+
+router.route('/notebook/:notebookName')
+    .delete(protect, deleteNotebookNotes);
 
 router.route('/:id')
     .delete(protect, deleteNote);

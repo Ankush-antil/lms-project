@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const asyncHandler = require('express-async-handler');
 const Note = require('../models/Note');
 
@@ -5,38 +6,46 @@ const Note = require('../models/Note');
 // @route   POST /api/notes
 // @access  Private (Student)
 const saveNote = asyncHandler(async (req, res) => {
-    const { id, title, content, inboxId, shareWithTeacher } = req.body;
+    const { id, title, content, inboxId, shareWithTeacher, notebook, section, category, isPinned, reminderAt, images, attachedFile } = req.body;
 
-    if (!title) {
-        res.status(400);
-        throw new Error('Please enter a note title');
-    }
+    const noteTitle = (title && title.trim()) ? title.trim() : 'Untitled Note';
 
     let note;
-    if (id) {
+    if (id && mongoose.Types.ObjectId.isValid(id)) {
         note = await Note.findById(id);
-        if (!note) {
-            res.status(404);
-            throw new Error('Note not found');
+        if (note && note.student.toString() === req.user._id.toString()) {
+            note.title = noteTitle;
+            note.content = content !== undefined ? content : note.content;
+            note.shareWithTeacher = shareWithTeacher !== undefined ? shareWithTeacher : note.shareWithTeacher;
+            if (inboxId !== undefined) note.inboxId = inboxId;
+            if (notebook !== undefined) note.notebook = notebook;
+            if (section !== undefined) note.section = section;
+            if (category !== undefined) note.category = category;
+            if (isPinned !== undefined) note.isPinned = isPinned;
+            if (reminderAt !== undefined) note.reminderAt = reminderAt;
+            if (images !== undefined) note.images = images;
+            if (attachedFile !== undefined) note.attachedFile = attachedFile;
+            
+            await note.save();
+        } else {
+            note = null;
         }
-        // Authorize student ownership
-        if (note.student.toString() !== req.user._id.toString()) {
-            res.status(403);
-            throw new Error('Not authorized to update this note');
-        }
-        note.title = title;
-        note.content = content !== undefined ? content : note.content;
-        note.shareWithTeacher = shareWithTeacher !== undefined ? shareWithTeacher : note.shareWithTeacher;
-        if (inboxId !== undefined) note.inboxId = inboxId;
-        
-        await note.save();
-    } else {
+    }
+
+    if (!note) {
         note = await Note.create({
             student: req.user._id,
-            title,
+            title: noteTitle,
             content: content || '',
             inboxId: inboxId || '',
-            shareWithTeacher: shareWithTeacher || false
+            shareWithTeacher: shareWithTeacher || false,
+            notebook: notebook || 'My Notebook',
+            section: section || 'General',
+            category: category || 'General',
+            isPinned: isPinned || false,
+            reminderAt: reminderAt || '',
+            images: images || [],
+            attachedFile: attachedFile || null
         });
     }
 
@@ -133,9 +142,19 @@ const deleteNote = asyncHandler(async (req, res) => {
     res.json({ message: 'Note deleted successfully' });
 });
 
+// @desc    Delete all notes in a notebook
+// @route   DELETE /api/notes/notebook/:notebookName
+// @access  Private (Student)
+const deleteNotebookNotes = asyncHandler(async (req, res) => {
+    const { notebookName } = req.params;
+    await Note.deleteMany({ student: req.user._id, notebook: notebookName });
+    res.json({ message: `All notes in notebook "${notebookName}" deleted successfully` });
+});
+
 module.exports = {
     saveNote,
     getNotes,
     getSharedNotes,
-    deleteNote
+    deleteNote,
+    deleteNotebookNotes
 };

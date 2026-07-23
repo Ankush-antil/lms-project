@@ -8,11 +8,11 @@ const noteSchema = new mongoose.Schema({
     },
     title: {
         type: String,
-        required: true
+        default: 'Untitled Note'
     },
     content: {
         type: String,
-        required: true
+        default: ''
     },
     inboxId: {
         type: String,
@@ -21,6 +21,34 @@ const noteSchema = new mongoose.Schema({
     shareWithTeacher: {
         type: Boolean,
         default: false
+    },
+    notebook: {
+        type: String,
+        default: 'My Notebook'
+    },
+    section: {
+        type: String,
+        default: 'General'
+    },
+    category: {
+        type: String,
+        default: 'General'
+    },
+    isPinned: {
+        type: Boolean,
+        default: false
+    },
+    reminderAt: {
+        type: String,
+        default: ''
+    },
+    images: {
+        type: [String],
+        default: []
+    },
+    attachedFile: {
+        type: Object,
+        default: null
     }
 }, {
     timestamps: true

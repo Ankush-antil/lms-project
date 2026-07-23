@@ -5,6 +5,43 @@ require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 
 const LOCAL_URI = process.env.LOCAL_MONGO_URI || 'mongodb://127.0.0.1:27017/lms-prod';
 
+function convertToBson(obj) {
+    if (obj === null || obj === undefined) return obj;
+    if (typeof obj === 'string') {
+        // Convert 24-character hex string _id values to ObjectId
+        if (/^[0-9a-fA-F]{24}$/.test(obj)) {
+            try {
+                return new mongoose.Types.ObjectId(obj);
+            } catch (e) {
+                return obj;
+            }
+        }
+        // Convert ISO Date strings back to Date objects
+        if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(obj)) {
+            const parsedDate = new Date(obj);
+            if (!isNaN(parsedDate.getTime())) return parsedDate;
+        }
+        return obj;
+    }
+    if (Array.isArray(obj)) {
+        return obj.map(convertToBson);
+    }
+    if (typeof obj === 'object') {
+        const converted = {};
+        for (const [key, val] of Object.entries(obj)) {
+            if (val && typeof val === 'object' && val.$oid) {
+                converted[key] = new mongoose.Types.ObjectId(val.$oid);
+            } else if (val && typeof val === 'object' && val.$date) {
+                converted[key] = new Date(val.$date);
+            } else {
+                converted[key] = convertToBson(val);
+            }
+        }
+        return converted;
+    }
+    return obj;
+}
+
 async function importLocalData() {
     console.log('==================================================');
     console.log('🚀 RESTORING DATA TO LOCAL MONGODB (DIGITALOCEAN)');
@@ -46,16 +83,8 @@ async function importLocalData() {
         // Wipe collection for clean state
         await collection.deleteMany({});
 
-        // Convert string Extended JSON ($oid, $date) back to BSON types if needed
-        const bsonDocs = docs.map(doc => {
-            return JSON.parse(JSON.stringify(doc), (key, val) => {
-                if (val && typeof val === 'object') {
-                    if (val.$oid) return new mongoose.Types.ObjectId(val.$oid);
-                    if (val.$date) return new Date(val.$date);
-                }
-                return val;
-            });
-        });
+        // Convert string IDs to real BSON ObjectIds & Dates
+        const bsonDocs = docs.map(doc => convertToBson(doc));
 
         const chunkSize = 500;
         for (let i = 0; i < bsonDocs.length; i += chunkSize) {

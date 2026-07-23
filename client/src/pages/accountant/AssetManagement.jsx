@@ -113,6 +113,14 @@ const AssetManagement = () => {
     const [instituteFilter, setInstituteFilter] = useState('All');
     const [institutes, setInstitutes] = useState([]);
 
+    // Pagination State
+    const [currentPage, setCurrentPage] = useState(1);
+    const [rowsPerPage, setRowsPerPage] = useState(10);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchQuery, categoryFilter, statusFilter, instituteFilter]);
+
     useEffect(() => {
         const fetchInsts = async () => {
             try {
@@ -374,6 +382,12 @@ const AssetManagement = () => {
         return matchesSearch && matchesCategory && matchesStatus && matchesInstitute;
     });
 
+    // Pagination calculations
+    const totalPages = Math.ceil(filteredAssets.length / rowsPerPage) || 1;
+    const indexOfLastAsset = currentPage * rowsPerPage;
+    const indexOfFirstAsset = indexOfLastAsset - rowsPerPage;
+    const currentAssets = filteredAssets.slice(indexOfFirstAsset, indexOfLastAsset);
+
     const formatCurrency = (amount) => {
         return new Intl.NumberFormat('en-IN', {
             style: 'currency',
@@ -513,6 +527,23 @@ const AssetManagement = () => {
                             <option key={inst._id || inst.name} value={inst.name}>{inst.name}</option>
                         ))}
                     </select>
+
+                    {/* Rows / Page Input */}
+                    <div className="flex items-center gap-1.5 bg-slate-50 px-3 py-2 border border-slate-200 rounded-xl">
+                        <span className="text-xs font-semibold text-slate-500">Rows/Page:</span>
+                        <input
+                            type="number"
+                            min="1"
+                            max="500"
+                            value={rowsPerPage}
+                            onChange={(e) => {
+                                const val = Math.max(1, parseInt(e.target.value) || 1);
+                                setRowsPerPage(val);
+                                setCurrentPage(1);
+                            }}
+                            className="w-12 bg-white border border-slate-200 rounded-lg px-1.5 py-0.5 text-xs font-bold text-slate-700 outline-none text-center"
+                        />
+                    </div>
                 </div>
             </div>
 
@@ -534,13 +565,13 @@ const AssetManagement = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {filteredAssets.length === 0 ? (
+                            {currentAssets.length === 0 ? (
                                 <tr>
                                     <td colSpan={9} className="p-12 text-center text-slate-400 font-semibold text-sm">
                                         No assets match your search parameters.
                                     </td>
                                 </tr>
-                            ) : filteredAssets.map((asset) => (
+                            ) : currentAssets.map((asset) => (
                                 <tr key={asset.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-all">
                                     <td className="p-4 pl-6 text-sm font-bold text-indigo-600 whitespace-nowrap">{asset.id}</td>
                                     <td className="p-4 min-w-[220px]">
@@ -606,6 +637,71 @@ const AssetManagement = () => {
                             ))}
                         </tbody>
                     </table>
+                </div>
+
+                {/* Pagination Bar */}
+                <div className="px-6 py-4 bg-slate-50/50 border-t border-slate-150 flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div className="text-xs font-semibold text-slate-500">
+                        Showing <span className="font-bold text-slate-800">{filteredAssets.length > 0 ? indexOfFirstAsset + 1 : 0}</span> to{' '}
+                        <span className="font-bold text-slate-800">{Math.min(indexOfLastAsset, filteredAssets.length)}</span> of{' '}
+                        <span className="font-bold text-slate-800">{filteredAssets.length}</span> assets
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                            disabled={currentPage === 1}
+                            className="px-5 py-2 rounded-full border border-slate-200/80 text-xs font-extrabold text-slate-400 bg-white hover:bg-slate-50 disabled:opacity-40 transition-all cursor-pointer shadow-sm"
+                        >
+                            Previous
+                        </button>
+
+                        {(() => {
+                            const pages = [];
+                            if (totalPages <= 7) {
+                                for (let i = 1; i <= totalPages; i++) pages.push(i);
+                            } else {
+                                if (currentPage <= 4) {
+                                    pages.push(1, 2, 3, 4, 5, '...', totalPages);
+                                } else if (currentPage >= totalPages - 3) {
+                                    pages.push(1, '...', totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages);
+                                } else {
+                                    pages.push(1, '...', currentPage - 1, currentPage, currentPage + 1, '...', totalPages);
+                                }
+                            }
+
+                            return pages.map((page, index) => {
+                                if (page === '...') {
+                                    return (
+                                        <span key={`dots-${index}`} className="px-1 text-slate-400 font-black text-xs">
+                                            ...
+                                        </span>
+                                    );
+                                }
+                                return (
+                                    <button
+                                        key={page}
+                                        onClick={() => setCurrentPage(page)}
+                                        className={`w-9 h-9 rounded-full text-xs font-black transition-all cursor-pointer flex items-center justify-center ${
+                                            currentPage === page
+                                                ? 'bg-[#0B132B] text-white shadow-md'
+                                                : 'bg-white text-slate-700 border border-slate-200/80 hover:bg-slate-50'
+                                        }`}
+                                    >
+                                        {page}
+                                    </button>
+                                );
+                            });
+                        })()}
+
+                        <button
+                            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                            disabled={currentPage === totalPages || totalPages === 0}
+                            className="px-5 py-2 rounded-full border border-slate-200/80 text-xs font-extrabold text-slate-800 bg-white hover:bg-slate-50 disabled:opacity-40 transition-all cursor-pointer shadow-sm"
+                        >
+                            Next
+                        </button>
+                    </div>
                 </div>
             </div>
 

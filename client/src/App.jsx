@@ -32,6 +32,8 @@ const TestBuilder = lazy(() => import('./pages/admin/TestBuilder'));
 const EditorDashboard = lazy(() => import('./pages/editor/EditorDashboard'));
 const ToolsPage = lazy(() => import('./pages/admin/ToolsPage'));
 const ToolsAnalyticsPage = lazy(() => import('./pages/admin/ToolsAnalyticsPage'));
+const FormTemplatesPage = lazy(() => import('./pages/admin/FormTemplatesPage'));
+const DbTemplatesPage = lazy(() => import('./pages/admin/DbTemplatesPage'));
 const AdminAnnouncements = lazy(() => import('./pages/admin/AdminAnnouncements'));
 const InstitutesList = lazy(() => import('./pages/admin/InstitutesList'));
 const CoursesList = lazy(() => import('./pages/admin/CoursesList'));
@@ -300,6 +302,21 @@ function App() {
                                                 <InstituteDashboard />
                                             </PrivateRoute>
                                         } />
+                                         <Route path="/institute/chat" element={
+                                             <PrivateRoute role="Institute">
+                                                 <ChatPage />
+                                             </PrivateRoute>
+                                         } />
+                                         <Route path="/institute/form-templates" element={
+                                             <PrivateRoute role="Institute">
+                                                 <FormTemplatesPage />
+                                             </PrivateRoute>
+                                         } />
+                                         <Route path="/institute/db-templates" element={
+                                             <PrivateRoute role="Institute">
+                                                 <DbTemplatesPage />
+                                             </PrivateRoute>
+                                         } />
                                          <Route path="/institute/students" element={
                                              <PrivateRoute role="Institute">
                                                  <StudentsList />
@@ -538,6 +555,16 @@ function App() {
                                             </PrivateRoute>
                                         } />
 
+                                        <Route path="/admin/form-templates" element={
+                                            <PrivateRoute role="Admin">
+                                                <FormTemplatesPage />
+                                            </PrivateRoute>
+                                        } />
+                                        <Route path="/admin/db-templates" element={
+                                            <PrivateRoute role="Admin">
+                                                <DbTemplatesPage />
+                                            </PrivateRoute>
+                                        } />
 
                                         <Route path="/admin/activities-builder" element={
                                             <PrivateRoute role={['Admin', 'Editor']}>

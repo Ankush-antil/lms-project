@@ -172,8 +172,8 @@ const menuItems = {
         { name: 'Announcements', icon: Megaphone, path: '/admin/announcements' },
 
         { name: '_section_tools', icon: PenTool, path: null },
-        { name: 'Form Tool', icon: FileSignature, path: '/admin/activities-builder' },
-        { name: 'DB Tools', icon: Database, path: '/admin/tools' },
+        { name: 'Form Tool', icon: FileSignature, path: '/admin/form-templates' },
+        { name: 'DB Tools', icon: Database, path: '/admin/db-templates' },
 
         { name: '_section_service_analytics', icon: BarChart3, path: null },
         { name: 'Drive Analytics', icon: HardDrive, path: '/admin/tools-analytics/drive' },
@@ -220,8 +220,8 @@ const menuItems = {
         { name: 'Announcements', icon: Megaphone, path: '/institute/announcements' },
 
         { name: '_section_tools', icon: PenTool, path: null },
-        { name: 'Form Tool', icon: FileSignature, path: '/institute/activities-builder' },
-        { name: 'DB Tools', icon: Database, path: '/institute/tools' },
+        { name: 'Form Tool', icon: FileSignature, path: '/institute/form-templates' },
+        { name: 'DB Tools', icon: Database, path: '/institute/db-templates' },
 
         { name: '_section_management', icon: Briefcase, path: null },
         { name: 'Staff Mgt', icon: Users, path: '/institute/staff' },

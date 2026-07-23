@@ -30,6 +30,7 @@ const instituteSchema = new mongoose.Schema({
     controls: { type: mongoose.Schema.Types.Mixed, default: {} },
     portalShutdown: { type: Boolean, default: false },
     portalShutdownMessage: { type: String, default: '' },
+    shutdownRoles: { type: [String], default: [] },  // Specific roles blocked from login
     isDeleted: {
         type: Boolean,
         default: false

@@ -793,8 +793,27 @@ const Sidebar = ({ role = 'Admin', collapsed, onToggle, isMobileOpen }) => {
     const [shutdownMsg, setShutdownMsg] = useState('');
     const [shutdownLoading, setShutdownLoading] = useState(false);
     const [currentShutdown, setCurrentShutdown] = useState(false);
+    const [shutdownRoles, setShutdownRoles] = useState([]);
+
+    const ALL_ROLES = [
+        { value: 'Teacher', label: 'Teachers', emoji: '👨‍🏫' },
+        { value: 'Student', label: 'Students', emoji: '🎓' },
+        { value: 'Editor', label: 'Editors', emoji: '✏️' },
+        { value: 'Accountant', label: 'Accountants', emoji: '💼' },
+        { value: 'Marketer', label: 'Marketers', emoji: '📣' },
+        { value: 'Staff', label: 'Staff', emoji: '🧑‍💼' },
+        { value: 'Parent', label: 'Parents', emoji: '👨‍👩‍👧' },
+        { value: 'Guest', label: 'Limited Users', emoji: '🔒' },
+        { value: 'Limited', label: 'Guest Users', emoji: '👤' },
+    ];
 
     const canShutdown = user?.role === 'Admin' || user?.role === 'Institute';
+
+    const syncInstituteState = (inst) => {
+        setCurrentShutdown(inst?.portalShutdown || false);
+        setShutdownMsg(inst?.portalShutdownMessage || '');
+        setShutdownRoles(inst?.shutdownRoles || []);
+    };
 
     const openShutdownModal = async () => {
         if (!canShutdown) { logout(); return; }
@@ -802,16 +821,9 @@ const Sidebar = ({ role = 'Admin', collapsed, onToggle, isMobileOpen }) => {
             const res = await axios.get('/api/setup/shutdown/status');
             const list = res.data.institutes || [];
             setInstitutes(list);
-            if (user?.role === 'Institute') {
-                const own = list[0];
-                setSelectedInstituteId(own?._id || '');
-                setCurrentShutdown(own?.portalShutdown || false);
-                setShutdownMsg(own?.portalShutdownMessage || '');
-            } else {
-                setSelectedInstituteId(list[0]?._id || '');
-                setCurrentShutdown(list[0]?.portalShutdown || false);
-                setShutdownMsg(list[0]?.portalShutdownMessage || '');
-            }
+            const first = user?.role === 'Institute' ? list[0] : list[0];
+            setSelectedInstituteId(first?._id || '');
+            syncInstituteState(first);
         } catch (e) {
             toast.error('Could not load institutes');
         }
@@ -821,26 +833,31 @@ const Sidebar = ({ role = 'Admin', collapsed, onToggle, isMobileOpen }) => {
     const handleInstituteChange = (id) => {
         setSelectedInstituteId(id);
         const inst = institutes.find(i => i._id === id);
-        setCurrentShutdown(inst?.portalShutdown || false);
-        setShutdownMsg(inst?.portalShutdownMessage || '');
+        syncInstituteState(inst);
     };
 
-    const handleShutdownToggle = async (enable) => {
+    const toggleRole = (roleVal) => {
+        setShutdownRoles(prev =>
+            prev.includes(roleVal) ? prev.filter(r => r !== roleVal) : [...prev, roleVal]
+        );
+    };
+
+    const handleSave = async () => {
         if (!selectedInstituteId) return;
         setShutdownLoading(true);
         try {
             const res = await axios.put(`/api/setup/shutdown/${selectedInstituteId}`, {
-                portalShutdown: enable,
-                portalShutdownMessage: shutdownMsg
+                portalShutdown: currentShutdown,
+                portalShutdownMessage: shutdownMsg,
+                shutdownRoles
             });
-            setCurrentShutdown(enable);
             setInstitutes(prev => prev.map(i => i._id === selectedInstituteId
-                ? { ...i, portalShutdown: enable, portalShutdownMessage: shutdownMsg }
+                ? { ...i, portalShutdown: currentShutdown, portalShutdownMessage: shutdownMsg, shutdownRoles }
                 : i
             ));
             toast.success(res.data.message);
         } catch (e) {
-            toast.error(e.response?.data?.message || 'Failed to update shutdown status');
+            toast.error(e.response?.data?.message || 'Failed to update shutdown settings');
         } finally {
             setShutdownLoading(false);
         }
@@ -1228,74 +1245,139 @@ const Sidebar = ({ role = 'Admin', collapsed, onToggle, isMobileOpen }) => {
                 {/* Shutdown Modal */}
                 {isShutdownOpen && createPortal(
                     <div className="fixed inset-0 z-[9999] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setIsShutdownOpen(false)}>
-                        <div className="bg-[#0b1329] text-white w-full max-w-md rounded-3xl p-6 border border-slate-800 shadow-2xl" onClick={e => e.stopPropagation()}>
-                            <div className="flex items-center justify-between mb-5">
+                        <div className="bg-[#0b1329] text-white w-full max-w-lg rounded-3xl border border-slate-800 shadow-2xl flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
+
+                            {/* Header */}
+                            <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-slate-800/60 flex-shrink-0">
                                 <div>
                                     <h3 className="text-lg font-black text-slate-100">Portal Shut Down</h3>
-                                    <p className="text-xs text-slate-400 font-bold mt-0.5">Control user access for your portal</p>
+                                    <p className="text-xs text-slate-400 font-bold mt-0.5">Control login access for your portal</p>
                                 </div>
                                 <button onClick={() => setIsShutdownOpen(false)} className="p-1.5 hover:bg-white/10 rounded-full text-slate-400 hover:text-slate-200 transition-colors cursor-pointer">
                                     <X size={18} />
                                 </button>
                             </div>
 
-                            {user?.role === 'Admin' && institutes.length > 0 && (
-                                <div className="mb-4">
-                                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5">Select Institute</label>
-                                    <select
-                                        value={selectedInstituteId}
-                                        onChange={e => handleInstituteChange(e.target.value)}
-                                        className="w-full px-3 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-slate-200 font-bold outline-none cursor-pointer"
-                                    >
-                                        {institutes.map(i => (
-                                            <option key={i._id} value={i._id}>{i.name}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                            )}
+                            {/* Scrollable Body */}
+                            <div className="overflow-y-auto flex-1 px-6 py-4 space-y-4">
 
-                            <div className="mb-4">
-                                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5">Shutdown Message (optional)</label>
-                                <input
-                                    type="text"
-                                    value={shutdownMsg}
-                                    onChange={e => setShutdownMsg(e.target.value)}
-                                    placeholder="Portal is temporarily unavailable..."
-                                    className="w-full px-3 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-slate-200 font-bold outline-none placeholder:text-slate-600"
-                                />
-                            </div>
-
-                            <div className={`flex items-center gap-3 px-4 py-3 rounded-2xl mb-5 border ${
-                                currentShutdown
-                                    ? 'bg-red-950/30 border-red-800/40 text-red-300'
-                                    : 'bg-emerald-950/30 border-emerald-800/40 text-emerald-300'
-                            }`}>
-                                <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${
-                                    currentShutdown ? 'bg-red-400 animate-pulse' : 'bg-emerald-400'
-                                }`} />
-                                <span className="text-xs font-black">
-                                    {currentShutdown ? 'Portal is currently SHUT DOWN — users cannot log in' : 'Portal is currently ACTIVE — users can log in normally'}
-                                </span>
-                            </div>
-
-                            <div className="flex gap-3">
-                                {currentShutdown ? (
-                                    <button
-                                        onClick={() => handleShutdownToggle(false)}
-                                        disabled={shutdownLoading || !selectedInstituteId}
-                                        className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-black rounded-xl transition-all disabled:opacity-50 cursor-pointer"
-                                    >
-                                        {shutdownLoading ? 'Please wait...' : '✅ Restore Access'}
-                                    </button>
-                                ) : (
-                                    <button
-                                        onClick={() => handleShutdownToggle(true)}
-                                        disabled={shutdownLoading || !selectedInstituteId}
-                                        className="flex-1 py-2.5 bg-red-600 hover:bg-red-500 text-white text-sm font-black rounded-xl transition-all disabled:opacity-50 cursor-pointer"
-                                    >
-                                        {shutdownLoading ? 'Please wait...' : '🔴 Shut Down Portal'}
-                                    </button>
+                                {/* Institute selector — Admin only */}
+                                {user?.role === 'Admin' && institutes.length > 0 && (
+                                    <div>
+                                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Select Institute</label>
+                                        <select
+                                            value={selectedInstituteId}
+                                            onChange={e => handleInstituteChange(e.target.value)}
+                                            className="w-full px-3 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-slate-200 font-bold outline-none cursor-pointer"
+                                        >
+                                            {institutes.map(i => (
+                                                <option key={i._id} value={i._id}>{i.name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
                                 )}
+
+                                {/* Entire institute shutdown toggle */}
+                                <div className={`flex items-center justify-between px-4 py-3 rounded-2xl border cursor-pointer select-none ${
+                                    currentShutdown
+                                        ? 'bg-red-950/30 border-red-700/40'
+                                        : 'bg-slate-800/50 border-slate-700/40'
+                                }`} onClick={() => setCurrentShutdown(p => !p)}>
+                                    <div className="flex items-center gap-3">
+                                        <span className="text-xl">🏛️</span>
+                                        <div>
+                                            <p className="text-sm font-black text-slate-100">Entire Institute</p>
+                                            <p className="text-[10px] text-slate-400 font-bold">Block ALL users from logging in</p>
+                                        </div>
+                                    </div>
+                                    <div className={`w-11 h-6 rounded-full transition-all relative flex-shrink-0 ${currentShutdown ? 'bg-red-500' : 'bg-slate-600'}`}>
+                                        <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all ${currentShutdown ? 'left-[22px]' : 'left-0.5'}`} />
+                                    </div>
+                                </div>
+
+                                {/* Divider */}
+                                <div className="flex items-center gap-3">
+                                    <div className="flex-1 h-px bg-slate-800" />
+                                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Or block by role</span>
+                                    <div className="flex-1 h-px bg-slate-800" />
+                                </div>
+
+                                {/* Role checkboxes */}
+                                <div>
+                                    <div className="flex items-center justify-between mb-2">
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Select Roles to Block</label>
+                                        <div className="flex gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => setShutdownRoles(ALL_ROLES.map(r => r.value))}
+                                                className="text-[10px] font-black text-indigo-400 hover:text-indigo-300 cursor-pointer"
+                                            >Select All</button>
+                                            <span className="text-slate-600">|</span>
+                                            <button
+                                                type="button"
+                                                onClick={() => setShutdownRoles([])}
+                                                className="text-[10px] font-black text-slate-400 hover:text-slate-300 cursor-pointer"
+                                            >Clear</button>
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-3 gap-2">
+                                        {ALL_ROLES.map(r => {
+                                            const isChecked = shutdownRoles.includes(r.value);
+                                            return (
+                                                <button
+                                                    key={r.value}
+                                                    type="button"
+                                                    onClick={() => toggleRole(r.value)}
+                                                    className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                                                        isChecked
+                                                            ? 'bg-red-950/40 border-red-700/50 text-red-300'
+                                                            : 'bg-slate-800/60 border-slate-700/40 text-slate-400 hover:border-slate-600'
+                                                    }`}
+                                                >
+                                                    <span className="text-sm">{r.emoji}</span>
+                                                    <span className="text-[11px] font-black leading-tight">{r.label}</span>
+                                                    {isChecked && <span className="ml-auto text-red-400 text-[10px]">✕</span>}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+
+                                {/* Custom message */}
+                                <div>
+                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Shutdown Message (optional)</label>
+                                    <input
+                                        type="text"
+                                        value={shutdownMsg}
+                                        onChange={e => setShutdownMsg(e.target.value)}
+                                        placeholder="Portal is temporarily unavailable..."
+                                        className="w-full px-3 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-slate-200 font-bold outline-none placeholder:text-slate-600"
+                                    />
+                                </div>
+
+                                {/* Status summary */}
+                                {(currentShutdown || shutdownRoles.length > 0) && (
+                                    <div className="flex items-start gap-3 px-4 py-3 rounded-2xl bg-red-950/20 border border-red-800/30 text-red-300">
+                                        <div className="w-2 h-2 rounded-full bg-red-400 animate-pulse flex-shrink-0 mt-1" />
+                                        <span className="text-[11px] font-black leading-relaxed">
+                                            {currentShutdown
+                                                ? 'Entire institute will be shut down — no user can log in.'
+                                                : `Blocked roles: ${shutdownRoles.map(r => ALL_ROLES.find(x => x.value === r)?.label || r).join(', ')}`
+                                            }
+                                        </span>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Footer */}
+                            <div className="px-6 pb-6 pt-3 border-t border-slate-800/60 flex gap-3 flex-shrink-0">
+                                <button
+                                    onClick={handleSave}
+                                    disabled={shutdownLoading || !selectedInstituteId}
+                                    className="flex-1 py-2.5 bg-red-600 hover:bg-red-500 text-white text-sm font-black rounded-xl transition-all disabled:opacity-50 cursor-pointer"
+                                >
+                                    {shutdownLoading ? 'Saving...' : '💾 Save Settings'}
+                                </button>
                                 <button
                                     onClick={() => { setIsShutdownOpen(false); logout(); }}
                                     className="px-4 py-2.5 bg-slate-700 hover:bg-slate-600 text-slate-200 text-sm font-black rounded-xl transition-all cursor-pointer"
@@ -1303,10 +1385,12 @@ const Sidebar = ({ role = 'Admin', collapsed, onToggle, isMobileOpen }) => {
                                     Sign Out
                                 </button>
                             </div>
+
                         </div>
                     </div>,
                     document.body
                 )}
+
             </aside>
 
             {/* Mobile drawer */}

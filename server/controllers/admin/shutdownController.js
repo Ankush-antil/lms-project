@@ -9,13 +9,13 @@ const getShutdownStatus = async (req, res) => {
 
         if (role === 'Admin') {
             const institutes = await Institute.find({ isDeleted: { $ne: true } })
-                .select('name portalShutdown portalShutdownMessage');
+                .select('name portalShutdown portalShutdownMessage shutdownRoles');
             return res.json({ institutes });
         }
 
         if (role === 'Institute') {
             const institute = await Institute.findById(req.user.institute)
-                .select('name portalShutdown portalShutdownMessage');
+                .select('name portalShutdown portalShutdownMessage shutdownRoles');
             if (!institute) return res.status(404).json({ message: 'Institute not found' });
             return res.json({ institutes: [institute] });
         }
@@ -26,13 +26,13 @@ const getShutdownStatus = async (req, res) => {
     }
 };
 
-// @desc    Toggle portal shutdown for an institute
+// @desc    Toggle portal shutdown / role-level shutdown for an institute
 // @route   PUT /api/setup/shutdown/:instituteId
 // @access  Admin (any), Institute (own only)
 const toggleShutdown = async (req, res) => {
     try {
         const { instituteId } = req.params;
-        const { portalShutdown, portalShutdownMessage } = req.body;
+        const { portalShutdown, portalShutdownMessage, shutdownRoles } = req.body;
         const role = req.user.role;
 
         if (role === 'Institute' && req.user.institute?.toString() !== instituteId) {
@@ -43,21 +43,30 @@ const toggleShutdown = async (req, res) => {
             return res.status(403).json({ message: 'Access denied' });
         }
 
+        const updateFields = {
+            portalShutdownMessage: portalShutdownMessage || ''
+        };
+
+        // Full institute shutdown toggle
+        if (typeof portalShutdown === 'boolean') {
+            updateFields.portalShutdown = portalShutdown;
+        }
+
+        // Role-level shutdown update
+        if (Array.isArray(shutdownRoles)) {
+            updateFields.shutdownRoles = shutdownRoles;
+        }
+
         const institute = await Institute.findByIdAndUpdate(
             instituteId,
-            {
-                portalShutdown: Boolean(portalShutdown),
-                portalShutdownMessage: portalShutdownMessage || ''
-            },
+            updateFields,
             { new: true }
-        ).select('name portalShutdown portalShutdownMessage');
+        ).select('name portalShutdown portalShutdownMessage shutdownRoles');
 
         if (!institute) return res.status(404).json({ message: 'Institute not found' });
 
         res.json({
-            message: portalShutdown
-                ? `Portal for "${institute.name}" has been shut down.`
-                : `Portal for "${institute.name}" is now active.`,
+            message: `Shutdown settings updated for "${institute.name}".`,
             institute
         });
     } catch (error) {

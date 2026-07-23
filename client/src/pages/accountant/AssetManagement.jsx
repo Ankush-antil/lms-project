@@ -5,8 +5,8 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import DashboardLayout from '../../components/layout/DashboardLayout';
-import { 
-    Package, Plus, Search, Edit, Trash2, Calendar, DollarSign, 
+import {
+    Package, Plus, Search, Edit, Trash2, Calendar, DollarSign,
     Wrench, X, Check, HardDrive, RefreshCw, AlertCircle
 } from 'lucide-react';
 
@@ -16,7 +16,7 @@ const AssetManagement = () => {
     const [assets, setAssets] = useState(() => {
         const stored = localStorage.getItem('lms_assets');
         if (stored) return JSON.parse(stored);
-        
+
         // Premium default asset inventory
         return [
             {
@@ -110,6 +110,20 @@ const AssetManagement = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [categoryFilter, setCategoryFilter] = useState('All');
     const [statusFilter, setStatusFilter] = useState('All');
+    const [instituteFilter, setInstituteFilter] = useState('All');
+    const [institutes, setInstitutes] = useState([]);
+
+    useEffect(() => {
+        const fetchInsts = async () => {
+            try {
+                const res = await axios.get('/api/setup/institutes');
+                setInstitutes(Array.isArray(res.data) ? res.data : []);
+            } catch (err) {
+                console.error("Error fetching institutes:", err);
+            }
+        };
+        fetchInsts();
+    }, []);
 
     // Modals visibility states
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -127,6 +141,7 @@ const AssetManagement = () => {
         purchaseDate: '',
         purchaseCost: '',
         assignedTo: '',
+        instituteName: '',
         status: 'Active',
         notes: ''
     });
@@ -158,6 +173,7 @@ const AssetManagement = () => {
             purchaseDate: new Date().toISOString().split('T')[0],
             purchaseCost: '',
             assignedTo: '',
+            instituteName: user?.instituteName || user?.institute?.name || (institutes[0]?.name || 'HARTRON GANAUR'),
             status: 'Active',
             notes: ''
         });
@@ -180,6 +196,7 @@ const AssetManagement = () => {
             purchaseDate: form.purchaseDate,
             purchaseCost: Number(form.purchaseCost) || 0,
             assignedTo: form.assignedTo || 'Unassigned',
+            instituteName: form.instituteName || user?.instituteName || user?.institute?.name || 'HARTRON GANAUR',
             status: form.status,
             notes: form.notes || '',
             maintenanceLogs: []
@@ -199,6 +216,7 @@ const AssetManagement = () => {
             purchaseDate: asset.purchaseDate,
             purchaseCost: asset.purchaseCost,
             assignedTo: asset.assignedTo,
+            instituteName: asset.instituteName || asset.institute?.name || 'HARTRON GANAUR',
             status: asset.status,
             notes: asset.notes
         });
@@ -222,6 +240,7 @@ const AssetManagement = () => {
                     purchaseDate: form.purchaseDate,
                     purchaseCost: Number(form.purchaseCost) || 0,
                     assignedTo: form.assignedTo,
+                    instituteName: form.instituteName || 'HARTRON GANAUR',
                     status: form.status,
                     notes: form.notes
                 };
@@ -299,7 +318,7 @@ const AssetManagement = () => {
                     }
                     return log;
                 });
-                
+
                 // If all logs are completed, check if we can revert status to Active/Stock
                 const hasPending = logs.some(l => l.status === 'Pending');
                 const newStatus = !hasPending && item.status === 'Under Maintenance' ? 'Active' : item.status;
@@ -342,15 +361,17 @@ const AssetManagement = () => {
 
     // 6. Filter Asset List based on search and selected categories
     const filteredAssets = assets.filter(item => {
-        const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                             item.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                             item.serialNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                             item.assignedTo.toLowerCase().includes(searchQuery.toLowerCase());
-        
+        const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            item.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            item.serialNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            item.assignedTo.toLowerCase().includes(searchQuery.toLowerCase());
+
         const matchesCategory = categoryFilter === 'All' || item.category === categoryFilter;
         const matchesStatus = statusFilter === 'All' || item.status === statusFilter;
+        const itemInst = item.instituteName || item.institute?.name || 'HARTRON GANAUR';
+        const matchesInstitute = instituteFilter === 'All' || itemInst === instituteFilter;
 
-        return matchesSearch && matchesCategory && matchesStatus;
+        return matchesSearch && matchesCategory && matchesStatus && matchesInstitute;
     });
 
     const formatCurrency = (amount) => {
@@ -370,13 +391,7 @@ const AssetManagement = () => {
 
                 <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
                     <div>
-                        <div className="inline-flex items-center gap-2 px-3 py-1 bg-indigo-500/20 text-indigo-300 rounded-full text-xs font-bold uppercase tracking-wider mb-3 backdrop-blur-md border border-indigo-500/10">
-                            <Package size={12} /> Asset Desk
-                        </div>
                         <h1 className="text-3xl font-extrabold tracking-tight md:text-4xl">Asset & Inventory Desk</h1>
-                        <p className="text-slate-300 mt-2 max-w-xl text-sm md:text-base">
-                            Track capital assets, catalog equipment, oversee maintenance, and catalog new acquisitions of the institute.
-                        </p>
                     </div>
 
                     <div className="flex flex-wrap gap-3">
@@ -486,6 +501,18 @@ const AssetManagement = () => {
                             <option key={st} value={st}>{st}</option>
                         ))}
                     </select>
+
+                    {/* Institute Filter */}
+                    <select
+                        value={instituteFilter}
+                        onChange={e => setInstituteFilter(e.target.value)}
+                        className="px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 outline-none focus:bg-white focus:border-indigo-500 cursor-pointer"
+                    >
+                        <option value="All">All Institutes</option>
+                        {institutes.map(inst => (
+                            <option key={inst._id || inst.name} value={inst.name}>{inst.name}</option>
+                        ))}
+                    </select>
                 </div>
             </div>
 
@@ -498,6 +525,7 @@ const AssetManagement = () => {
                                 <th className="p-4 pl-6">Code</th>
                                 <th className="p-4">Asset Details</th>
                                 <th className="p-4">Category</th>
+                                <th className="p-4">Institute</th>
                                 <th className="p-4">Purchase Date</th>
                                 <th className="p-4 text-right">Value (INR)</th>
                                 <th className="p-4">Assigned To</th>
@@ -524,22 +552,23 @@ const AssetManagement = () => {
                                     <td className="p-4 text-xs font-bold text-slate-500">
                                         <span className="px-2.5 py-1 bg-slate-100 rounded-lg">{asset.category}</span>
                                     </td>
+                                    <td className="p-4 text-xs font-bold text-slate-600">
+                                        {asset.instituteName || asset.institute?.name || 'HARTRON GANAUR'}
+                                    </td>
                                     <td className="p-4 text-sm font-semibold text-slate-600">
                                         📅 {new Date(asset.purchaseDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                                     </td>
                                     <td className="p-4 text-sm font-bold text-slate-800 text-right">{formatCurrency(asset.purchaseCost)}</td>
                                     <td className="p-4 text-sm font-semibold text-slate-700">{asset.assignedTo || 'Unassigned'}</td>
                                     <td className="p-4">
-                                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${
-                                            asset.status === 'Active' ? 'bg-emerald-50 text-emerald-700' :
+                                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${asset.status === 'Active' ? 'bg-emerald-50 text-emerald-700' :
                                             asset.status === 'Under Maintenance' ? 'bg-amber-50 text-amber-700' :
-                                            asset.status === 'Stock' ? 'bg-indigo-50 text-indigo-700' : 'bg-rose-50 text-rose-700'
-                                        }`}>
-                                            <span className={`w-1.5 h-1.5 rounded-full ${
-                                                asset.status === 'Active' ? 'bg-emerald-500' :
+                                                asset.status === 'Stock' ? 'bg-indigo-50 text-indigo-700' : 'bg-rose-50 text-rose-700'
+                                            }`}>
+                                            <span className={`w-1.5 h-1.5 rounded-full ${asset.status === 'Active' ? 'bg-emerald-500' :
                                                 asset.status === 'Under Maintenance' ? 'bg-amber-500' :
-                                                asset.status === 'Stock' ? 'bg-indigo-500' : 'bg-rose-500'
-                                            }`} />
+                                                    asset.status === 'Stock' ? 'bg-indigo-500' : 'bg-rose-500'
+                                                }`} />
                                             {asset.status}
                                         </span>
                                     </td>
@@ -553,7 +582,7 @@ const AssetManagement = () => {
                                             >
                                                 <Wrench size={15} />
                                             </button>
-                                            
+
                                             {/* Edit */}
                                             <button
                                                 onClick={() => openEditModal(asset)}
@@ -677,6 +706,23 @@ const AssetManagement = () => {
                                         ))}
                                     </select>
                                 </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-extrabold text-slate-600 uppercase tracking-wider mb-1.5">Institute *</label>
+                                <select
+                                    value={form.instituteName}
+                                    onChange={e => setForm({ ...form, instituteName: e.target.value })}
+                                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 outline-none focus:border-indigo-500 cursor-pointer bg-white"
+                                >
+                                    {institutes.length > 0 ? (
+                                        institutes.map(inst => (
+                                            <option key={inst._id || inst.name} value={inst.name}>{inst.name}</option>
+                                        ))
+                                    ) : (
+                                        <option value="HARTRON GANAUR">HARTRON GANAUR</option>
+                                    )}
+                                </select>
                             </div>
 
                             <div>
@@ -807,6 +853,23 @@ const AssetManagement = () => {
                             </div>
 
                             <div>
+                                <label className="block text-xs font-extrabold text-slate-600 uppercase tracking-wider mb-1.5">Institute *</label>
+                                <select
+                                    value={form.instituteName}
+                                    onChange={e => setForm({ ...form, instituteName: e.target.value })}
+                                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 outline-none focus:border-indigo-500 cursor-pointer bg-white"
+                                >
+                                    {institutes.length > 0 ? (
+                                        institutes.map(inst => (
+                                            <option key={inst._id || inst.name} value={inst.name}>{inst.name}</option>
+                                        ))
+                                    ) : (
+                                        <option value="HARTRON GANAUR">HARTRON GANAUR</option>
+                                    )}
+                                </select>
+                            </div>
+
+                            <div>
                                 <label className="block text-xs font-extrabold text-slate-600 uppercase tracking-wider mb-1.5">Notes / Description</label>
                                 <textarea
                                     rows={2}
@@ -873,9 +936,8 @@ const AssetManagement = () => {
                                                 <button
                                                     type="button"
                                                     onClick={() => toggleMaintenanceStatus(selectedAsset.id, index)}
-                                                    className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer transition-all ${
-                                                        log.status === 'Completed' ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100' : 'bg-amber-50 text-amber-700 hover:bg-amber-100'
-                                                    }`}
+                                                    className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer transition-all ${log.status === 'Completed' ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100' : 'bg-amber-50 text-amber-700 hover:bg-amber-100'
+                                                        }`}
                                                 >
                                                     {log.status === 'Completed' ? <Check size={12} /> : <Wrench size={12} />}
                                                     {log.status}
@@ -890,7 +952,7 @@ const AssetManagement = () => {
                         {/* Form: Add New Maintenance Log */}
                         <form onSubmit={handleAddMaintenance} className="bg-slate-50 p-5 rounded-2xl border border-slate-100 space-y-4">
                             <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Record New Maintenance / Repair</h4>
-                            
+
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Date</label>

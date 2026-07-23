@@ -305,36 +305,6 @@ const AdminAnnouncements = () => {
                     </div>
                 </div>
 
-                {/* Dashboard Stats */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-6">
-                    <div className="bg-white p-5 rounded-2xl border border-slate-200/60 shadow-sm flex items-center gap-4">
-                        <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center font-black">
-                            <Megaphone size={22} />
-                        </div>
-                        <div className="text-left">
-                            <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Total Notices</p>
-                            <h3 className="text-2xl font-black text-slate-800 mt-0.5">{announcements.length}</h3>
-                        </div>
-                    </div>
-                    <div className="bg-white p-5 rounded-2xl border border-slate-200/60 shadow-sm flex items-center gap-4">
-                        <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center font-black">
-                            <Users size={22} />
-                        </div>
-                        <div className="text-left">
-                            <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Active Auditions</p>
-                            <h3 className="text-2xl font-black text-slate-800 mt-0.5">Students & Staff</h3>
-                        </div>
-                    </div>
-                    <div className="bg-white p-5 rounded-2xl border border-slate-200/60 shadow-sm flex items-center gap-4">
-                        <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center font-black">
-                            <Building size={22} />
-                        </div>
-                        <div className="text-left">
-                            <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Target Scope</p>
-                            <h3 className="text-2xl font-black text-slate-800 mt-0.5">Global & Local</h3>
-                        </div>
-                    </div>
-                </div>
 
                 {/* Table Container Card */}
                 <div className="bg-white rounded-3xl border border-slate-200/60 shadow-sm overflow-hidden mb-8">

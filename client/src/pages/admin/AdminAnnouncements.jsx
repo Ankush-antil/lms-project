@@ -35,11 +35,19 @@ const AdminAnnouncements = () => {
         title: '',
         content: '',
         instituteId: '',
-        targetAudience: 'All'
+        targetAudience: 'All',
+        endDate: '',
+        studentAudienceType: 'All',
+        selectedStudents: []
     });
 
     const [attachmentFile, setAttachmentFile] = useState(null);
     const [clearAttachment, setClearAttachment] = useState(false);
+
+    // Specific students target states
+    const [students, setStudents] = useState([]);
+    const [studentsLoading, setStudentsLoading] = useState(false);
+    const [studentSearch, setStudentSearch] = useState('');
 
     const fetchAnnouncements = async () => {
         setLoading(true);
@@ -73,6 +81,28 @@ const AdminAnnouncements = () => {
         setCurrentPage(1);
     }, [searchTerm, selectedInstitute, selectedAudience]);
 
+    // Fetch students list dynamically when target audience is set to Student
+    useEffect(() => {
+        if (formData.targetAudience === 'Student') {
+            const fetchStudents = async () => {
+                setStudentsLoading(true);
+                try {
+                    let url = '/api/users?role=Student';
+                    if (formData.instituteId) {
+                        url += `&institute=${formData.instituteId}`;
+                    }
+                    const { data } = await axios.get(url);
+                    setStudents(data || []);
+                } catch (err) {
+                    console.error('[Fetch Students Error]', err);
+                } finally {
+                    setStudentsLoading(false);
+                }
+            };
+            fetchStudents();
+        }
+    }, [formData.targetAudience, formData.instituteId]);
+
     // Handle Form Submit
     const handleFormSubmit = async (e) => {
         e.preventDefault();
@@ -85,6 +115,9 @@ const AdminAnnouncements = () => {
         payload.append('content', formData.content);
         payload.append('targetAudience', formData.targetAudience);
         payload.append('instituteId', formData.instituteId);
+        payload.append('endDate', formData.endDate || '');
+        payload.append('studentAudienceType', formData.studentAudienceType || 'All');
+        payload.append('selectedStudents', JSON.stringify(formData.selectedStudents || []));
         if (attachmentFile) {
             payload.append('attachment', attachmentFile);
         }
@@ -137,7 +170,10 @@ const AdminAnnouncements = () => {
             title: '',
             content: '',
             instituteId: '',
-            targetAudience: 'All'
+            targetAudience: 'All',
+            endDate: '',
+            studentAudienceType: 'All',
+            selectedStudents: []
         });
         setSelectedAnnouncement(null);
         setAttachmentFile(null);
@@ -157,7 +193,10 @@ const AdminAnnouncements = () => {
             title: ann.title,
             content: ann.content,
             instituteId: ann.institute?._id || '',
-            targetAudience: ann.targetAudience
+            targetAudience: ann.targetAudience,
+            endDate: ann.endDate ? ann.endDate.split('T')[0] : '',
+            studentAudienceType: ann.studentAudienceType || 'All',
+            selectedStudents: ann.selectedStudents || []
         });
         setAttachmentFile(null);
         setClearAttachment(false);
@@ -377,6 +416,7 @@ const AdminAnnouncements = () => {
                                     <th className="py-3.5 px-4">Institute scope</th>
                                     <th className="py-3.5 px-4">Audience</th>
                                     <th className="py-3.5 px-4">Created By</th>
+                                    <th className="py-3.5 px-4 text-right">Ending date</th>
                                     <th className="py-3.5 px-4 text-right">Published date</th>
                                     <th className="py-3.5 px-6 text-right">Actions</th>
                                 </tr>
@@ -384,7 +424,7 @@ const AdminAnnouncements = () => {
                             <tbody className="divide-y divide-slate-100 text-xs font-bold text-slate-700">
                                 {loading ? (
                                     <tr>
-                                        <td colSpan="6" className="text-center py-12 text-slate-400">
+                                        <td colSpan="7" className="text-center py-12 text-slate-400">
                                             <div className="flex flex-col items-center justify-center gap-2">
                                                 <RefreshCw size={24} className="animate-spin text-indigo-650" />
                                                 <span>Loading announcements...</span>
@@ -393,7 +433,7 @@ const AdminAnnouncements = () => {
                                     </tr>
                                 ) : currentEntries.length === 0 ? (
                                     <tr>
-                                        <td colSpan="6" className="text-center py-10 text-slate-400">No announcements found.</td>
+                                        <td colSpan="7" className="text-center py-10 text-slate-400">No announcements found.</td>
                                     </tr>
                                 ) : (
                                     currentEntries.map((ann, idx) => (
@@ -428,14 +468,19 @@ const AdminAnnouncements = () => {
                                                         ? 'bg-blue-50 border border-blue-100 text-blue-755'
                                                         : ann.targetAudience === 'Teacher'
                                                             ? 'bg-emerald-50 border border-emerald-100 text-emerald-755'
-                                                            : ann.targetAudience === 'Staff'
+                                                            : ann.targetAudience === 'limited'
                                                                 ? 'bg-amber-50 border border-amber-100 text-amber-755'
-                                                                : 'bg-purple-50 border border-purple-100 text-purple-755'
+                                                                : ann.targetAudience === 'guest'
+                                                                    ? 'bg-teal-50 border border-teal-100 text-teal-755'
+                                                                    : 'bg-purple-50 border border-purple-100 text-purple-755'
                                                 }`}>
-                                                    👥 {ann.targetAudience}
+                                                    👥 {ann.targetAudience === 'limited' ? 'Guest User' : ann.targetAudience === 'guest' ? 'Limited User' : ann.targetAudience}
                                                 </span>
                                             </td>
                                             <td className="py-3.5 px-4 text-slate-500 font-semibold">{ann.createdBy?.name || 'Admin'}</td>
+                                            <td className="py-3.5 px-4 text-right text-slate-500 font-semibold">
+                                                {ann.endDate ? formatDate(ann.endDate) : '—'}
+                                            </td>
                                             <td className="py-3.5 px-4 text-right text-slate-400 font-semibold">{formatDate(ann.createdAt)}</td>
                                             <td className="py-3.5 px-6 text-right space-x-1.5">
                                                 <button
@@ -621,9 +666,7 @@ const AdminAnnouncements = () => {
                                             </div>
                                         )}
                                     </div>
-                                </div>
-
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div className="space-y-1 text-left">
                                         <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Target Audience</label>
                                         <select
@@ -634,10 +677,15 @@ const AdminAnnouncements = () => {
                                             <option value="All">Everyone (All)</option>
                                             <option value="Student">Students Only</option>
                                             <option value="Teacher">Teachers Only</option>
-                                            <option value="Staff">Staff Only</option>
+                                            <option value="Editor">Editor Only</option>
+                                            <option value="Accountant">Accountants Only</option>
+                                            <option value="Marketer">Marketers Only</option>
+                                            <option value="Parent">Parents Only</option>
+                                            <option value="limited">Guest Users Only</option>
+                                            <option value="guest">Limited Users Only</option>
                                         </select>
                                     </div>
-
+ 
                                     {user?.role === 'Admin' && (
                                         <div className="space-y-1 text-left">
                                             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Institute Scope</label>
@@ -654,6 +702,144 @@ const AdminAnnouncements = () => {
                                         </div>
                                     )}
                                 </div>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div className="space-y-1 text-left">
+                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Ending Date (Optional)</label>
+                                        <input
+                                            type="date"
+                                            value={formData.endDate}
+                                            onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
+                                            className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:border-indigo-500 transition-all cursor-pointer"
+                                        />
+                                    </div>
+                                </div>
+
+                                {formData.targetAudience === 'Student' && (
+                                    <div className="space-y-3 mt-4 border-t border-slate-100 pt-4">
+                                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Student Target Selection</label>
+                                            <div className="flex items-center gap-4">
+                                                <label className="flex items-center gap-1.5 text-xs font-bold text-slate-700 cursor-pointer select-none">
+                                                    <input
+                                                        type="radio"
+                                                        name="studentAudienceType"
+                                                        value="All"
+                                                        checked={formData.studentAudienceType === 'All'}
+                                                        onChange={() => setFormData({ ...formData, studentAudienceType: 'All', selectedStudents: [] })}
+                                                        className="accent-indigo-650 cursor-pointer"
+                                                    />
+                                                    All Students
+                                                </label>
+                                                <label className="flex items-center gap-1.5 text-xs font-bold text-slate-700 cursor-pointer select-none">
+                                                    <input
+                                                        type="radio"
+                                                        name="studentAudienceType"
+                                                        value="Selected"
+                                                        checked={formData.studentAudienceType === 'Selected'}
+                                                        onChange={() => setFormData({ ...formData, studentAudienceType: 'Selected' })}
+                                                        className="accent-indigo-650 cursor-pointer"
+                                                    />
+                                                    Selected Students
+                                                </label>
+                                            </div>
+                                        </div>
+
+                                        {formData.studentAudienceType === 'Selected' && (
+                                            <div className="space-y-2.5 bg-slate-50/50 p-4 rounded-2xl border border-slate-100 animate-fade-in text-left">
+                                                <div className="flex items-center justify-between gap-3">
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Search students by name or email..."
+                                                        value={studentSearch}
+                                                        onChange={(e) => setStudentSearch(e.target.value)}
+                                                        className="flex-1 px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:border-indigo-500 transition-all"
+                                                    />
+                                                    <div className="flex gap-2">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                const filtered = students.filter(st => 
+                                                                    st.name.toLowerCase().includes(studentSearch.toLowerCase()) || 
+                                                                    st.email.toLowerCase().includes(studentSearch.toLowerCase())
+                                                                );
+                                                                const allSelected = new Set([
+                                                                    ...(formData.selectedStudents || []),
+                                                                    ...filtered.map(st => st._id)
+                                                                ]);
+                                                                setFormData({ ...formData, selectedStudents: Array.from(allSelected) });
+                                                            }}
+                                                            className="px-2.5 py-1.5 bg-slate-200 hover:bg-slate-350 text-slate-700 rounded-xl text-[10px] font-black cursor-pointer transition-all active:scale-95"
+                                                        >
+                                                            Select All
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                const filteredIds = new Set(students.filter(st => 
+                                                                    st.name.toLowerCase().includes(studentSearch.toLowerCase()) || 
+                                                                    st.email.toLowerCase().includes(studentSearch.toLowerCase())
+                                                                ).map(st => st._id));
+                                                                const remaining = (formData.selectedStudents || []).filter(id => !filteredIds.has(id));
+                                                                setFormData({ ...formData, selectedStudents: remaining });
+                                                            }}
+                                                            className="px-2.5 py-1.5 bg-slate-200 hover:bg-slate-350 text-slate-700 rounded-xl text-[10px] font-black cursor-pointer transition-all active:scale-95"
+                                                        >
+                                                            Deselect All
+                                                        </button>
+                                                    </div>
+                                                </div>
+
+                                                {studentsLoading ? (
+                                                    <div className="text-center py-6 text-slate-400 text-xs font-semibold flex items-center justify-center gap-2">
+                                                        <RefreshCw size={14} className="animate-spin text-indigo-650" />
+                                                        <span>Loading students list...</span>
+                                                    </div>
+                                                ) : students.length === 0 ? (
+                                                    <div className="text-center py-6 text-slate-450 text-xs font-bold">
+                                                        No students found for this institute scope.
+                                                    </div>
+                                                ) : (
+                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1.5 custom-scrollbar">
+                                                        {students.filter(st => 
+                                                            st.name.toLowerCase().includes(studentSearch.toLowerCase()) || 
+                                                            st.email.toLowerCase().includes(studentSearch.toLowerCase())
+                                                        ).map((st) => {
+                                                            const isChecked = (formData.selectedStudents || []).includes(st._id);
+                                                            return (
+                                                                <label
+                                                                    key={st._id}
+                                                                    className="flex items-center gap-2.5 p-2 bg-white rounded-xl border border-slate-100/60 hover:bg-slate-50/50 cursor-pointer select-none transition-all"
+                                                                >
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={isChecked}
+                                                                        onChange={() => {
+                                                                            let updated = [...(formData.selectedStudents || [])];
+                                                                            if (isChecked) {
+                                                                                updated = updated.filter(id => id !== st._id);
+                                                                            } else {
+                                                                                updated.push(st._id);
+                                                                            }
+                                                                            setFormData({ ...formData, selectedStudents: updated });
+                                                                        }}
+                                                                        className="w-3.5 h-3.5 accent-indigo-650 rounded border-slate-200 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                                                                    />
+                                                                    <div className="flex flex-col min-w-0">
+                                                                        <span className="text-[11px] font-bold text-slate-800 truncate">{st.name}</span>
+                                                                        <span className="text-[9px] font-semibold text-slate-400 truncate">{st.email}</span>
+                                                                    </div>
+                                                                </label>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                )}
+                                                <div className="text-[10px] font-bold text-slate-450 mt-1">
+                                                    Selected: <span className="text-[#3E3ADD] font-black">{(formData.selectedStudents || []).length}</span> students
+                                                </div>
+                                            </div>
+                                        )}
+                                )}
 
                                 <div className="pt-4 flex items-center justify-end gap-2 border-t border-slate-100">
                                     <button

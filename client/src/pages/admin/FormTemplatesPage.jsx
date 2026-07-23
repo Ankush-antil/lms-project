@@ -20,7 +20,7 @@ const FormTemplatesPage = () => {
 
     const templates = [
         {
-            name: 'Form Templates',
+            name: 'Form Builder',
             description: 'Create interactive question forms, quizzes, and tests.',
             icon: FileSignature,
             color: 'bg-red-500 text-white',
@@ -123,11 +123,10 @@ const FormTemplatesPage = () => {
                             <div
                                 key={index}
                                 onClick={item.action}
-                                className={`p-4 rounded-2xl border transition-all duration-300 flex items-center gap-3 relative overflow-hidden cursor-pointer group bg-white ${
-                                    item.isActive
-                                        ? 'border-slate-150 hover:border-indigo-300 hover:shadow-lg hover:-translate-y-0.5'
-                                        : 'border-slate-100 hover:bg-slate-50/50'
-                                }`}
+                                className={`p-4 rounded-2xl border transition-all duration-300 flex items-center gap-3 relative overflow-hidden cursor-pointer group bg-white ${item.isActive
+                                    ? 'border-slate-150 hover:border-indigo-300 hover:shadow-lg hover:-translate-y-0.5'
+                                    : 'border-slate-100 hover:bg-slate-50/50'
+                                    }`}
                             >
                                 <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 shadow-sm ${item.color}`}>
                                     <Icon size={16} />

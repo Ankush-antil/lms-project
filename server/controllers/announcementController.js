@@ -5,7 +5,7 @@ const Announcement = require('../models/Announcement');
 // @route   POST /api/announcements
 // @access  Private (Admin, Editor, Staff, Accountant, Teacher)
 const createAnnouncement = asyncHandler(async (req, res) => {
-    const { title, content, instituteId, targetAudience } = req.body;
+    const { title, content, instituteId, targetAudience, endDate, studentAudienceType, selectedStudents } = req.body;
 
     if (!title || !content) {
         res.status(400);
@@ -27,11 +27,23 @@ const createAnnouncement = asyncHandler(async (req, res) => {
         attachmentName = req.file.originalname;
     }
 
+    let parsedSelectedStudents = [];
+    if (selectedStudents) {
+        try {
+            parsedSelectedStudents = typeof selectedStudents === 'string' ? JSON.parse(selectedStudents) : selectedStudents;
+        } catch (e) {
+            parsedSelectedStudents = [];
+        }
+    }
+
     const announcement = await Announcement.create({
         title,
         content,
         institute: finalInstituteId,
         targetAudience: targetAudience || 'All',
+        endDate: endDate ? new Date(endDate) : null,
+        studentAudienceType: studentAudienceType || 'All',
+        selectedStudents: parsedSelectedStudents,
         createdBy: req.user._id,
         attachmentUrl,
         attachmentName
@@ -46,6 +58,15 @@ const createAnnouncement = asyncHandler(async (req, res) => {
 const getAnnouncements = asyncHandler(async (req, res) => {
     let query = { isDeleted: false };
 
+    // Filter out expired announcements (where endDate is not null and in the past)
+    // Using current time or start of day. Let's use current time.
+    query.$and = [{
+        $or: [
+            { endDate: null },
+            { endDate: { $gte: new Date() } }
+        ]
+    }];
+
     // If user is not Admin, filter by their institute and targetAudience
     if (req.user.role !== 'Admin') {
         // Show announcements that are global (institute is null) OR match user's institute
@@ -56,12 +77,21 @@ const getAnnouncements = asyncHandler(async (req, res) => {
 
         // Filter targetAudience
         if (req.user.role === 'Student') {
-            query.targetAudience = { $in: ['All', 'Student'] };
-        } else if (req.user.role === 'Teacher') {
-            query.targetAudience = { $in: ['All', 'Teacher', 'Staff'] };
+            query.$and.push({
+                $or: [
+                    { targetAudience: 'All' },
+                    {
+                        targetAudience: 'Student',
+                        $or: [
+                            { studentAudienceType: 'All' },
+                            { studentAudienceType: 'Selected', selectedStudents: req.user._id }
+                        ]
+                    }
+                ]
+            });
         } else {
-            // Staff, Accountant, Editor, etc.
-            query.targetAudience = { $in: ['All', 'Staff', 'Teacher'] };
+            // Other roles see All, or matching their specific role
+            query.targetAudience = { $in: ['All', req.user.role] };
         }
     } else {
         // Admin gets all announcements, but if they pass an institute filter query parameter:
@@ -83,7 +113,7 @@ const getAnnouncements = asyncHandler(async (req, res) => {
 // @route   PUT /api/announcements/:id
 // @access  Private (Admin, Editor, Staff, Accountant, Teacher)
 const updateAnnouncement = asyncHandler(async (req, res) => {
-    const { title, content, instituteId, targetAudience, clearAttachment } = req.body;
+    const { title, content, instituteId, targetAudience, clearAttachment, endDate, studentAudienceType, selectedStudents } = req.body;
     const announcement = await Announcement.findById(req.params.id);
 
     if (!announcement) {
@@ -112,6 +142,16 @@ const updateAnnouncement = asyncHandler(async (req, res) => {
         }
     }
     announcement.targetAudience = targetAudience || announcement.targetAudience;
+    announcement.endDate = endDate !== undefined ? (endDate ? new Date(endDate) : null) : announcement.endDate;
+    announcement.studentAudienceType = studentAudienceType || announcement.studentAudienceType;
+
+    if (selectedStudents !== undefined) {
+        try {
+            announcement.selectedStudents = typeof selectedStudents === 'string' ? JSON.parse(selectedStudents) : selectedStudents;
+        } catch (e) {
+            announcement.selectedStudents = selectedStudents;
+        }
+    }
 
     if (req.file) {
         announcement.attachmentUrl = `/api/uploads/attachments/${req.file.filename}`;

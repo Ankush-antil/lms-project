@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import axios from 'axios';
+import { createPortal } from 'react-dom';
 import toast from 'react-hot-toast';
 import {
     LayoutDashboard, Users, GraduationCap, BookOpen, LogOut, FileText,
@@ -173,16 +175,8 @@ const menuItems = {
 
         { name: '_section_tools', icon: PenTool, path: null },
         { name: 'Form Tool', icon: FileSignature, path: '/admin/form-templates' },
-        { name: 'DB Tools', icon: Database, path: '/admin/db-templates' },
+        { name: 'DB Creator Tool', icon: Database, path: '/admin/db-templates' },
 
-        { name: '_section_service_analytics', icon: BarChart3, path: null },
-        { name: 'Drive Analytics', icon: HardDrive, path: '/admin/tools-analytics/drive' },
-        { name: 'Chat Analytics', icon: MessageSquare, path: '/admin/tools-analytics/chat' },
-        { name: 'Notes Analytics', icon: StickyNote, path: '/admin/tools-analytics/notes' },
-        { name: 'Sc. Analytics', icon: Camera, path: '/admin/tools-analytics/screenshot' },
-        { name: 'SR. Analytics', icon: Video, path: '/admin/tools-analytics/screen-recorder' },
-        { name: 'AR. Analytics', icon: Mic, path: '/admin/tools-analytics/voice-recorder' },
-        { name: 'VR. Analytics', icon: MonitorPlay, path: '/admin/tools-analytics/video-recorder' },
 
         { name: '_section_management', icon: Briefcase, path: null },
         { name: 'Staff Mgt', icon: Users, path: '/admin/staff' },
@@ -197,7 +191,16 @@ const menuItems = {
         { name: 'Voice Recorder', icon: Mic, path: '/admin/tools/voice-recorder' },
         { name: 'Video Recorder', icon: MonitorPlay, path: '/admin/tools/video-recorder' },
         { name: 'Screenshot Tool', icon: Camera, path: '/admin/tools/screenshot' },
-        { name: 'Screen Recorder', icon: Video, path: '/admin/tools/screen-recorder' }
+        { name: 'Screen Recorder', icon: Video, path: '/admin/tools/screen-recorder' },
+
+        { name: '_section_service_analytics', icon: BarChart3, path: null },
+        { name: 'Drive Analytics', icon: HardDrive, path: '/admin/tools-analytics/drive' },
+        { name: 'Chat Analytics', icon: MessageSquare, path: '/admin/tools-analytics/chat' },
+        { name: 'Notes Analytics', icon: StickyNote, path: '/admin/tools-analytics/notes' },
+        { name: 'Sc. Analytics', icon: Camera, path: '/admin/tools-analytics/screenshot' },
+        { name: 'SR. Analytics', icon: Video, path: '/admin/tools-analytics/screen-recorder' },
+        { name: 'AR. Analytics', icon: Mic, path: '/admin/tools-analytics/voice-recorder' },
+        { name: 'VR. Analytics', icon: MonitorPlay, path: '/admin/tools-analytics/video-recorder' },
     ],
     Institute: [
         { name: 'Dashboard', icon: LayoutDashboard, path: '/institute' },
@@ -305,8 +308,164 @@ const menuItems = {
         { name: 'Activities', icon: FileText, path: '/parent/activities' },
         { name: 'Drive', icon: HardDrive, path: '/parent/drive' },
         { name: 'Notes', icon: StickyNote, path: '/parent/notes' },
-        { name: 'Chat', icon: MessageSquare, path: '/parent/chat' },
+        { name: 'Chat', icon: MessageSquare, path: '/parent/chat' }
     ]
+};
+
+/* ─────────────────────────────────────────
+   Announcement Header Button & Modal
+   ───────────────────────────────────────── */
+const AnnouncementHeaderButton = () => {
+    const [open, setOpen] = useState(false);
+    const [announcements, setAnnouncements] = useState([]);
+    const [unreadCount, setUnreadCount] = useState(0);
+
+    const fetchHeaderAnnouncements = async () => {
+        try {
+            const { data } = await axios.get('/api/announcements');
+            setAnnouncements(data || []);
+            const lastRead = localStorage.getItem('lmsLastAnnouncementRead') || 0;
+            const unread = (data || []).filter(ann => new Date(ann.createdAt).getTime() > Number(lastRead)).length;
+            setUnreadCount(unread);
+        } catch (e) {
+            console.error('[Fetch Header Announcements Error]', e);
+        }
+    };
+
+    useEffect(() => {
+        fetchHeaderAnnouncements();
+        // Poll every 60 seconds
+        const timer = setInterval(fetchHeaderAnnouncements, 60000);
+        return () => clearInterval(timer);
+    }, []);
+
+    const handleOpenModal = () => {
+        setOpen(true);
+        localStorage.setItem('lmsLastAnnouncementRead', Date.now().toString());
+        setUnreadCount(0);
+    };
+
+    const formatDate = (dateStr) => {
+        if (!dateStr) return '—';
+        const d = new Date(dateStr);
+        return d.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    };
+
+    return (
+        <>
+            <button
+                type="button"
+                onClick={handleOpenModal}
+                className={`relative p-2.5 rounded-xl transition-all border shrink-0 cursor-pointer ${unreadCount > 0
+                    ? 'text-amber-300 border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20'
+                    : 'text-slate-400 border-transparent hover:bg-white/10 hover:text-slate-200'
+                    }`}
+                title="Announcements"
+            >
+                <Megaphone size={19} className={unreadCount > 0 ? 'animate-bounce' : ''} />
+                {unreadCount > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 min-w-[17px] h-[17px] bg-amber-500 text-[#0b1329] text-[9px] font-black rounded-full flex items-center justify-center px-1 shadow-lg shadow-amber-500/30 ring-2 ring-[#0b1329]">
+                        {unreadCount}
+                    </span>
+                )}
+            </button>
+
+            {/* Center Modal with Whitesmoke background */}
+            {open && createPortal(
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 text-left font-sans animate-fade-in">
+                    <div className="bg-[#f5f5f5] rounded-3xl shadow-2xl border border-slate-200 w-full max-w-2xl overflow-hidden flex flex-col max-h-[85vh]">
+                        {/* Header */}
+                        <div className="flex justify-between items-center px-6 py-4 border-b border-slate-200 bg-white shrink-0">
+                            <div className="flex items-center gap-2">
+                                <Megaphone size={18} className="text-indigo-650" />
+                                <span className="font-extrabold text-slate-800 text-sm tracking-tight">Announcements</span>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setOpen(false)}
+                                className="p-1.5 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                            >
+                                <X size={16} />
+                            </button>
+                        </div>
+
+                        {/* List Area */}
+                        <div className="p-6 overflow-y-auto space-y-4 flex-1 custom-scrollbar">
+                            {announcements.length === 0 ? (
+                                <div className="text-center py-12 text-slate-450 font-bold text-xs bg-white rounded-2xl border border-slate-150">
+                                    No announcements yet.
+                                </div>
+                            ) : (
+                                announcements.map((ann) => (
+                                    <div
+                                        key={ann._id}
+                                        className="bg-white p-5 rounded-2xl border border-slate-200 hover:border-indigo-300 transition-all flex flex-col gap-2.5 shadow-sm"
+                                    >
+                                        <div className="flex items-start justify-between gap-3">
+                                            <h4 className="font-extrabold text-slate-850 text-xs leading-snug">
+                                                {ann.title}
+                                            </h4>
+                                            <div className="flex items-center gap-1.5 shrink-0">
+                                                {ann.institute ? (
+                                                    <span className="px-2 py-0.5 bg-indigo-50 border border-indigo-100 text-indigo-700 rounded-md text-[9px] font-black uppercase">
+                                                        🏫 {ann.institute.name}
+                                                    </span>
+                                                ) : (
+                                                    <span className="px-2 py-0.5 bg-teal-50 border border-teal-100 text-teal-700 rounded-md text-[9px] font-black uppercase">
+                                                        🌐 Global
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        <p className="text-slate-600 text-xs font-semibold leading-relaxed whitespace-pre-wrap">
+                                            {ann.content}
+                                        </p>
+
+                                        {ann.attachmentUrl && (
+                                            <div className="bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl flex items-center justify-between text-xs font-bold text-slate-655 mt-1">
+                                                <div className="flex items-center gap-2">
+                                                    <span>📎</span>
+                                                    <span className="truncate max-w-[200px]" title={ann.attachmentName}>
+                                                        {ann.attachmentName || 'Attachment'}
+                                                    </span>
+                                                </div>
+                                                <a
+                                                    href={ann.attachmentUrl}
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                    className="px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 border border-indigo-100 text-indigo-755 rounded-xl transition-all font-black text-[9px]"
+                                                >
+                                                    Download
+                                                </a>
+                                            </div>
+                                        )}
+
+                                        <div className="flex items-center justify-between text-[10px] text-slate-400 font-bold border-t border-slate-100 pt-2.5 mt-1">
+                                            <span>By: {ann.createdBy?.name || 'Admin'}</span>
+                                            <span>{formatDate(ann.createdAt)}</span>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+
+                        {/* Footer */}
+                        <div className="px-6 py-4 border-t border-slate-200 bg-white flex justify-end shrink-0">
+                            <button
+                                type="button"
+                                onClick={() => setOpen(false)}
+                                className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs rounded-xl shadow-sm transition-all cursor-pointer"
+                            >
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>,
+                document.body
+            )}
+        </>
+    );
 };
 
 /* ─────────────────────────────────────────
@@ -519,6 +678,9 @@ const Header = ({ role = 'Admin', onMobileMenuToggle, isMobileMenuOpen }) => {
 
             {/* Right side: Bell + Profile + Mobile */}
             <div className="flex items-center gap-1.5 sm:gap-2">
+
+                {/* Announcement Header Button */}
+                <AnnouncementHeaderButton />
 
                 {/* Bell icon — Teacher & Student only */}
                 {showBell && <NotificationBell safeRole={safeRole} />}

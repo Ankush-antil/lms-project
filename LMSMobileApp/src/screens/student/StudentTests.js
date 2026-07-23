@@ -220,8 +220,7 @@ const StudentTests = ({ navigation }) => {
             const inboxUnlockDateMs = new Date(enrollmentDate).getTime() + offsetDays * 24 * 60 * 60 * 1000;
             // Match web: lock is always false by default (same as web StudentTests.jsx line 897)
             const isInboxDisabledByDefault = false;
-
-            const isInboxDisabled = config && config.disabled !== undefined ? config.disabled : isInboxDisabledByDefault;
+            const isInboxDisabled = false; // Always unlocked per policy: no inbox is ever locked for any student
             const customTitle = config && config.displayName ? config.displayName : keyName;
 
             // Count activities in various states

@@ -268,6 +268,262 @@ const AdminAnnouncements = () => {
         return pages;
     };
 
+    const isManager = ['Admin', 'Institute', 'Staff'].includes(user?.role);
+
+    if (!isManager) {
+        return (
+            <DashboardLayout role={user?.role || 'Student'}>
+                <div className="max-w-7xl mx-auto px-4 py-5 font-sans">
+                    {/* Header */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4 mb-6">
+                        <div>
+                            <h2 className="text-2xl font-black text-slate-850 tracking-tight flex items-center gap-2">
+                                <Megaphone className="text-indigo-650" size={26} />
+                                <span>Announcements</span>
+                            </h2>
+                            <p className="text-xs font-semibold text-slate-400 mt-1 uppercase tracking-wider">
+                                Official notices and announcements
+                            </p>
+                        </div>
+
+                        <div className="flex items-center gap-2 self-start sm:self-auto">
+                            <button
+                                onClick={fetchAnnouncements}
+                                disabled={loading}
+                                className="flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all cursor-pointer"
+                            >
+                                <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+                                <span>Refresh</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Table Container Card */}
+                    <div className="bg-white rounded-3xl border border-slate-200/60 shadow-sm overflow-hidden mb-8">
+                        {/* Controls Header */}
+                        <div className="p-5 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                            <div className="text-left">
+                                <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">
+                                    <span>📋</span> Announcement Board
+                                </h3>
+                                <p className="text-xs font-semibold text-slate-400 mt-0.5">List of active alerts and official announcements</p>
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-3">
+                                {/* Search bar */}
+                                <div className="relative">
+                                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                                    <input
+                                        type="text"
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                        placeholder="Search title, details..."
+                                        className="pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:border-indigo-500 transition-all w-52"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Table View */}
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left border-collapse whitespace-nowrap">
+                                <thead>
+                                    <tr className="bg-slate-50/70 text-slate-400 font-extrabold text-[11px] uppercase tracking-wider border-b border-slate-100">
+                                        <th className="py-3.5 px-6 text-left">Sr No.</th>
+                                        <th className="py-3.5 px-6 text-left">Title</th>
+                                        <th className="py-3.5 px-4 text-right">Created Date</th>
+                                        <th className="py-3.5 px-4 text-right">Ending date</th>
+                                        <th className="py-3.5 px-6 text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100 text-xs font-bold text-slate-700">
+                                    {loading ? (
+                                        <tr>
+                                            <td colSpan="5" className="text-center py-12 text-slate-400">
+                                                <div className="flex flex-col items-center justify-center gap-2">
+                                                    <RefreshCw size={24} className="animate-spin text-indigo-650" />
+                                                    <span>Loading announcements...</span>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ) : currentEntries.length === 0 ? (
+                                        <tr>
+                                            <td colSpan="5" className="text-center py-10 text-slate-400">No announcements found.</td>
+                                        </tr>
+                                    ) : (
+                                        currentEntries.map((ann, idx) => (
+                                            <tr key={ann._id || idx} className="hover:bg-slate-50/50 transition-colors">
+                                                <td className="py-3.5 px-6 text-left font-extrabold text-slate-800">
+                                                    {indexOfFirstEntry + idx + 1}
+                                                </td>
+                                                <td className="py-3.5 px-6 text-left font-extrabold text-slate-855">
+                                                    <div className="flex flex-col text-left">
+                                                        <span className="text-sm text-slate-800 flex items-center gap-1.5">
+                                                            {ann.title}
+                                                            {ann.attachmentUrl && (
+                                                                <span className="inline-flex items-center text-slate-400" title="Has attachment">
+                                                                    📎
+                                                                </span>
+                                                            )}
+                                                        </span>
+                                                        <span className="text-[10px] text-slate-400 font-medium truncate max-w-xs mt-0.5">{ann.content}</span>
+                                                    </div>
+                                                </td>
+                                                <td className="py-3.5 px-4 text-right text-slate-450 font-semibold">{formatDate(ann.createdAt)}</td>
+                                                <td className="py-3.5 px-4 text-right text-slate-500 font-semibold">
+                                                    {ann.endDate ? formatDate(ann.endDate) : '—'}
+                                                </td>
+                                                <td className="py-3.5 px-6 text-right space-x-1.5">
+                                                    <button
+                                                        onClick={() => openViewModal(ann)}
+                                                        className="px-2.5 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-655 text-[10px] font-extrabold rounded-xl border border-slate-200 transition-all cursor-pointer"
+                                                    >
+                                                        <Eye size={12} className="inline mr-1" /> View
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        ))
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {/* Pagination Footer */}
+                        <div className="p-5 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                            <div className="text-xs font-semibold text-slate-400">
+                                Showing {filteredAnnouncements.length > 0 ? indexOfFirstEntry + 1 : 0} to {Math.min(indexOfLastEntry, filteredAnnouncements.length)} of {filteredAnnouncements.length} entries
+                            </div>
+                            
+                            <div className="flex items-center gap-3">
+                                {totalPages > 1 && (
+                                    <div className="flex items-center gap-2 select-none">
+                                        <button
+                                            disabled={currentPage === 1}
+                                            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                                            className={`px-4 py-2 rounded-full border text-xs font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer ${
+                                                currentPage === 1
+                                                    ? 'bg-slate-50 border-slate-200 text-slate-400'
+                                                    : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700'
+                                            }`}
+                                        >
+                                            Previous
+                                        </button>
+
+                                        <div className="flex items-center gap-1">
+                                            {getPageNumbers().map((pageNum, idx) => {
+                                                if (pageNum === '...') {
+                                                    return (
+                                                        <span key={idx} className="w-8 h-8 text-slate-400 font-bold text-xs flex items-center justify-center">
+                                                            ...
+                                                        </span>
+                                                    );
+                                                }
+                                                
+                                                const isPageActive = currentPage === pageNum;
+                                                return (
+                                                    <button
+                                                        key={idx}
+                                                        onClick={() => setCurrentPage(pageNum)}
+                                                        className={`w-8 h-8 rounded-full font-bold text-xs flex items-center justify-center transition-all cursor-pointer ${
+                                                            isPageActive
+                                                                ? 'bg-[#0b1329] text-white shadow-md shadow-black/10'
+                                                                : 'hover:bg-slate-100 text-slate-700'
+                                                        }`}
+                                                    >
+                                                        {pageNum}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+
+                                        <button
+                                            disabled={currentPage === totalPages || totalPages === 0}
+                                            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                                            className={`px-4 py-2 rounded-full border text-xs font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer ${
+                                                (currentPage === totalPages || totalPages === 0)
+                                                    ? 'bg-slate-50 border-slate-200 text-slate-400'
+                                                    : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700'
+                                            }`}
+                                        >
+                                            Next
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* View Announcement Modal */}
+                    {isViewModalOpen && selectedAnnouncement && createPortal(
+                        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-[whitesmoke]/80 backdrop-blur-sm p-4 text-left font-sans animate-fade-in">
+                            <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
+                                <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100 bg-slate-50/50 shrink-0">
+                                    <div className="flex items-center gap-2">
+                                        <Megaphone size={18} className="text-indigo-650" />
+                                        <span className="font-extrabold text-slate-800 text-sm tracking-tight">Announcement Details</span>
+                                    </div>
+                                    <button 
+                                        onClick={() => setIsViewModalOpen(false)}
+                                        className="p-1.5 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                                    >
+                                        <X size={16} />
+                                    </button>
+                                </div>
+
+                                <div className="p-6 overflow-y-auto space-y-4">
+                                    <div className="space-y-1">
+                                        <h3 className="text-lg font-black text-slate-855">{selectedAnnouncement.title}</h3>
+                                        <div className="flex flex-wrap items-center gap-2.5 pt-1.5 text-[10px] text-slate-450 font-bold uppercase tracking-wider">
+                                            <span className="flex items-center gap-1"><Calendar size={12} /> {formatDate(selectedAnnouncement.createdAt)}</span>
+                                            <span>•</span>
+                                            <span>Audience: {selectedAnnouncement.targetAudience === 'limited' ? 'Guest User' : selectedAnnouncement.targetAudience === 'guest' ? 'Limited User' : selectedAnnouncement.targetAudience}</span>
+                                            <span>•</span>
+                                            <span>Scope: {selectedAnnouncement.institute?.name || 'Global'}</span>
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-slate-50 p-5 rounded-2xl border border-slate-150 text-xs font-semibold text-slate-700 leading-relaxed whitespace-pre-wrap">
+                                        {selectedAnnouncement.content}
+                                    </div>
+
+                                    {selectedAnnouncement.attachmentUrl && (
+                                        <div className="bg-slate-50 border border-slate-200 px-4 py-3 rounded-2xl flex items-center justify-between text-xs font-bold text-slate-655 mt-3 text-left">
+                                            <div className="flex items-center gap-2">
+                                                <span>📎</span>
+                                                <span className="truncate max-w-[200px]" title={selectedAnnouncement.attachmentName}>
+                                                    {selectedAnnouncement.attachmentName || 'Attachment'}
+                                                </span>
+                                            </div>
+                                            <a
+                                                href={selectedAnnouncement.attachmentUrl}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                className="px-3 py-1.5 bg-[#3E3ADD]/10 text-[#3E3ADD] hover:bg-[#3E3ADD]/20 rounded-xl transition-all font-black text-[10px]"
+                                            >
+                                                Download File
+                                            </a>
+                                        </div>
+                                    )}
+
+                                    <div className="pt-4 flex items-center justify-end border-t border-slate-100">
+                                        <button
+                                            type="button"
+                                            onClick={() => setIsViewModalOpen(false)}
+                                            className="px-5 py-2 bg-[#3E3ADD] hover:bg-[#2d2aab] text-white font-extrabold text-xs rounded-xl shadow-sm transition-all cursor-pointer"
+                                        >
+                                            Close
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>,
+                        document.body
+                    )}
+                </div>
+            </DashboardLayout>
+        );
+    }
+
     return (
         <DashboardLayout role={user?.role || 'Admin'}>
             <div className="max-w-7xl mx-auto px-4 py-5 font-sans">

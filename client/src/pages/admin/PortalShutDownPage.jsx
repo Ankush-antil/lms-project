@@ -4,7 +4,7 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import DashboardLayout from '../../components/layout/DashboardLayout';
-import { Search, Power, ChevronDown, RefreshCw, Users } from 'lucide-react';
+import { Search, Power, ChevronDown, ChevronLeft, ChevronRight, RefreshCw, Users } from 'lucide-react';
 
 const ALL_ROLES = [
     { value: 'Teacher', label: 'Teachers', emoji: '👨‍🏫' },
@@ -46,6 +46,15 @@ export default function PortalShutDownPage() {
     const [selected, setSelected] = useState(new Set());
     const [togglingId, setTogglingId] = useState(null);
     const [bulkLoading, setBulkLoading] = useState(false);
+
+    // Pagination state
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(20);
+
+    // Reset to page 1 when filters change
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [search, selectedRole, selectedCourse, selectedSection, selectedInstitute]);
 
     // Load institutes (Admin only) & Courses
     useEffect(() => {
@@ -170,6 +179,11 @@ export default function PortalShutDownPage() {
 
     const activeCount = filtered.filter(u => u.isActive !== false).length;
     const shutDownCount = filtered.filter(u => u.isActive === false).length;
+
+    // Pagination calculations
+    const totalPages = Math.ceil(filtered.length / itemsPerPage) || 1;
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const paginatedUsers = filtered.slice(startIndex, startIndex + itemsPerPage);
 
     return (
         <DashboardLayout role={user?.role}>
@@ -302,7 +316,7 @@ export default function PortalShutDownPage() {
                     </div>
 
                     {/* Table */}
-                    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
                         {/* Table toolbar */}
                         {selected.size > 0 && (
                             <div className="flex items-center gap-3 px-4 py-3 bg-indigo-50 border-b border-indigo-100">
@@ -356,7 +370,7 @@ export default function PortalShutDownPage() {
                             </div>
                         ) : (
                             <div className="divide-y divide-slate-50">
-                                {filtered.map(u => {
+                                {paginatedUsers.map(u => {
                                     const isActive = u.isActive !== false;
                                     const isSelected = selected.has(u._id);
                                     const role = ALL_ROLES.find(r => r.value === u.role);
@@ -415,6 +429,74 @@ export default function PortalShutDownPage() {
                                 })}
                             </div>
                         )}
+
+                        {/* Pagination Footer */}
+                        {!loading && filtered.length > 0 && (
+                            <div className="flex flex-wrap items-center justify-between gap-4 px-4 py-3 border-t border-slate-100 bg-slate-50 mt-auto">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-xs font-bold text-slate-500">Rows per page:</span>
+                                    <select
+                                        value={itemsPerPage}
+                                        onChange={e => { setItemsPerPage(Number(e.target.value)); setCurrentPage(1); }}
+                                        className="px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-700 outline-none cursor-pointer shadow-sm"
+                                    >
+                                        <option value={10}>10</option>
+                                        <option value={20}>20</option>
+                                        <option value={50}>50</option>
+                                        <option value={100}>100</option>
+                                    </select>
+                                    <span className="text-xs font-bold text-slate-500 ml-2">
+                                        Showing {startIndex + 1} to {Math.min(startIndex + itemsPerPage, filtered.length)} of {filtered.length}
+                                    </span>
+                                </div>
+
+                                {/* Page Navigation */}
+                                <div className="flex items-center gap-1">
+                                    <button
+                                        onClick={() => setCurrentPage(p => Math.max(p - 1, 1))}
+                                        disabled={currentPage === 1}
+                                        className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer shadow-sm"
+                                        title="Previous Page"
+                                    >
+                                        <ChevronLeft size={16} />
+                                    </button>
+
+                                    {Array.from({ length: totalPages }, (_, i) => i + 1)
+                                        .filter(p => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1)
+                                        .reduce((acc, p, i, arr) => {
+                                            if (i > 0 && p - arr[i - 1] > 1) acc.push('...');
+                                            acc.push(p);
+                                            return acc;
+                                        }, [])
+                                        .map((p, i) => (
+                                            p === '...' ? (
+                                                <span key={`dots-${i}`} className="px-2 text-xs font-bold text-slate-400">...</span>
+                                            ) : (
+                                                <button
+                                                    key={p}
+                                                    onClick={() => setCurrentPage(p)}
+                                                    className={`px-3 py-1 text-xs font-black rounded-lg transition-all cursor-pointer ${
+                                                        currentPage === p
+                                                            ? 'bg-indigo-600 text-white shadow-sm'
+                                                            : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 shadow-sm'
+                                                    }`}
+                                                >
+                                                    {p}
+                                                </button>
+                                            )
+                                        ))}
+
+                                    <button
+                                        onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))}
+                                        disabled={currentPage === totalPages || totalPages === 0}
+                                        className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer shadow-sm"
+                                        title="Next Page"
+                                    >
+                                        <ChevronRight size={16} />
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                 </div>
@@ -422,4 +504,5 @@ export default function PortalShutDownPage() {
         </DashboardLayout>
     );
 }
+
 

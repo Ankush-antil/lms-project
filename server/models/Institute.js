@@ -28,6 +28,10 @@ const instituteSchema = new mongoose.Schema({
     showOnLanding: { type: Boolean, default: false },  // Show institute on public landing page
     wifiNetworks: { type: [String], default: [] },
     controls: { type: mongoose.Schema.Types.Mixed, default: {} },
+    portalShutdown: { type: Boolean, default: false },
+    portalShutdownMessage: { type: String, default: '' },
+    shutdownRoles: { type: [String], default: [] },  // Specific roles blocked from login
+    shutdownSelectedUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],  // Specific user IDs blocked from login
     isDeleted: {
         type: Boolean,
         default: false

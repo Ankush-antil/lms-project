@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
@@ -87,6 +87,14 @@ const AdsManagement = () => {
     const [editingCampaign, setEditingCampaign] = useState(null);
     const [editBudget, setEditBudget] = useState('');
 
+    // Pagination State
+    const [currentPage, setCurrentPage] = useState(1);
+    const [rowsPerPage, setRowsPerPage] = useState(10);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchTerm, platformFilter, statusFilter]);
+
     // Form state for new campaign
     const [newCampaignForm, setNewCampaignForm] = useState({
         name: '',
@@ -170,6 +178,12 @@ const AdsManagement = () => {
 
     const overallCTR = totalImpressions > 0 ? ((totalClicks / totalImpressions) * 100).toFixed(2) : '0';
     const averageCPA = totalLeads > 0 ? (totalSpend / totalLeads).toFixed(0) : '0';
+
+    // Pagination calculations
+    const totalPages = Math.ceil(filteredCampaigns.length / rowsPerPage) || 1;
+    const indexOfLastCamp = currentPage * rowsPerPage;
+    const indexOfFirstCamp = indexOfLastCamp - rowsPerPage;
+    const currentCampaigns = filteredCampaigns.slice(indexOfFirstCamp, indexOfLastCamp);
 
     const formatCurrency = (amount) => {
         return new Intl.NumberFormat('en-IN', {
@@ -281,12 +295,28 @@ const AdsManagement = () => {
                                 <option value="Paused">Paused</option>
                             </select>
                         </div>
+
+                        <div className="flex items-center gap-1.5 bg-slate-50 px-3.5 py-2.5 rounded-2xl border border-slate-150">
+                            <span className="text-[10px] font-bold text-slate-450 uppercase tracking-wide">Rows / Page:</span>
+                            <input
+                                type="number"
+                                min="1"
+                                max="500"
+                                value={rowsPerPage}
+                                onChange={(e) => {
+                                    const val = Math.max(1, parseInt(e.target.value) || 1);
+                                    setRowsPerPage(val);
+                                    setCurrentPage(1);
+                                }}
+                                className="w-14 bg-white border border-slate-200 rounded-lg px-2 py-0.5 text-xs font-bold text-slate-700 outline-none text-center"
+                            />
+                        </div>
                     </div>
                 </div>
             </div>
 
             {/* Campaign Table */}
-            <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden text-left">
+            <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden text-left mb-8">
                 <div className="responsive-table-wrapper">
                     <table className="min-w-full text-left border-collapse">
                         <thead>
@@ -301,7 +331,13 @@ const AdsManagement = () => {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 text-slate-700 text-xs font-semibold">
-                            {filteredCampaigns.map(c => {
+                            {currentCampaigns.length === 0 ? (
+                                <tr>
+                                    <td colSpan={7} className="p-12 text-center text-slate-400 font-semibold text-sm">
+                                        No campaigns found matching your criteria.
+                                    </td>
+                                </tr>
+                            ) : currentCampaigns.map(c => {
                                 const ctr = c.impressions > 0 ? ((c.clicks / c.impressions) * 100).toFixed(2) : '0.00';
                                 const cpa = c.leads > 0 ? (c.spent / c.leads).toFixed(0) : '0';
                                 const percentSpent = c.budget > 0 ? ((c.spent / c.budget) * 100).toFixed(0) : '0';
@@ -387,6 +423,71 @@ const AdsManagement = () => {
                             })}
                         </tbody>
                     </table>
+                </div>
+
+                {/* Pagination Bar */}
+                <div className="px-6 py-4 bg-slate-50/50 border-t border-slate-150 flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div className="text-xs font-semibold text-slate-500">
+                        Showing <span className="font-bold text-slate-800">{filteredCampaigns.length > 0 ? indexOfFirstCamp + 1 : 0}</span> to{' '}
+                        <span className="font-bold text-slate-800">{Math.min(indexOfLastCamp, filteredCampaigns.length)}</span> of{' '}
+                        <span className="font-bold text-slate-800">{filteredCampaigns.length}</span> campaigns
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                            disabled={currentPage === 1}
+                            className="px-5 py-2 rounded-full border border-slate-200/80 text-xs font-extrabold text-slate-400 bg-white hover:bg-slate-50 disabled:opacity-40 transition-all cursor-pointer shadow-sm"
+                        >
+                            Previous
+                        </button>
+
+                        {(() => {
+                            const pages = [];
+                            if (totalPages <= 7) {
+                                for (let i = 1; i <= totalPages; i++) pages.push(i);
+                            } else {
+                                if (currentPage <= 4) {
+                                    pages.push(1, 2, 3, 4, 5, '...', totalPages);
+                                } else if (currentPage >= totalPages - 3) {
+                                    pages.push(1, '...', totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages);
+                                } else {
+                                    pages.push(1, '...', currentPage - 1, currentPage, currentPage + 1, '...', totalPages);
+                                }
+                            }
+
+                            return pages.map((page, index) => {
+                                if (page === '...') {
+                                    return (
+                                        <span key={`dots-${index}`} className="px-1 text-slate-400 font-black text-xs">
+                                            ...
+                                        </span>
+                                    );
+                                }
+                                return (
+                                    <button
+                                        key={page}
+                                        onClick={() => setCurrentPage(page)}
+                                        className={`w-9 h-9 rounded-full text-xs font-black transition-all cursor-pointer flex items-center justify-center ${
+                                            currentPage === page
+                                                ? 'bg-[#0B132B] text-white shadow-md'
+                                                : 'bg-white text-slate-700 border border-slate-200/80 hover:bg-slate-50'
+                                        }`}
+                                    >
+                                        {page}
+                                    </button>
+                                );
+                            });
+                        })()}
+
+                        <button
+                            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                            disabled={currentPage === totalPages || totalPages === 0}
+                            className="px-5 py-2 rounded-full border border-slate-200/80 text-xs font-extrabold text-slate-800 bg-white hover:bg-slate-50 disabled:opacity-40 transition-all cursor-pointer shadow-sm"
+                        >
+                            Next
+                        </button>
+                    </div>
                 </div>
             </div>
 

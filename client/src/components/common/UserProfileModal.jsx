@@ -12,11 +12,80 @@ const UserProfileModal = ({ userId, isOpen, onClose }) => {
     const [error, setError] = useState(null);
 
     const [showPasswordForm, setShowPasswordForm] = useState(false);
+    const [otpStep, setOtpStep] = useState('IDLE'); // 'IDLE' | 'SENDING_OTP' | 'ENTER_OTP' | 'PASSWORD_INPUT'
+    const [otp, setOtp] = useState('');
+    const [otpSending, setOtpSending] = useState(false);
+    const [otpVerifying, setOtpVerifying] = useState(false);
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [passwordSaving, setPasswordSaving] = useState(false);
     const [passwordMessage, setPasswordMessage] = useState('');
     const [passwordError, setPasswordError] = useState('');
+
+    const resetPasswordState = () => {
+        setShowPasswordForm(false);
+        setOtpStep('IDLE');
+        setOtp('');
+        setNewPassword('');
+        setConfirmPassword('');
+        setPasswordMessage('');
+        setPasswordError('');
+        setOtpSending(false);
+        setOtpVerifying(false);
+    };
+
+    const handleStartPasswordChange = async () => {
+        const targetEmail = user?.email || user?.mobileNumber;
+        if (!targetEmail) {
+            setPasswordError('User email or mobile number is not available');
+            setShowPasswordForm(true);
+            return;
+        }
+
+        setShowPasswordForm(true);
+        setOtpStep('SENDING_OTP');
+        setPasswordError('');
+        setPasswordMessage('');
+        setOtp('');
+
+        try {
+            setOtpSending(true);
+            const { data } = await axios.post('/api/setup/send-otp', { phone: targetEmail });
+            setOtpStep('ENTER_OTP');
+            setPasswordMessage(data.message || `OTP sent successfully to ${targetEmail}`);
+        } catch (err) {
+            console.error("Error sending OTP:", err);
+            setOtpStep('ENTER_OTP');
+            setPasswordError(err.response?.data?.message || 'Failed to send OTP. Please try again.');
+        } finally {
+            setOtpSending(false);
+        }
+    };
+
+    const handleVerifyOtp = async (e) => {
+        if (e) e.preventDefault();
+        setPasswordError('');
+        setPasswordMessage('');
+
+        if (!otp || otp.trim().length < 4) {
+            setPasswordError('Please enter valid 4-digit OTP code');
+            return;
+        }
+
+        const targetEmail = user?.email || user?.mobileNumber;
+
+        try {
+            setOtpVerifying(true);
+            await axios.post('/api/setup/verify-otp', { phone: targetEmail, otp: otp.trim() });
+            setOtpStep('PASSWORD_INPUT');
+            setPasswordMessage('OTP verified! Enter your new password below.');
+        } catch (err) {
+            console.error("Error verifying OTP:", err);
+            setPasswordError(err.response?.data?.message || 'Invalid or expired OTP code');
+        } finally {
+            setOtpVerifying(false);
+        }
+    };
 
     const handleSavePassword = async () => {
         setPasswordMessage('');
@@ -57,9 +126,8 @@ const UserProfileModal = ({ userId, isOpen, onClose }) => {
             setNewPassword('');
             setConfirmPassword('');
             setTimeout(() => {
-                setShowPasswordForm(false);
-                setPasswordMessage('');
-            }, 2000);
+                resetPasswordState();
+            }, 1800);
         } catch (err) {
             console.error("Error saving password:", err);
             setPasswordError(err.response?.data?.message || 'Failed to update password');
@@ -328,8 +396,8 @@ const UserProfileModal = ({ userId, isOpen, onClose }) => {
                                 <div className="mt-6 border-t border-slate-100 pt-5 text-left">
                                     {!showPasswordForm ? (
                                         <button
-                                            onClick={() => setShowPasswordForm(true)}
-                                            className="text-xs font-black uppercase tracking-wider text-indigo-650 hover:text-indigo-850 flex items-center gap-1.5 cursor-pointer font-bold"
+                                            onClick={handleStartPasswordChange}
+                                            className="text-xs font-black uppercase tracking-wider text-indigo-600 hover:text-indigo-800 flex items-center gap-1.5 cursor-pointer font-bold"
                                         >
                                             <Lock size={12} /> Change Password
                                         </button>
@@ -340,14 +408,8 @@ const UserProfileModal = ({ userId, isOpen, onClose }) => {
                                                     <Lock size={13} className="text-indigo-600" /> Update Account Password
                                                 </h4>
                                                 <button
-                                                    onClick={() => {
-                                                        setShowPasswordForm(false);
-                                                        setNewPassword('');
-                                                        setConfirmPassword('');
-                                                        setPasswordMessage('');
-                                                        setPasswordError('');
-                                                    }}
-                                                    className="text-[10px] font-bold text-slate-450 hover:text-slate-600"
+                                                    onClick={resetPasswordState}
+                                                    className="text-[10px] font-bold text-slate-400 hover:text-slate-600 cursor-pointer"
                                                 >
                                                     Cancel
                                                 </button>
@@ -356,36 +418,77 @@ const UserProfileModal = ({ userId, isOpen, onClose }) => {
                                             {passwordMessage && <p className="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1.5 rounded-xl border border-emerald-100">{passwordMessage}</p>}
                                             {passwordError && <p className="text-[11px] font-bold text-rose-600 bg-rose-50 px-2.5 py-1.5 rounded-xl border border-rose-100">{passwordError}</p>}
 
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                                <div className="flex flex-col gap-1">
-                                                    <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest pl-1">New Password</label>
-                                                    <input
-                                                        type="password"
-                                                        placeholder="••••••••"
-                                                        value={newPassword}
-                                                        onChange={(e) => setNewPassword(e.target.value)}
-                                                        className="w-full bg-white border border-slate-200 rounded-xl py-2 px-3 text-xs font-semibold focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all"
-                                                    />
-                                                </div>
-                                                <div className="flex flex-col gap-1">
-                                                    <label className="text-[9px] font-black text-slate-450 uppercase tracking-widest pl-1">Confirm Password</label>
-                                                    <input
-                                                        type="password"
-                                                        placeholder="••••••••"
-                                                        value={confirmPassword}
-                                                        onChange={(e) => setConfirmPassword(e.target.value)}
-                                                        className="w-full bg-white border border-slate-200 rounded-xl py-2 px-3 text-xs font-semibold focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all"
-                                                    />
-                                                </div>
-                                            </div>
+                                            {/* STEP 1: Enter OTP */}
+                                            {otpStep !== 'PASSWORD_INPUT' ? (
+                                                <form onSubmit={handleVerifyOtp} className="space-y-3">
+                                                    <div className="flex flex-col gap-1">
+                                                        <div className="flex justify-between items-center">
+                                                            <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest pl-1">
+                                                                Enter OTP Code
+                                                            </label>
+                                                            <button
+                                                                type="button"
+                                                                onClick={handleStartPasswordChange}
+                                                                disabled={otpSending}
+                                                                className="text-[10px] font-bold text-indigo-600 hover:underline disabled:opacity-50 cursor-pointer"
+                                                            >
+                                                                {otpSending ? 'Sending...' : 'Resend OTP'}
+                                                            </button>
+                                                        </div>
+                                                        <input
+                                                            type="text"
+                                                            maxLength={6}
+                                                            placeholder="Enter 4-digit OTP"
+                                                            value={otp}
+                                                            onChange={(e) => setOtp(e.target.value)}
+                                                            disabled={otpSending || otpVerifying}
+                                                            className="w-full bg-white border border-slate-200 rounded-xl py-2 px-3 text-xs font-semibold focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all tracking-widest text-center"
+                                                        />
+                                                    </div>
 
-                                            <button
-                                                onClick={handleSavePassword}
-                                                disabled={passwordSaving || !newPassword || !confirmPassword}
-                                                className="w-full py-2.5 bg-indigo-650 text-white font-bold rounded-xl text-xs hover:bg-indigo-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md shadow-indigo-600/10 cursor-pointer"
-                                            >
-                                                {passwordSaving ? 'Updating...' : 'Update Password'}
-                                            </button>
+                                                    <button
+                                                        type="submit"
+                                                        disabled={otpSending || otpVerifying || !otp || otp.trim().length < 4}
+                                                        className="w-full py-2.5 bg-indigo-600 text-white font-bold rounded-xl text-xs hover:bg-indigo-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md shadow-indigo-600/10 cursor-pointer flex items-center justify-center gap-1.5"
+                                                    >
+                                                        {otpSending ? 'Sending OTP...' : otpVerifying ? 'Verifying OTP...' : 'Verify OTP'}
+                                                    </button>
+                                                </form>
+                                            ) : (
+                                                /* STEP 2: Password Inputs (unlocked after OTP verification) */
+                                                <div className="space-y-3">
+                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                        <div className="flex flex-col gap-1">
+                                                            <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest pl-1">New Password</label>
+                                                            <input
+                                                                type="password"
+                                                                placeholder="••••••••"
+                                                                value={newPassword}
+                                                                onChange={(e) => setNewPassword(e.target.value)}
+                                                                className="w-full bg-white border border-slate-200 rounded-xl py-2 px-3 text-xs font-semibold focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all"
+                                                            />
+                                                        </div>
+                                                        <div className="flex flex-col gap-1">
+                                                            <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest pl-1">Confirm Password</label>
+                                                            <input
+                                                                type="password"
+                                                                placeholder="••••••••"
+                                                                value={confirmPassword}
+                                                                onChange={(e) => setConfirmPassword(e.target.value)}
+                                                                className="w-full bg-white border border-slate-200 rounded-xl py-2 px-3 text-xs font-semibold focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all"
+                                                            />
+                                                        </div>
+                                                    </div>
+
+                                                    <button
+                                                        onClick={handleSavePassword}
+                                                        disabled={passwordSaving || !newPassword || !confirmPassword}
+                                                        className="w-full py-2.5 bg-indigo-600 text-white font-bold rounded-xl text-xs hover:bg-indigo-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md shadow-indigo-600/10 cursor-pointer"
+                                                    >
+                                                        {passwordSaving ? 'Updating...' : 'Update Password'}
+                                                    </button>
+                                                </div>
+                                            )}
                                         </div>
                                     )}
                                 </div>

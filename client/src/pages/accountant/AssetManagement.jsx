@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import * as XLSX from 'xlsx';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import DashboardLayout from '../../components/layout/DashboardLayout';
-import { 
-    Package, Plus, Search, Edit, Trash2, Calendar, DollarSign, 
+import {
+    Package, Plus, Search, Edit, Trash2, Calendar, DollarSign,
     Wrench, X, Check, HardDrive, RefreshCw, AlertCircle
 } from 'lucide-react';
 
@@ -15,7 +16,7 @@ const AssetManagement = () => {
     const [assets, setAssets] = useState(() => {
         const stored = localStorage.getItem('lms_assets');
         if (stored) return JSON.parse(stored);
-        
+
         // Premium default asset inventory
         return [
             {
@@ -109,6 +110,28 @@ const AssetManagement = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [categoryFilter, setCategoryFilter] = useState('All');
     const [statusFilter, setStatusFilter] = useState('All');
+    const [instituteFilter, setInstituteFilter] = useState('All');
+    const [institutes, setInstitutes] = useState([]);
+
+    // Pagination State
+    const [currentPage, setCurrentPage] = useState(1);
+    const [rowsPerPage, setRowsPerPage] = useState(10);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchQuery, categoryFilter, statusFilter, instituteFilter]);
+
+    useEffect(() => {
+        const fetchInsts = async () => {
+            try {
+                const res = await axios.get('/api/setup/institutes');
+                setInstitutes(Array.isArray(res.data) ? res.data : []);
+            } catch (err) {
+                console.error("Error fetching institutes:", err);
+            }
+        };
+        fetchInsts();
+    }, []);
 
     // Modals visibility states
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -126,6 +149,7 @@ const AssetManagement = () => {
         purchaseDate: '',
         purchaseCost: '',
         assignedTo: '',
+        instituteName: '',
         status: 'Active',
         notes: ''
     });
@@ -157,6 +181,7 @@ const AssetManagement = () => {
             purchaseDate: new Date().toISOString().split('T')[0],
             purchaseCost: '',
             assignedTo: '',
+            instituteName: user?.instituteName || user?.institute?.name || (institutes[0]?.name || 'HARTRON GANAUR'),
             status: 'Active',
             notes: ''
         });
@@ -179,6 +204,7 @@ const AssetManagement = () => {
             purchaseDate: form.purchaseDate,
             purchaseCost: Number(form.purchaseCost) || 0,
             assignedTo: form.assignedTo || 'Unassigned',
+            instituteName: form.instituteName || user?.instituteName || user?.institute?.name || 'HARTRON GANAUR',
             status: form.status,
             notes: form.notes || '',
             maintenanceLogs: []
@@ -198,6 +224,7 @@ const AssetManagement = () => {
             purchaseDate: asset.purchaseDate,
             purchaseCost: asset.purchaseCost,
             assignedTo: asset.assignedTo,
+            instituteName: asset.instituteName || asset.institute?.name || 'HARTRON GANAUR',
             status: asset.status,
             notes: asset.notes
         });
@@ -221,6 +248,7 @@ const AssetManagement = () => {
                     purchaseDate: form.purchaseDate,
                     purchaseCost: Number(form.purchaseCost) || 0,
                     assignedTo: form.assignedTo,
+                    instituteName: form.instituteName || 'HARTRON GANAUR',
                     status: form.status,
                     notes: form.notes
                 };
@@ -298,7 +326,7 @@ const AssetManagement = () => {
                     }
                     return log;
                 });
-                
+
                 // If all logs are completed, check if we can revert status to Active/Stock
                 const hasPending = logs.some(l => l.status === 'Pending');
                 const newStatus = !hasPending && item.status === 'Under Maintenance' ? 'Active' : item.status;
@@ -341,16 +369,24 @@ const AssetManagement = () => {
 
     // 6. Filter Asset List based on search and selected categories
     const filteredAssets = assets.filter(item => {
-        const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                             item.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                             item.serialNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                             item.assignedTo.toLowerCase().includes(searchQuery.toLowerCase());
-        
+        const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            item.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            item.serialNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            item.assignedTo.toLowerCase().includes(searchQuery.toLowerCase());
+
         const matchesCategory = categoryFilter === 'All' || item.category === categoryFilter;
         const matchesStatus = statusFilter === 'All' || item.status === statusFilter;
+        const itemInst = item.instituteName || item.institute?.name || 'HARTRON GANAUR';
+        const matchesInstitute = instituteFilter === 'All' || itemInst === instituteFilter;
 
-        return matchesSearch && matchesCategory && matchesStatus;
+        return matchesSearch && matchesCategory && matchesStatus && matchesInstitute;
     });
+
+    // Pagination calculations
+    const totalPages = Math.ceil(filteredAssets.length / rowsPerPage) || 1;
+    const indexOfLastAsset = currentPage * rowsPerPage;
+    const indexOfFirstAsset = indexOfLastAsset - rowsPerPage;
+    const currentAssets = filteredAssets.slice(indexOfFirstAsset, indexOfLastAsset);
 
     const formatCurrency = (amount) => {
         return new Intl.NumberFormat('en-IN', {
@@ -369,13 +405,7 @@ const AssetManagement = () => {
 
                 <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
                     <div>
-                        <div className="inline-flex items-center gap-2 px-3 py-1 bg-indigo-500/20 text-indigo-300 rounded-full text-xs font-bold uppercase tracking-wider mb-3 backdrop-blur-md border border-indigo-500/10">
-                            <Package size={12} /> Asset Desk
-                        </div>
                         <h1 className="text-3xl font-extrabold tracking-tight md:text-4xl">Asset & Inventory Desk</h1>
-                        <p className="text-slate-300 mt-2 max-w-xl text-sm md:text-base">
-                            Track capital assets, catalog equipment, oversee maintenance, and catalog new acquisitions of the institute.
-                        </p>
                     </div>
 
                     <div className="flex flex-wrap gap-3">
@@ -485,6 +515,35 @@ const AssetManagement = () => {
                             <option key={st} value={st}>{st}</option>
                         ))}
                     </select>
+
+                    {/* Institute Filter */}
+                    <select
+                        value={instituteFilter}
+                        onChange={e => setInstituteFilter(e.target.value)}
+                        className="px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 outline-none focus:bg-white focus:border-indigo-500 cursor-pointer"
+                    >
+                        <option value="All">All Institutes</option>
+                        {institutes.map(inst => (
+                            <option key={inst._id || inst.name} value={inst.name}>{inst.name}</option>
+                        ))}
+                    </select>
+
+                    {/* Rows / Page Input */}
+                    <div className="flex items-center gap-1.5 bg-slate-50 px-3 py-2 border border-slate-200 rounded-xl">
+                        <span className="text-xs font-semibold text-slate-500">Rows/Page:</span>
+                        <input
+                            type="number"
+                            min="1"
+                            max="500"
+                            value={rowsPerPage}
+                            onChange={(e) => {
+                                const val = Math.max(1, parseInt(e.target.value) || 1);
+                                setRowsPerPage(val);
+                                setCurrentPage(1);
+                            }}
+                            className="w-12 bg-white border border-slate-200 rounded-lg px-1.5 py-0.5 text-xs font-bold text-slate-700 outline-none text-center"
+                        />
+                    </div>
                 </div>
             </div>
 
@@ -493,10 +552,11 @@ const AssetManagement = () => {
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                         <thead>
-                            <tr className="bg-slate-50 border-b border-slate-100 text-xs font-bold text-slate-400 uppercase tracking-wider">
+                            <tr className="bg-slate-50 border-b border-slate-100 text-xs font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap">
                                 <th className="p-4 pl-6">Code</th>
                                 <th className="p-4">Asset Details</th>
                                 <th className="p-4">Category</th>
+                                <th className="p-4">Institute</th>
                                 <th className="p-4">Purchase Date</th>
                                 <th className="p-4 text-right">Value (INR)</th>
                                 <th className="p-4">Assigned To</th>
@@ -505,40 +565,41 @@ const AssetManagement = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {filteredAssets.length === 0 ? (
+                            {currentAssets.length === 0 ? (
                                 <tr>
-                                    <td colSpan={user?.role === 'Admin' ? 9 : 8} className="p-12 text-center text-slate-400 font-semibold text-sm">
+                                    <td colSpan={9} className="p-12 text-center text-slate-400 font-semibold text-sm">
                                         No assets match your search parameters.
                                     </td>
                                 </tr>
-                            ) : filteredAssets.map((asset) => (
+                            ) : currentAssets.map((asset) => (
                                 <tr key={asset.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-all">
-                                    <td className="p-4 pl-6 text-sm font-bold text-indigo-600">{asset.id}</td>
-                                    <td className="p-4">
+                                    <td className="p-4 pl-6 text-sm font-bold text-indigo-600 whitespace-nowrap">{asset.id}</td>
+                                    <td className="p-4 min-w-[220px]">
                                         <div className="flex flex-col">
                                             <span className="text-sm font-extrabold text-slate-800">{asset.name}</span>
-                                            <span className="text-xs text-slate-400 font-medium mt-0.5">S/N: {asset.serialNumber}</span>
+                                            <span className="text-xs text-slate-400 font-medium mt-0.5 whitespace-nowrap">S/N: {asset.serialNumber}</span>
                                         </div>
                                     </td>
-                                    <td className="p-4 text-xs font-bold text-slate-500">
-                                        <span className="px-2.5 py-1 bg-slate-100 rounded-lg">{asset.category}</span>
+                                    <td className="p-4 text-xs font-bold text-slate-500 whitespace-nowrap">
+                                        <span className="px-2.5 py-1 bg-slate-100 rounded-lg whitespace-nowrap">{asset.category}</span>
                                     </td>
-                                    <td className="p-4 text-sm font-semibold text-slate-600">
+                                    <td className="p-4 text-xs font-bold text-slate-600 whitespace-nowrap">
+                                        {asset.instituteName || asset.institute?.name || 'HARTRON GANAUR'}
+                                    </td>
+                                    <td className="p-4 text-sm font-semibold text-slate-600 whitespace-nowrap">
                                         📅 {new Date(asset.purchaseDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                                     </td>
-                                    <td className="p-4 text-sm font-bold text-slate-800 text-right">{formatCurrency(asset.purchaseCost)}</td>
-                                    <td className="p-4 text-sm font-semibold text-slate-700">{asset.assignedTo || 'Unassigned'}</td>
-                                    <td className="p-4">
-                                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${
-                                            asset.status === 'Active' ? 'bg-emerald-50 text-emerald-700' :
+                                    <td className="p-4 text-sm font-bold text-slate-800 text-right whitespace-nowrap">{formatCurrency(asset.purchaseCost)}</td>
+                                    <td className="p-4 text-sm font-semibold text-slate-700 whitespace-nowrap">{asset.assignedTo || 'Unassigned'}</td>
+                                    <td className="p-4 whitespace-nowrap">
+                                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold whitespace-nowrap ${asset.status === 'Active' ? 'bg-emerald-50 text-emerald-700' :
                                             asset.status === 'Under Maintenance' ? 'bg-amber-50 text-amber-700' :
-                                            asset.status === 'Stock' ? 'bg-indigo-50 text-indigo-700' : 'bg-rose-50 text-rose-700'
-                                        }`}>
-                                            <span className={`w-1.5 h-1.5 rounded-full ${
-                                                asset.status === 'Active' ? 'bg-emerald-500' :
+                                                asset.status === 'Stock' ? 'bg-indigo-50 text-indigo-700' : 'bg-rose-50 text-rose-700'
+                                            }`}>
+                                            <span className={`w-1.5 h-1.5 rounded-full ${asset.status === 'Active' ? 'bg-emerald-500' :
                                                 asset.status === 'Under Maintenance' ? 'bg-amber-500' :
-                                                asset.status === 'Stock' ? 'bg-indigo-500' : 'bg-rose-500'
-                                            }`} />
+                                                    asset.status === 'Stock' ? 'bg-indigo-500' : 'bg-rose-500'
+                                                }`} />
                                             {asset.status}
                                         </span>
                                     </td>
@@ -552,7 +613,7 @@ const AssetManagement = () => {
                                             >
                                                 <Wrench size={15} />
                                             </button>
-                                            
+
                                             {/* Edit */}
                                             <button
                                                 onClick={() => openEditModal(asset)}
@@ -577,12 +638,77 @@ const AssetManagement = () => {
                         </tbody>
                     </table>
                 </div>
+
+                {/* Pagination Bar */}
+                <div className="px-6 py-4 bg-slate-50/50 border-t border-slate-150 flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div className="text-xs font-semibold text-slate-500">
+                        Showing <span className="font-bold text-slate-800">{filteredAssets.length > 0 ? indexOfFirstAsset + 1 : 0}</span> to{' '}
+                        <span className="font-bold text-slate-800">{Math.min(indexOfLastAsset, filteredAssets.length)}</span> of{' '}
+                        <span className="font-bold text-slate-800">{filteredAssets.length}</span> assets
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                            disabled={currentPage === 1}
+                            className="px-5 py-2 rounded-full border border-slate-200/80 text-xs font-extrabold text-slate-400 bg-white hover:bg-slate-50 disabled:opacity-40 transition-all cursor-pointer shadow-sm"
+                        >
+                            Previous
+                        </button>
+
+                        {(() => {
+                            const pages = [];
+                            if (totalPages <= 7) {
+                                for (let i = 1; i <= totalPages; i++) pages.push(i);
+                            } else {
+                                if (currentPage <= 4) {
+                                    pages.push(1, 2, 3, 4, 5, '...', totalPages);
+                                } else if (currentPage >= totalPages - 3) {
+                                    pages.push(1, '...', totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages);
+                                } else {
+                                    pages.push(1, '...', currentPage - 1, currentPage, currentPage + 1, '...', totalPages);
+                                }
+                            }
+
+                            return pages.map((page, index) => {
+                                if (page === '...') {
+                                    return (
+                                        <span key={`dots-${index}`} className="px-1 text-slate-400 font-black text-xs">
+                                            ...
+                                        </span>
+                                    );
+                                }
+                                return (
+                                    <button
+                                        key={page}
+                                        onClick={() => setCurrentPage(page)}
+                                        className={`w-9 h-9 rounded-full text-xs font-black transition-all cursor-pointer flex items-center justify-center ${
+                                            currentPage === page
+                                                ? 'bg-[#0B132B] text-white shadow-md'
+                                                : 'bg-white text-slate-700 border border-slate-200/80 hover:bg-slate-50'
+                                        }`}
+                                    >
+                                        {page}
+                                    </button>
+                                );
+                            });
+                        })()}
+
+                        <button
+                            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                            disabled={currentPage === totalPages || totalPages === 0}
+                            className="px-5 py-2 rounded-full border border-slate-200/80 text-xs font-extrabold text-slate-800 bg-white hover:bg-slate-50 disabled:opacity-40 transition-all cursor-pointer shadow-sm"
+                        >
+                            Next
+                        </button>
+                    </div>
+                </div>
             </div>
 
             {/* Modal: Add Asset */}
-            {isAddModalOpen && (
+            {isAddModalOpen && createPortal(
                 <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-3xl p-6 md:p-8 w-full max-w-xl shadow-2xl border border-slate-100">
+                    <div className="bg-[#f5f5f5] rounded-3xl p-6 md:p-8 w-full max-w-xl shadow-2xl border border-slate-200">
                         <div className="flex items-center justify-between mb-6">
                             <h3 className="text-xl font-black text-slate-800">Add New Inventory Asset</h3>
                             <button onClick={() => setIsAddModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-xl text-slate-400 hover:text-slate-700 transition-all cursor-pointer">
@@ -679,6 +805,23 @@ const AssetManagement = () => {
                             </div>
 
                             <div>
+                                <label className="block text-xs font-extrabold text-slate-600 uppercase tracking-wider mb-1.5">Institute *</label>
+                                <select
+                                    value={form.instituteName}
+                                    onChange={e => setForm({ ...form, instituteName: e.target.value })}
+                                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 outline-none focus:border-indigo-500 cursor-pointer bg-white"
+                                >
+                                    {institutes.length > 0 ? (
+                                        institutes.map(inst => (
+                                            <option key={inst._id || inst.name} value={inst.name}>{inst.name}</option>
+                                        ))
+                                    ) : (
+                                        <option value="HARTRON GANAUR">HARTRON GANAUR</option>
+                                    )}
+                                </select>
+                            </div>
+
+                            <div>
                                 <label className="block text-xs font-extrabold text-slate-600 uppercase tracking-wider mb-1.5">Notes / Description</label>
                                 <textarea
                                     rows={2}
@@ -706,13 +849,14 @@ const AssetManagement = () => {
                             </div>
                         </form>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
 
             {/* Modal: Edit Asset */}
-            {isEditModalOpen && (
+            {isEditModalOpen && createPortal(
                 <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-3xl p-6 md:p-8 w-full max-w-xl shadow-2xl border border-slate-100">
+                    <div className="bg-[#f5f5f5] rounded-3xl p-6 md:p-8 w-full max-w-xl shadow-2xl border border-slate-200">
                         <div className="flex items-center justify-between mb-6">
                             <h3 className="text-xl font-black text-slate-800">Edit Asset Details ({selectedAsset?.id})</h3>
                             <button onClick={() => setIsEditModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-xl text-slate-400 hover:text-slate-700 transition-all cursor-pointer">
@@ -805,6 +949,23 @@ const AssetManagement = () => {
                             </div>
 
                             <div>
+                                <label className="block text-xs font-extrabold text-slate-600 uppercase tracking-wider mb-1.5">Institute *</label>
+                                <select
+                                    value={form.instituteName}
+                                    onChange={e => setForm({ ...form, instituteName: e.target.value })}
+                                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 outline-none focus:border-indigo-500 cursor-pointer bg-white"
+                                >
+                                    {institutes.length > 0 ? (
+                                        institutes.map(inst => (
+                                            <option key={inst._id || inst.name} value={inst.name}>{inst.name}</option>
+                                        ))
+                                    ) : (
+                                        <option value="HARTRON GANAUR">HARTRON GANAUR</option>
+                                    )}
+                                </select>
+                            </div>
+
+                            <div>
                                 <label className="block text-xs font-extrabold text-slate-600 uppercase tracking-wider mb-1.5">Notes / Description</label>
                                 <textarea
                                     rows={2}
@@ -831,13 +992,14 @@ const AssetManagement = () => {
                             </div>
                         </form>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
 
             {/* Modal: Maintenance Logs & Tracker */}
-            {isMaintenanceModalOpen && (
+            {isMaintenanceModalOpen && createPortal(
                 <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-3xl p-6 md:p-8 w-full max-w-2xl shadow-2xl border border-slate-100 max-h-[85vh] overflow-y-auto">
+                    <div className="bg-[#f5f5f5] rounded-3xl p-6 md:p-8 w-full max-w-2xl shadow-2xl border border-slate-200 max-h-[85vh] overflow-y-auto">
                         <div className="flex items-center justify-between mb-6">
                             <div>
                                 <h3 className="text-xl font-black text-slate-800">Maintenance Desk</h3>
@@ -870,9 +1032,8 @@ const AssetManagement = () => {
                                                 <button
                                                     type="button"
                                                     onClick={() => toggleMaintenanceStatus(selectedAsset.id, index)}
-                                                    className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer transition-all ${
-                                                        log.status === 'Completed' ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100' : 'bg-amber-50 text-amber-700 hover:bg-amber-100'
-                                                    }`}
+                                                    className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer transition-all ${log.status === 'Completed' ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100' : 'bg-amber-50 text-amber-700 hover:bg-amber-100'
+                                                        }`}
                                                 >
                                                     {log.status === 'Completed' ? <Check size={12} /> : <Wrench size={12} />}
                                                     {log.status}
@@ -887,7 +1048,7 @@ const AssetManagement = () => {
                         {/* Form: Add New Maintenance Log */}
                         <form onSubmit={handleAddMaintenance} className="bg-slate-50 p-5 rounded-2xl border border-slate-100 space-y-4">
                             <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Record New Maintenance / Repair</h4>
-                            
+
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Date</label>
@@ -957,7 +1118,8 @@ const AssetManagement = () => {
                             </div>
                         </form>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
         </DashboardLayout>
     );

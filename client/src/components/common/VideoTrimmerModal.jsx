@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Play, Square, Check, Trash, Scissors, Maximize, Crop, RefreshCw, AlertCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -547,9 +548,11 @@ const VideoTrimmerModal = ({ isOpen, onClose, draft, title, setTitle, onSave }) 
         return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${ms.toString().padStart(2, '0')}`;
     };
 
-    return (
+    if (!isOpen) return null;
+
+    return createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 text-left font-sans">
-            <div className="bg-white rounded-3xl max-w-2xl w-full border border-slate-100 shadow-2xl overflow-hidden flex flex-col max-h-[95vh] animate-scale-up">
+            <div className="bg-[#f5f5f5] rounded-3xl max-w-2xl w-full border border-slate-100 shadow-2xl overflow-hidden flex flex-col max-h-[95vh] animate-scale-up">
                 {/* Header */}
                 <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50 shrink-0">
                     <h3 className="font-extrabold text-slate-800 text-sm uppercase tracking-wider flex items-center gap-2">
@@ -827,7 +830,8 @@ const VideoTrimmerModal = ({ isOpen, onClose, draft, title, setTitle, onSave }) 
                     </button>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };
 

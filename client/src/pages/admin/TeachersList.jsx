@@ -584,31 +584,7 @@ const TeachersList = () => {
                 </div>
             </div>
 
-            {/* Tabs Navigation — scrollable on mobile */}
-            <div className="overflow-x-auto -mx-1 px-1 mb-6">
-                <div className="flex border-b border-slate-200 gap-1 min-w-max">
-                    <button
-                        onClick={() => setActiveTab('directory')}
-                        className={`pb-3 px-3 sm:px-4 font-bold text-xs sm:text-sm transition-all border-b-2 flex items-center gap-1.5 sm:gap-2 cursor-pointer whitespace-nowrap ${
-                            activeTab === 'directory' 
-                                ? 'border-indigo-650 text-indigo-650' 
-                                : 'border-transparent text-slate-400 hover:text-slate-600'
-                        }`}
-                    >
-                        <UserCheck size={15} /> Teacher Directory
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('attendance')}
-                        className={`pb-3 px-3 sm:px-4 font-bold text-xs sm:text-sm transition-all border-b-2 flex items-center gap-1.5 sm:gap-2 cursor-pointer whitespace-nowrap ${
-                            activeTab === 'attendance' 
-                                ? 'border-indigo-650 text-indigo-650' 
-                                : 'border-transparent text-slate-400 hover:text-slate-600'
-                        }`}
-                    >
-                        <Calendar size={15} /> Daily Attendance Log
-                    </button>
-                </div>
-            </div>
+
 
             {activeTab === 'directory' && (
                 <>
@@ -951,7 +927,7 @@ const TeachersList = () => {
                 </>
             )}
 
-            {activeTab === 'attendance' && (
+            {false && (
                 <div className="space-y-6 animate-fade-in">
                     {/* Attendance Filter Row */}
                     <div className="bg-white p-3 rounded-2xl shadow-sm border border-slate-100 flex flex-row items-center gap-3 flex-wrap md:flex-nowrap w-full">

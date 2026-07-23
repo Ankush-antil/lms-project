@@ -41,7 +41,7 @@ const computeSection = async (courseId) => {
 // @route   GET /api/users
 // @access  Private/Admin
 const getUsers = asyncHandler(async (req, res) => {
-    const { role, course, institute } = req.query;
+    const { role, course, section, institute } = req.query;
     const query = { isDeleted: { $ne: true }, role: { $ne: 'Admin' } };
     if (role) {
         const roles = role.split(',').map(r => r.trim()).filter(Boolean);
@@ -58,6 +58,7 @@ const getUsers = asyncHandler(async (req, res) => {
         }
     }
     if (institute) query.institute = institute;
+    if (section) query['studentProfile.section'] = section;
     if (course) {
         if (role === 'Student') {
             query.$and = [
@@ -72,6 +73,13 @@ const getUsers = asyncHandler(async (req, res) => {
             query['teacherProfile.assignedCourses'] = course;
         } else if (role === 'Editor') {
             query['editorProfile.assignedCourses'] = course;
+        } else {
+            query.$or = [
+                { 'studentProfile.course': course },
+                { 'studentProfile.coursesList.course': course },
+                { 'teacherProfile.assignedCourses': course },
+                { 'editorProfile.assignedCourses': course }
+            ];
         }
     }
 
@@ -2209,6 +2217,25 @@ const importUsers = asyncHandler(async (req, res) => {
     });
 });
 
+// @desc    Bulk update isActive status for multiple users
+// @route   PUT /api/users/bulk-status
+// @access  Admin, Institute (own users only)
+const bulkUpdateStatus = asyncHandler(async (req, res) => {
+    const { userIds, isActive } = req.body;
+    if (!Array.isArray(userIds) || userIds.length === 0) {
+        return res.status(400).json({ message: 'No user IDs provided' });
+    }
+
+    const query = { _id: { $in: userIds } };
+    // Institute can only update their own users
+    if (req.user.role === 'Institute') {
+        query.institute = req.user.institute;
+    }
+
+    await User.updateMany(query, { isActive: Boolean(isActive) });
+    res.json({ message: `${userIds.length} user(s) updated successfully` });
+});
+
 module.exports = {
     getUsers,
     createUser,
@@ -2236,5 +2263,6 @@ module.exports = {
     deleteRoleRequest,
     getDeletedRoleRequests,
     restoreRoleRequest,
-    permanentlyDeleteRoleRequest
+    permanentlyDeleteRoleRequest,
+    bulkUpdateStatus
 };

@@ -32,6 +32,8 @@ const TestBuilder = lazy(() => import('./pages/admin/TestBuilder'));
 const EditorDashboard = lazy(() => import('./pages/editor/EditorDashboard'));
 const ToolsPage = lazy(() => import('./pages/admin/ToolsPage'));
 const ToolsAnalyticsPage = lazy(() => import('./pages/admin/ToolsAnalyticsPage'));
+const FormTemplatesPage = lazy(() => import('./pages/admin/FormTemplatesPage'));
+const DbTemplatesPage = lazy(() => import('./pages/admin/DbTemplatesPage'));
 const AdminAnnouncements = lazy(() => import('./pages/admin/AdminAnnouncements'));
 const InstitutesList = lazy(() => import('./pages/admin/InstitutesList'));
 const CoursesList = lazy(() => import('./pages/admin/CoursesList'));
@@ -78,6 +80,7 @@ const StaffList = lazy(() => import('./pages/admin/StaffList'));
 const AdminStaffAttendance = lazy(() => import('./pages/admin/AdminStaffAttendance'));
 const AdminStaffSalary = lazy(() => import('./pages/admin/AdminStaffSalary'));
 const AdminStaffTask = lazy(() => import('./pages/admin/AdminStaffTask'));
+const PortalShutDownPage = lazy(() => import('./pages/admin/PortalShutDownPage'));
 const InstituteStaff = lazy(() => import('./pages/institute/InstituteStaff'));
 const StaffTaskDetailPage = lazy(() => import('./pages/institute/StaffTaskDetailPage'));
 import PrivacyPolicy from './pages/PrivacyPolicy';
@@ -300,6 +303,21 @@ function App() {
                                                 <InstituteDashboard />
                                             </PrivateRoute>
                                         } />
+                                         <Route path="/institute/chat" element={
+                                             <PrivateRoute role="Institute">
+                                                 <ChatPage />
+                                             </PrivateRoute>
+                                         } />
+                                         <Route path="/institute/form-templates" element={
+                                             <PrivateRoute role="Institute">
+                                                 <FormTemplatesPage />
+                                             </PrivateRoute>
+                                         } />
+                                         <Route path="/institute/db-templates" element={
+                                             <PrivateRoute role="Institute">
+                                                 <DbTemplatesPage />
+                                             </PrivateRoute>
+                                         } />
                                          <Route path="/institute/students" element={
                                              <PrivateRoute role="Institute">
                                                  <StudentsList />
@@ -482,6 +500,16 @@ function App() {
                                             </PrivateRoute>
                                         } />
 
+                                        <Route path="/admin/shutdown" element={
+                                            <PrivateRoute role="Admin">
+                                                <PortalShutDownPage />
+                                            </PrivateRoute>
+                                        } />
+                                        <Route path="/institute/shutdown" element={
+                                            <PrivateRoute role="Institute">
+                                                <PortalShutDownPage />
+                                            </PrivateRoute>
+                                        } />
                                         <Route path="/admin/courses" element={
                                             <PrivateRoute role="Admin">
                                                 <CoursesList />
@@ -538,6 +566,16 @@ function App() {
                                             </PrivateRoute>
                                         } />
 
+                                        <Route path="/admin/form-templates" element={
+                                            <PrivateRoute role="Admin">
+                                                <FormTemplatesPage />
+                                            </PrivateRoute>
+                                        } />
+                                        <Route path="/admin/db-templates" element={
+                                            <PrivateRoute role="Admin">
+                                                <DbTemplatesPage />
+                                            </PrivateRoute>
+                                        } />
 
                                         <Route path="/admin/activities-builder" element={
                                             <PrivateRoute role={['Admin', 'Editor']}>
@@ -580,26 +618,56 @@ function App() {
                                                  <ToolsAnalyticsPage />
                                              </PrivateRoute>
                                          } />
-                                         <Route path="/admin/announcements" element={
-                                             <PrivateRoute role={['Admin', 'Staff', 'Editor', 'Institute', 'Teacher', 'Student']}>
-                                                 <AdminAnnouncements />
-                                             </PrivateRoute>
-                                         } />
-                                         <Route path="/institute/announcements" element={
-                                             <PrivateRoute role={['Admin', 'Staff', 'Editor', 'Institute', 'Teacher', 'Student']}>
-                                                 <AdminAnnouncements />
-                                             </PrivateRoute>
-                                         } />
-                                         <Route path="/teacher/announcements" element={
-                                             <PrivateRoute role={['Admin', 'Staff', 'Editor', 'Institute', 'Teacher', 'Student']}>
-                                                 <AdminAnnouncements />
-                                             </PrivateRoute>
-                                         } />
-                                         <Route path="/student/announcements" element={
-                                             <PrivateRoute role={['Admin', 'Staff', 'Editor', 'Institute', 'Teacher', 'Student']}>
-                                                 <AdminAnnouncements />
-                                             </PrivateRoute>
-                                         } />
+                                          <Route path="/admin/announcements" element={
+                                              <PrivateRoute role={['Admin', 'Staff', 'Editor', 'Institute', 'Teacher', 'Student', 'Parent', 'Accountant', 'Marketer', 'limited', 'guest']}>
+                                                  <AdminAnnouncements />
+                                              </PrivateRoute>
+                                          } />
+                                          <Route path="/institute/announcements" element={
+                                              <PrivateRoute role={['Admin', 'Staff', 'Editor', 'Institute', 'Teacher', 'Student', 'Parent', 'Accountant', 'Marketer', 'limited', 'guest']}>
+                                                  <AdminAnnouncements />
+                                              </PrivateRoute>
+                                          } />
+                                          <Route path="/teacher/announcements" element={
+                                              <PrivateRoute role={['Admin', 'Staff', 'Editor', 'Institute', 'Teacher', 'Student', 'Parent', 'Accountant', 'Marketer', 'limited', 'guest']}>
+                                                  <AdminAnnouncements />
+                                              </PrivateRoute>
+                                          } />
+                                          <Route path="/student/announcements" element={
+                                              <PrivateRoute role={['Admin', 'Staff', 'Editor', 'Institute', 'Teacher', 'Student', 'Parent', 'Accountant', 'Marketer', 'limited', 'guest']}>
+                                                  <AdminAnnouncements />
+                                              </PrivateRoute>
+                                          } />
+                                          <Route path="/parent/announcements" element={
+                                              <PrivateRoute role={['Admin', 'Staff', 'Editor', 'Institute', 'Teacher', 'Student', 'Parent', 'Accountant', 'Marketer', 'limited', 'guest']}>
+                                                  <AdminAnnouncements />
+                                              </PrivateRoute>
+                                          } />
+                                          <Route path="/editor/announcements" element={
+                                              <PrivateRoute role={['Admin', 'Staff', 'Editor', 'Institute', 'Teacher', 'Student', 'Parent', 'Accountant', 'Marketer', 'limited', 'guest']}>
+                                                  <AdminAnnouncements />
+                                              </PrivateRoute>
+                                          } />
+                                          <Route path="/accountant/announcements" element={
+                                              <PrivateRoute role={['Admin', 'Staff', 'Editor', 'Institute', 'Teacher', 'Student', 'Parent', 'Accountant', 'Marketer', 'limited', 'guest']}>
+                                                  <AdminAnnouncements />
+                                              </PrivateRoute>
+                                          } />
+                                          <Route path="/marketer/announcements" element={
+                                              <PrivateRoute role={['Admin', 'Staff', 'Editor', 'Institute', 'Teacher', 'Student', 'Parent', 'Accountant', 'Marketer', 'limited', 'guest']}>
+                                                  <AdminAnnouncements />
+                                              </PrivateRoute>
+                                          } />
+                                          <Route path="/limited/announcements" element={
+                                              <PrivateRoute role={['Admin', 'Staff', 'Editor', 'Institute', 'Teacher', 'Student', 'Parent', 'Accountant', 'Marketer', 'limited', 'guest']}>
+                                                  <AdminAnnouncements />
+                                              </PrivateRoute>
+                                          } />
+                                          <Route path="/guest/announcements" element={
+                                              <PrivateRoute role={['Admin', 'Staff', 'Editor', 'Institute', 'Teacher', 'Student', 'Parent', 'Accountant', 'Marketer', 'limited', 'guest']}>
+                                                  <AdminAnnouncements />
+                                              </PrivateRoute>
+                                          } />
                                          <Route path="/admin/staff/task" element={
                                              <PrivateRoute role={['Admin', 'Staff']}>
                                                  <AdminStaffTask />

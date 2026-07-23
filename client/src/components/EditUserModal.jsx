@@ -1287,7 +1287,7 @@ const handleSubmit = async (e) => {
                     <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center gap-3">
                             <h3 className="text-xl font-medium font-black text-white tracking-tight">
-                                Edit {selectedRoleToEdit}: {user.name}
+                                Edit {selectedRoleToEdit === 'Guest' ? 'Limited User' : selectedRoleToEdit}: {user.name}
                             </h3>
                             {user.allowedRoles && user.allowedRoles.length > 1 && (
                                 <button
@@ -1306,7 +1306,7 @@ const handleSubmit = async (e) => {
                             <X size={18} />
                         </button>
                     </div>
-                    {['Student', 'Teacher', 'Editor', 'Accountant', 'Marketer', 'Staff', 'Parent'].includes(selectedRoleToEdit) && (
+                    {['Student', 'Teacher', 'Editor', 'Accountant', 'Marketer', 'Parent'].includes(selectedRoleToEdit) && (
                         <div className="flex gap-1">
                             <button
                                 type="button"
@@ -1807,7 +1807,7 @@ const handleSubmit = async (e) => {
                                     <div>
                                         <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-3 block">Assign Other Role</label>
                                         <div className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-4 py-3 flex flex-wrap gap-x-5 gap-y-2.5">
-                                            {['Student', 'Teacher', 'Editor', 'Accountant', 'Marketer', 'Staff', 'Parent'].map(r => {
+                                            {['Student', 'Teacher', 'Editor', 'Accountant', 'Marketer', 'Parent'].map(r => {
                                                 const isPrimary = r === selectedRoleToEdit;
                                                 const isChecked = (formData.allowedRoles || [selectedRoleToEdit]).includes(r);
                                                 return (

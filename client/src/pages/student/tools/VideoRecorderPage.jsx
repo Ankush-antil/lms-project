@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { MonitorPlay, Camera, Mic, Clock, Settings, Cloud, Folder, RefreshCw, Database, Download, Trash, AlertTriangle, ArrowLeft, Play, Square, Share2, CheckCircle, X, Save, Pencil, Eye } from 'lucide-react';
 import DashboardLayout from '../../../components/layout/DashboardLayout';
@@ -1168,9 +1169,9 @@ const VideoRecorderPage = () => {
             />
 
             {/* Cloud Gallery Center Modal */}
-            {cloudGalleryModalOpen && (
+            {cloudGalleryModalOpen && createPortal(
                 <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 text-left font-sans">
-                    <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 w-full max-w-2xl overflow-hidden relative flex flex-col max-h-[85vh]">
+                    <div className="bg-[#f5f5f5] rounded-3xl shadow-2xl border border-slate-100 w-full max-w-2xl overflow-hidden relative flex flex-col max-h-[85vh]">
                         {/* Header */}
                         <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100 bg-slate-50/50 shrink-0">
                             <div className="flex items-center gap-3">
@@ -1270,13 +1271,14 @@ const VideoRecorderPage = () => {
                             </button>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
 
             {/* Center Share Modal */}
-            {shareModalItem && (
+            {shareModalItem && createPortal(
                 <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 font-sans">
-                    <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 w-full max-w-md overflow-hidden flex flex-col">
+                    <div className="bg-[#f5f5f5] rounded-3xl shadow-2xl border border-slate-100 w-full max-w-md overflow-hidden flex flex-col">
                         {/* Header */}
                         <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100 bg-slate-50/60 shrink-0">
                             <div className="flex items-center gap-3">
@@ -1438,13 +1440,14 @@ const VideoRecorderPage = () => {
                             </button>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
 
             {/* Preview Modal */}
-            {previewDraft && (
+            {previewDraft && createPortal(
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-                    <div className="bg-white rounded-3xl max-w-3xl w-full border border-slate-100 shadow-2xl overflow-hidden animate-fade-in">
+                    <div className="bg-[#f5f5f5] rounded-3xl max-w-3xl w-full border border-slate-100 shadow-2xl overflow-hidden animate-fade-in">
                         {/* Modal Header */}
                         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50">
                             <h3 className="font-extrabold text-slate-800 text-sm uppercase tracking-wider">
@@ -1486,7 +1489,8 @@ const VideoRecorderPage = () => {
                             </button>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
 
             {/* Edit/Trim Modal */}

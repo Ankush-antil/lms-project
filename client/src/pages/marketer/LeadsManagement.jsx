@@ -18,9 +18,31 @@ const LeadsManagement = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [stageFilter, setStageFilter] = useState('All');
     const [sourceFilter, setSourceFilter] = useState('All');
+    const [instituteFilter, setInstituteFilter] = useState('All');
+    const [institutes, setInstitutes] = useState([]);
     const [viewMode, setViewMode] = useState('list'); // 'list' | 'kanban'
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [selectedLead, setSelectedLead] = useState(null);
+
+    // Pagination State
+    const [currentPage, setCurrentPage] = useState(1);
+    const [rowsPerPage, setRowsPerPage] = useState(10);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchTerm, stageFilter, sourceFilter, instituteFilter]);
+
+    useEffect(() => {
+        const fetchInsts = async () => {
+            try {
+                const res = await axios.get('/api/setup/institutes');
+                setInstitutes(Array.isArray(res.data) ? res.data : []);
+            } catch (err) {
+                console.error("Error fetching institutes:", err);
+            }
+        };
+        fetchInsts();
+    }, []);
     
     // New Lead Form State
     const [newLeadForm, setNewLeadForm] = useState({
@@ -210,7 +232,9 @@ const LeadsManagement = () => {
             (l.course?.name || '').toLowerCase().includes(searchTerm.toLowerCase());
         const matchesStage = stageFilter === 'All' || l.stage === stageFilter;
         const matchesSource = sourceFilter === 'All' || l.source === sourceFilter;
-        return matchesSearch && matchesStage && matchesSource;
+        const leadInst = l.instituteName || l.institute?.name || 'HARTRON GANAUR';
+        const matchesInstitute = instituteFilter === 'All' || leadInst === instituteFilter;
+        return matchesSearch && matchesStage && matchesSource && matchesInstitute;
     });
 
     // Stats calculations
@@ -218,6 +242,12 @@ const LeadsManagement = () => {
     const enrolledCount = filteredLeads.filter(l => l.stage === 'Enrolled').length;
     const conversionRate = totalCount > 0 ? ((enrolledCount / totalCount) * 100).toFixed(1) : '0';
     const activeCount = filteredLeads.filter(l => l.stage !== 'Enrolled' && l.stage !== 'Lost').length;
+
+    // Pagination calculations
+    const totalPages = Math.ceil(filteredLeads.length / rowsPerPage) || 1;
+    const indexOfLastLead = currentPage * rowsPerPage;
+    const indexOfFirstLead = indexOfLastLead - rowsPerPage;
+    const currentLeads = filteredLeads.slice(indexOfFirstLead, indexOfLastLead);
 
     const getStageBadgeClass = (stage) => {
         switch (stage) {
@@ -338,6 +368,36 @@ const LeadsManagement = () => {
                                 {leadSources.map(s => <option key={s} value={s}>{s}</option>)}
                             </select>
                         </div>
+
+                        <div className="flex items-center gap-1.5 bg-slate-50 px-3.5 py-2.5 rounded-2xl border border-slate-150">
+                            <span className="text-[10px] font-bold text-slate-450 uppercase tracking-wide">Institute:</span>
+                            <select
+                                value={instituteFilter}
+                                onChange={(e) => setInstituteFilter(e.target.value)}
+                                className="bg-transparent text-xs font-bold text-slate-700 outline-none cursor-pointer"
+                            >
+                                <option value="All">All Institutes</option>
+                                {institutes.map(inst => (
+                                    <option key={inst._id || inst.name} value={inst.name}>{inst.name}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 bg-slate-50 px-3.5 py-2.5 rounded-2xl border border-slate-150">
+                            <span className="text-[10px] font-bold text-slate-450 uppercase tracking-wide">Rows / Page:</span>
+                            <input
+                                type="number"
+                                min="1"
+                                max="500"
+                                value={rowsPerPage}
+                                onChange={(e) => {
+                                    const val = Math.max(1, parseInt(e.target.value) || 1);
+                                    setRowsPerPage(val);
+                                    setCurrentPage(1);
+                                }}
+                                className="w-14 bg-white border border-slate-200 rounded-lg px-2 py-0.5 text-xs font-bold text-slate-700 outline-none text-center"
+                            />
+                        </div>
                     </div>
                 </div>
             </div>
@@ -349,16 +409,23 @@ const LeadsManagement = () => {
                     <div className="responsive-table-wrapper">
                         <table className="min-w-full text-left border-collapse">
                             <thead>
-                                <tr className="bg-slate-50 border-b border-slate-150 text-slate-500 text-[10px] font-black uppercase tracking-wider">
+                                <tr className="bg-slate-50 border-b border-slate-150 text-slate-500 text-[10px] font-black uppercase tracking-wider whitespace-nowrap">
                                     <th className="p-4 font-semibold">Lead Details</th>
                                     <th className="p-4 font-semibold">Course & Source</th>
+                                    <th className="p-4 font-semibold">Institute</th>
                                     <th className="p-4 font-semibold">Created Date</th>
                                     <th className="p-4 font-semibold">Pipeline Stage</th>
                                     <th className="p-4 font-semibold text-right">Actions</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100 text-slate-700 text-xs font-semibold">
-                                {filteredLeads.map(lead => (
+                                {currentLeads.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={6} className="p-12 text-center text-slate-400 font-semibold text-sm">
+                                            No leads found matching your criteria.
+                                        </td>
+                                    </tr>
+                                ) : currentLeads.map(lead => (
                                     <tr key={lead._id} className="hover:bg-slate-50 transition-colors group">
                                         <td className="p-4">
                                             <div className="flex flex-col">
@@ -375,6 +442,9 @@ const LeadsManagement = () => {
                                                 <span className="text-[10px] font-bold text-indigo-500 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded-full w-fit mt-1">{lead.source}</span>
                                             </div>
                                         </td>
+                                        <td className="p-4 whitespace-nowrap text-slate-600 font-bold">
+                                            {lead.instituteName || lead.institute?.name || 'HARTRON GANAUR'}
+                                        </td>
                                         <td className="p-4 whitespace-nowrap text-slate-500 font-medium">
                                             {new Date(lead.createdAt).toLocaleDateString(undefined, {
                                                 year: 'numeric',
@@ -389,13 +459,6 @@ const LeadsManagement = () => {
                                         </td>
                                         <td className="p-4 text-right whitespace-nowrap">
                                             <div className="flex justify-end gap-1.5">
-                                                <select
-                                                    value={lead.stage}
-                                                    onChange={(e) => handleUpdateStage(lead._id, e.target.value)}
-                                                    className="bg-slate-50 border border-slate-200 text-[10px] font-bold text-slate-700 rounded-lg p-1.5 outline-none cursor-pointer"
-                                                >
-                                                    {leadStages.map(s => <option key={s} value={s}>{s}</option>)}
-                                                </select>
                                                 <button
                                                     onClick={() => setSelectedLead(lead)}
                                                     className="p-1.5 bg-indigo-50 border border-indigo-100 text-indigo-650 hover:bg-indigo-100 hover:text-indigo-750 rounded-lg transition-all cursor-pointer"
@@ -416,6 +479,71 @@ const LeadsManagement = () => {
                                 ))}
                             </tbody>
                         </table>
+                    </div>
+
+                    {/* Pagination Bar */}
+                    <div className="px-6 py-4 bg-slate-50/50 border-t border-slate-150 flex flex-col sm:flex-row items-center justify-between gap-4">
+                        <div className="text-xs font-semibold text-slate-500">
+                            Showing <span className="font-bold text-slate-800">{filteredLeads.length > 0 ? indexOfFirstLead + 1 : 0}</span> to{' '}
+                            <span className="font-bold text-slate-800">{Math.min(indexOfLastLead, filteredLeads.length)}</span> of{' '}
+                            <span className="font-bold text-slate-800">{filteredLeads.length}</span> leads
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                                disabled={currentPage === 1}
+                                className="px-5 py-2 rounded-full border border-slate-200/80 text-xs font-extrabold text-slate-400 bg-white hover:bg-slate-50 disabled:opacity-40 transition-all cursor-pointer shadow-sm"
+                            >
+                                Previous
+                            </button>
+
+                            {(() => {
+                                const pages = [];
+                                if (totalPages <= 7) {
+                                    for (let i = 1; i <= totalPages; i++) pages.push(i);
+                                } else {
+                                    if (currentPage <= 4) {
+                                        pages.push(1, 2, 3, 4, 5, '...', totalPages);
+                                    } else if (currentPage >= totalPages - 3) {
+                                        pages.push(1, '...', totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages);
+                                    } else {
+                                        pages.push(1, '...', currentPage - 1, currentPage, currentPage + 1, '...', totalPages);
+                                    }
+                                }
+
+                                return pages.map((page, index) => {
+                                    if (page === '...') {
+                                        return (
+                                            <span key={`dots-${index}`} className="px-1 text-slate-400 font-black text-xs">
+                                                ...
+                                            </span>
+                                        );
+                                    }
+                                    return (
+                                        <button
+                                            key={page}
+                                            onClick={() => setCurrentPage(page)}
+                                            className={`w-9 h-9 rounded-full text-xs font-black transition-all cursor-pointer flex items-center justify-center ${
+                                                currentPage === page
+                                                    ? 'bg-[#0B132B] text-white shadow-md'
+                                                    : 'bg-white text-slate-700 border border-slate-200/80 hover:bg-slate-50'
+                                            }`}
+                                        >
+                                            {page}
+                                        </button>
+                                    );
+                                });
+                            })()}
+
+                            <button
+                                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                                disabled={currentPage === totalPages || totalPages === 0}
+                                className="px-5 py-2 rounded-full border border-slate-200/80 text-xs font-extrabold text-slate-800 bg-white hover:bg-slate-50 disabled:opacity-40 transition-all cursor-pointer shadow-sm"
+                            >
+                                Next
+                            </button>
+                        </div>
                     </div>
                 </div>
             ) : (

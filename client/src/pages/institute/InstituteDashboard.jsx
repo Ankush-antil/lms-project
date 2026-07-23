@@ -148,7 +148,7 @@ const InstituteDashboard = () => {
         { label: 'Accountant', modal: 'user', role: 'Accountant', icon: Calculator },
         { label: 'Marketer', modal: 'user', role: 'Marketer', icon: Megaphone },
         { label: 'Parent', modal: 'user', role: 'Parent', icon: Heart },
-        { label: 'Limited User', modal: 'limited', role: 'Limited User', icon: UserX }
+        { label: 'Guest User', modal: 'limited', role: 'Limited User', icon: UserX }
     ];
 
     useEffect(() => {
@@ -164,7 +164,7 @@ const InstituteDashboard = () => {
     const handleRoleClick = (item) => {
         setIsDropdownOpen(false);
         if (item.role === 'Limited User') {
-            toast('Limited Users are created automatically when candidates submit a public test. Share a public test link to register them.', {
+            toast('Guest Users are created automatically when candidates submit a public test. Share a public test link to register them.', {
                 icon: 'ℹ️',
                 duration: 6000
             });
@@ -585,8 +585,8 @@ const InstituteDashboard = () => {
                                 <StatCard
                                     title="Registered User" value={stats.registeredUsers || 0} icon={Users} color="bg-indigo-600 text-indigo-600"
                                 />
-                                <StatCard title="Guest User" value={stats.guestUsers || 0} icon={Users} color="bg-indigo-600 text-indigo-600" />
-                                <StatCard title="Limited User" value={stats.limitedUsers || 0} icon={Users} color="bg-indigo-600 text-indigo-600" />
+                                <StatCard title="Limited User" value={stats.guestUsers || 0} icon={Users} color="bg-indigo-600 text-indigo-600" />
+                                <StatCard title="Guest User" value={stats.limitedUsers || 0} icon={Users} color="bg-indigo-600 text-indigo-600" />
                                 <StatCard
                                     title="Student" value={stats.students || 0} icon={GraduationCap} color="bg-blue-500 text-blue-500"
                                     onClick={() => navigate('/institute/students')}

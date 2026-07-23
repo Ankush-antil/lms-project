@@ -178,23 +178,29 @@ const StudentTests = ({ navigation }) => {
 
     // Build the dynamic list of inboxes
     const inboxItems = useMemo(() => {
+        // Normalize key — match web logic exactly: 'Inbox N' and 'Index N' → 'inbox n'
+        const normalizeKey = (raw) => {
+            if (!raw) return 'no index';
+            return raw.trim().toLowerCase();
+        };
+
         const testsGrouped = {};
         tests.forEach(test => {
-            const indexStr = (test.index || 'No Index').trim().toLowerCase();
+            const indexStr = normalizeKey(test.index || 'No Index');
             if (!testsGrouped[indexStr]) testsGrouped[indexStr] = [];
             testsGrouped[indexStr].push(test);
         });
 
         const materialsGrouped = {};
         studyMaterials.forEach(mat => {
-            const indexStr = (mat.inboxId || 'No Index').trim().toLowerCase();
+            const indexStr = normalizeKey(mat.inboxId || 'No Index');
             if (!materialsGrouped[indexStr]) materialsGrouped[indexStr] = [];
             materialsGrouped[indexStr].push(mat);
         });
 
         const standardKeys = [];
         for (let i = 1; i <= courseDuration; i++) {
-            standardKeys.push(`Index ${i}`);
+            standardKeys.push(`Inbox ${i}`);  // Match web: 'Inbox N'
         }
 
         const enrollmentDate = profile?.studentProfile?.enrollmentDate || profile?.createdAt || new Date();
@@ -212,7 +218,8 @@ const StudentTests = ({ navigation }) => {
             const week = Math.ceil(idxNum / 7);
             const offsetDays = (week - 1) * 7;
             const inboxUnlockDateMs = new Date(enrollmentDate).getTime() + offsetDays * 24 * 60 * 60 * 1000;
-            const isInboxDisabledByDefault = Date.now() < inboxUnlockDateMs;
+            // Match web: lock is always false by default (same as web StudentTests.jsx line 897)
+            const isInboxDisabledByDefault = false;
 
             const isInboxDisabled = config && config.disabled !== undefined ? config.disabled : isInboxDisabledByDefault;
             const customTitle = config && config.displayName ? config.displayName : keyName;

@@ -16,9 +16,22 @@ const announcementSchema = new mongoose.Schema({
     },
     targetAudience: {
         type: String,
-        enum: ['All', 'Student', 'Teacher', 'Staff'],
+        enum: ['All', 'Student', 'Teacher', 'Staff', 'Editor', 'Accountant', 'Marketer', 'Parent', 'limited', 'guest'],
         default: 'All'
     },
+    endDate: {
+        type: Date,
+        default: null
+    },
+    studentAudienceType: {
+        type: String,
+        enum: ['All', 'Selected'],
+        default: 'All'
+    },
+    selectedStudents: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
+    }],
     createdBy: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',

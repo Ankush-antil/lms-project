@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import axios from 'axios';
+import { createPortal } from 'react-dom';
 import toast from 'react-hot-toast';
 import {
     LayoutDashboard, Users, GraduationCap, BookOpen, LogOut, FileText,
@@ -7,7 +9,8 @@ import {
     ChevronLeft, ChevronRight, ChevronDown, MessageSquare, Bell, BellRing, Settings,
     BarChart3, UserPlus, Trash2, Wallet, CreditCard, HardDrive,
     Calculator, Megaphone, Calendar, StickyNote, Briefcase, DollarSign, CheckSquare,
-    RefreshCw, Award, Package, Mic, MonitorPlay, Camera, Video, Phone
+    RefreshCw, Award, Package, Mic, MonitorPlay, Camera, Video, Phone,
+    FileSignature, Database
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useSocket } from '../../context/SocketContext';
@@ -149,11 +152,12 @@ const ChatNotificationBar = () => {
 
 const menuItems = {
     Admin: [
-        { name: '_section_dashboard', icon: LayoutDashboard, path: null },
         { name: 'Dashboard', icon: LayoutDashboard, path: '/admin' },
 
         { name: '_section_Users', icon: Users, path: null },
         { name: 'Users', icon: User, path: '/admin/users' },
+        { name: 'Guest Users', icon: Users, path: '/admin/users?tab=limited' },
+        { name: 'Limited Users', icon: Users, path: '/admin/users?tab=guest' },
         { name: 'Students', icon: Users, path: '/admin/students' },
         { name: 'Teachers', icon: GraduationCap, path: '/admin/teachers' },
         { name: 'Editors', icon: Users, path: '/admin/editors' },
@@ -170,16 +174,9 @@ const menuItems = {
         { name: 'Announcements', icon: Megaphone, path: '/admin/announcements' },
 
         { name: '_section_tools', icon: PenTool, path: null },
-        { name: 'Tools', icon: PenTool, path: '/admin/tools' },
+        { name: 'Form Tool', icon: FileSignature, path: '/admin/form-templates' },
+        { name: 'DB Creator Tool', icon: Database, path: '/admin/db-templates' },
 
-        { name: '_section_tools_analytics', icon: BarChart3, path: null },
-        { name: 'Drive Analytics', icon: HardDrive, path: '/admin/tools-analytics/drive' },
-        { name: 'Chat Analytics', icon: MessageSquare, path: '/admin/tools-analytics/chat' },
-        { name: 'Notes Analytics', icon: StickyNote, path: '/admin/tools-analytics/notes' },
-        { name: 'Sc. Analytics', icon: Camera, path: '/admin/tools-analytics/screenshot' },
-        { name: 'SR. Analytics', icon: Video, path: '/admin/tools-analytics/screen-recorder' },
-        { name: 'AR. Analytics', icon: Mic, path: '/admin/tools-analytics/voice-recorder' },
-        { name: 'VR. Analytics', icon: MonitorPlay, path: '/admin/tools-analytics/video-recorder' },
 
         { name: '_section_management', icon: Briefcase, path: null },
         { name: 'Staff Mgt', icon: Users, path: '/admin/staff' },
@@ -194,14 +191,24 @@ const menuItems = {
         { name: 'Voice Recorder', icon: Mic, path: '/admin/tools/voice-recorder' },
         { name: 'Video Recorder', icon: MonitorPlay, path: '/admin/tools/video-recorder' },
         { name: 'Screenshot Tool', icon: Camera, path: '/admin/tools/screenshot' },
-        { name: 'Screen Recorder', icon: Video, path: '/admin/tools/screen-recorder' }
+        { name: 'Screen Recorder', icon: Video, path: '/admin/tools/screen-recorder' },
+
+        { name: '_section_service_analytics', icon: BarChart3, path: null },
+        { name: 'Drive Analytics', icon: HardDrive, path: '/admin/tools-analytics/drive' },
+        { name: 'Chat Analytics', icon: MessageSquare, path: '/admin/tools-analytics/chat' },
+        { name: 'Notes Analytics', icon: StickyNote, path: '/admin/tools-analytics/notes' },
+        { name: 'Sc. Analytics', icon: Camera, path: '/admin/tools-analytics/screenshot' },
+        { name: 'SR. Analytics', icon: Video, path: '/admin/tools-analytics/screen-recorder' },
+        { name: 'AR. Analytics', icon: Mic, path: '/admin/tools-analytics/voice-recorder' },
+        { name: 'VR. Analytics', icon: MonitorPlay, path: '/admin/tools-analytics/video-recorder' },
     ],
     Institute: [
-        { name: '_section_dashboard', icon: LayoutDashboard, path: null },
         { name: 'Dashboard', icon: LayoutDashboard, path: '/institute' },
 
         { name: '_section_Users', icon: Users, path: null },
         { name: 'Users', icon: User, path: '/institute/users' },
+        { name: 'Guest Users', icon: Users, path: '/institute/users?tab=limited' },
+        { name: 'Limited Users', icon: Users, path: '/institute/users?tab=guest' },
         { name: 'Students', icon: Users, path: '/institute/students' },
         { name: 'Teachers', icon: GraduationCap, path: '/institute/teachers' },
         { name: 'Editors', icon: Users, path: '/institute/editors' },
@@ -214,7 +221,10 @@ const menuItems = {
         { name: 'Study Material', icon: BookOpen, path: '/institute?tab=study-material' },
         { name: 'Activities', icon: FileText, path: '/institute/activities' },
         { name: 'Announcements', icon: Megaphone, path: '/institute/announcements' },
-        { name: 'Tools', icon: PenTool, path: '/institute/tools' },
+
+        { name: '_section_tools', icon: PenTool, path: null },
+        { name: 'Form Tool', icon: FileSignature, path: '/institute/form-templates' },
+        { name: 'DB Tools', icon: Database, path: '/institute/db-templates' },
 
         { name: '_section_management', icon: Briefcase, path: null },
         { name: 'Staff Mgt', icon: Users, path: '/institute/staff' },
@@ -298,8 +308,61 @@ const menuItems = {
         { name: 'Activities', icon: FileText, path: '/parent/activities' },
         { name: 'Drive', icon: HardDrive, path: '/parent/drive' },
         { name: 'Notes', icon: StickyNote, path: '/parent/notes' },
-        { name: 'Chat', icon: MessageSquare, path: '/parent/chat' },
+        { name: 'Chat', icon: MessageSquare, path: '/parent/chat' }
     ]
+};
+
+/* ─────────────────────────────────────────
+   Announcement Header Button
+   ───────────────────────────────────────── */
+const AnnouncementHeaderButton = () => {
+    const navigate = useNavigate();
+    const { user } = useAuth();
+    const [unreadCount, setUnreadCount] = useState(0);
+
+    const fetchHeaderAnnouncements = async () => {
+        try {
+            const { data } = await axios.get('/api/announcements');
+            const lastRead = localStorage.getItem('lmsLastAnnouncementRead') || 0;
+            const unread = (data || []).filter(ann => new Date(ann.createdAt).getTime() > Number(lastRead)).length;
+            setUnreadCount(unread);
+        } catch (e) {
+            console.error('[Fetch Header Announcements Error]', e);
+        }
+    };
+
+    useEffect(() => {
+        fetchHeaderAnnouncements();
+        // Poll every 60 seconds
+        const timer = setInterval(fetchHeaderAnnouncements, 60000);
+        return () => clearInterval(timer);
+    }, []);
+
+    const handleClick = () => {
+        const rolePath = user?.role ? user.role.toLowerCase() : 'student';
+        navigate(`/${rolePath}/announcements`);
+        localStorage.setItem('lmsLastAnnouncementRead', Date.now().toString());
+        setUnreadCount(0);
+    };
+
+    return (
+        <button
+            type="button"
+            onClick={handleClick}
+            className={`relative p-2.5 rounded-xl transition-all border shrink-0 cursor-pointer ${unreadCount > 0
+                ? 'text-amber-300 border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20'
+                : 'text-slate-400 border-transparent hover:bg-white/10 hover:text-slate-200'
+                }`}
+            title="Announcements"
+        >
+            <Megaphone size={19} className={unreadCount > 0 ? 'animate-bounce' : ''} />
+            {unreadCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 min-w-[17px] h-[17px] bg-amber-500 text-[#0b1329] text-[9px] font-black rounded-full flex items-center justify-center px-1 shadow-lg shadow-amber-500/30 ring-2 ring-[#0b1329]">
+                    {unreadCount}
+                </span>
+            )}
+        </button>
+    );
 };
 
 /* ─────────────────────────────────────────
@@ -513,6 +576,9 @@ const Header = ({ role = 'Admin', onMobileMenuToggle, isMobileMenuOpen }) => {
             {/* Right side: Bell + Profile + Mobile */}
             <div className="flex items-center gap-1.5 sm:gap-2">
 
+                {/* Announcement Header Button */}
+                <AnnouncementHeaderButton />
+
                 {/* Bell icon — Teacher & Student only */}
                 {showBell && <NotificationBell safeRole={safeRole} />}
 
@@ -633,7 +699,7 @@ const Header = ({ role = 'Admin', onMobileMenuToggle, isMobileMenuOpen }) => {
                             className="flex items-center space-x-3 w-full px-3 py-2.5 text-xs text-red-400 hover:bg-red-950/20 rounded-xl transition-all font-bold"
                         >
                             <LogOut size={16} />
-                            <span>Sign Out Portal</span>
+                            <span>Shut Down Portal</span>
                         </button>
                     </div>
                 </div>
@@ -719,6 +785,122 @@ const Sidebar = ({ role = 'Admin', collapsed, onToggle, isMobileOpen }) => {
     const location = useLocation();
     const { logout, user } = useAuth();
     const [activeSection, setActiveSection] = useState('_section_dashboard');
+
+    // Shutdown modal state
+    const [isShutdownOpen, setIsShutdownOpen] = useState(false);
+    const [institutes, setInstitutes] = useState([]);
+    const [selectedInstituteId, setSelectedInstituteId] = useState('');
+    const [shutdownMsg, setShutdownMsg] = useState('');
+    const [shutdownLoading, setShutdownLoading] = useState(false);
+    const [currentShutdown, setCurrentShutdown] = useState(false);
+    const [shutdownRoles, setShutdownRoles] = useState([]);
+    const [blockedUserIds, setBlockedUserIds] = useState(new Set());
+    const [expandedRole, setExpandedRole] = useState(null);
+    const [roleUsers, setRoleUsers] = useState({});
+    const [roleUsersLoading, setRoleUsersLoading] = useState(null);
+
+    const ALL_ROLES = [
+        { value: 'Teacher', label: 'Teachers', emoji: '👨‍🏫' },
+        { value: 'Student', label: 'Students', emoji: '🎓' },
+        { value: 'Editor', label: 'Editors', emoji: '✏️' },
+        { value: 'Accountant', label: 'Accountants', emoji: '💼' },
+        { value: 'Marketer', label: 'Marketers', emoji: '📣' },
+        { value: 'Staff', label: 'Staff', emoji: '🧑‍💼' },
+        { value: 'Parent', label: 'Parents', emoji: '👨‍👩‍👧' },
+        { value: 'Guest', label: 'Limited Users', emoji: '🔒' },
+        { value: 'Limited', label: 'Guest Users', emoji: '👤' },
+    ];
+
+    const canShutdown = user?.role === 'Admin' || user?.role === 'Institute';
+
+    const syncInstituteState = (inst) => {
+        setCurrentShutdown(inst?.portalShutdown || false);
+        setShutdownMsg(inst?.portalShutdownMessage || '');
+        setShutdownRoles(inst?.shutdownRoles || []);
+        setBlockedUserIds(new Set((inst?.shutdownSelectedUsers || []).map(id => id.toString())));
+        setExpandedRole(null);
+        setRoleUsers({});
+    };
+
+    const openShutdownModal = async () => {
+        if (!canShutdown) { logout(); return; }
+        try {
+            const res = await axios.get('/api/setup/shutdown/status');
+            const list = res.data.institutes || [];
+            setInstitutes(list);
+            const first = list[0];
+            setSelectedInstituteId(first?._id || '');
+            syncInstituteState(first);
+        } catch (e) {
+            toast.error('Could not load institutes');
+        }
+        setIsShutdownOpen(true);
+    };
+
+    const handleInstituteChange = (id) => {
+        setSelectedInstituteId(id);
+        const inst = institutes.find(i => i._id === id);
+        syncInstituteState(inst);
+    };
+
+    const toggleRole = (roleVal) => {
+        const willEnable = !shutdownRoles.includes(roleVal);
+        if (willEnable) {
+            // When enabling "all", clear individual selections for this role
+            setBlockedUserIds(prev => {
+                const next = new Set(prev);
+                (roleUsers[roleVal] || []).forEach(u => next.delete(u._id));
+                return next;
+            });
+        }
+        setShutdownRoles(prev =>
+            prev.includes(roleVal) ? prev.filter(r => r !== roleVal) : [...prev, roleVal]
+        );
+    };
+
+    const loadRoleUsers = async (roleVal) => {
+        if (!selectedInstituteId || roleUsers[roleVal] !== undefined) return;
+        setRoleUsersLoading(roleVal);
+        try {
+            const res = await axios.get(`/api/setup/shutdown/users/${selectedInstituteId}?role=${roleVal}`);
+            setRoleUsers(prev => ({ ...prev, [roleVal]: res.data.users || [] }));
+        } catch (e) {
+            toast.error('Could not load users');
+        } finally {
+            setRoleUsersLoading(null);
+        }
+    };
+
+    const toggleUser = (userId) => {
+        setBlockedUserIds(prev => {
+            const next = new Set(prev);
+            if (next.has(userId)) next.delete(userId);
+            else next.add(userId);
+            return next;
+        });
+    };
+
+    const handleSave = async () => {
+        if (!selectedInstituteId) return;
+        setShutdownLoading(true);
+        try {
+            const res = await axios.put(`/api/setup/shutdown/${selectedInstituteId}`, {
+                portalShutdown: currentShutdown,
+                portalShutdownMessage: shutdownMsg,
+                shutdownRoles,
+                shutdownSelectedUsers: [...blockedUserIds]
+            });
+            setInstitutes(prev => prev.map(i => i._id === selectedInstituteId
+                ? { ...i, portalShutdown: currentShutdown, portalShutdownMessage: shutdownMsg, shutdownRoles, shutdownSelectedUsers: [...blockedUserIds] }
+                : i
+            ));
+            toast.success(res.data.message);
+        } catch (e) {
+            toast.error(e.response?.data?.message || 'Failed to update shutdown settings');
+        } finally {
+            setShutdownLoading(false);
+        }
+    };
 
     const toggleSection = (sectionName) => {
         setActiveSection(prev => prev === sectionName ? null : sectionName);
@@ -962,11 +1144,18 @@ const Sidebar = ({ role = 'Admin', collapsed, onToggle, isMobileOpen }) => {
 
         // Exact match first
         const currentFullPath = location.pathname + location.search;
-        if (path === currentFullPath || path === location.pathname) return true;
+        if (path === currentFullPath) return true;
 
         if (path.includes('?')) {
-            return (location.pathname + location.search).startsWith(path);
+            return currentFullPath.startsWith(path);
         }
+
+        // If current URL contains a sidebar query parameter but this path is just the base path, it's not active.
+        if (location.search && (location.search.includes('tab=limited') || location.search.includes('tab=guest') || location.search.includes('tab=study-material'))) {
+            return false;
+        }
+
+        if (path === location.pathname) return true;
 
         // Avoid matching root tools page (/admin/tools) when visiting specific tool sub-routes (/admin/tools/...)
         if (path === `/${safeRole.toLowerCase()}/tools` || path === '/admin/tools') {
@@ -1079,19 +1268,24 @@ const Sidebar = ({ role = 'Admin', collapsed, onToggle, isMobileOpen }) => {
                     })()}
                 </nav>
 
-                {/* Logout at bottom */}
+                {/* Shut Down / Logout at bottom */}
                 <div className="px-3 pb-6">
                     <button
-                        onClick={logout}
-                        title={collapsed ? 'Sign Out' : undefined}
+                        onClick={() => {
+                            const path = user?.role === 'Institute' ? '/institute/shutdown' : '/admin/shutdown';
+                            navigate(path);
+                        }}
+                        title={collapsed ? 'Shut Down' : undefined}
                         className={`flex items-center w-full rounded-xl transition-all duration-200 font-bold text-sm text-red-400 hover:bg-red-950/20 cursor-pointer
                             ${collapsed ? 'justify-center px-0 py-3' : 'space-x-3 px-4 py-3'}`}
                     >
                         <LogOut size={20} className="flex-shrink-0" />
-                        {!collapsed && <span>Sign Out</span>}
+                        {!collapsed && <span>Shut Down</span>}
                     </button>
                 </div>
+
             </aside>
+
 
             {/* Mobile drawer */}
             <div className={`lg:hidden fixed inset-0 top-16 z-[60] transition-all duration-300 ${isMobileOpen ? 'opacity-100 visible' : 'opacity-0 invisible pointer-events-none'}`}>

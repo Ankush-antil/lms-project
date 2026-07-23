@@ -60,6 +60,30 @@ const loginUser = async (req, res) => {
                 return;
             }
 
+            // Portal shutdown check: skip for Admin role
+            if (user.role !== 'Admin') {
+                if (user.institute) {
+                    const Institute = require('../../models/Institute');
+                    const institute = await Institute.findById(user.institute)
+                        .select('portalShutdown portalShutdownMessage shutdownRoles shutdownSelectedUsers');
+                    if (institute) {
+                        const msg = institute.portalShutdownMessage || 'Access has been temporarily disabled. Please contact your administrator.';
+                        // Full institute shutdown
+                        if (institute.portalShutdown) {
+                            return res.status(503).json({ message: 'portal_shutdown', details: msg });
+                        }
+                        // Role-level shutdown
+                        if (institute.shutdownRoles && institute.shutdownRoles.includes(user.role)) {
+                            return res.status(503).json({ message: 'portal_shutdown', details: msg });
+                        }
+                        // Specific user shutdown
+                        if (institute.shutdownSelectedUsers && institute.shutdownSelectedUsers.some(id => id.toString() === user._id.toString())) {
+                            return res.status(503).json({ message: 'portal_shutdown', details: msg });
+                        }
+                    }
+                }
+            }
+
             const token = generateToken(user._id, user.role);
 
             // Set Cookie

@@ -1,11 +1,11 @@
 import * as XLSX from 'xlsx';
 import { useAuth } from '../../context/AuthContext';
-import { useRef,  useState, useEffect, useMemo } from 'react';
+import { useRef, useState, useEffect, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import axios from 'axios';
 import DashboardLayout from '../../components/layout/DashboardLayout';
-import { Download,  Upload,  Search, Filter, Trash2, Calendar, Eye, Plus, Edit, ChevronDown } from 'lucide-react';
+import { Download, Upload, Search, Filter, Trash2, Calendar, Eye, Plus, Edit, ChevronDown } from 'lucide-react';
 import { useUserProfile } from '../../components/common/UserProfileContext';
 import TruncatedCell from '../../components/common/TruncatedCell';
 import RecycleBinModal from '../../components/common/RecycleBinModal';
@@ -22,7 +22,7 @@ const UsersList = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [filterRole, setFilterRole] = useState('All');
     const [viewTab, setViewTab] = useState('registered'); // 'registered' | 'guest' | 'limited' | 'applications' | 'role-requests'
-    
+
     // Bulk action states
     const [selectedIds, setSelectedIds] = useState(new Set());
     const [bulkAction, setBulkAction] = useState('');
@@ -40,6 +40,8 @@ const UsersList = () => {
         const tab = queryParams.get('tab');
         if (tab && ['registered', 'guest', 'limited', 'applications', 'role-requests'].includes(tab)) {
             setViewTab(tab);
+        } else {
+            setViewTab('registered');
         }
     }, [location]);
 
@@ -191,7 +193,7 @@ const UsersList = () => {
             await axios.delete(`/api/public-tests/admin/submissions/${id}`);
             setLimitedUsers(prev => prev.filter(s => s._id !== id));
             toast.success('Submission removed successfully');
-            
+
             setSelectedCandidateGroup(prev => {
                 if (!prev) return null;
                 const updatedSubs = prev.submissions.filter(s => s._id !== id);
@@ -283,11 +285,11 @@ const UsersList = () => {
     };
 
     const filteredRoleRequests = useMemo(() => {
-        return roleRequests.filter(req => 
+        return roleRequests.filter(req =>
             (filterInstitute === 'All' || (req.user?.institute?._id === filterInstitute || req.user?.institute === filterInstitute)) &&
             ((req.user?.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (req.user?.email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (req.requestedRole || '').toLowerCase().includes(searchTerm.toLowerCase()))
+                (req.user?.email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                (req.requestedRole || '').toLowerCase().includes(searchTerm.toLowerCase()))
         );
     }, [roleRequests, searchTerm, filterInstitute]);
 
@@ -309,8 +311,8 @@ const UsersList = () => {
         return guestUsers.filter(g =>
             (filterInstitute === 'All' || (g.institute?._id === filterInstitute || g.institute === filterInstitute)) &&
             ((g.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (g.email && g.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
-            (g.mobileNumber || '').toLowerCase().includes(searchTerm.toLowerCase()))
+                (g.email && g.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                (g.mobileNumber || '').toLowerCase().includes(searchTerm.toLowerCase()))
         );
     }, [guestUsers, searchTerm, filterInstitute]);
 
@@ -318,8 +320,8 @@ const UsersList = () => {
         return guests.filter(g =>
             (filterInstitute === 'All' || (g.institute?._id === filterInstitute || g.institute === filterInstitute)) &&
             ((g.guestName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (g.guestEmail && g.guestEmail.toLowerCase().includes(searchTerm.toLowerCase())) ||
-            (g.guestPhone || '').toLowerCase().includes(searchTerm.toLowerCase()))
+                (g.guestEmail && g.guestEmail.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                (g.guestPhone || '').toLowerCase().includes(searchTerm.toLowerCase()))
         );
     }, [guests, searchTerm, filterInstitute]);
 
@@ -348,7 +350,7 @@ const UsersList = () => {
     }, [limitedUsers]);
 
     const filteredLimited = groupedLimitedUsers.filter(l =>
-        (l.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (l.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (l.email && l.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (l.phone && l.phone.toLowerCase().includes(searchTerm.toLowerCase())))
     );
@@ -1110,8 +1112,8 @@ const UsersList = () => {
                         {currentUser?.role === 'Admin' ? 'System Users Directory' : 'Institute Users Directory'}
                     </h1>
                     <p className="text-slate-500">
-                        {currentUser?.role === 'Admin' 
-                            ? 'View all registered user accounts and their created date/time, role, and details.' 
+                        {currentUser?.role === 'Admin'
+                            ? 'View all registered user accounts and their created date/time, role, and details.'
                             : 'View all registered user accounts and guest details for your institute.'}
                     </p>
                 </div>
@@ -1129,8 +1131,8 @@ const UsersList = () => {
                     {(() => {
                         const exportConfig = {
                             registered: { fn: exportUsers, label: 'registered_users' },
-                            limited: { fn: exportLimitedUsers, label: 'limited_users' },
-                            guest: { fn: exportGuestUsers, label: 'guest_users' },
+                            limited: { fn: exportLimitedUsers, label: 'guest_users' },
+                            guest: { fn: exportGuestUsers, label: 'limited_users' },
                             applications: { fn: exportApplications, label: 'applications' },
                             'role-requests': { fn: exportRoleRequests, label: 'role_requests' },
                         };
@@ -1175,66 +1177,55 @@ const UsersList = () => {
                             </>
                         ) : null;
                     })()}
+
+                    {viewTab === 'guest' && (
+                        <button
+                            type="button"
+                            onClick={() => setIsAddGuestModalOpen(true)}
+                            className="px-4 py-2.5 bg-[#0b1329] hover:bg-slate-800 text-white border border-[#0b1329] rounded-2xl transition-all flex items-center gap-1.5 text-sm font-bold shadow-md shadow-[#0b1329]/20 cursor-pointer active:scale-95 flex items-center gap-2"
+                        >
+                            <Plus size={15} /> Add New Limited User
+                        </button>
+                    )}
                 </div>
             </div>
 
             {/* View Tabs */}
-            <div className="overflow-x-auto -mx-1 px-1 mb-6">
-                <div className="flex bg-slate-100 p-1.5 rounded-2xl min-w-max">
-                <button
-                    onClick={() => setViewTab('registered')}
-                    className={`flex-1 py-2.5 px-4 text-xs md:text-sm font-extrabold rounded-xl transition-all ${
-                        viewTab === 'registered'
-                            ? 'bg-white text-slate-900 shadow-md'
-                            : 'text-slate-500 hover:text-slate-800 bg-transparent'
-                    }`}
-                >
-                    Registered Users ({users.filter(u => u.role !== 'Guest').length})
-                </button>
-                <button
-                    onClick={() => setViewTab('limited')}
-                    className={`flex-1 py-2.5 px-4 text-xs md:text-sm font-extrabold rounded-xl transition-all ${
-                        viewTab === 'limited'
-                            ? 'bg-white text-slate-900 shadow-md'
-                            : 'text-slate-500 hover:text-slate-800 bg-transparent'
-                    }`}
-                >
-                    Limited Users ({groupedLimitedUsers.length})
-                </button>
-                <button
-                    onClick={() => setViewTab('guest')}
-                    className={`flex-1 py-2.5 px-4 text-xs md:text-sm font-extrabold rounded-xl transition-all ${
-                        viewTab === 'guest'
-                            ? 'bg-white text-slate-900 shadow-md'
-                            : 'text-slate-500 hover:text-slate-800 bg-transparent'
-                    }`}
-                >
-                    Guest Users ({guestUsers.length})
-                </button>
-                <button
-                    onClick={() => setViewTab('applications')}
-                    className={`flex-1 py-2.5 px-4 text-xs md:text-sm font-extrabold rounded-xl transition-all ${
-                        viewTab === 'applications'
-                            ? 'bg-white text-slate-900 shadow-md'
-                            : 'text-slate-500 hover:text-slate-800 bg-transparent'
-                    }`}
-                >
-                    Applications ({guests.length})
-                </button>
-                {(currentUser?.role === 'Admin' || currentUser?.role === 'Institute') && (
-                    <button
-                        onClick={() => setViewTab('role-requests')}
-                        className={`flex-1 py-2.5 px-4 text-xs md:text-sm font-extrabold rounded-xl transition-all ${
-                            viewTab === 'role-requests'
-                                ? 'bg-white text-slate-900 shadow-md'
-                                : 'text-slate-500 hover:text-slate-800 bg-transparent'
-                        }`}
-                    >
-                        Staff Requests ({roleRequests.filter(r => r.status === 'Pending').length})
-                    </button>
-                )}
-            </div>
-            </div>
+            {!['limited', 'guest'].includes(viewTab) && (
+                <div className="overflow-x-auto -mx-1 px-1 mb-6">
+                    <div className="flex bg-slate-100 p-1.5 rounded-2xl min-w-max">
+                        <button
+                            onClick={() => setViewTab('registered')}
+                            className={`flex-1 py-2.5 px-4 text-xs md:text-sm font-extrabold rounded-xl transition-all ${viewTab === 'registered'
+                                    ? 'bg-white text-slate-900 shadow-md'
+                                    : 'text-slate-500 hover:text-slate-800 bg-transparent'
+                                }`}
+                        >
+                            Registered Users ({users.filter(u => u.role !== 'Guest').length})
+                        </button>
+                        <button
+                            onClick={() => setViewTab('applications')}
+                            className={`flex-1 py-2.5 px-4 text-xs md:text-sm font-extrabold rounded-xl transition-all ${viewTab === 'applications'
+                                    ? 'bg-white text-slate-900 shadow-md'
+                                    : 'text-slate-500 hover:text-slate-800 bg-transparent'
+                                }`}
+                        >
+                            Applications ({guests.length})
+                        </button>
+                        {(currentUser?.role === 'Admin' || currentUser?.role === 'Institute') && (
+                            <button
+                                onClick={() => setViewTab('role-requests')}
+                                className={`flex-1 py-2.5 px-4 text-xs md:text-sm font-extrabold rounded-xl transition-all ${viewTab === 'role-requests'
+                                        ? 'bg-white text-slate-900 shadow-md'
+                                        : 'text-slate-500 hover:text-slate-800 bg-transparent'
+                                    }`}
+                            >
+                                Staff Requests ({roleRequests.filter(r => r.status === 'Pending').length})
+                            </button>
+                        )}
+                    </div>
+                </div>
+            )}
 
             {/* Filters */}
             <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex flex-col lg:flex-row gap-3 justify-between items-center mb-6 animate-fade-in">
@@ -1271,16 +1262,6 @@ const UsersList = () => {
                 </div>
 
                 <div className="flex flex-row flex-wrap sm:flex-nowrap items-center gap-3 w-full lg:w-auto justify-between lg:justify-end">
-                    {viewTab === 'guest' && (
-                        <button
-                            type="button"
-                            onClick={() => setIsAddGuestModalOpen(true)}
-                            className="px-4 py-2.5 bg-[#0b1329] text-white hover:bg-slate-800 font-bold rounded-2xl text-xs flex items-center gap-2 active:scale-95 transition-all shadow-md shadow-[#0b1329]/10 cursor-pointer h-[38px]"
-                        >
-                            <Plus size={14} />
-                            Add New Guest User
-                        </button>
-                    )}
                     {/* Entries selector */}
                     <div className="flex items-center gap-2">
                         <span className="text-xs font-bold text-slate-400 uppercase tracking-wider select-none">Show</span>
@@ -1419,10 +1400,9 @@ const UsersList = () => {
                                         {/* Details column */}
                                         <td className="p-4 whitespace-nowrap">
                                             <div className="flex items-center gap-3">
-                                                <div 
-                                                    className={`w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold overflow-hidden shadow-sm flex-shrink-0 ${
-                                                        viewTab === 'registered' ? 'cursor-pointer hover:scale-110 transition-transform' : ''
-                                                    }`}
+                                                <div
+                                                    className={`w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold overflow-hidden shadow-sm flex-shrink-0 ${viewTab === 'registered' ? 'cursor-pointer hover:scale-110 transition-transform' : ''
+                                                        }`}
                                                     onClick={viewTab === 'registered' ? () => openProfile(u._id) : undefined}
                                                 >
                                                     {viewTab === 'registered' ? (
@@ -1442,10 +1422,9 @@ const UsersList = () => {
                                                     )}
                                                 </div>
                                                 <div className="flex flex-col">
-                                                    <span 
-                                                        className={`font-semibold text-slate-800 ${
-                                                            viewTab === 'registered' ? 'cursor-pointer hover:text-indigo-650 transition-colors' : ''
-                                                        }`}
+                                                    <span
+                                                        className={`font-semibold text-slate-800 ${viewTab === 'registered' ? 'cursor-pointer hover:text-indigo-650 transition-colors' : ''
+                                                            }`}
                                                         onClick={viewTab === 'registered' ? () => openProfile(u._id) : undefined}
                                                     >
                                                         <TruncatedCell text={viewTab === 'registered' ? u.name : viewTab === 'guest' ? u.name : viewTab === 'applications' ? u.guestName : viewTab === 'role-requests' ? (u.user?.name || 'User') : u.name} maxLength={20} />
@@ -1498,14 +1477,14 @@ const UsersList = () => {
                                                                     </button>
                                                                     {activeRolesTooltipUserId === u._id && (
                                                                         <>
-                                                                            <div 
-                                                                                className="fixed inset-0 z-[60]" 
+                                                                            <div
+                                                                                className="fixed inset-0 z-[60]"
                                                                                 onClick={(e) => {
                                                                                     e.stopPropagation();
                                                                                     setActiveRolesTooltipUserId(null);
-                                                                                }} 
+                                                                                }}
                                                                             />
-                                                                            <div 
+                                                                            <div
                                                                                 className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 bg-white border border-slate-150 rounded-2xl shadow-xl z-[70] p-2.5 min-w-[120px] flex flex-col gap-1.5 animate-in fade-in slide-in-from-bottom-1 duration-150"
                                                                                 onClick={(e) => e.stopPropagation()}
                                                                             >
@@ -1513,8 +1492,8 @@ const UsersList = () => {
                                                                                     All Roles
                                                                                 </div>
                                                                                 {roles.map((roleName) => (
-                                                                                    <span 
-                                                                                        key={roleName} 
+                                                                                    <span
+                                                                                        key={roleName}
                                                                                         className={`px-2.5 py-1 rounded-xl text-[10px] font-bold text-center ${getRoleBadgeClass(roleName)}`}
                                                                                     >
                                                                                         {roleName}
@@ -1529,8 +1508,8 @@ const UsersList = () => {
                                                     );
                                                 })()
                                             ) : (
-                                                <span className={`px-3 py-1 rounded-full text-xs font-bold ${getRoleBadgeClass(viewTab === 'guest' ? 'Guest User' : viewTab === 'applications' ? 'Guest User' : 'Limited User')}`}>
-                                                    {viewTab === 'guest' ? 'Guest User' : viewTab === 'applications' ? 'Application' : 'Limited User'}
+                                                <span className={`px-3 py-1 rounded-full text-xs font-bold ${getRoleBadgeClass(viewTab === 'guest' ? 'Limited User' : viewTab === 'limited' ? 'Guest User' : viewTab === 'applications' ? 'Guest User' : 'Limited User')}`}>
+                                                    {viewTab === 'guest' ? 'Limited User' : viewTab === 'limited' ? 'Guest User' : viewTab === 'applications' ? 'Application' : 'Limited User'}
                                                 </span>
                                             )}
                                         </td>
@@ -1582,13 +1561,13 @@ const UsersList = () => {
                                                     </span>
                                                 </div>
                                             ) : (
-                                                <TruncatedCell 
+                                                <TruncatedCell
                                                     text={
-                                                        u.submissions?.length === 1 
+                                                        u.submissions?.length === 1
                                                             ? (u.submissions[0].test?.title || 'Public Test')
                                                             : `${u.submissions[0].test?.title || 'Public Test'} (+${u.submissions.length - 1} more)`
-                                                    } 
-                                                    maxLength={25} 
+                                                    }
+                                                    maxLength={25}
                                                 />
                                             )}
                                         </td>
@@ -1614,26 +1593,23 @@ const UsersList = () => {
                                                 <button
                                                     type="button"
                                                     onClick={() => handleToggleStatus(u._id, u.isActive)}
-                                                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${
-                                                        u.isActive !== false ? 'bg-emerald-500' : 'bg-slate-200'
-                                                    }`}
+                                                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${u.isActive !== false ? 'bg-emerald-500' : 'bg-slate-200'
+                                                        }`}
                                                     title={u.isActive !== false ? 'Click to Deactivate Account' : 'Click to Activate Account'}
                                                 >
                                                     <span className="sr-only">Toggle status</span>
                                                     <span
-                                                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                                                            u.isActive !== false ? 'translate-x-5' : 'translate-x-0'
-                                                        }`}
+                                                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${u.isActive !== false ? 'translate-x-5' : 'translate-x-0'
+                                                            }`}
                                                     />
                                                 </button>
                                             ) : viewTab === 'role-requests' ? (
-                                                <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                                                    u.status === 'Approved'
+                                                <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${u.status === 'Approved'
                                                         ? 'bg-emerald-50 text-emerald-600 border border-emerald-100'
                                                         : u.status === 'Rejected'
                                                             ? 'bg-rose-50 text-rose-600 border border-rose-100'
                                                             : 'bg-amber-50 text-amber-600 border border-amber-100'
-                                                }`}>
+                                                    }`}>
                                                     {u.status}
                                                 </span>
                                             ) : viewTab === 'guest' ? (
@@ -1642,11 +1618,10 @@ const UsersList = () => {
                                                         Registered
                                                     </span>
                                                     {u.guestProfile?.demoExpiryDate && (
-                                                        <span className={`text-[10px] font-bold ${
-                                                            new Date(u.guestProfile.demoExpiryDate) < new Date()
+                                                        <span className={`text-[10px] font-bold ${new Date(u.guestProfile.demoExpiryDate) < new Date()
                                                                 ? 'text-rose-500 bg-rose-50 px-2 py-0.5 rounded-md border border-rose-100'
                                                                 : 'text-amber-600 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-100'
-                                                        }`}>
+                                                            }`}>
                                                             {(() => {
                                                                 const diff = new Date(u.guestProfile.demoExpiryDate) - new Date();
                                                                 const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
@@ -1656,13 +1631,12 @@ const UsersList = () => {
                                                     )}
                                                 </div>
                                             ) : viewTab === 'applications' ? (
-                                                <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                                                    u.status === 'Accepted' || u.status === 'Registered'
+                                                <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${u.status === 'Accepted' || u.status === 'Registered'
                                                         ? 'bg-emerald-50 text-emerald-600 border border-emerald-100'
                                                         : u.status === 'Rejected'
                                                             ? 'bg-rose-50 text-rose-600 border border-rose-100'
                                                             : 'bg-amber-50 text-amber-600 border border-amber-100'
-                                                }`}>
+                                                    }`}>
                                                     {u.status}
                                                 </span>
                                             ) : (
@@ -1862,13 +1836,12 @@ const UsersList = () => {
                                             key={idx}
                                             disabled={p === '...'}
                                             onClick={() => p !== '...' && setCurrentPage(p)}
-                                            className={`w-8 h-8 text-xs font-bold rounded-xl transition-all ${
-                                                p === '...'
+                                            className={`w-8 h-8 text-xs font-bold rounded-xl transition-all ${p === '...'
                                                     ? 'text-slate-400 cursor-default bg-transparent'
                                                     : currentPage === p
                                                         ? 'bg-[#0b1329] text-white shadow-md'
                                                         : 'text-slate-600 hover:bg-slate-100 bg-transparent'
-                                            }`}
+                                                }`}
                                         >
                                             {p}
                                         </button>
@@ -1896,18 +1869,18 @@ const UsersList = () => {
                         renderItemDetail: (item) => `Email: ${item.email} | Role: ${item.role}`
                     },
                     limited: {
-                        title: 'Limited Users (Submissions) Recycle Bin',
+                        title: 'Guest Users (Submissions) Recycle Bin',
                         trashUrl: '/api/public-tests/admin/submissions/trash',
                         restoreUrlPattern: (id) => `/api/public-tests/admin/submissions/${id}/restore`,
                         permanentDeleteUrlPattern: (id) => `/api/public-tests/admin/submissions/${id}/permanent`,
                         renderItemDetail: (item) => `Email: ${item.email} | Test: ${item.test?.title || 'N/A'} | Score: ${item.score ?? 'N/A'}`
                     },
                     guest: {
-                        title: 'Guest Users Recycle Bin',
+                        title: 'Limited Users Recycle Bin',
                         trashUrl: '/api/users/trash',
                         restoreUrlPattern: (id) => `/api/users/${id}/restore`,
                         permanentDeleteUrlPattern: (id) => `/api/users/${id}/permanent`,
-                        renderItemDetail: (item) => `Email: ${item.email} | Role: Guest`
+                        renderItemDetail: (item) => `Email: ${item.email} | Role: Limited`
                     },
                     applications: {
                         title: 'Applications Recycle Bin',

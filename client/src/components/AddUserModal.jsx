@@ -1152,7 +1152,7 @@ const AddUserModal = ({ isOpen, onClose, role, onSuccess }) => {
                 <div className={`${role === 'Student' || role === 'Guest' ? 'bg-[#0b1329]' : 'h-24 bg-blue-500'} relative flex-shrink-0 px-6 pt-5 pb-0`}>
                     <div className="flex items-center justify-between mb-4">
                         <h3 className="text-xl font-medium font-black text-white tracking-tight">
-                            {createdUser ? 'Success!' : `Add New ${role}`}
+                            {createdUser ? 'Success!' : `Add New ${role === 'Guest' ? 'Limited User' : role}`}
                         </h3>
                         <button
                             onClick={onClose}
@@ -1647,7 +1647,7 @@ const AddUserModal = ({ isOpen, onClose, role, onSuccess }) => {
                                         <div>
                                             <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-3 block">Assign Other Role</label>
                                             <div className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-4 py-3 flex flex-wrap gap-x-5 gap-y-2.5">
-                                                {['Student', 'Teacher', 'Editor', 'Accountant', 'Marketer', 'Staff', 'Parent'].map(r => {
+                                                {['Student', 'Teacher', 'Editor', 'Accountant', 'Marketer', 'Parent'].map(r => {
                                                     const isPrimary = r === role;
                                                     const isChecked = (formData.allowedRoles || [role]).includes(r);
                                                     return (
@@ -1701,7 +1701,7 @@ const AddUserModal = ({ isOpen, onClose, role, onSuccess }) => {
                                     className="w-full py-4 bg-slate-900 text-white font-bold rounded-2xl shadow-xl shadow-slate-900/10 hover:bg-indigo-600 transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
                                 >
                                     {loading && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>}
-                                    {loading ? 'Creating Account...' : `Create ${role}`}
+                                    {loading ? 'Creating Account...' : `Create ${role === 'Guest' ? 'Limited User' : role}`}
                                 </button>
                             )}
                         </form>

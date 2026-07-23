@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Mic, Clock, Settings, Cloud, Folder, RefreshCw, Database, Download, Trash, AlertTriangle, ArrowLeft, Play, Square, Pause, Scissors, Share2, Save, CheckCircle, X } from 'lucide-react';
 import DashboardLayout from '../../../components/layout/DashboardLayout';
@@ -2253,9 +2254,9 @@ const VoiceRecorderPage = () => {
             />
 
             {/* ── Share Modal ── */}
-            {shareModalItem && (
+            {shareModalItem && createPortal(
                 <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 font-sans">
-                    <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 w-full max-w-md overflow-hidden flex flex-col">
+                    <div className="bg-[#f5f5f5] rounded-3xl shadow-2xl border border-slate-100 w-full max-w-md overflow-hidden flex flex-col">
 
                         {/* Header */}
                         <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100 bg-slate-50/60 shrink-0">
@@ -2419,13 +2420,14 @@ const VoiceRecorderPage = () => {
                             </button>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
 
             {/* Cloud Gallery Center Modal */}
-            {cloudGalleryModalOpen && (
+            {cloudGalleryModalOpen && createPortal(
                 <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 text-left font-sans">
-                    <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 w-full max-w-2xl overflow-hidden relative flex flex-col max-h-[85vh]">
+                    <div className="bg-[#f5f5f5] rounded-3xl shadow-2xl border border-slate-100 w-full max-w-2xl overflow-hidden relative flex flex-col max-h-[85vh]">
 
                         {/* Header */}
                         <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100 bg-slate-50/50 shrink-0">
@@ -2512,13 +2514,14 @@ const VoiceRecorderPage = () => {
                             </button>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
 
             {/* Voice Trimming Editor Modal */}
-            {trimmingDraft && (
+            {trimmingDraft && createPortal(
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 backdrop-blur-sm p-4 animate-fadeIn">
-                    <div className="bg-white rounded-3xl border border-slate-100 shadow-2xl max-w-lg w-full overflow-hidden text-left flex flex-col">
+                    <div className="bg-[#f5f5f5] rounded-3xl border border-slate-100 shadow-2xl max-w-lg w-full overflow-hidden text-left flex flex-col">
                         {/* Header */}
                         <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
                             <div>
@@ -2834,7 +2837,8 @@ const VoiceRecorderPage = () => {
                             </div>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
         </DashboardLayout>
     );

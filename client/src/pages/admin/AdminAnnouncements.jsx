@@ -615,26 +615,24 @@ const AdminAnnouncements = () => {
 
                         <div className="flex flex-wrap items-center gap-3">
                             {/* Bulk Actions */}
-                            {selectedIds.size > 0 && (
-                                <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl">
-                                    <span className="text-[10px] font-black text-slate-400 uppercase">Bulk:</span>
-                                    <select
-                                        value={bulkAction}
-                                        onChange={(e) => setBulkAction(e.target.value)}
-                                        className="bg-transparent text-xs font-bold text-slate-700 outline-none cursor-pointer"
-                                    >
-                                        <option value="">Choose Action</option>
-                                        <option value="delete">Delete Selected</option>
-                                    </select>
-                                    <button
-                                        onClick={handleBulkApply}
-                                        disabled={!bulkAction}
-                                        className="px-2.5 py-1 bg-[#3E3ADD] hover:bg-[#2d2aab] text-white font-bold text-[10px] rounded-lg transition-all disabled:opacity-50 cursor-pointer"
-                                    >
-                                        Apply
-                                    </button>
-                                </div>
-                            )}
+                            <div className="flex items-center gap-2">
+                                <select
+                                    value={bulkAction}
+                                    onChange={(e) => setBulkAction(e.target.value)}
+                                    className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none cursor-pointer h-[38px] min-w-[120px]"
+                                >
+                                    <option value="">Bulk Action</option>
+                                    <option value="delete">Delete Selected</option>
+                                </select>
+                                <button
+                                    type="button"
+                                    onClick={handleBulkApply}
+                                    disabled={selectedIds.size === 0 || !bulkAction}
+                                    className="px-4 py-2 bg-[#3E3ADD] hover:bg-[#2d2aab] disabled:bg-slate-50 disabled:text-slate-400 disabled:border-slate-250 border border-transparent disabled:border-slate-200 text-white rounded-xl text-xs font-bold transition-all disabled:cursor-not-allowed cursor-pointer whitespace-nowrap h-[38px] active:scale-95 flex items-center justify-center"
+                                >
+                                    Apply to All ({selectedIds.size})
+                                </button>
+                            </div>
 
                             {/* Entries Selector */}
                             <div className="flex items-center gap-1.5 text-[10px] font-black text-slate-400 tracking-wider uppercase">

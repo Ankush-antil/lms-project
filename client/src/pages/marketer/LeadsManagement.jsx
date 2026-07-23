@@ -379,9 +379,10 @@ const LeadsManagement = () => {
                     <div className="responsive-table-wrapper">
                         <table className="min-w-full text-left border-collapse">
                             <thead>
-                                <tr className="bg-slate-50 border-b border-slate-150 text-slate-500 text-[10px] font-black uppercase tracking-wider">
+                                <tr className="bg-slate-50 border-b border-slate-150 text-slate-500 text-[10px] font-black uppercase tracking-wider whitespace-nowrap">
                                     <th className="p-4 font-semibold">Lead Details</th>
                                     <th className="p-4 font-semibold">Course & Source</th>
+                                    <th className="p-4 font-semibold">Institute</th>
                                     <th className="p-4 font-semibold">Created Date</th>
                                     <th className="p-4 font-semibold">Pipeline Stage</th>
                                     <th className="p-4 font-semibold text-right">Actions</th>
@@ -404,6 +405,9 @@ const LeadsManagement = () => {
                                                 <span className="font-bold text-slate-750">{lead.course?.name || 'General Inquiry'}</span>
                                                 <span className="text-[10px] font-bold text-indigo-500 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded-full w-fit mt-1">{lead.source}</span>
                                             </div>
+                                        </td>
+                                        <td className="p-4 whitespace-nowrap text-slate-600 font-bold">
+                                            {lead.instituteName || lead.institute?.name || 'HARTRON GANAUR'}
                                         </td>
                                         <td className="p-4 whitespace-nowrap text-slate-500 font-medium">
                                             {new Date(lead.createdAt).toLocaleDateString(undefined, {

@@ -176,36 +176,129 @@ const StudentTests = ({ navigation }) => {
         return mapping;
     }, [profile]);
 
-    // Build the dynamic list of inboxes
-    const inboxItems = useMemo(() => {
-        // Normalize key — match web logic exactly: 'Inbox N', 'Index N', 'N' → 'inbox n'
+    // Helper: Match test to inbox IDs based on subjectDaysMapping (Matches Web StudentTests.jsx)
+    const getMatchingInboxIdsForTest = (test, mapping) => {
+        if (!test || !test.index) return ['no index'];
+
         const normalizeKey = (raw) => {
             if (!raw) return 'no index';
             const trimmed = String(raw).trim().toLowerCase();
             const match = trimmed.match(/\d+/);
-            if (match) {
-                return `inbox ${match[0]}`;
-            }
-            return trimmed;
+            return match ? `inbox ${match[0]}` : trimmed;
         };
 
-        const testsGrouped = {};
-        tests.forEach(test => {
-            const indexStr = normalizeKey(test.index || 'No Index');
-            if (!testsGrouped[indexStr]) testsGrouped[indexStr] = [];
-            testsGrouped[indexStr].push(test);
+        const testIndexNorm = normalizeKey(test.index);
+        const testSubjects = (test.subject || '')
+            .split(',')
+            .map(s => s.trim().toLowerCase())
+            .filter(Boolean);
+
+        if (testSubjects.length === 0 || !mapping || mapping.length === 0) {
+            return [testIndexNorm];
+        }
+
+        const firstSub = testSubjects[0];
+        const firstSubGroup = mapping.find(
+            g => g.subjectName.toLowerCase() === firstSub ||
+                 g.subjectName.toLowerCase().includes(firstSub) ||
+                 firstSub.includes(g.subjectName.toLowerCase())
+        );
+
+        let localDayNum = null;
+        if (firstSubGroup) {
+            const matchedDay = firstSubGroup.days.find(d => normalizeKey(d.id) === testIndexNorm);
+            if (matchedDay) {
+                localDayNum = matchedDay.dayNum;
+            } else {
+                const match = testIndexNorm.match(/\d+/);
+                if (match) localDayNum = parseInt(match[0], 10);
+            }
+        } else {
+            const match = testIndexNorm.match(/\d+/);
+            if (match) localDayNum = parseInt(match[0], 10);
+        }
+
+        if (localDayNum === null) {
+            return [testIndexNorm];
+        }
+
+        const matchedGlobalIds = [];
+        testSubjects.forEach(subName => {
+            const group = mapping.find(
+                g => g.subjectName.toLowerCase() === subName ||
+                     g.subjectName.toLowerCase().includes(subName) ||
+                     subName.includes(g.subjectName.toLowerCase())
+            );
+            if (group) {
+                const dayObj = group.days.find(d => d.dayNum === localDayNum);
+                if (dayObj) {
+                    matchedGlobalIds.push(normalizeKey(dayObj.id));
+                }
+            }
         });
 
-        const materialsGrouped = {};
-        studyMaterials.forEach(mat => {
-            const indexStr = normalizeKey(mat.inboxId || 'No Index');
-            if (!materialsGrouped[indexStr]) materialsGrouped[indexStr] = [];
-            materialsGrouped[indexStr].push(mat);
-        });
+        if (matchedGlobalIds.length === 0) {
+            matchedGlobalIds.push(testIndexNorm);
+        }
+
+        return matchedGlobalIds;
+    };
+
+    // Build the dynamic list of inboxes
+    const inboxItems = useMemo(() => {
+        const normalizeKey = (raw) => {
+            if (!raw) return 'no index';
+            const trimmed = String(raw).trim().toLowerCase();
+            const match = trimmed.match(/\d+/);
+            return match ? `inbox ${match[0]}` : trimmed;
+        };
+
+        const validDayIds = new Set(
+            subjectDaysMapping.flatMap(g => g.days.map(d => normalizeKey(d.id)))
+        );
+
+        // Group tests by matched global inbox IDs
+        const testsGrouped = tests.reduce((acc, test) => {
+            const matchedIds = getMatchingInboxIdsForTest(test, subjectDaysMapping);
+            matchedIds.forEach(id => {
+                const normalized = normalizeKey(id);
+
+                // Find the subject this inbox belongs to
+                const inboxSubject = (() => {
+                    const foundGroup = subjectDaysMapping.find(g =>
+                        g.days.some(d => normalizeKey(d.id) === normalized)
+                    );
+                    return foundGroup ? foundGroup.subjectName : null;
+                })();
+
+                // Filter out if test has a subject and it doesn't match the inbox's subject
+                if (inboxSubject && test.subject) {
+                    const testSubs = test.subject.split(',').map(s => s.trim().toLowerCase());
+                    const inboxSubNorm = inboxSubject.trim().toLowerCase();
+                    const hasMatch = testSubs.some(s => s === inboxSubNorm || inboxSubNorm.includes(s) || s.includes(inboxSubNorm));
+                    if (!hasMatch) return;
+                }
+
+                if (!acc[normalized]) acc[normalized] = [];
+                if (!acc[normalized].some(t => t._id === test._id)) {
+                    acc[normalized].push(test);
+                }
+            });
+            return acc;
+        }, {});
+
+        // Group study materials by normalized index
+        const materialsGrouped = studyMaterials.reduce((acc, mat) => {
+            const indexStr = mat.inboxId || 'No Index';
+            const normalized = normalizeKey(indexStr);
+            if (!acc[normalized]) acc[normalized] = [];
+            acc[normalized].push(mat);
+            return acc;
+        }, {});
 
         const standardKeys = [];
         for (let i = 1; i <= courseDuration; i++) {
-            standardKeys.push(`Inbox ${i}`);  // Match web: 'Inbox N'
+            standardKeys.push(`Inbox ${i}`);
         }
 
         const enrollmentDate = profile?.studentProfile?.enrollmentDate || profile?.createdAt || new Date();
@@ -223,8 +316,7 @@ const StudentTests = ({ navigation }) => {
             const week = Math.ceil(idxNum / 7);
             const offsetDays = (week - 1) * 7;
             const inboxUnlockDateMs = new Date(enrollmentDate).getTime() + offsetDays * 24 * 60 * 60 * 1000;
-            // Match web: lock is always false by default
-            const isInboxDisabled = false; // Always unlocked per policy: no inbox is ever locked for any student
+            const isInboxDisabled = false; // Always unlocked per policy
             const customTitle = config && config.displayName ? config.displayName : keyName;
 
             // Count activities in various states
@@ -255,7 +347,7 @@ const StudentTests = ({ navigation }) => {
                 unlockDate: new Date(inboxUnlockDateMs)
             };
         }).filter(item => item.visible);
-    }, [tests, studyMaterials, inboxConfigs, activityConfigs, submissionMap, courseDuration, profile]);
+    }, [tests, studyMaterials, inboxConfigs, activityConfigs, submissionMap, courseDuration, profile, subjectDaysMapping]);
 
     // Group Inboxes by Subject for display in Browse level
     const groupedInboxes = useMemo(() => {

@@ -1467,18 +1467,60 @@ const StaffList = () => {
 
                             {/* Filters */}
                             <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
-                                <select value={taskPriorityFilter} onChange={e => setTaskPriorityFilter(e.target.value)} style={{ padding: '7px 12px', border: '1.5px solid #e2e8f0', borderRadius: '10px', fontSize: '0.8rem', fontWeight: 700, outline: 'none', cursor: 'pointer' }}>
+                                <select value={taskPriorityFilter} onChange={e => setTaskPriorityFilter(e.target.value)} style={{ padding: '7px 12px', border: '1.5px solid #e2e8f0', borderRadius: '10px', fontSize: '0.8rem', fontWeight: 700, outline: 'none', cursor: 'pointer', background: '#fff' }}>
                                     <option value="">All Priorities</option>
                                     <option value="High">High</option>
                                     <option value="Medium">Medium</option>
                                     <option value="Low">Low</option>
                                 </select>
-                                <select value={taskStatusFilter} onChange={e => setTaskStatusFilter(e.target.value)} style={{ padding: '7px 12px', border: '1.5px solid #e2e8f0', borderRadius: '10px', fontSize: '0.8rem', fontWeight: 700, outline: 'none', cursor: 'pointer' }}>
+                                <select value={taskStatusFilter} onChange={e => setTaskStatusFilter(e.target.value)} style={{ padding: '7px 12px', border: '1.5px solid #e2e8f0', borderRadius: '10px', fontSize: '0.8rem', fontWeight: 700, outline: 'none', cursor: 'pointer', background: '#fff' }}>
                                     <option value="">All Statuses</option>
                                     <option value="pending">Pending</option>
                                     <option value="inprogress">In Progress</option>
                                     <option value="done">Done</option>
                                 </select>
+
+                                {/* Date Filter Dropdown */}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#fff', border: '1.5px solid #e2e8f0', borderRadius: '10px', padding: '5px 12px' }}>
+                                    <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#475569' }}>Date:</span>
+                                    <select
+                                        value={taskDateFilter}
+                                        onChange={e => setTaskDateFilter(e.target.value)}
+                                        style={{ border: 'none', background: 'transparent', fontSize: '0.8rem', fontWeight: 700, color: '#0f172a', outline: 'none', cursor: 'pointer' }}
+                                    >
+                                        <option value="today">Today</option>
+                                        <option value="month">This Month</option>
+                                        <option value="particular">Particular Date</option>
+                                        <option value="range">Date Range</option>
+                                        <option value="year">Complete Year</option>
+                                    </select>
+                                </div>
+
+                                {taskDateFilter === 'particular' && (
+                                    <input
+                                        type="date"
+                                        value={filterParticularDate}
+                                        onChange={e => setFilterParticularDate(e.target.value)}
+                                        style={{ padding: '6px 10px', borderRadius: '10px', border: '1.5px solid #e2e8f0', fontSize: '0.78rem', fontWeight: 600, outline: 'none', background: '#fff' }}
+                                    />
+                                )}
+                                {taskDateFilter === 'range' && (
+                                    <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                                        <input
+                                            type="date"
+                                            value={filterStartDate}
+                                            onChange={e => setFilterStartDate(e.target.value)}
+                                            style={{ padding: '6px 10px', borderRadius: '10px', border: '1.5px solid #e2e8f0', fontSize: '0.78rem', fontWeight: 600, outline: 'none', background: '#fff' }}
+                                        />
+                                        <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 700 }}>to</span>
+                                        <input
+                                            type="date"
+                                            value={filterEndDate}
+                                            onChange={e => setFilterEndDate(e.target.value)}
+                                            style={{ padding: '6px 10px', borderRadius: '10px', border: '1.5px solid #e2e8f0', fontSize: '0.78rem', fontWeight: 600, outline: 'none', background: '#fff' }}
+                                        />
+                                    </div>
+                                )}
                             </div>
 
                             {/* Task Table */}
@@ -1503,106 +1545,131 @@ const StaffList = () => {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {tasks
-                                            .filter(t => (!taskPriorityFilter || t.priority === taskPriorityFilter) && (!taskStatusFilter || t.status === taskStatusFilter))
-                                            .map(t => {
-                                                const staffMember = staffList.find(s => s._id === t.staffId || s.name === t.staffName) || {};
-                                                const isSelfCreated = t.isSelfCreated || t.source === 'Self';
-                                                const surrenderTask = t.title || t.surrenderedTask || '—';
-                                                const verificationStatus = t.verificationStatus || (t.status === 'done' ? 'Verified' : 'Pending');
+                                        {(() => {
+                                            const filterTaskByDate = (t) => {
+                                                if (!taskDateFilter || taskDateFilter === 'all' || taskDateFilter === 'year') return true;
+                                                const getFormattedDateStr = (d) => {
+                                                    if (!d) return '';
+                                                    try { return new Date(d).toISOString().split('T')[0]; } catch (e) { return d; }
+                                                };
+                                                const taskDate = getFormattedDateStr(t.due || t.createdAt || t.date || t.assignedDate);
+                                                const todayStr = new Date().toISOString().split('T')[0];
 
-                                                return (
-                                                    <tr key={t.id} style={{ borderBottom: '1px solid #f8fafc' }}>
-                                                        {/* 1. Staff */}
-                                                        <td style={{ padding: '12px 14px', fontWeight: 800, color: '#334155', minWidth: '160px' }}>
-                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                                <div style={{ width: 30, height: 30, borderRadius: '8px', background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '0.75rem', fontWeight: 900 }}>
-                                                                    {t.staffName?.[0]?.toUpperCase() || '?'}
-                                                                </div>
-                                                                <div>
-                                                                    <div style={{ fontSize: '0.8rem', fontWeight: 800, color: '#0f172a' }}>{t.staffName}</div>
-                                                                    <div style={{ fontSize: '0.7rem', color: '#64748b' }}>{staffMember.email || '—'}</div>
-                                                                </div>
-                                                            </div>
-                                                        </td>
+                                                if (taskDateFilter === 'today') return taskDate === todayStr;
+                                                if (taskDateFilter === 'month') return taskDate.startsWith(todayStr.substring(0, 7));
+                                                if (taskDateFilter === 'particular') return !filterParticularDate || taskDate === filterParticularDate;
+                                                if (taskDateFilter === 'range') return (!filterStartDate || !filterEndDate) || (taskDate >= filterStartDate && taskDate <= filterEndDate);
+                                                return true;
+                                            };
 
-                                                        {/* 2. Role */}
-                                                        <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>
-                                                            <span style={{ padding: '3px 8px', borderRadius: '6px', fontSize: '0.7rem', fontWeight: 800, background: '#f1f5f9', color: '#475569' }}>
-                                                                {staffMember.role || t.role || 'Staff'}
-                                                            </span>
-                                                        </td>
+                                            const filteredTasks = tasks.filter(t => 
+                                                (!taskPriorityFilter || t.priority === taskPriorityFilter) &&
+                                                (!taskStatusFilter || t.status === taskStatusFilter) &&
+                                                filterTaskByDate(t)
+                                            );
 
-                                                        {/* 3. Institute */}
-                                                        <td style={{ padding: '12px 14px', color: '#475569', fontWeight: 600, whiteSpace: 'nowrap' }}>
-                                                            {staffMember.instituteName || staffMember.institute?.name || 'All Institutes'}
-                                                        </td>
+                                            return (
+                                                <>
+                                                    {filteredTasks.map(t => {
+                                                        const staffMember = staffList.find(s => s._id === t.staffId || s.name === t.staffName) || {};
+                                                        const isSelfCreated = t.isSelfCreated || t.source === 'Self';
+                                                        const surrenderTask = t.title || t.surrenderedTask || '—';
+                                                        const verificationStatus = t.verificationStatus || (t.status === 'done' ? 'Verified' : 'Pending');
 
-                                                        {/* 4. Today's surrendered task */}
-                                                        <td style={{ padding: '12px 14px', minWidth: '180px' }}>
-                                                            <div style={{ fontWeight: 800, color: '#0f172a' }}>{surrenderTask}</div>
-                                                            {t.description && <div style={{ fontSize: '0.7rem', color: '#64748b', marginTop: '2px' }}>{t.description}</div>}
-                                                        </td>
+                                                        return (
+                                                            <tr key={t.id} style={{ borderBottom: '1px solid #f8fafc' }}>
+                                                                {/* 1. Staff */}
+                                                                <td style={{ padding: '12px 14px', fontWeight: 800, color: '#334155', minWidth: '160px' }}>
+                                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                                        <div style={{ width: 30, height: 30, borderRadius: '8px', background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '0.75rem', fontWeight: 900 }}>
+                                                                            {t.staffName?.[0]?.toUpperCase() || '?'}
+                                                                        </div>
+                                                                        <div>
+                                                                            <div style={{ fontSize: '0.8rem', fontWeight: 800, color: '#0f172a' }}>{t.staffName}</div>
+                                                                            <div style={{ fontSize: '0.7rem', color: '#64748b' }}>{staffMember.email || '—'}</div>
+                                                                        </div>
+                                                                    </div>
+                                                                </td>
 
-                                                        {/* 5. Self created */}
-                                                        <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>
-                                                            <span style={{ padding: '3px 8px', borderRadius: '6px', fontSize: '0.7rem', fontWeight: 800, background: isSelfCreated ? '#e0e7ff' : '#f1f5f9', color: isSelfCreated ? '#4338ca' : '#64748b' }}>
-                                                                {isSelfCreated ? 'Yes (Self)' : 'No (Admin)'}
-                                                            </span>
-                                                        </td>
+                                                                {/* 2. Role */}
+                                                                <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>
+                                                                    <span style={{ padding: '3px 8px', borderRadius: '6px', fontSize: '0.7rem', fontWeight: 800, background: '#f1f5f9', color: '#475569' }}>
+                                                                        {staffMember.role || t.role || 'Staff'}
+                                                                    </span>
+                                                                </td>
 
-                                                        {/* 6. Due Date */}
-                                                        <td style={{ padding: '12px 14px', color: '#64748b', fontWeight: 600, whiteSpace: 'nowrap' }}>
-                                                            {t.due ? new Date(t.due).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
-                                                        </td>
+                                                                {/* 3. Institute */}
+                                                                <td style={{ padding: '12px 14px', color: '#475569', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                                                                    {staffMember.instituteName || staffMember.institute?.name || 'All Institutes'}
+                                                                </td>
 
-                                                        {/* 7. Priority */}
-                                                        <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>
-                                                            <span style={{ background: t.priority === 'High' ? '#fee2e2' : t.priority === 'Medium' ? '#fffbeb' : '#dcfce7', color: t.priority === 'High' ? '#ef4444' : t.priority === 'Medium' ? '#d97706' : '#16a34a', fontSize: '0.68rem', fontWeight: 900, padding: '2px 8px', borderRadius: '12px' }}>
-                                                                {t.priority}
-                                                            </span>
-                                                        </td>
+                                                                {/* 4. Today’s surrendered task */}
+                                                                <td style={{ padding: '12px 14px', minWidth: '180px' }}>
+                                                                    <div style={{ fontWeight: 800, color: '#0f172a' }}>{surrenderTask}</div>
+                                                                    {t.description && <div style={{ fontSize: '0.7rem', color: '#64748b', marginTop: '2px' }}>{t.description}</div>}
+                                                                </td>
 
-                                                        {/* 8. Status with Evidence */}
-                                                        <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>
-                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                                                <span style={{ background: t.status === 'done' ? '#dcfce7' : t.status === 'inprogress' ? '#fffbeb' : '#fee2e2', color: t.status === 'done' ? '#16a34a' : t.status === 'inprogress' ? '#d97706' : '#ef4444', borderRadius: '999px', padding: '3px 10px', fontSize: '0.68rem', fontWeight: 900 }}>
-                                                                    {t.status}
-                                                                </span>
-                                                                {t.evidenceFile ? (
-                                                                    <a href={t.evidenceFile} target="_blank" rel="noreferrer" title="View Evidence File" style={{ color: '#4f46e5', textDecoration: 'underline', fontSize: '0.7rem', fontWeight: 800 }}>
-                                                                        📎 Evidence
-                                                                    </a>
-                                                                ) : (
-                                                                    <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>No Evidence</span>
-                                                                )}
-                                                            </div>
-                                                        </td>
+                                                                {/* 5. Self created */}
+                                                                <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>
+                                                                    <span style={{ padding: '3px 8px', borderRadius: '6px', fontSize: '0.7rem', fontWeight: 800, background: isSelfCreated ? '#e0e7ff' : '#f1f5f9', color: isSelfCreated ? '#4338ca' : '#64748b' }}>
+                                                                        {isSelfCreated ? 'Yes (Self)' : 'No (Admin)'}
+                                                                    </span>
+                                                                </td>
 
-                                                        {/* 9. Verification Status */}
-                                                        <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>
-                                                            <span style={{ padding: '3px 8px', borderRadius: '999px', fontSize: '0.68rem', fontWeight: 900, background: verificationStatus === 'Verified' ? '#ecfdf5' : verificationStatus === 'Rejected' ? '#fef2f2' : '#fffbeb', color: verificationStatus === 'Verified' ? '#047857' : verificationStatus === 'Rejected' ? '#b91c1c' : '#b45309' }}>
-                                                                {verificationStatus}
-                                                            </span>
-                                                        </td>
+                                                                {/* 6. Due Date */}
+                                                                <td style={{ padding: '12px 14px', color: '#64748b', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                                                                    {t.due ? new Date(t.due).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
+                                                                </td>
 
-                                                        {/* 10. Individually all record */}
-                                                        <td style={{ padding: '12px 14px', textAlign: 'center', whiteSpace: 'nowrap' }}>
-                                                            <button
-                                                                onClick={() => setViewTaskStaffRecord(staffMember._id ? staffMember : { name: t.staffName })}
-                                                                title="View All Task Records"
-                                                                style={{ padding: '6px 12px', background: '#eef2ff', color: '#4f46e5', border: '1px solid #c7d2fe', borderRadius: '8px', fontSize: '0.75rem', fontWeight: 800, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-                                                            >
-                                                                <Eye size={13} /> View Record
-                                                            </button>
-                                                        </td>
-                                                    </tr>
-                                                );
-                                            })
-                                        }
-                                        {tasks.filter(t => (!taskPriorityFilter || t.priority === taskPriorityFilter) && (!taskStatusFilter || t.status === taskStatusFilter)).length === 0 && (
-                                            <tr><td colSpan={10} style={{ padding: '40px', textAlign: 'center', color: '#94a3b8', fontWeight: 700 }}>No tasks match the filters</td></tr>
-                                        )}
+                                                                {/* 7. Priority */}
+                                                                <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>
+                                                                    <span style={{ background: t.priority === 'High' ? '#fee2e2' : t.priority === 'Medium' ? '#fffbeb' : '#dcfce7', color: t.priority === 'High' ? '#ef4444' : t.priority === 'Medium' ? '#d97706' : '#16a34a', fontSize: '0.68rem', fontWeight: 900, padding: '2px 8px', borderRadius: '12px' }}>
+                                                                        {t.priority}
+                                                                    </span>
+                                                                </td>
+
+                                                                {/* 8. Status with Evidence */}
+                                                                <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>
+                                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                                        <span style={{ background: t.status === 'done' ? '#dcfce7' : t.status === 'inprogress' ? '#fffbeb' : '#fee2e2', color: t.status === 'done' ? '#16a34a' : t.status === 'inprogress' ? '#d97706' : '#ef4444', borderRadius: '999px', padding: '3px 10px', fontSize: '0.68rem', fontWeight: 900 }}>
+                                                                            {t.status}
+                                                                        </span>
+                                                                        {t.evidenceFile ? (
+                                                                            <a href={t.evidenceFile} target="_blank" rel="noreferrer" title="View Evidence File" style={{ color: '#4f46e5', textDecoration: 'underline', fontSize: '0.7rem', fontWeight: 800 }}>
+                                                                                📎 Evidence
+                                                                            </a>
+                                                                        ) : (
+                                                                            <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>No Evidence</span>
+                                                                        )}
+                                                                    </div>
+                                                                </td>
+
+                                                                {/* 9. Verification Status */}
+                                                                <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>
+                                                                    <span style={{ padding: '3px 8px', borderRadius: '999px', fontSize: '0.68rem', fontWeight: 900, background: verificationStatus === 'Verified' ? '#ecfdf5' : verificationStatus === 'Rejected' ? '#fef2f2' : '#fffbeb', color: verificationStatus === 'Verified' ? '#047857' : verificationStatus === 'Rejected' ? '#b91c1c' : '#b45309' }}>
+                                                                        {verificationStatus}
+                                                                    </span>
+                                                                </td>
+
+                                                                {/* 10. Individually all record */}
+                                                                <td style={{ padding: '12px 14px', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                                                                    <button
+                                                                        onClick={() => setViewTaskStaffRecord(staffMember._id ? staffMember : { name: t.staffName })}
+                                                                        title="View All Task Records"
+                                                                        style={{ padding: '6px 12px', background: '#eef2ff', color: '#4f46e5', border: '1px solid #c7d2fe', borderRadius: '8px', fontSize: '0.75rem', fontWeight: 800, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                                                                    >
+                                                                        <Eye size={13} /> View Record
+                                                                    </button>
+                                                                </td>
+                                                            </tr>
+                                                        );
+                                                    })}
+                                                    {filteredTasks.length === 0 && (
+                                                        <tr><td colSpan={10} style={{ padding: '40px', textAlign: 'center', color: '#94a3b8', fontWeight: 700 }}>No tasks match the filters</td></tr>
+                                                    )}
+                                                </>
+                                            );
+                                        })()}
                                     </tbody>
                                 </table>
                             </div>

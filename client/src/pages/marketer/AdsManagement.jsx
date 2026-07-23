@@ -17,6 +17,9 @@ const AdsManagement = () => {
             _id: 'camp_1',
             name: 'Google Search - Web Dev Academy',
             platform: 'Google Ads',
+            createdBy: 'Ankush Antil',
+            instituteName: 'HARTRON GANAUR',
+            totalAds: 6,
             status: 'Active',
             budget: 15000, // Monthly in INR
             spent: 8400,
@@ -30,6 +33,9 @@ const AdsManagement = () => {
             _id: 'camp_2',
             name: 'Facebook Retargeting - Career Transitioners',
             platform: 'Facebook Ads',
+            createdBy: 'Govind Kashyap',
+            instituteName: 'HARTRON GANAUR',
+            totalAds: 4,
             status: 'Active',
             budget: 10000,
             spent: 4200,
@@ -43,6 +49,9 @@ const AdsManagement = () => {
             _id: 'camp_3',
             name: 'Instagram Reels - Code in Python',
             platform: 'Instagram Ads',
+            createdBy: 'Ankush Antil',
+            instituteName: 'HARTRON GANAUR',
+            totalAds: 8,
             status: 'Paused',
             budget: 12000,
             spent: 9800,
@@ -56,6 +65,9 @@ const AdsManagement = () => {
             _id: 'camp_4',
             name: 'YouTube Video Ad - Cyber Security Boot Camp',
             platform: 'YouTube Ads',
+            createdBy: 'Govind Kashyap',
+            instituteName: 'HARTRON GANAUR',
+            totalAds: 3,
             status: 'Active',
             budget: 25000,
             spent: 12500,
@@ -69,6 +81,9 @@ const AdsManagement = () => {
             _id: 'camp_5',
             name: 'Google Display - UI/UX Design Masterclass',
             platform: 'Google Ads',
+            createdBy: 'Ankush Antil',
+            instituteName: 'HARTRON GANAUR',
+            totalAds: 5,
             status: 'Paused',
             budget: 8000,
             spent: 7800,
@@ -101,6 +116,7 @@ const AdsManagement = () => {
         platform: 'Google Ads',
         status: 'Active',
         budget: '',
+        totalAds: '1',
         startDate: '',
         endDate: ''
     });
@@ -117,6 +133,9 @@ const AdsManagement = () => {
         const newCamp = {
             _id: 'manual_' + Math.random().toString(36).substr(2, 9),
             ...newCampaignForm,
+            createdBy: user?.name || 'Marketer',
+            instituteName: user?.instituteName || 'HARTRON GANAUR',
+            totalAds: parseInt(newCampaignForm.totalAds) || 1,
             budget: parseFloat(newCampaignForm.budget),
             spent: 0,
             impressions: 0,
@@ -134,6 +153,7 @@ const AdsManagement = () => {
             platform: 'Google Ads',
             status: 'Active',
             budget: '',
+            totalAds: '1',
             startDate: '',
             endDate: ''
         });
@@ -170,14 +190,11 @@ const AdsManagement = () => {
         return matchesSearch && matchesPlatform && matchesStatus;
     });
 
+    const totalCampaignsCount = filteredCampaigns.length;
+    const totalAdsCount = filteredCampaigns.reduce((acc, c) => acc + (c.totalAds || 1), 0);
+    const totalLeadsCount = filteredCampaigns.reduce((acc, c) => acc + c.leads, 0);
     const totalSpend = filteredCampaigns.reduce((acc, c) => acc + c.spent, 0);
     const totalBudget = filteredCampaigns.reduce((acc, c) => acc + c.budget, 0);
-    const totalImpressions = filteredCampaigns.reduce((acc, c) => acc + c.impressions, 0);
-    const totalClicks = filteredCampaigns.reduce((acc, c) => acc + c.clicks, 0);
-    const totalLeads = filteredCampaigns.reduce((acc, c) => acc + c.leads, 0);
-
-    const overallCTR = totalImpressions > 0 ? ((totalClicks / totalImpressions) * 100).toFixed(2) : '0';
-    const averageCPA = totalLeads > 0 ? (totalSpend / totalLeads).toFixed(0) : '0';
 
     // Pagination calculations
     const totalPages = Math.ceil(filteredCampaigns.length / rowsPerPage) || 1;
@@ -211,8 +228,38 @@ const AdsManagement = () => {
                 </button>
             </div>
 
-            {/* Stats Dashboard */}
+            {/* 4 Stat Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 text-left">
+                <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex items-center gap-4">
+                    <div className="p-4 bg-indigo-50 text-indigo-600 rounded-2xl">
+                        <Megaphone size={24} />
+                    </div>
+                    <div>
+                        <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Total Campaign</p>
+                        <h3 className="text-xl font-extrabold text-slate-800 mt-1">{totalCampaignsCount}</h3>
+                    </div>
+                </div>
+
+                <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex items-center gap-4">
+                    <div className="p-4 bg-blue-50 text-blue-600 rounded-2xl">
+                        <BarChart2 size={24} />
+                    </div>
+                    <div>
+                        <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Total Ads</p>
+                        <h3 className="text-xl font-extrabold text-slate-800 mt-1">{totalAdsCount}</h3>
+                    </div>
+                </div>
+
+                <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex items-center gap-4">
+                    <div className="p-4 bg-emerald-50 text-emerald-600 rounded-2xl">
+                        <TrendingUp size={24} />
+                    </div>
+                    <div>
+                        <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Total Lead</p>
+                        <h3 className="text-xl font-extrabold text-slate-800 mt-1">{totalLeadsCount.toLocaleString()}</h3>
+                    </div>
+                </div>
+
                 <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex items-center gap-4">
                     <div className="p-4 bg-purple-50 text-purple-600 rounded-2xl">
                         <DollarSign size={24} />
@@ -222,36 +269,6 @@ const AdsManagement = () => {
                         <h3 className="text-xl font-extrabold text-slate-800 mt-1">
                             {formatCurrency(totalSpend)} <span className="text-[10px] text-slate-450 font-normal">/ {formatCurrency(totalBudget)}</span>
                         </h3>
-                    </div>
-                </div>
-
-                <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex items-center gap-4">
-                    <div className="p-4 bg-indigo-50 text-indigo-600 rounded-2xl">
-                        <Eye size={24} />
-                    </div>
-                    <div>
-                        <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Total Impressions</p>
-                        <h3 className="text-xl font-extrabold text-slate-800 mt-1">{totalImpressions.toLocaleString()}</h3>
-                    </div>
-                </div>
-
-                <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex items-center gap-4">
-                    <div className="p-4 bg-blue-50 text-blue-600 rounded-2xl">
-                        <MousePointerClick size={24} />
-                    </div>
-                    <div>
-                        <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Avg Click Rate (CTR)</p>
-                        <h3 className="text-xl font-extrabold text-slate-800 mt-1">{overallCTR}%</h3>
-                    </div>
-                </div>
-
-                <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex items-center gap-4">
-                    <div className="p-4 bg-emerald-50 text-emerald-600 rounded-2xl">
-                        <TrendingUp size={24} />
-                    </div>
-                    <div>
-                        <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Avg Cost per Lead (CPA)</p>
-                        <h3 className="text-xl font-extrabold text-slate-800 mt-1">{formatCurrency(parseFloat(averageCPA))}</h3>
                     </div>
                 </div>
             </div>
@@ -320,20 +337,24 @@ const AdsManagement = () => {
                 <div className="responsive-table-wrapper">
                     <table className="min-w-full text-left border-collapse">
                         <thead>
-                            <tr className="bg-slate-50 border-b border-slate-150 text-slate-500 text-[10px] font-black uppercase tracking-wider">
+                            <tr className="bg-slate-50 border-b border-slate-150 text-slate-500 text-[10px] font-black uppercase tracking-wider whitespace-nowrap">
                                 <th className="p-4 font-semibold">Campaign Info</th>
-                                <th className="p-4 font-semibold">Budget spent</th>
+                                <th className="p-4 font-semibold">Created By</th>
+                                <th className="p-4 font-semibold">Institute</th>
+                                <th className="p-4 font-semibold text-center">Total Ads in this</th>
+                                <th className="p-4 font-semibold">Budgets Spend</th>
                                 <th className="p-4 font-semibold">Traffic stats</th>
-                                <th className="p-4 font-semibold">Leads & CPA</th>
+                                <th className="p-4 font-semibold">Leads</th>
+                                <th className="p-4 font-semibold">CPA</th>
                                 <th className="p-4 font-semibold">Dates</th>
                                 <th className="p-4 font-semibold text-center">Status</th>
-                                <th className="p-4 font-semibold text-right">Actions</th>
+                                <th className="p-4 font-semibold text-right">Delete</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 text-slate-700 text-xs font-semibold">
                             {currentCampaigns.length === 0 ? (
                                 <tr>
-                                    <td colSpan={7} className="p-12 text-center text-slate-400 font-semibold text-sm">
+                                    <td colSpan={11} className="p-12 text-center text-slate-400 font-semibold text-sm">
                                         No campaigns found matching your criteria.
                                     </td>
                                 </tr>
@@ -344,13 +365,24 @@ const AdsManagement = () => {
 
                                 return (
                                     <tr key={c._id} className="hover:bg-slate-50 transition-colors group">
-                                        <td className="p-4">
+                                        <td className="p-4 whitespace-nowrap">
                                             <div className="flex flex-col">
                                                 <span className="font-bold text-slate-800 text-sm">{c.name}</span>
                                                 <span className="text-[9px] font-black text-indigo-500 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded-full w-fit mt-1">{c.platform}</span>
                                             </div>
                                         </td>
-                                        <td className="p-4 min-w-[150px]">
+                                        <td className="p-4 whitespace-nowrap text-slate-750 font-bold">
+                                            {c.createdBy || user?.name || 'Ankush Antil'}
+                                        </td>
+                                        <td className="p-4 whitespace-nowrap text-slate-600 font-bold">
+                                            {c.instituteName || 'HARTRON GANAUR'}
+                                        </td>
+                                        <td className="p-4 whitespace-nowrap text-center">
+                                            <span className="px-2.5 py-1 bg-indigo-50 text-indigo-700 rounded-full font-extrabold text-xs">
+                                                {c.totalAds || 1} Ads
+                                            </span>
+                                        </td>
+                                        <td className="p-4 min-w-[150px] whitespace-nowrap">
                                             <div className="flex flex-col justify-center">
                                                 <div className="flex justify-between items-center text-[10px] text-slate-550 mb-1">
                                                     <span>{formatCurrency(c.spent)}</span>
@@ -364,23 +396,20 @@ const AdsManagement = () => {
                                                 </div>
                                             </div>
                                         </td>
-                                        <td className="p-4">
+                                        <td className="p-4 whitespace-nowrap">
                                             <div className="flex flex-col">
                                                 <span className="font-bold text-slate-800">{c.clicks.toLocaleString()} clicks</span>
                                                 <span className="text-[10px] text-slate-450 font-semibold mt-0.5">{c.impressions.toLocaleString()} views · {ctr}% CTR</span>
                                             </div>
                                         </td>
-                                        <td className="p-4">
-                                            <div className="flex flex-col">
-                                                <span className="font-bold text-emerald-600">{c.leads} leads</span>
-                                                <span className="text-[10px] text-slate-450 font-semibold mt-0.5">{formatCurrency(parseFloat(cpa))} / lead</span>
-                                            </div>
+                                        <td className="p-4 whitespace-nowrap font-extrabold text-emerald-600">
+                                            {c.leads} leads
                                         </td>
-                                        <td className="p-4 whitespace-nowrap text-slate-550 font-medium">
-                                            <div className="flex flex-col">
-                                                <span>Start: {c.startDate}</span>
-                                                <span className="text-[10px] text-slate-400 font-semibold">End: {c.endDate}</span>
-                                            </div>
+                                        <td className="p-4 whitespace-nowrap font-bold text-slate-700">
+                                            {formatCurrency(parseFloat(cpa))}
+                                        </td>
+                                        <td className="p-4 whitespace-nowrap text-slate-600 font-medium text-xs">
+                                            {c.startDate} — {c.endDate}
                                         </td>
                                         <td className="p-4 text-center whitespace-nowrap">
                                             <span className={`px-2.5 py-1 border rounded-full text-[10px] font-black uppercase tracking-wider ${
@@ -401,13 +430,6 @@ const AdsManagement = () => {
                                                     title={c.status === 'Active' ? 'Pause Campaign' : 'Resume Campaign'}
                                                 >
                                                     {c.status === 'Active' ? <Pause size={14} /> : <Play size={14} />}
-                                                </button>
-                                                <button
-                                                    onClick={() => { setEditingCampaign(c); setEditBudget(c.budget.toString()); }}
-                                                    className="p-1.5 bg-indigo-50 border border-indigo-100 text-indigo-650 hover:bg-indigo-100 rounded-lg cursor-pointer"
-                                                    title="Modify Budget"
-                                                >
-                                                    <Edit size={14} />
                                                 </button>
                                                 <button
                                                     onClick={() => handleDeleteCampaign(c._id)}

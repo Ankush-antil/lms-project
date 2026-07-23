@@ -16,6 +16,7 @@ jobs:
           host: ${{ secrets.VPS_HOST }}
           username: root
           password: ${{ secrets.VPS_PASSWORD }}
+          command_timeout: 30m
           script: |
             cd /var/www/lms-dev/lms-project
 
@@ -24,13 +25,14 @@ jobs:
             git reset --hard origin/main
 
             cd client
-            npm install
-            npm run build
+            npm install --no-audit --no-fund --prefer-offline
+            NODE_OPTIONS="--max-old-space-size=4096" npm run build
             chmod -R 755 /var/www/lms-dev/lms-project/client/dist
             chown -R www-data:www-data /var/www/lms-dev/lms-project/client/dist
 
             cd ../server
-            npm install
+            npm install --no-audit --no-fund --prefer-offline
 
             pm2 restart lms-dev --update-env || pm2 start server.js --name "lms-dev"
             systemctl reload nginx
+

@@ -137,6 +137,7 @@ const StaffList = () => {
     const [viewAttendanceStaff, setViewAttendanceStaff] = useState(null);
     const [viewTaskStaffRecord, setViewTaskStaffRecord] = useState(null);
     const [historyDateFilter, setHistoryDateFilter] = useState('');
+    const [showAddTaskModal, setShowAddTaskModal] = useState(false);
     const [editingId, setEditingId] = useState(null);
     const [editRecord, setEditRecord] = useState({ status: '', checkInTime: '', checkOutTime: '' });
 
@@ -1438,39 +1439,31 @@ const StaffList = () => {
 
                     {activeTab === 'task' && (
                         <div style={{ background: '#fff', borderRadius: '24px', padding: '24px', border: '1px solid #f1f5f9', boxShadow: '0 2px 12px rgba(0,0,0,0.04)', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                            <div>
-                                <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 900, color: '#0f172a' }}>Task Assignments</h3>
-                                <p style={{ margin: '4px 0 0', fontSize: '0.72rem', color: '#64748b', fontWeight: 600 }}>Assign and monitor tasks for staff members with priorities and completion tracking.</p>
-                            </div>
-                            {/* Add Task Form */}
-                            <form onSubmit={handleAddTask} style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'flex-end', background: '#f8fafc', padding: '16px', borderRadius: '16px' }}>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                    <label style={{ fontSize: '0.7rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>Staff</label>
-                                    <select value={newTask.staffName} onChange={e => setNewTask(p => ({ ...p, staffName: e.target.value }))} style={{ padding: '8px 12px', border: '1.5px solid #e2e8f0', borderRadius: '10px', fontSize: '0.82rem', fontWeight: 600, outline: 'none', minWidth: 160 }}>
-                                        <option value="">Select Staff</option>
-                                        {staffList.map(s => <option key={s._id} value={s.name}>{s.name} ({s.role})</option>)}
-                                    </select>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+                                <div>
+                                    <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 900, color: '#0f172a' }}>Task Assignments</h3>
+                                    <p style={{ margin: '4px 0 0', fontSize: '0.72rem', color: '#64748b', fontWeight: 600 }}>Assign and monitor tasks for staff members with priorities and completion tracking.</p>
                                 </div>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1 }}>
-                                    <label style={{ fontSize: '0.7rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>Task Title</label>
-                                    <input value={newTask.title} onChange={e => setNewTask(p => ({ ...p, title: e.target.value }))} placeholder="Enter task title..." style={{ padding: '8px 12px', border: '1.5px solid #e2e8f0', borderRadius: '10px', fontSize: '0.82rem', fontWeight: 600, outline: 'none', minWidth: 200 }} />
-                                </div>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                    <label style={{ fontSize: '0.7rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>Due Date</label>
-                                    <input type="date" value={newTask.due} onChange={e => setNewTask(p => ({ ...p, due: e.target.value }))} style={{ padding: '8px 12px', border: '1.5px solid #e2e8f0', borderRadius: '10px', fontSize: '0.82rem', fontWeight: 600, outline: 'none' }} />
-                                </div>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                    <label style={{ fontSize: '0.7rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>Priority</label>
-                                    <select value={newTask.priority} onChange={e => setNewTask(p => ({ ...p, priority: e.target.value }))} style={{ padding: '8px 12px', border: '1.5px solid #e2e8f0', borderRadius: '10px', fontSize: '0.82rem', fontWeight: 600, outline: 'none' }}>
-                                        <option value="Low">Low</option>
-                                        <option value="Medium">Medium</option>
-                                        <option value="High">High</option>
-                                    </select>
-                                </div>
-                                <button type="submit" style={{ padding: '8px 18px', background: '#4f46e5', color: '#fff', border: 'none', borderRadius: '10px', fontSize: '0.82rem', fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                    <Plus size={15} /> Assign Task
+                                <button
+                                    onClick={() => setShowAddTaskModal(true)}
+                                    style={{
+                                        padding: '9px 18px',
+                                        background: 'linear-gradient(135deg, #4f46e5, #6366f1)',
+                                        color: '#fff',
+                                        border: 'none',
+                                        borderRadius: '12px',
+                                        fontSize: '0.82rem',
+                                        fontWeight: 800,
+                                        cursor: 'pointer',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '6px',
+                                        boxShadow: '0 4px 12px rgba(79, 70, 229, 0.25)'
+                                    }}
+                                >
+                                    <Plus size={16} /> Add Task
                                 </button>
-                            </form>
+                            </div>
 
                             {/* Filters */}
                             <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
@@ -2291,6 +2284,106 @@ const StaffList = () => {
                                 </>
                             );
                         })()}
+                    </div>
+                </div>,
+                document.body
+            )}
+            {showAddTaskModal && createPortal(
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', zIndex: 99999, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '20px' }} onClick={() => setShowAddTaskModal(false)}>
+                    <div style={{ background: '#fff', borderRadius: '24px', padding: '32px', width: '100%', maxWidth: '500px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', position: 'relative', border: '1px solid #e2e8f0' }} onClick={e => e.stopPropagation()}>
+
+                        {/* Modal Header */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', paddingBottom: '16px', borderBottom: '1px solid #f1f5f9' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                <div style={{ width: 42, height: 42, borderRadius: '12px', background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
+                                    <CheckSquare size={20} />
+                                </div>
+                                <div>
+                                    <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 900, color: '#0f172a' }}>Assign New Task</h3>
+                                    <p style={{ margin: '2px 0 0', fontSize: '0.78rem', color: '#64748b', fontWeight: 600 }}>Assign a task to a staff member</p>
+                                </div>
+                            </div>
+                            <button onClick={() => setShowAddTaskModal(false)} style={{ background: '#f1f5f9', border: 'none', width: 34, height: 34, borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#64748b' }}>
+                                <X size={18} />
+                            </button>
+                        </div>
+
+                        {/* Modal Form */}
+                        <form onSubmit={(e) => {
+                            handleAddTask(e);
+                            setShowAddTaskModal(false);
+                        }} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+
+                            {/* Staff Select */}
+                            <div>
+                                <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 800, color: '#475569', textTransform: 'uppercase', marginBottom: '6px' }}>Staff Member *</label>
+                                <select
+                                    required
+                                    value={newTask.staffName}
+                                    onChange={e => setNewTask(p => ({ ...p, staffName: e.target.value }))}
+                                    style={{ width: '100%', padding: '10px 14px', border: '1.5px solid #cbd5e1', borderRadius: '12px', fontSize: '0.85rem', fontWeight: 700, color: '#0f172a', outline: 'none', cursor: 'pointer', background: '#f8fafc' }}
+                                >
+                                    <option value="">Select Staff</option>
+                                    {staffList.map(s => <option key={s._id} value={s.name}>{s.name} ({s.role})</option>)}
+                                </select>
+                            </div>
+
+                            {/* Task Title */}
+                            <div>
+                                <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 800, color: '#475569', textTransform: 'uppercase', marginBottom: '6px' }}>Task Title *</label>
+                                <input
+                                    required
+                                    type="text"
+                                    value={newTask.title}
+                                    onChange={e => setNewTask(p => ({ ...p, title: e.target.value }))}
+                                    placeholder="Enter task title..."
+                                    style={{ width: '100%', padding: '10px 14px', border: '1.5px solid #cbd5e1', borderRadius: '12px', fontSize: '0.85rem', fontWeight: 600, color: '#0f172a', outline: 'none', background: '#f8fafc' }}
+                                />
+                            </div>
+
+                            {/* Due Date & Priority */}
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                                <div>
+                                    <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 800, color: '#475569', textTransform: 'uppercase', marginBottom: '6px' }}>Due Date *</label>
+                                    <input
+                                        required
+                                        type="date"
+                                        value={newTask.due}
+                                        onChange={e => setNewTask(p => ({ ...p, due: e.target.value }))}
+                                        style={{ width: '100%', padding: '10px 14px', border: '1.5px solid #cbd5e1', borderRadius: '12px', fontSize: '0.85rem', fontWeight: 700, color: '#0f172a', outline: 'none', background: '#f8fafc' }}
+                                    />
+                                </div>
+                                <div>
+                                    <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 800, color: '#475569', textTransform: 'uppercase', marginBottom: '6px' }}>Priority</label>
+                                    <select
+                                        value={newTask.priority}
+                                        onChange={e => setNewTask(p => ({ ...p, priority: e.target.value }))}
+                                        style={{ width: '100%', padding: '10px 14px', border: '1.5px solid #cbd5e1', borderRadius: '12px', fontSize: '0.85rem', fontWeight: 700, color: '#0f172a', outline: 'none', cursor: 'pointer', background: '#f8fafc' }}
+                                    >
+                                        <option value="Low">Low</option>
+                                        <option value="Medium">Medium</option>
+                                        <option value="High">High</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            {/* Buttons */}
+                            <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
+                                <button
+                                    type="submit"
+                                    style={{ flex: 1, padding: '12px', background: '#4f46e5', color: '#fff', border: 'none', borderRadius: '12px', fontSize: '0.88rem', fontWeight: 900, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', boxShadow: '0 4px 12px rgba(79,70,229,0.3)' }}
+                                >
+                                    <Plus size={18} /> Assign Task
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowAddTaskModal(false)}
+                                    style={{ padding: '12px 20px', background: '#f1f5f9', color: '#475569', border: 'none', borderRadius: '12px', fontSize: '0.88rem', fontWeight: 800, cursor: 'pointer' }}
+                                >
+                                    Cancel
+                                </button>
+                            </div>
+                        </form>
                     </div>
                 </div>,
                 document.body

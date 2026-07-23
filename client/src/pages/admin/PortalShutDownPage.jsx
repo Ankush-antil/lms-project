@@ -173,8 +173,8 @@ export default function PortalShutDownPage() {
 
     return (
         <DashboardLayout role={user?.role}>
-            <div className="min-h-screen bg-[#f8f9ff] p-4 md:p-6">
-                <div className="max-w-6xl mx-auto space-y-5">
+            <div className="min-h-screen bg-[#f8f9ff] p-3 md:p-4">
+                <div className="w-full space-y-4">
 
                     {/* Header */}
                     <div className="flex items-center justify-between">
@@ -327,7 +327,7 @@ export default function PortalShutDownPage() {
                         )}
 
                         {/* Table head */}
-                        <div className="grid grid-cols-[40px_1.2fr_1.2fr_100px_140px_90px] gap-3 px-4 py-3 border-b border-slate-100 bg-slate-50">
+                        <div className="grid grid-cols-[40px_1.5fr_1.5fr_110px_1.5fr_90px] gap-3 px-4 py-3 border-b border-slate-100 bg-slate-50">
                             <div className="flex items-center">
                                 <input
                                     type="checkbox"
@@ -365,7 +365,7 @@ export default function PortalShutDownPage() {
                                     return (
                                         <div
                                             key={u._id}
-                                            className={`grid grid-cols-[40px_1.2fr_1.2fr_100px_140px_90px] gap-3 px-4 py-3.5 items-center transition-all ${isSelected ? 'bg-indigo-50/60' : 'hover:bg-slate-50/60'} ${!isActive ? 'opacity-60' : ''}`}
+                                            className={`grid grid-cols-[40px_1.5fr_1.5fr_110px_1.5fr_90px] gap-3 px-4 py-3.5 items-center transition-all ${isSelected ? 'bg-indigo-50/60' : 'hover:bg-slate-50/60'} ${!isActive ? 'opacity-60' : ''}`}
                                         >
                                             {/* Checkbox */}
                                             <input

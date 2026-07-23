@@ -841,6 +841,7 @@ const AdminAnnouncements = () => {
                                                 </div>
                                             </div>
                                         )}
+                                    </div>
                                 )}
 
                                 <div className="pt-4 flex items-center justify-end gap-2 border-t border-slate-100">

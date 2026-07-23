@@ -1,12 +1,10 @@
 const mongoose = require('mongoose');
 const dns = require('dns');
 
-// Safely configure DNS to prevent resolution timeouts on Ubuntu/DigitalOcean
+// Safely configure DNS to prioritize IPv4 on DigitalOcean
 try {
     dns.setServers(['8.8.8.8', '1.1.1.1']);
-} catch (e) {
-    console.warn('Custom DNS setServers skipped:', e.message);
-}
+} catch (e) {}
 if (dns.setDefaultResultOrder) {
     try {
         dns.setDefaultResultOrder('ipv4first');
@@ -14,12 +12,12 @@ if (dns.setDefaultResultOrder) {
 }
 
 const mongoOptions = {
-    serverSelectionTimeoutMS: 10000,
-    connectTimeoutMS: 10000,
+    serverSelectionTimeoutMS: 5000,
+    connectTimeoutMS: 5000,
     socketTimeoutMS: 45000,
     maxPoolSize: 20,
     minPoolSize: 5,
-    family: 4, // Crucial for DigitalOcean: Force IPv4 resolution over IPv6
+    family: 4, // Force IPv4 resolution
     autoIndex: false
 };
 
@@ -31,48 +29,49 @@ const connectDB = async (retries = 5) => {
     }
 
     if (isConnecting) {
-        console.log('[DB] Connection attempt already in progress...');
         return;
     }
 
     isConnecting = true;
 
     while (retries > 0) {
+        // Attempt 1: Primary SRV URI
         try {
             const primaryUri = process.env.MONGO_URI;
-            if (!primaryUri) {
-                throw new Error('MONGO_URI environment variable is missing.');
-            }
-
-            console.log("[DB] Connecting to MongoDB Atlas (IPv4 forced)...");
-            const conn = await mongoose.connect(primaryUri, mongoOptions);
-            console.log(`[DB] MongoDB Connected Successfully: ${conn.connection.host}`);
-            isConnecting = false;
-            return conn;
-        } catch (error) {
-            console.error(`[DB] Primary Mongo Connection Failed (${error.message}). Trying Fallback...`);
-            try {
-                const fallbackUri = process.env.DIRECT_MONGO_URI || process.env.MONGO_FALLBACK_URI;
-                if (fallbackUri) {
-                    const conn = await mongoose.connect(fallbackUri, mongoOptions);
-                    console.log(`[DB] MongoDB Connected via Fallback URI: ${conn.connection.host}`);
-                    isConnecting = false;
-                    return conn;
-                }
-            } catch (fallbackError) {
-                console.error(`[DB] Fallback Connection Error: ${fallbackError.message}`);
-            }
-
-            retries -= 1;
-            console.error(`[DB] Connection Error (${retries} retries left)`);
-            if (retries === 0) {
+            if (primaryUri) {
+                console.log("[DB] Connecting to Primary MongoDB URI...");
+                const conn = await mongoose.connect(primaryUri, mongoOptions);
+                console.log(`[DB] Connected to Primary MongoDB: ${conn.connection.host}`);
                 isConnecting = false;
-                console.error("[DB] Connection failed. Retrying in background in 10s...");
-                setTimeout(() => connectDB(5), 10000);
-                return;
+                return conn;
             }
-            await new Promise(res => setTimeout(res, 3000));
+        } catch (primaryErr) {
+            console.warn(`[DB] Primary SRV Connection Failed (${primaryErr.message}). Switching to Direct Replica Set URI...`);
         }
+
+        // Attempt 2: Direct Replica Set URI (Bypasses SRV lookup for DigitalOcean)
+        try {
+            const directUri = process.env.DIRECT_MONGO_URI;
+            if (directUri) {
+                console.log("[DB] Connecting via Direct Replica Set URI...");
+                const conn = await mongoose.connect(directUri, mongoOptions);
+                console.log(`[DB] Connected via Direct Replica Set: ${conn.connection.host}`);
+                isConnecting = false;
+                return conn;
+            }
+        } catch (directErr) {
+            console.error(`[DB] Direct Replica Connection Failed: ${directErr.message}`);
+        }
+
+        retries -= 1;
+        console.error(`[DB] Retries left: ${retries}`);
+        if (retries === 0) {
+            isConnecting = false;
+            console.error("[DB] All connection attempts failed. Retrying in 10s...");
+            setTimeout(() => connectDB(5), 10000);
+            return;
+        }
+        await new Promise(res => setTimeout(res, 2000));
     }
 };
 

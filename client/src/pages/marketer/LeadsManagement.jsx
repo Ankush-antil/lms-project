@@ -18,9 +18,23 @@ const LeadsManagement = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [stageFilter, setStageFilter] = useState('All');
     const [sourceFilter, setSourceFilter] = useState('All');
+    const [instituteFilter, setInstituteFilter] = useState('All');
+    const [institutes, setInstitutes] = useState([]);
     const [viewMode, setViewMode] = useState('list'); // 'list' | 'kanban'
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [selectedLead, setSelectedLead] = useState(null);
+
+    useEffect(() => {
+        const fetchInsts = async () => {
+            try {
+                const res = await axios.get('/api/setup/institutes');
+                setInstitutes(Array.isArray(res.data) ? res.data : []);
+            } catch (err) {
+                console.error("Error fetching institutes:", err);
+            }
+        };
+        fetchInsts();
+    }, []);
     
     // New Lead Form State
     const [newLeadForm, setNewLeadForm] = useState({
@@ -210,7 +224,9 @@ const LeadsManagement = () => {
             (l.course?.name || '').toLowerCase().includes(searchTerm.toLowerCase());
         const matchesStage = stageFilter === 'All' || l.stage === stageFilter;
         const matchesSource = sourceFilter === 'All' || l.source === sourceFilter;
-        return matchesSearch && matchesStage && matchesSource;
+        const leadInst = l.instituteName || l.institute?.name || 'HARTRON GANAUR';
+        const matchesInstitute = instituteFilter === 'All' || leadInst === instituteFilter;
+        return matchesSearch && matchesStage && matchesSource && matchesInstitute;
     });
 
     // Stats calculations
@@ -336,6 +352,20 @@ const LeadsManagement = () => {
                             >
                                 <option value="All">All Sources</option>
                                 {leadSources.map(s => <option key={s} value={s}>{s}</option>)}
+                            </select>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 bg-slate-50 px-3.5 py-2.5 rounded-2xl border border-slate-150">
+                            <span className="text-[10px] font-bold text-slate-450 uppercase tracking-wide">Institute:</span>
+                            <select
+                                value={instituteFilter}
+                                onChange={(e) => setInstituteFilter(e.target.value)}
+                                className="bg-transparent text-xs font-bold text-slate-700 outline-none cursor-pointer"
+                            >
+                                <option value="All">All Institutes</option>
+                                {institutes.map(inst => (
+                                    <option key={inst._id || inst.name} value={inst.name}>{inst.name}</option>
+                                ))}
                             </select>
                         </div>
                     </div>

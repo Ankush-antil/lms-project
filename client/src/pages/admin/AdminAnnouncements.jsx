@@ -568,7 +568,9 @@ const AdminAnnouncements = () => {
                         <p className="text-xs font-semibold text-slate-400 mt-1 uppercase tracking-wider">
                             Publish notices, events, and announcements for students and staff
                         </p>
-                                 <div className="flex items-center gap-2 self-start sm:self-auto">
+                    </div>
+
+                    <div className="flex items-center gap-2 self-start sm:self-auto">
                         <button
                             onClick={fetchAnnouncements}
                             disabled={loading}

@@ -699,7 +699,7 @@ const Header = ({ role = 'Admin', onMobileMenuToggle, isMobileMenuOpen }) => {
                             className="flex items-center space-x-3 w-full px-3 py-2.5 text-xs text-red-400 hover:bg-red-950/20 rounded-xl transition-all font-bold"
                         >
                             <LogOut size={16} />
-                            <span>Sign Out Portal</span>
+                            <span>Shut Down Portal</span>
                         </button>
                     </div>
                 </div>
@@ -785,6 +785,66 @@ const Sidebar = ({ role = 'Admin', collapsed, onToggle, isMobileOpen }) => {
     const location = useLocation();
     const { logout, user } = useAuth();
     const [activeSection, setActiveSection] = useState('_section_dashboard');
+
+    // Shutdown modal state
+    const [isShutdownOpen, setIsShutdownOpen] = useState(false);
+    const [institutes, setInstitutes] = useState([]);
+    const [selectedInstituteId, setSelectedInstituteId] = useState('');
+    const [shutdownMsg, setShutdownMsg] = useState('');
+    const [shutdownLoading, setShutdownLoading] = useState(false);
+    const [currentShutdown, setCurrentShutdown] = useState(false);
+
+    const canShutdown = user?.role === 'Admin' || user?.role === 'Institute';
+
+    const openShutdownModal = async () => {
+        if (!canShutdown) { logout(); return; }
+        try {
+            const res = await axios.get('/api/setup/shutdown/status');
+            const list = res.data.institutes || [];
+            setInstitutes(list);
+            if (user?.role === 'Institute') {
+                const own = list[0];
+                setSelectedInstituteId(own?._id || '');
+                setCurrentShutdown(own?.portalShutdown || false);
+                setShutdownMsg(own?.portalShutdownMessage || '');
+            } else {
+                setSelectedInstituteId(list[0]?._id || '');
+                setCurrentShutdown(list[0]?.portalShutdown || false);
+                setShutdownMsg(list[0]?.portalShutdownMessage || '');
+            }
+        } catch (e) {
+            toast.error('Could not load institutes');
+        }
+        setIsShutdownOpen(true);
+    };
+
+    const handleInstituteChange = (id) => {
+        setSelectedInstituteId(id);
+        const inst = institutes.find(i => i._id === id);
+        setCurrentShutdown(inst?.portalShutdown || false);
+        setShutdownMsg(inst?.portalShutdownMessage || '');
+    };
+
+    const handleShutdownToggle = async (enable) => {
+        if (!selectedInstituteId) return;
+        setShutdownLoading(true);
+        try {
+            const res = await axios.put(`/api/setup/shutdown/${selectedInstituteId}`, {
+                portalShutdown: enable,
+                portalShutdownMessage: shutdownMsg
+            });
+            setCurrentShutdown(enable);
+            setInstitutes(prev => prev.map(i => i._id === selectedInstituteId
+                ? { ...i, portalShutdown: enable, portalShutdownMessage: shutdownMsg }
+                : i
+            ));
+            toast.success(res.data.message);
+        } catch (e) {
+            toast.error(e.response?.data?.message || 'Failed to update shutdown status');
+        } finally {
+            setShutdownLoading(false);
+        }
+    };
 
     const toggleSection = (sectionName) => {
         setActiveSection(prev => prev === sectionName ? null : sectionName);
@@ -1152,18 +1212,101 @@ const Sidebar = ({ role = 'Admin', collapsed, onToggle, isMobileOpen }) => {
                     })()}
                 </nav>
 
-                {/* Logout at bottom */}
+                {/* Shut Down / Logout at bottom */}
                 <div className="px-3 pb-6">
                     <button
-                        onClick={logout}
-                        title={collapsed ? 'Sign Out' : undefined}
+                        onClick={openShutdownModal}
+                        title={collapsed ? 'Shut Down' : undefined}
                         className={`flex items-center w-full rounded-xl transition-all duration-200 font-bold text-sm text-red-400 hover:bg-red-950/20 cursor-pointer
                             ${collapsed ? 'justify-center px-0 py-3' : 'space-x-3 px-4 py-3'}`}
                     >
                         <LogOut size={20} className="flex-shrink-0" />
-                        {!collapsed && <span>Sign Out</span>}
+                        {!collapsed && <span>Shut Down</span>}
                     </button>
                 </div>
+
+                {/* Shutdown Modal */}
+                {isShutdownOpen && createPortal(
+                    <div className="fixed inset-0 z-[9999] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setIsShutdownOpen(false)}>
+                        <div className="bg-[#0b1329] text-white w-full max-w-md rounded-3xl p-6 border border-slate-800 shadow-2xl" onClick={e => e.stopPropagation()}>
+                            <div className="flex items-center justify-between mb-5">
+                                <div>
+                                    <h3 className="text-lg font-black text-slate-100">Portal Shut Down</h3>
+                                    <p className="text-xs text-slate-400 font-bold mt-0.5">Control user access for your portal</p>
+                                </div>
+                                <button onClick={() => setIsShutdownOpen(false)} className="p-1.5 hover:bg-white/10 rounded-full text-slate-400 hover:text-slate-200 transition-colors cursor-pointer">
+                                    <X size={18} />
+                                </button>
+                            </div>
+
+                            {user?.role === 'Admin' && institutes.length > 0 && (
+                                <div className="mb-4">
+                                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5">Select Institute</label>
+                                    <select
+                                        value={selectedInstituteId}
+                                        onChange={e => handleInstituteChange(e.target.value)}
+                                        className="w-full px-3 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-slate-200 font-bold outline-none cursor-pointer"
+                                    >
+                                        {institutes.map(i => (
+                                            <option key={i._id} value={i._id}>{i.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
+
+                            <div className="mb-4">
+                                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5">Shutdown Message (optional)</label>
+                                <input
+                                    type="text"
+                                    value={shutdownMsg}
+                                    onChange={e => setShutdownMsg(e.target.value)}
+                                    placeholder="Portal is temporarily unavailable..."
+                                    className="w-full px-3 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-slate-200 font-bold outline-none placeholder:text-slate-600"
+                                />
+                            </div>
+
+                            <div className={`flex items-center gap-3 px-4 py-3 rounded-2xl mb-5 border ${
+                                currentShutdown
+                                    ? 'bg-red-950/30 border-red-800/40 text-red-300'
+                                    : 'bg-emerald-950/30 border-emerald-800/40 text-emerald-300'
+                            }`}>
+                                <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${
+                                    currentShutdown ? 'bg-red-400 animate-pulse' : 'bg-emerald-400'
+                                }`} />
+                                <span className="text-xs font-black">
+                                    {currentShutdown ? 'Portal is currently SHUT DOWN — users cannot log in' : 'Portal is currently ACTIVE — users can log in normally'}
+                                </span>
+                            </div>
+
+                            <div className="flex gap-3">
+                                {currentShutdown ? (
+                                    <button
+                                        onClick={() => handleShutdownToggle(false)}
+                                        disabled={shutdownLoading || !selectedInstituteId}
+                                        className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-black rounded-xl transition-all disabled:opacity-50 cursor-pointer"
+                                    >
+                                        {shutdownLoading ? 'Please wait...' : '✅ Restore Access'}
+                                    </button>
+                                ) : (
+                                    <button
+                                        onClick={() => handleShutdownToggle(true)}
+                                        disabled={shutdownLoading || !selectedInstituteId}
+                                        className="flex-1 py-2.5 bg-red-600 hover:bg-red-500 text-white text-sm font-black rounded-xl transition-all disabled:opacity-50 cursor-pointer"
+                                    >
+                                        {shutdownLoading ? 'Please wait...' : '🔴 Shut Down Portal'}
+                                    </button>
+                                )}
+                                <button
+                                    onClick={() => { setIsShutdownOpen(false); logout(); }}
+                                    className="px-4 py-2.5 bg-slate-700 hover:bg-slate-600 text-slate-200 text-sm font-black rounded-xl transition-all cursor-pointer"
+                                >
+                                    Sign Out
+                                </button>
+                            </div>
+                        </div>
+                    </div>,
+                    document.body
+                )}
             </aside>
 
             {/* Mobile drawer */}

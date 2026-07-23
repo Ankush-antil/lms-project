@@ -60,6 +60,19 @@ const loginUser = async (req, res) => {
                 return;
             }
 
+            // Portal shutdown check: skip for Admin role
+            if (user.role !== 'Admin') {
+                // Check institute-level shutdown
+                if (user.institute) {
+                    const Institute = require('../../models/Institute');
+                    const institute = await Institute.findById(user.institute).select('portalShutdown portalShutdownMessage');
+                    if (institute && institute.portalShutdown) {
+                        const msg = institute.portalShutdownMessage || 'Portal is temporarily shut down. Please contact your administrator.';
+                        return res.status(503).json({ message: 'portal_shutdown', details: msg });
+                    }
+                }
+            }
+
             const token = generateToken(user._id, user.role);
 
             // Set Cookie

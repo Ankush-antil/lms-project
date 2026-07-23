@@ -28,6 +28,8 @@ const instituteSchema = new mongoose.Schema({
     showOnLanding: { type: Boolean, default: false },  // Show institute on public landing page
     wifiNetworks: { type: [String], default: [] },
     controls: { type: mongoose.Schema.Types.Mixed, default: {} },
+    portalShutdown: { type: Boolean, default: false },
+    portalShutdownMessage: { type: String, default: '' },
     isDeleted: {
         type: Boolean,
         default: false

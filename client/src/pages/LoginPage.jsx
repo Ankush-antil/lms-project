@@ -11,6 +11,7 @@ const LoginPage = () => {
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [shutdownDetails, setShutdownDetails] = useState('');
     const navigate = useNavigate();
     const { login } = useAuth();
 
@@ -36,7 +37,15 @@ const LoginPage = () => {
 
             setLoading(false);
         } catch (err) {
-            setError(err.response?.data?.message || 'Login failed');
+            const msg = err.response?.data?.message || '';
+            if (msg === 'portal_shutdown') {
+                const details = err.response?.data?.details || 'Portal is temporarily shut down. Please contact your administrator.';
+                setShutdownDetails(details);
+                setError('');
+            } else {
+                setError(msg || 'Login failed');
+                setShutdownDetails('');
+            }
             setLoading(false);
         }
     };
@@ -64,6 +73,19 @@ const LoginPage = () => {
                         </motion.div>
 
                         <form onSubmit={handleLogin} className="space-y-5">
+                            {shutdownDetails && (
+                                <motion.div
+                                    initial={{ opacity: 0, scale: 0.95 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    className="p-3 bg-orange-50 text-orange-700 rounded-xl text-xs border border-orange-200 flex items-start gap-2"
+                                >
+                                    <span className="text-base leading-none mt-0.5">🔴</span>
+                                    <div>
+                                        <p className="font-black mb-0.5">Portal Temporarily Unavailable</p>
+                                        <p className="font-medium text-orange-600">{shutdownDetails}</p>
+                                    </div>
+                                </motion.div>
+                            )}
                             {error && (
                                 <motion.div
                                     initial={{ opacity: 0, scale: 0.95 }}

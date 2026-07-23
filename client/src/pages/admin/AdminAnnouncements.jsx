@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import { 
-    Megaphone, Search, RefreshCw, Plus, Edit2, Trash2, Calendar, Users, 
+import {
+    Megaphone, Search, RefreshCw, Plus, Edit2, Trash2, Calendar, Users,
     Building, Eye, X, Send, AlertTriangle
 } from 'lucide-react';
 import DashboardLayout from '../../components/layout/DashboardLayout';
@@ -253,13 +253,13 @@ const AdminAnnouncements = () => {
 
     // Filter Logic
     const filteredAnnouncements = announcements.filter(ann => {
-        const matchesSearch = 
+        const matchesSearch =
             ann.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
             ann.content?.toLowerCase().includes(searchTerm.toLowerCase());
-        
-        const matchesInstitute = selectedInstitute === 'All' || 
+
+        const matchesInstitute = selectedInstitute === 'All' ||
             (selectedInstitute === 'Global' ? !ann.institute : ann.institute?._id === selectedInstitute);
-        
+
         const matchesAudience = selectedAudience === 'All' || ann.targetAudience === selectedAudience;
 
         return matchesSearch && matchesInstitute && matchesAudience;
@@ -423,18 +423,17 @@ const AdminAnnouncements = () => {
                             <div className="text-xs font-semibold text-slate-400">
                                 Showing {filteredAnnouncements.length > 0 ? indexOfFirstEntry + 1 : 0} to {Math.min(indexOfLastEntry, filteredAnnouncements.length)} of {filteredAnnouncements.length} entries
                             </div>
-                            
+
                             <div className="flex items-center gap-3">
                                 {totalPages > 1 && (
                                     <div className="flex items-center gap-2 select-none">
                                         <button
                                             disabled={currentPage === 1}
                                             onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                                            className={`px-4 py-2 rounded-full border text-xs font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer ${
-                                                currentPage === 1
-                                                    ? 'bg-slate-50 border-slate-200 text-slate-400'
-                                                    : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700'
-                                            }`}
+                                            className={`px-4 py-2 rounded-full border text-xs font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer ${currentPage === 1
+                                                ? 'bg-slate-50 border-slate-200 text-slate-400'
+                                                : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700'
+                                                }`}
                                         >
                                             Previous
                                         </button>
@@ -448,17 +447,16 @@ const AdminAnnouncements = () => {
                                                         </span>
                                                     );
                                                 }
-                                                
+
                                                 const isPageActive = currentPage === pageNum;
                                                 return (
                                                     <button
                                                         key={idx}
                                                         onClick={() => setCurrentPage(pageNum)}
-                                                        className={`w-8 h-8 rounded-full font-bold text-xs flex items-center justify-center transition-all cursor-pointer ${
-                                                            isPageActive
-                                                                ? 'bg-[#0b1329] text-white shadow-md shadow-black/10'
-                                                                : 'hover:bg-slate-100 text-slate-700'
-                                                        }`}
+                                                        className={`w-8 h-8 rounded-full font-bold text-xs flex items-center justify-center transition-all cursor-pointer ${isPageActive
+                                                            ? 'bg-[#0b1329] text-white shadow-md shadow-black/10'
+                                                            : 'hover:bg-slate-100 text-slate-700'
+                                                            }`}
                                                     >
                                                         {pageNum}
                                                     </button>
@@ -469,11 +467,10 @@ const AdminAnnouncements = () => {
                                         <button
                                             disabled={currentPage === totalPages || totalPages === 0}
                                             onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                                            className={`px-4 py-2 rounded-full border text-xs font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer ${
-                                                (currentPage === totalPages || totalPages === 0)
-                                                    ? 'bg-slate-50 border-slate-200 text-slate-400'
-                                                    : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700'
-                                            }`}
+                                            className={`px-4 py-2 rounded-full border text-xs font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer ${(currentPage === totalPages || totalPages === 0)
+                                                ? 'bg-slate-50 border-slate-200 text-slate-400'
+                                                : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700'
+                                                }`}
                                         >
                                             Next
                                         </button>
@@ -492,7 +489,7 @@ const AdminAnnouncements = () => {
                                         <Megaphone size={18} className="text-indigo-650" />
                                         <span className="font-extrabold text-slate-800 text-sm tracking-tight">Announcement Details</span>
                                     </div>
-                                    <button 
+                                    <button
                                         onClick={() => setIsViewModalOpen(false)}
                                         className="p-1.5 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
                                     >
@@ -557,7 +554,7 @@ const AdminAnnouncements = () => {
     return (
         <DashboardLayout role={user?.role || 'Admin'}>
             <div className="max-w-7xl mx-auto px-4 py-5 font-sans">
-                
+
                 {/* Header */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4 mb-6">
                     <div>
@@ -603,19 +600,13 @@ const AdminAnnouncements = () => {
 
                 {/* Table Container Card */}
                 <div className="bg-white rounded-3xl border border-slate-200/60 shadow-sm overflow-hidden mb-8">
-                    
+
                     {/* Controls Header */}
                     <div className="p-5 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                        <div className="text-left">
-                            <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">
-                                <span>📋</span> Announcement Board
-                            </h3>
-                            <p className="text-xs font-semibold text-slate-400 mt-0.5">List of active alerts and official announcements</p>
-                        </div>
 
-                        <div className="flex flex-wrap items-center gap-3">
+                        <div className="flex items-center gap-3 flex-nowrap overflow-x-auto pb-1.5 md:pb-0 scrollbar-none w-full md:w-auto">
                             {/* Bulk Actions */}
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 shrink-0">
                                 <select
                                     value={bulkAction}
                                     onChange={(e) => setBulkAction(e.target.value)}
@@ -635,7 +626,7 @@ const AdminAnnouncements = () => {
                             </div>
 
                             {/* Entries Selector */}
-                            <div className="flex items-center gap-1.5 text-[10px] font-black text-slate-400 tracking-wider uppercase">
+                            <div className="flex items-center gap-1.5 text-[10px] font-black text-slate-400 tracking-wider uppercase shrink-0">
                                 <span>Show</span>
                                 <input
                                     type="number"
@@ -655,7 +646,7 @@ const AdminAnnouncements = () => {
                             <select
                                 value={selectedAudience}
                                 onChange={(e) => setSelectedAudience(e.target.value)}
-                                className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none cursor-pointer"
+                                className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none cursor-pointer shrink-0"
                             >
                                 <option value="All">All Audiences</option>
                                 <option value="Student">Students Only</option>
@@ -668,7 +659,7 @@ const AdminAnnouncements = () => {
                                 <select
                                     value={selectedInstitute}
                                     onChange={(e) => setSelectedInstitute(e.target.value)}
-                                    className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none cursor-pointer"
+                                    className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none cursor-pointer shrink-0"
                                 >
                                     <option value="All">All Institutes</option>
                                     <option value="Global">Global Only</option>
@@ -679,7 +670,7 @@ const AdminAnnouncements = () => {
                             )}
 
                             {/* Search bar */}
-                            <div className="relative">
+                            <div className="relative shrink-0">
                                 <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                                 <input
                                     type="text"
@@ -782,17 +773,16 @@ const AdminAnnouncements = () => {
                                                 )}
                                             </td>
                                             <td className="py-3.5 px-4">
-                                                <span className={`px-2.5 py-1 rounded-xl text-[10px] font-black ${
-                                                    ann.targetAudience === 'Student' 
-                                                        ? 'bg-blue-50 border border-blue-100 text-blue-755'
-                                                        : ann.targetAudience === 'Teacher'
-                                                            ? 'bg-emerald-50 border border-emerald-100 text-emerald-755'
-                                                            : ann.targetAudience === 'limited'
-                                                                ? 'bg-amber-50 border border-amber-100 text-amber-755'
-                                                                : ann.targetAudience === 'guest'
-                                                                    ? 'bg-teal-50 border border-teal-100 text-teal-755'
-                                                                    : 'bg-purple-50 border border-purple-100 text-purple-755'
-                                                }`}>
+                                                <span className={`px-2.5 py-1 rounded-xl text-[10px] font-black ${ann.targetAudience === 'Student'
+                                                    ? 'bg-blue-50 border border-blue-100 text-blue-755'
+                                                    : ann.targetAudience === 'Teacher'
+                                                        ? 'bg-emerald-50 border border-emerald-100 text-emerald-755'
+                                                        : ann.targetAudience === 'limited'
+                                                            ? 'bg-amber-50 border border-amber-100 text-amber-755'
+                                                            : ann.targetAudience === 'guest'
+                                                                ? 'bg-teal-50 border border-teal-100 text-teal-755'
+                                                                : 'bg-purple-50 border border-purple-100 text-purple-755'
+                                                    }`}>
                                                     👥 {ann.targetAudience === 'limited' ? 'Guest User' : ann.targetAudience === 'guest' ? 'Limited User' : ann.targetAudience}
                                                 </span>
                                             </td>
@@ -837,18 +827,17 @@ const AdminAnnouncements = () => {
                         <div className="text-xs font-semibold text-slate-400">
                             Showing {filteredAnnouncements.length > 0 ? indexOfFirstEntry + 1 : 0} to {Math.min(indexOfLastEntry, filteredAnnouncements.length)} of {filteredAnnouncements.length} entries
                         </div>
-                        
+
                         <div className="flex items-center gap-3">
                             {totalPages > 1 && (
                                 <div className="flex items-center gap-2 select-none">
                                     <button
                                         disabled={currentPage === 1}
                                         onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                                        className={`px-4 py-2 rounded-full border text-xs font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer ${
-                                            currentPage === 1
-                                                ? 'bg-slate-50 border-slate-200 text-slate-400'
-                                                : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700'
-                                        }`}
+                                        className={`px-4 py-2 rounded-full border text-xs font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer ${currentPage === 1
+                                            ? 'bg-slate-50 border-slate-200 text-slate-400'
+                                            : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700'
+                                            }`}
                                     >
                                         Previous
                                     </button>
@@ -862,17 +851,16 @@ const AdminAnnouncements = () => {
                                                     </span>
                                                 );
                                             }
-                                            
+
                                             const isPageActive = currentPage === pageNum;
                                             return (
                                                 <button
                                                     key={idx}
                                                     onClick={() => setCurrentPage(pageNum)}
-                                                    className={`w-8 h-8 rounded-full font-bold text-xs flex items-center justify-center transition-all cursor-pointer ${
-                                                        isPageActive
-                                                            ? 'bg-[#0b1329] text-white shadow-md shadow-black/10'
-                                                            : 'hover:bg-slate-100 text-slate-700'
-                                                    }`}
+                                                    className={`w-8 h-8 rounded-full font-bold text-xs flex items-center justify-center transition-all cursor-pointer ${isPageActive
+                                                        ? 'bg-[#0b1329] text-white shadow-md shadow-black/10'
+                                                        : 'hover:bg-slate-100 text-slate-700'
+                                                        }`}
                                                 >
                                                     {pageNum}
                                                 </button>
@@ -883,11 +871,10 @@ const AdminAnnouncements = () => {
                                     <button
                                         disabled={currentPage === totalPages || totalPages === 0}
                                         onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                                        className={`px-4 py-2 rounded-full border text-xs font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer ${
-                                            (currentPage === totalPages || totalPages === 0)
-                                                ? 'bg-slate-50 border-slate-200 text-slate-400'
-                                                : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700'
-                                        }`}
+                                        className={`px-4 py-2 rounded-full border text-xs font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer ${(currentPage === totalPages || totalPages === 0)
+                                            ? 'bg-slate-50 border-slate-200 text-slate-400'
+                                            : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700'
+                                            }`}
                                     >
                                         Next
                                     </button>
@@ -908,7 +895,7 @@ const AdminAnnouncements = () => {
                                         {modalMode === 'create' ? 'Publish Announcement' : 'Edit Announcement'}
                                     </span>
                                 </div>
-                                <button 
+                                <button
                                     onClick={() => setIsModalOpen(false)}
                                     className="p-1.5 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
                                 >
@@ -1101,8 +1088,8 @@ const AdminAnnouncements = () => {
                                                         <button
                                                             type="button"
                                                             onClick={() => {
-                                                                const filtered = students.filter(st => 
-                                                                    st.name.toLowerCase().includes(studentSearch.toLowerCase()) || 
+                                                                const filtered = students.filter(st =>
+                                                                    st.name.toLowerCase().includes(studentSearch.toLowerCase()) ||
                                                                     st.email.toLowerCase().includes(studentSearch.toLowerCase())
                                                                 );
                                                                 const allSelected = new Set([
@@ -1118,8 +1105,8 @@ const AdminAnnouncements = () => {
                                                         <button
                                                             type="button"
                                                             onClick={() => {
-                                                                const filteredIds = new Set(students.filter(st => 
-                                                                    st.name.toLowerCase().includes(studentSearch.toLowerCase()) || 
+                                                                const filteredIds = new Set(students.filter(st =>
+                                                                    st.name.toLowerCase().includes(studentSearch.toLowerCase()) ||
                                                                     st.email.toLowerCase().includes(studentSearch.toLowerCase())
                                                                 ).map(st => st._id));
                                                                 const remaining = (formData.selectedStudents || []).filter(id => !filteredIds.has(id));
@@ -1143,8 +1130,8 @@ const AdminAnnouncements = () => {
                                                     </div>
                                                 ) : (
                                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1.5 custom-scrollbar">
-                                                        {students.filter(st => 
-                                                            st.name.toLowerCase().includes(studentSearch.toLowerCase()) || 
+                                                        {students.filter(st =>
+                                                            st.name.toLowerCase().includes(studentSearch.toLowerCase()) ||
                                                             st.email.toLowerCase().includes(studentSearch.toLowerCase())
                                                         ).map((st) => {
                                                             const isChecked = (formData.selectedStudents || []).includes(st._id);
@@ -1215,7 +1202,7 @@ const AdminAnnouncements = () => {
                                     <Megaphone size={18} className="text-indigo-650" />
                                     <span className="font-extrabold text-slate-800 text-sm tracking-tight">Announcement Details</span>
                                 </div>
-                                <button 
+                                <button
                                     onClick={() => setIsViewModalOpen(false)}
                                     className="p-1.5 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
                                 >
@@ -1273,17 +1260,17 @@ const AdminAnnouncements = () => {
                     document.body
                 )}
 
-            {/* Recycle Bin Modal */}
-            <RecycleBinModal
-                isOpen={isRecycleBinOpen}
-                onClose={() => setIsRecycleBinOpen(false)}
-                title="Announcements Recycle Bin"
-                trashUrl="/api/announcements/trash"
-                onRestoreSuccess={fetchAnnouncements}
-                restoreUrlPattern={(id) => `/api/announcements/${id}/restore`}
-                permanentDeleteUrlPattern={(id) => `/api/announcements/${id}/permanent`}
-                renderItemDetail={(item) => item.title}
-            />
+                {/* Recycle Bin Modal */}
+                <RecycleBinModal
+                    isOpen={isRecycleBinOpen}
+                    onClose={() => setIsRecycleBinOpen(false)}
+                    title="Announcements Recycle Bin"
+                    trashUrl="/api/announcements/trash"
+                    onRestoreSuccess={fetchAnnouncements}
+                    restoreUrlPattern={(id) => `/api/announcements/${id}/restore`}
+                    permanentDeleteUrlPattern={(id) => `/api/announcements/${id}/permanent`}
+                    renderItemDetail={(item) => item.title}
+                />
 
             </div>
         </DashboardLayout>

@@ -116,7 +116,7 @@ const FormTemplatesPage = () => {
                 </div>
 
                 {/* Templates Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 text-left">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-left">
                     {templates.map((item, index) => {
                         const Icon = item.icon;
                         return (

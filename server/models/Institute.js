@@ -31,6 +31,7 @@ const instituteSchema = new mongoose.Schema({
     portalShutdown: { type: Boolean, default: false },
     portalShutdownMessage: { type: String, default: '' },
     shutdownRoles: { type: [String], default: [] },  // Specific roles blocked from login
+    shutdownSelectedUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],  // Specific user IDs blocked from login
     isDeleted: {
         type: Boolean,
         default: false

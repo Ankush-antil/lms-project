@@ -794,6 +794,10 @@ const Sidebar = ({ role = 'Admin', collapsed, onToggle, isMobileOpen }) => {
     const [shutdownLoading, setShutdownLoading] = useState(false);
     const [currentShutdown, setCurrentShutdown] = useState(false);
     const [shutdownRoles, setShutdownRoles] = useState([]);
+    const [blockedUserIds, setBlockedUserIds] = useState(new Set());
+    const [expandedRole, setExpandedRole] = useState(null);
+    const [roleUsers, setRoleUsers] = useState({});
+    const [roleUsersLoading, setRoleUsersLoading] = useState(null);
 
     const ALL_ROLES = [
         { value: 'Teacher', label: 'Teachers', emoji: '👨‍🏫' },
@@ -813,6 +817,9 @@ const Sidebar = ({ role = 'Admin', collapsed, onToggle, isMobileOpen }) => {
         setCurrentShutdown(inst?.portalShutdown || false);
         setShutdownMsg(inst?.portalShutdownMessage || '');
         setShutdownRoles(inst?.shutdownRoles || []);
+        setBlockedUserIds(new Set((inst?.shutdownSelectedUsers || []).map(id => id.toString())));
+        setExpandedRole(null);
+        setRoleUsers({});
     };
 
     const openShutdownModal = async () => {
@@ -821,7 +828,7 @@ const Sidebar = ({ role = 'Admin', collapsed, onToggle, isMobileOpen }) => {
             const res = await axios.get('/api/setup/shutdown/status');
             const list = res.data.institutes || [];
             setInstitutes(list);
-            const first = user?.role === 'Institute' ? list[0] : list[0];
+            const first = list[0];
             setSelectedInstituteId(first?._id || '');
             syncInstituteState(first);
         } catch (e) {
@@ -837,9 +844,40 @@ const Sidebar = ({ role = 'Admin', collapsed, onToggle, isMobileOpen }) => {
     };
 
     const toggleRole = (roleVal) => {
+        const willEnable = !shutdownRoles.includes(roleVal);
+        if (willEnable) {
+            // When enabling "all", clear individual selections for this role
+            setBlockedUserIds(prev => {
+                const next = new Set(prev);
+                (roleUsers[roleVal] || []).forEach(u => next.delete(u._id));
+                return next;
+            });
+        }
         setShutdownRoles(prev =>
             prev.includes(roleVal) ? prev.filter(r => r !== roleVal) : [...prev, roleVal]
         );
+    };
+
+    const loadRoleUsers = async (roleVal) => {
+        if (!selectedInstituteId || roleUsers[roleVal] !== undefined) return;
+        setRoleUsersLoading(roleVal);
+        try {
+            const res = await axios.get(`/api/setup/shutdown/users/${selectedInstituteId}?role=${roleVal}`);
+            setRoleUsers(prev => ({ ...prev, [roleVal]: res.data.users || [] }));
+        } catch (e) {
+            toast.error('Could not load users');
+        } finally {
+            setRoleUsersLoading(null);
+        }
+    };
+
+    const toggleUser = (userId) => {
+        setBlockedUserIds(prev => {
+            const next = new Set(prev);
+            if (next.has(userId)) next.delete(userId);
+            else next.add(userId);
+            return next;
+        });
     };
 
     const handleSave = async () => {
@@ -849,10 +887,11 @@ const Sidebar = ({ role = 'Admin', collapsed, onToggle, isMobileOpen }) => {
             const res = await axios.put(`/api/setup/shutdown/${selectedInstituteId}`, {
                 portalShutdown: currentShutdown,
                 portalShutdownMessage: shutdownMsg,
-                shutdownRoles
+                shutdownRoles,
+                shutdownSelectedUsers: [...blockedUserIds]
             });
             setInstitutes(prev => prev.map(i => i._id === selectedInstituteId
-                ? { ...i, portalShutdown: currentShutdown, portalShutdownMessage: shutdownMsg, shutdownRoles }
+                ? { ...i, portalShutdown: currentShutdown, portalShutdownMessage: shutdownMsg, shutdownRoles, shutdownSelectedUsers: [...blockedUserIds] }
                 : i
             ));
             toast.success(res.data.message);
@@ -1302,42 +1341,99 @@ const Sidebar = ({ role = 'Admin', collapsed, onToggle, isMobileOpen }) => {
                                     <div className="flex-1 h-px bg-slate-800" />
                                 </div>
 
-                                {/* Role checkboxes */}
+                                {/* Role cards — expandable */}
                                 <div>
-                                    <div className="flex items-center justify-between mb-2">
-                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Select Roles to Block</label>
-                                        <div className="flex gap-2">
-                                            <button
-                                                type="button"
-                                                onClick={() => setShutdownRoles(ALL_ROLES.map(r => r.value))}
-                                                className="text-[10px] font-black text-indigo-400 hover:text-indigo-300 cursor-pointer"
-                                            >Select All</button>
-                                            <span className="text-slate-600">|</span>
-                                            <button
-                                                type="button"
-                                                onClick={() => setShutdownRoles([])}
-                                                className="text-[10px] font-black text-slate-400 hover:text-slate-300 cursor-pointer"
-                                            >Clear</button>
-                                        </div>
-                                    </div>
-                                    <div className="grid grid-cols-3 gap-2">
+                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Block by Role</label>
+                                    <div className="space-y-2">
                                         {ALL_ROLES.map(r => {
-                                            const isChecked = shutdownRoles.includes(r.value);
+                                            const isAllBlocked = shutdownRoles.includes(r.value);
+                                            const usersOfRole = roleUsers[r.value] || [];
+                                            const selectedCount = usersOfRole.filter(u => blockedUserIds.has(u._id)).length;
+                                            const isExpanded = expandedRole === r.value;
+                                            const hasAnyBlock = isAllBlocked || selectedCount > 0;
+
                                             return (
-                                                <button
-                                                    key={r.value}
-                                                    type="button"
-                                                    onClick={() => toggleRole(r.value)}
-                                                    className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border text-left transition-all cursor-pointer ${
-                                                        isChecked
-                                                            ? 'bg-red-950/40 border-red-700/50 text-red-300'
-                                                            : 'bg-slate-800/60 border-slate-700/40 text-slate-400 hover:border-slate-600'
-                                                    }`}
-                                                >
-                                                    <span className="text-sm">{r.emoji}</span>
-                                                    <span className="text-[11px] font-black leading-tight">{r.label}</span>
-                                                    {isChecked && <span className="ml-auto text-red-400 text-[10px]">✕</span>}
-                                                </button>
+                                                <div key={r.value} className={`rounded-xl border overflow-hidden transition-all ${
+                                                    hasAnyBlock ? 'border-red-700/50 bg-red-950/10' : 'border-slate-700/40 bg-slate-800/30'
+                                                }`}>
+                                                    {/* Role header */}
+                                                    <button
+                                                        type="button"
+                                                        className="flex items-center w-full px-4 py-3 gap-3 cursor-pointer"
+                                                        onClick={() => {
+                                                            const next = isExpanded ? null : r.value;
+                                                            setExpandedRole(next);
+                                                            if (next) loadRoleUsers(r.value);
+                                                        }}
+                                                    >
+                                                        <span className="text-lg">{r.emoji}</span>
+                                                        <span className={`text-sm font-black flex-1 text-left ${hasAnyBlock ? 'text-red-300' : 'text-slate-300'}`}>{r.label}</span>
+                                                        {isAllBlocked && <span className="text-[9px] font-black px-2 py-0.5 bg-red-500/20 text-red-400 rounded-full">ALL</span>}
+                                                        {!isAllBlocked && selectedCount > 0 && <span className="text-[9px] font-black px-2 py-0.5 bg-orange-500/20 text-orange-400 rounded-full">{selectedCount} selected</span>}
+                                                        <ChevronDown size={14} className={`text-slate-500 transition-transform flex-shrink-0 ${isExpanded ? 'rotate-180' : ''}`} />
+                                                    </button>
+
+                                                    {/* Expanded body */}
+                                                    {isExpanded && (
+                                                        <div className="border-t border-slate-700/40 px-4 py-3 space-y-3">
+
+                                                            {/* All [Role] toggle */}
+                                                            <div
+                                                                className={`flex items-center justify-between px-3 py-2.5 rounded-xl cursor-pointer transition-all select-none ${isAllBlocked ? 'bg-red-950/30 border border-red-700/30' : 'bg-slate-800 border border-slate-700/40'}`}
+                                                                onClick={() => toggleRole(r.value)}
+                                                            >
+                                                                <div>
+                                                                    <p className="text-xs font-black text-slate-100">All {r.label}</p>
+                                                                    <p className="text-[10px] text-slate-500 font-bold">Block every {r.value.toLowerCase()} from logging in</p>
+                                                                </div>
+                                                                <div className={`w-10 h-5 rounded-full relative flex-shrink-0 transition-all ${isAllBlocked ? 'bg-red-500' : 'bg-slate-600'}`}>
+                                                                    <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${isAllBlocked ? 'left-[22px]' : 'left-0.5'}`} />
+                                                                </div>
+                                                            </div>
+
+                                                            {/* Selected users */}
+                                                            {!isAllBlocked && (
+                                                                <div>
+                                                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
+                                                                        Selected {r.label} {selectedCount > 0 && <span className="text-orange-400">({selectedCount} blocked)</span>}
+                                                                    </p>
+                                                                    {roleUsersLoading === r.value ? (
+                                                                        <p className="text-xs text-slate-500 font-bold px-2">Loading...</p>
+                                                                    ) : usersOfRole.length === 0 ? (
+                                                                        <p className="text-xs text-slate-500 font-bold px-2">No {r.label.toLowerCase()} found in this institute</p>
+                                                                    ) : (
+                                                                        <div className="max-h-40 overflow-y-auto space-y-1 custom-scrollbar">
+                                                                            {usersOfRole.map(u => {
+                                                                                const isBlocked = blockedUserIds.has(u._id);
+                                                                                return (
+                                                                                    <label key={u._id} className={`flex items-center gap-2.5 px-3 py-2 rounded-lg cursor-pointer transition-all ${isBlocked ? 'bg-red-950/30' : 'hover:bg-slate-700/40'}`}>
+                                                                                        <input
+                                                                                            type="checkbox"
+                                                                                            checked={isBlocked}
+                                                                                            onChange={() => toggleUser(u._id)}
+                                                                                            className="accent-red-500 cursor-pointer"
+                                                                                        />
+                                                                                        <div className="w-6 h-6 rounded-lg bg-slate-700 flex items-center justify-center text-xs font-black text-slate-200 flex-shrink-0 overflow-hidden">
+                                                                                            {u.avatar
+                                                                                                ? <img src={u.avatar} alt="" className="w-full h-full object-cover" />
+                                                                                                : u.name?.[0]?.toUpperCase() || '?'
+                                                                                            }
+                                                                                        </div>
+                                                                                        <div className="min-w-0 flex-1">
+                                                                                            <p className="text-xs font-black text-slate-200 truncate">{u.name}</p>
+                                                                                            <p className="text-[10px] text-slate-500 font-bold truncate">{u.email}</p>
+                                                                                        </div>
+                                                                                        {isBlocked && <span className="text-[9px] font-black text-red-400 flex-shrink-0">blocked</span>}
+                                                                                    </label>
+                                                                                );
+                                                                            })}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </div>
                                             );
                                         })}
                                     </div>
@@ -1356,13 +1452,16 @@ const Sidebar = ({ role = 'Admin', collapsed, onToggle, isMobileOpen }) => {
                                 </div>
 
                                 {/* Status summary */}
-                                {(currentShutdown || shutdownRoles.length > 0) && (
+                                {(currentShutdown || shutdownRoles.length > 0 || blockedUserIds.size > 0) && (
                                     <div className="flex items-start gap-3 px-4 py-3 rounded-2xl bg-red-950/20 border border-red-800/30 text-red-300">
                                         <div className="w-2 h-2 rounded-full bg-red-400 animate-pulse flex-shrink-0 mt-1" />
                                         <span className="text-[11px] font-black leading-relaxed">
                                             {currentShutdown
                                                 ? 'Entire institute will be shut down — no user can log in.'
-                                                : `Blocked roles: ${shutdownRoles.map(r => ALL_ROLES.find(x => x.value === r)?.label || r).join(', ')}`
+                                                : [
+                                                    shutdownRoles.length > 0 && `Blocked roles: ${shutdownRoles.map(r => ALL_ROLES.find(x => x.value === r)?.label || r).join(', ')}`,
+                                                    blockedUserIds.size > 0 && `${blockedUserIds.size} specific user(s) blocked`
+                                                  ].filter(Boolean).join(' • ')
                                             }
                                         </span>
                                     </div>

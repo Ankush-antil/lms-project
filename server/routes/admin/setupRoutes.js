@@ -168,8 +168,9 @@ router.route('/activity-types/:id')
     .delete(protect, deleteActivityType);
 
 // Portal Shutdown routes
-const { getShutdownStatus, toggleShutdown } = require('../../controllers/admin/shutdownController');
+const { getShutdownStatus, getInstituteUsersByRole, toggleShutdown } = require('../../controllers/admin/shutdownController');
 router.route('/shutdown/status').get(protect, adminOrInstitute, getShutdownStatus);
+router.route('/shutdown/users/:instituteId').get(protect, adminOrInstitute, getInstituteUsersByRole);
 router.route('/shutdown/:instituteId').put(protect, adminOrInstitute, toggleShutdown);
 
 module.exports = router;

@@ -7,7 +7,8 @@ import {
     ChevronLeft, ChevronRight, ChevronDown, MessageSquare, Bell, BellRing, Settings,
     BarChart3, UserPlus, Trash2, Wallet, CreditCard, HardDrive,
     Calculator, Megaphone, Calendar, StickyNote, Briefcase, DollarSign, CheckSquare,
-    RefreshCw, Award, Package, Mic, MonitorPlay, Camera, Video, Phone
+    RefreshCw, Award, Package, Mic, MonitorPlay, Camera, Video, Phone,
+    FileSignature, Database
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useSocket } from '../../context/SocketContext';
@@ -171,7 +172,8 @@ const menuItems = {
         { name: 'Announcements', icon: Megaphone, path: '/admin/announcements' },
 
         { name: '_section_tools', icon: PenTool, path: null },
-        { name: 'Tools', icon: PenTool, path: '/admin/tools' },
+        { name: 'Form Tool', icon: FileSignature, path: '/admin/activities-builder' },
+        { name: 'DB Tools', icon: Database, path: '/admin/tools' },
 
         { name: '_section_service_analytics', icon: BarChart3, path: null },
         { name: 'Drive Analytics', icon: HardDrive, path: '/admin/tools-analytics/drive' },
@@ -216,7 +218,10 @@ const menuItems = {
         { name: 'Study Material', icon: BookOpen, path: '/institute?tab=study-material' },
         { name: 'Activities', icon: FileText, path: '/institute/activities' },
         { name: 'Announcements', icon: Megaphone, path: '/institute/announcements' },
-        { name: 'Tools', icon: PenTool, path: '/institute/tools' },
+
+        { name: '_section_tools', icon: PenTool, path: null },
+        { name: 'Form Tool', icon: FileSignature, path: '/institute/activities-builder' },
+        { name: 'DB Tools', icon: Database, path: '/institute/tools' },
 
         { name: '_section_management', icon: Briefcase, path: null },
         { name: 'Staff Mgt', icon: Users, path: '/institute/staff' },

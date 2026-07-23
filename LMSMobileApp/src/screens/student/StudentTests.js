@@ -127,7 +127,7 @@ const StudentTests = ({ navigation }) => {
                         daysList.push({
                             dayNum: i,
                             indexNum: currentDayIndex,
-                            id: `Index ${currentDayIndex}`
+                            id: `Inbox ${currentDayIndex}`
                         });
                         currentDayIndex++;
                     }
@@ -158,7 +158,7 @@ const StudentTests = ({ navigation }) => {
                             daysList.push({
                                 dayNum: i,
                                 indexNum: currentDayIndex,
-                                id: `Index ${currentDayIndex}`
+                                id: `Inbox ${currentDayIndex}`
                             });
                             currentDayIndex++;
                         }
@@ -178,10 +178,15 @@ const StudentTests = ({ navigation }) => {
 
     // Build the dynamic list of inboxes
     const inboxItems = useMemo(() => {
-        // Normalize key — match web logic exactly: 'Inbox N' and 'Index N' → 'inbox n'
+        // Normalize key — match web logic exactly: 'Inbox N', 'Index N', 'N' → 'inbox n'
         const normalizeKey = (raw) => {
             if (!raw) return 'no index';
-            return raw.trim().toLowerCase();
+            const trimmed = String(raw).trim().toLowerCase();
+            const match = trimmed.match(/\d+/);
+            if (match) {
+                return `inbox ${match[0]}`;
+            }
+            return trimmed;
         };
 
         const testsGrouped = {};
@@ -206,11 +211,11 @@ const StudentTests = ({ navigation }) => {
         const enrollmentDate = profile?.studentProfile?.enrollmentDate || profile?.createdAt || new Date();
 
         return standardKeys.map(keyName => {
-            const normalized = keyName.trim().toLowerCase();
+            const normalized = normalizeKey(keyName);
             const testsInInbox = testsGrouped[normalized] || [];
             const materialsInInbox = materialsGrouped[normalized] || [];
 
-            const config = inboxConfigs.find(c => c.inboxId?.trim().toLowerCase() === normalized);
+            const config = inboxConfigs.find(c => normalizeKey(c.inboxId) === normalized);
             const isVisible = config ? config.visible : true;
 
             const match = keyName.match(/\d+/);
@@ -218,8 +223,7 @@ const StudentTests = ({ navigation }) => {
             const week = Math.ceil(idxNum / 7);
             const offsetDays = (week - 1) * 7;
             const inboxUnlockDateMs = new Date(enrollmentDate).getTime() + offsetDays * 24 * 60 * 60 * 1000;
-            // Match web: lock is always false by default (same as web StudentTests.jsx line 897)
-            const isInboxDisabledByDefault = false;
+            // Match web: lock is always false by default
             const isInboxDisabled = false; // Always unlocked per policy: no inbox is ever locked for any student
             const customTitle = config && config.displayName ? config.displayName : keyName;
 
@@ -255,9 +259,16 @@ const StudentTests = ({ navigation }) => {
 
     // Group Inboxes by Subject for display in Browse level
     const groupedInboxes = useMemo(() => {
+        const normalizeKey = (raw) => {
+            if (!raw) return '';
+            const trimmed = String(raw).trim().toLowerCase();
+            const match = trimmed.match(/\d+/);
+            return match ? `inbox ${match[0]}` : trimmed;
+        };
+
         const resultGroups = subjectDaysMapping.map(group => {
             const matchedDays = group.days.map(day => {
-                const inboxItem = inboxItems.find(item => item.id?.trim().toLowerCase() === day.id?.trim().toLowerCase());
+                const inboxItem = inboxItems.find(item => normalizeKey(item.id) === normalizeKey(day.id));
                 if (!inboxItem) return null;
 
                 const config = inboxConfigs.find(c => c.inboxId?.trim().toLowerCase() === day.id?.trim().toLowerCase());

@@ -35,8 +35,11 @@ export default function PortalShutDownPage() {
     const navigate = useNavigate();
 
     const [institutes, setInstitutes] = useState([]);
+    const [courses, setCourses] = useState([]);
     const [selectedInstitute, setSelectedInstitute] = useState('');
     const [selectedRole, setSelectedRole] = useState('');
+    const [selectedCourse, setSelectedCourse] = useState('');
+    const [selectedSection, setSelectedSection] = useState('');
     const [search, setSearch] = useState('');
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -44,20 +47,25 @@ export default function PortalShutDownPage() {
     const [togglingId, setTogglingId] = useState(null);
     const [bulkLoading, setBulkLoading] = useState(false);
 
-    // Load institutes (Admin only)
+    // Load institutes (Admin only) & Courses
     useEffect(() => {
-        if (user?.role !== 'Admin') {
+        if (user?.role === 'Admin') {
+            axios.get('/api/setup/shutdown/status').then(res => {
+                const list = res.data.institutes || [];
+                setInstitutes(list);
+                if (list.length > 0) setSelectedInstitute(list[0]._id);
+            }).catch(() => toast.error('Could not load institutes'));
+        } else {
             setSelectedInstitute(user?.institute || '');
-            return;
         }
-        axios.get('/api/setup/shutdown/status').then(res => {
-            const list = res.data.institutes || [];
-            setInstitutes(list);
-            if (list.length > 0) setSelectedInstitute(list[0]._id);
-        }).catch(() => toast.error('Could not load institutes'));
+
+        // Fetch courses list
+        axios.get('/api/setup/courses').then(res => {
+            setCourses(res.data.courses || res.data || []);
+        }).catch(() => {});
     }, [user]);
 
-    // Load users when institute or role changes
+    // Load users when institute, role, course, or section changes
     const loadUsers = useCallback(async () => {
         if (!selectedInstitute) return;
         setLoading(true);
@@ -65,6 +73,8 @@ export default function PortalShutDownPage() {
         try {
             const params = new URLSearchParams({ institute: selectedInstitute });
             if (selectedRole) params.set('role', selectedRole);
+            if (selectedCourse) params.set('course', selectedCourse);
+            if (selectedSection) params.set('section', selectedSection);
             const res = await axios.get(`/api/users?${params}`);
             setUsers(res.data.users || res.data || []);
         } catch (e) {
@@ -72,7 +82,7 @@ export default function PortalShutDownPage() {
         } finally {
             setLoading(false);
         }
-    }, [selectedInstitute, selectedRole]);
+    }, [selectedInstitute, selectedRole, selectedCourse, selectedSection]);
 
     useEffect(() => {
         loadUsers();
@@ -127,6 +137,31 @@ export default function PortalShutDownPage() {
         });
     };
 
+    const getUserCourseSection = (u) => {
+        if (u.role === 'Student') {
+            const courseName = u.studentProfile?.course?.name || u.studentProfile?.coursesList?.[0]?.course?.name;
+            const section = u.studentProfile?.section;
+            if (courseName && section) return `${courseName} (Sec ${section})`;
+            if (courseName) return courseName;
+            if (section) return `Sec ${section}`;
+            return '—';
+        }
+        if (u.role === 'Teacher') {
+            const list = u.teacherProfile?.assignedCourses?.map(c => c.name).filter(Boolean);
+            if (list && list.length > 0) return list.join(', ');
+            return '—';
+        }
+        if (u.role === 'Editor') {
+            const list = u.editorProfile?.assignedCourses?.map(c => c.name).filter(Boolean);
+            if (list && list.length > 0) return list.join(', ');
+            return '—';
+        }
+        if (u.role === 'Guest') {
+            return u.guestProfile?.demoCourse?.name || '—';
+        }
+        return '—';
+    };
+
     const filtered = users.filter(u => {
         if (!search.trim()) return true;
         const q = search.toLowerCase();
@@ -163,7 +198,7 @@ export default function PortalShutDownPage() {
                     <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm flex flex-wrap gap-3 items-end">
                         {/* Institute selector - Admin only */}
                         {user?.role === 'Admin' && institutes.length > 0 && (
-                            <div className="flex-1 min-w-[200px]">
+                            <div className="flex-1 min-w-[160px]">
                                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Institute</label>
                                 <div className="relative">
                                     <select
@@ -181,7 +216,7 @@ export default function PortalShutDownPage() {
                         )}
 
                         {/* Role filter */}
-                        <div className="flex-1 min-w-[180px]">
+                        <div className="flex-1 min-w-[150px]">
                             <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Role</label>
                             <div className="relative">
                                 <select
@@ -198,8 +233,44 @@ export default function PortalShutDownPage() {
                             </div>
                         </div>
 
+                        {/* Course Filter */}
+                        <div className="flex-1 min-w-[160px]">
+                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Course</label>
+                            <div className="relative">
+                                <select
+                                    value={selectedCourse}
+                                    onChange={e => setSelectedCourse(e.target.value)}
+                                    className="w-full appearance-none px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none cursor-pointer pr-8"
+                                >
+                                    <option value="">All Courses</option>
+                                    {courses.map(c => (
+                                        <option key={c._id} value={c._id}>{c.name}</option>
+                                    ))}
+                                </select>
+                                <ChevronDown size={14} className="absolute right-2.5 top-3 text-slate-400 pointer-events-none" />
+                            </div>
+                        </div>
+
+                        {/* Section Filter */}
+                        <div className="flex-1 min-w-[120px]">
+                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Section</label>
+                            <div className="relative">
+                                <select
+                                    value={selectedSection}
+                                    onChange={e => setSelectedSection(e.target.value)}
+                                    className="w-full appearance-none px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none cursor-pointer pr-8"
+                                >
+                                    <option value="">All Sections</option>
+                                    {['A', 'B', 'C', 'D', 'E', 'F'].map(sec => (
+                                        <option key={sec} value={sec}>Section {sec}</option>
+                                    ))}
+                                </select>
+                                <ChevronDown size={14} className="absolute right-2.5 top-3 text-slate-400 pointer-events-none" />
+                            </div>
+                        </div>
+
                         {/* Search */}
-                        <div className="flex-1 min-w-[200px]">
+                        <div className="flex-1 min-w-[180px]">
                             <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Search</label>
                             <div className="relative">
                                 <Search size={14} className="absolute left-3 top-3 text-slate-400" />
@@ -256,7 +327,7 @@ export default function PortalShutDownPage() {
                         )}
 
                         {/* Table head */}
-                        <div className="grid grid-cols-[40px_1fr_1fr_120px_100px] gap-3 px-4 py-3 border-b border-slate-100 bg-slate-50">
+                        <div className="grid grid-cols-[40px_1.2fr_1.2fr_100px_140px_90px] gap-3 px-4 py-3 border-b border-slate-100 bg-slate-50">
                             <div className="flex items-center">
                                 <input
                                     type="checkbox"
@@ -268,6 +339,7 @@ export default function PortalShutDownPage() {
                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Name</p>
                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Email</p>
                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Role</p>
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Course & Sec</p>
                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Status</p>
                         </div>
 
@@ -288,10 +360,12 @@ export default function PortalShutDownPage() {
                                     const isActive = u.isActive !== false;
                                     const isSelected = selected.has(u._id);
                                     const role = ALL_ROLES.find(r => r.value === u.role);
+                                    const courseSec = getUserCourseSection(u);
+
                                     return (
                                         <div
                                             key={u._id}
-                                            className={`grid grid-cols-[40px_1fr_1fr_120px_100px] gap-3 px-4 py-3.5 items-center transition-all ${isSelected ? 'bg-indigo-50/60' : 'hover:bg-slate-50/60'} ${!isActive ? 'opacity-60' : ''}`}
+                                            className={`grid grid-cols-[40px_1.2fr_1.2fr_100px_140px_90px] gap-3 px-4 py-3.5 items-center transition-all ${isSelected ? 'bg-indigo-50/60' : 'hover:bg-slate-50/60'} ${!isActive ? 'opacity-60' : ''}`}
                                         >
                                             {/* Checkbox */}
                                             <input
@@ -325,6 +399,9 @@ export default function PortalShutDownPage() {
                                                 </span>
                                             </div>
 
+                                            {/* Course & Section */}
+                                            <p className="text-xs font-bold text-slate-600 truncate">{courseSec}</p>
+
                                             {/* Status toggle */}
                                             <div className="flex justify-center">
                                                 <Toggle
@@ -345,3 +422,4 @@ export default function PortalShutDownPage() {
         </DashboardLayout>
     );
 }
+

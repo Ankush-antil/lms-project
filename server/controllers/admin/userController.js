@@ -41,7 +41,7 @@ const computeSection = async (courseId) => {
 // @route   GET /api/users
 // @access  Private/Admin
 const getUsers = asyncHandler(async (req, res) => {
-    const { role, course, institute } = req.query;
+    const { role, course, section, institute } = req.query;
     const query = { isDeleted: { $ne: true }, role: { $ne: 'Admin' } };
     if (role) {
         const roles = role.split(',').map(r => r.trim()).filter(Boolean);
@@ -58,6 +58,7 @@ const getUsers = asyncHandler(async (req, res) => {
         }
     }
     if (institute) query.institute = institute;
+    if (section) query['studentProfile.section'] = section;
     if (course) {
         if (role === 'Student') {
             query.$and = [
@@ -72,6 +73,13 @@ const getUsers = asyncHandler(async (req, res) => {
             query['teacherProfile.assignedCourses'] = course;
         } else if (role === 'Editor') {
             query['editorProfile.assignedCourses'] = course;
+        } else {
+            query.$or = [
+                { 'studentProfile.course': course },
+                { 'studentProfile.coursesList.course': course },
+                { 'teacherProfile.assignedCourses': course },
+                { 'editorProfile.assignedCourses': course }
+            ];
         }
     }
 

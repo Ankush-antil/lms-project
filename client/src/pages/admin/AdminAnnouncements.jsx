@@ -666,7 +666,9 @@ const AdminAnnouncements = () => {
                                             </div>
                                         )}
                                     </div>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                </div>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div className="space-y-1 text-left">
                                         <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Target Audience</label>
                                         <select

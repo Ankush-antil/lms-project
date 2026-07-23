@@ -103,53 +103,53 @@ const FormTemplatesPage = () => {
 
     return (
         <DashboardLayout role={user?.role || 'Admin'}>
-            <div className="max-w-7xl mx-auto px-4 py-8 font-sans">
+            <div className="max-w-7xl mx-auto px-4 py-4 font-sans">
                 {/* Header */}
-                <div className="text-left border-b border-slate-100 pb-4 mb-8">
-                    <h2 className="text-2xl font-black text-slate-800 tracking-tight flex items-center gap-2">
+                <div className="text-left border-b border-slate-100 pb-3 mb-5">
+                    <h2 className="text-xl font-black text-slate-800 tracking-tight flex items-center gap-2">
                         <span>📝</span>
                         <span>Form Builder Templates</span>
                     </h2>
-                    <p className="text-xs font-semibold text-slate-400 mt-1 uppercase tracking-wider">
+                    <p className="text-[10px] font-semibold text-slate-400 mt-0.5 uppercase tracking-wider">
                         Select a template builder to get started
                     </p>
                 </div>
 
                 {/* Templates Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 text-left">
                     {templates.map((item, index) => {
                         const Icon = item.icon;
                         return (
                             <div
                                 key={index}
                                 onClick={item.action}
-                                className={`p-6 rounded-[2rem] border transition-all duration-300 flex items-center gap-5 relative overflow-hidden cursor-pointer group bg-white ${
+                                className={`p-4 rounded-2xl border transition-all duration-300 flex items-center gap-3 relative overflow-hidden cursor-pointer group bg-white ${
                                     item.isActive
                                         ? 'border-slate-150 hover:border-indigo-300 hover:shadow-lg hover:-translate-y-0.5'
                                         : 'border-slate-100 hover:bg-slate-50/50'
                                 }`}
                             >
-                                <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 shadow-sm ${item.color}`}>
-                                    <Icon size={20} />
+                                <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 shadow-sm ${item.color}`}>
+                                    <Icon size={16} />
                                 </div>
                                 <div className="min-w-0 flex-1">
-                                    <div className="flex items-center gap-2">
-                                        <h4 className="font-extrabold text-slate-800 text-sm tracking-tight leading-tight group-hover:text-indigo-650 transition-colors">
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                        <h4 className="font-extrabold text-slate-800 text-xs tracking-tight leading-tight group-hover:text-indigo-650 transition-colors">
                                             {item.name}
                                         </h4>
                                         {!item.isActive && (
-                                            <span className="bg-slate-100 text-slate-600 text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md">
+                                            <span className="bg-slate-100 text-slate-600 text-[7px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded">
                                                 Soon
                                             </span>
                                         )}
                                     </div>
-                                    <p className="text-slate-400 font-semibold text-xs mt-1 leading-snug">
+                                    <p className="text-slate-400 font-semibold text-[10px] mt-0.5 leading-snug">
                                         {item.description}
                                     </p>
                                 </div>
                                 {item.isActive && (
-                                    <span className="text-xs font-bold text-slate-450 group-hover:text-indigo-650 transition-colors">
-                                        Open →
+                                    <span className="text-[11px] font-bold text-slate-450 group-hover:text-indigo-650 transition-colors shrink-0">
+                                        →
                                     </span>
                                 )}
                             </div>

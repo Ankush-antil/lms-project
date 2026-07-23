@@ -23,13 +23,14 @@ jobs:
             git fetch --prune --all
             git reset --hard origin/main
 
-            npm install
-
             cd client
             npm install
             npm run build
+            chmod -R 755 /var/www/lms-dev/lms-project/client/dist
+            chown -R www-data:www-data /var/www/lms-dev/lms-project/client/dist
 
             cd ../server
             npm install
 
             pm2 restart lms-dev --update-env || pm2 start server.js --name "lms-dev"
+            systemctl reload nginx

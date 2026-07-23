@@ -284,21 +284,20 @@ export default function PortalShutDownPage() {
                         </div>
 
                         {/* Rows Per Page */}
-                        <div className="w-[110px]">
+                        <div className="w-[100px]">
                             <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Per Page</label>
-                            <div className="relative">
-                                <select
-                                    value={itemsPerPage}
-                                    onChange={e => { setItemsPerPage(Number(e.target.value)); setCurrentPage(1); }}
-                                    className="w-full appearance-none px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none cursor-pointer pr-8"
-                                >
-                                    <option value={10}>10</option>
-                                    <option value={20}>20</option>
-                                    <option value={50}>50</option>
-                                    <option value={100}>100</option>
-                                </select>
-                                <ChevronDown size={14} className="absolute right-2.5 top-3 text-slate-400 pointer-events-none" />
-                            </div>
+                            <input
+                                type="number"
+                                min={1}
+                                max={500}
+                                value={itemsPerPage}
+                                onChange={e => {
+                                    const val = Math.max(1, Math.min(500, Number(e.target.value) || 1));
+                                    setItemsPerPage(val);
+                                    setCurrentPage(1);
+                                }}
+                                className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none placeholder:text-slate-400 text-center"
+                            />
                         </div>
 
                         {/* Search */}

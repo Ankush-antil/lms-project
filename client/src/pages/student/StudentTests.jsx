@@ -895,7 +895,7 @@ const StudentTests = () => {
             const week = Math.ceil(idxNum / 7);
             const offsetDays = (week - 1) * 7;
             const isInboxDisabledByDefault = false;
-            const isInboxDisabled = config && config.disabled !== undefined ? config.disabled : isInboxDisabledByDefault;
+            const isInboxDisabled = false; // Always unlocked per policy: no inbox is ever locked for any student
 
             const customTitle = config && config.displayName ? config.displayName : keyName;
 

@@ -27,7 +27,8 @@ const {
     deleteRoleRequest,
     getDeletedRoleRequests,
     restoreRoleRequest,
-    permanentlyDeleteRoleRequest
+    permanentlyDeleteRoleRequest,
+    bulkUpdateStatus
 } = require('../../controllers/admin/userController');
 const { getUserById } = require('../../controllers/common/profileController');
 const { protect, adminOrEditor } = require('../../middleware/authMiddleware');
@@ -66,6 +67,7 @@ router.put('/switch-role', protect, switchRole);
 // Specific routes
 router.post('/import', protect, adminOrEditor, importUsers);
 router.post('/bulk-physical-attendance', protect, markBulkPhysicalAttendance);
+router.put('/bulk-status', protect, bulkUpdateStatus);
 router.get('/:id', protect, getUserById);
 router.delete('/:id', protect, adminOrEditor, deleteUser);
 router.put('/:id', protect, adminOrEditor, updateUser);

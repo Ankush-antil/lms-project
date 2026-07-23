@@ -80,6 +80,7 @@ const StaffList = lazy(() => import('./pages/admin/StaffList'));
 const AdminStaffAttendance = lazy(() => import('./pages/admin/AdminStaffAttendance'));
 const AdminStaffSalary = lazy(() => import('./pages/admin/AdminStaffSalary'));
 const AdminStaffTask = lazy(() => import('./pages/admin/AdminStaffTask'));
+const PortalShutDownPage = lazy(() => import('./pages/admin/PortalShutDownPage'));
 const InstituteStaff = lazy(() => import('./pages/institute/InstituteStaff'));
 const StaffTaskDetailPage = lazy(() => import('./pages/institute/StaffTaskDetailPage'));
 import PrivacyPolicy from './pages/PrivacyPolicy';
@@ -499,6 +500,16 @@ function App() {
                                             </PrivateRoute>
                                         } />
 
+                                        <Route path="/admin/shutdown" element={
+                                            <PrivateRoute role="Admin">
+                                                <PortalShutDownPage />
+                                            </PrivateRoute>
+                                        } />
+                                        <Route path="/institute/shutdown" element={
+                                            <PrivateRoute role="Institute">
+                                                <PortalShutDownPage />
+                                            </PrivateRoute>
+                                        } />
                                         <Route path="/admin/courses" element={
                                             <PrivateRoute role="Admin">
                                                 <CoursesList />

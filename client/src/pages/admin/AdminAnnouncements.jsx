@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { useAuth } from '../../context/AuthContext';
+import RecycleBinModal from '../../components/common/RecycleBinModal';
 
 const AdminAnnouncements = () => {
     const { user } = useAuth();
@@ -29,6 +30,11 @@ const AdminAnnouncements = () => {
     const [isViewModalOpen, setIsViewModalOpen] = useState(false);
     const [selectedAnnouncement, setSelectedAnnouncement] = useState(null);
     const [modalMode, setModalMode] = useState('create'); // 'create' | 'edit'
+
+    // Bulk action & Recycle Bin states
+    const [selectedIds, setSelectedIds] = useState(new Set());
+    const [bulkAction, setBulkAction] = useState('');
+    const [isRecycleBinOpen, setIsRecycleBinOpen] = useState(false);
 
     // Form inputs
     const [formData, setFormData] = useState({
@@ -54,11 +60,35 @@ const AdminAnnouncements = () => {
         try {
             const { data } = await axios.get('/api/announcements');
             setAnnouncements(data);
+            setSelectedIds(new Set()); // Reset selections on successful fetch
         } catch (err) {
             console.error('[Fetch Announcements Error]', err);
             toast.error('Failed to load announcements.');
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleBulkApply = async () => {
+        if (selectedIds.size === 0 || !bulkAction) return;
+
+        if (bulkAction === 'delete') {
+            if (window.confirm(`Are you sure you want to delete the ${selectedIds.size} selected announcements? They will be moved to the Recycle Bin.`)) {
+                try {
+                    setLoading(true);
+                    await Promise.all(
+                        Array.from(selectedIds).map(id => axios.delete(`/api/announcements/${id}`))
+                    );
+                    toast.success('Successfully deleted selected announcements');
+                    setSelectedIds(new Set());
+                    fetchAnnouncements();
+                } catch (error) {
+                    console.error('Error deleting selected announcements:', error);
+                    toast.error('Failed to delete some announcements');
+                } finally {
+                    setLoading(false);
+                }
+            }
         }
     };
 
@@ -538,9 +568,7 @@ const AdminAnnouncements = () => {
                         <p className="text-xs font-semibold text-slate-400 mt-1 uppercase tracking-wider">
                             Publish notices, events, and announcements for students and staff
                         </p>
-                    </div>
-
-                    <div className="flex items-center gap-2 self-start sm:self-auto">
+                                 <div className="flex items-center gap-2 self-start sm:self-auto">
                         <button
                             onClick={fetchAnnouncements}
                             disabled={loading}
@@ -550,13 +578,22 @@ const AdminAnnouncements = () => {
                             <span>Refresh</span>
                         </button>
                         {user?.role && (
-                            <button
-                                onClick={openCreateModal}
-                                className="flex items-center gap-2 px-4 py-2.5 bg-[#3E3ADD] hover:bg-[#2d2aab] text-white font-extrabold text-xs rounded-xl shadow-sm shadow-indigo-650/10 transition-all cursor-pointer"
-                            >
-                                <Plus size={14} />
-                                <span>Create Announcement</span>
-                            </button>
+                            <>
+                                <button
+                                    onClick={() => setIsRecycleBinOpen(true)}
+                                    className="flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all cursor-pointer"
+                                >
+                                    <Trash2 size={14} />
+                                    <span>Recycle Bin</span>
+                                </button>
+                                <button
+                                    onClick={openCreateModal}
+                                    className="flex items-center gap-2 px-4 py-2.5 bg-[#3E3ADD] hover:bg-[#2d2aab] text-white font-extrabold text-xs rounded-xl shadow-sm shadow-indigo-650/10 transition-all cursor-pointer"
+                                >
+                                    <Plus size={14} />
+                                    <span>Create Announcement</span>
+                                </button>
+                            </>
                         )}
                     </div>
                 </div>
@@ -575,6 +612,28 @@ const AdminAnnouncements = () => {
                         </div>
 
                         <div className="flex flex-wrap items-center gap-3">
+                            {/* Bulk Actions */}
+                            {selectedIds.size > 0 && (
+                                <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl">
+                                    <span className="text-[10px] font-black text-slate-400 uppercase">Bulk:</span>
+                                    <select
+                                        value={bulkAction}
+                                        onChange={(e) => setBulkAction(e.target.value)}
+                                        className="bg-transparent text-xs font-bold text-slate-700 outline-none cursor-pointer"
+                                    >
+                                        <option value="">Choose Action</option>
+                                        <option value="delete">Delete Selected</option>
+                                    </select>
+                                    <button
+                                        onClick={handleBulkApply}
+                                        disabled={!bulkAction}
+                                        className="px-2.5 py-1 bg-[#3E3ADD] hover:bg-[#2d2aab] text-white font-bold text-[10px] rounded-lg transition-all disabled:opacity-50 cursor-pointer"
+                                    >
+                                        Apply
+                                    </button>
+                                </div>
+                            )}
+
                             {/* Entries Selector */}
                             <div className="flex items-center gap-1.5 text-[10px] font-black text-slate-400 tracking-wider uppercase">
                                 <span>Show</span>
@@ -638,6 +697,24 @@ const AdminAnnouncements = () => {
                         <table className="w-full text-left border-collapse whitespace-nowrap">
                             <thead>
                                 <tr className="bg-slate-50/70 text-slate-400 font-extrabold text-[11px] uppercase tracking-wider border-b border-slate-100">
+                                    <th className="py-3.5 px-6 text-left w-10">
+                                        <input
+                                            type="checkbox"
+                                            checked={currentEntries.length > 0 && currentEntries.every(ann => selectedIds.has(ann._id))}
+                                            onChange={(e) => {
+                                                if (e.target.checked) {
+                                                    const newSelected = new Set(selectedIds);
+                                                    currentEntries.forEach(ann => newSelected.add(ann._id));
+                                                    setSelectedIds(newSelected);
+                                                } else {
+                                                    const newSelected = new Set(selectedIds);
+                                                    currentEntries.forEach(ann => newSelected.delete(ann._id));
+                                                    setSelectedIds(newSelected);
+                                                }
+                                            }}
+                                            className="w-4 h-4 rounded border-slate-300 text-indigo-650 focus:ring-indigo-500 cursor-pointer"
+                                        />
+                                    </th>
                                     <th className="py-3.5 px-6">Announcement Title</th>
                                     <th className="py-3.5 px-4">Institute scope</th>
                                     <th className="py-3.5 px-4">Audience</th>
@@ -650,7 +727,7 @@ const AdminAnnouncements = () => {
                             <tbody className="divide-y divide-slate-100 text-xs font-bold text-slate-700">
                                 {loading ? (
                                     <tr>
-                                        <td colSpan="7" className="text-center py-12 text-slate-400">
+                                        <td colSpan="8" className="text-center py-12 text-slate-400">
                                             <div className="flex flex-col items-center justify-center gap-2">
                                                 <RefreshCw size={24} className="animate-spin text-indigo-650" />
                                                 <span>Loading announcements...</span>
@@ -659,11 +736,27 @@ const AdminAnnouncements = () => {
                                     </tr>
                                 ) : currentEntries.length === 0 ? (
                                     <tr>
-                                        <td colSpan="7" className="text-center py-10 text-slate-400">No announcements found.</td>
+                                        <td colSpan="8" className="text-center py-10 text-slate-400">No announcements found.</td>
                                     </tr>
                                 ) : (
                                     currentEntries.map((ann, idx) => (
                                         <tr key={ann._id || idx} className="hover:bg-slate-50/50 transition-colors">
+                                            <td className="py-3.5 px-6 text-left w-10">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selectedIds.has(ann._id)}
+                                                    onChange={(e) => {
+                                                        const newSelected = new Set(selectedIds);
+                                                        if (e.target.checked) {
+                                                            newSelected.add(ann._id);
+                                                        } else {
+                                                            newSelected.delete(ann._id);
+                                                        }
+                                                        setSelectedIds(newSelected);
+                                                    }}
+                                                    className="w-4 h-4 rounded border-slate-300 text-indigo-650 focus:ring-indigo-500 cursor-pointer"
+                                                />
+                                            </td>
                                             <td className="py-3.5 px-6 font-extrabold text-slate-850">
                                                 <div className="flex flex-col text-left">
                                                     <span className="text-sm text-slate-800 flex items-center gap-1.5">
@@ -1179,6 +1272,18 @@ const AdminAnnouncements = () => {
                     </div>,
                     document.body
                 )}
+
+            {/* Recycle Bin Modal */}
+            <RecycleBinModal
+                isOpen={isRecycleBinOpen}
+                onClose={() => setIsRecycleBinOpen(false)}
+                title="Announcements Recycle Bin"
+                trashUrl="/api/announcements/trash"
+                onRestoreSuccess={fetchAnnouncements}
+                restoreUrlPattern={(id) => `/api/announcements/${id}/restore`}
+                permanentDeleteUrlPattern={(id) => `/api/announcements/${id}/permanent`}
+                renderItemDetail={(item) => item.title}
+            />
 
             </div>
         </DashboardLayout>

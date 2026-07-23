@@ -188,9 +188,63 @@ const deleteAnnouncement = asyncHandler(async (req, res) => {
     res.json({ message: 'Announcement deleted successfully' });
 });
 
+// @desc    Get soft-deleted announcements
+// @route   GET /api/announcements/trash
+// @access  Private (Admin, Institute, Staff)
+const getDeletedAnnouncements = asyncHandler(async (req, res) => {
+    let query = { isDeleted: true };
+    if (req.user.role !== 'Admin') {
+        query.institute = req.user.institute;
+    }
+    const announcements = await Announcement.find(query)
+        .populate('institute')
+        .populate('createdBy', 'name email role');
+    res.json(announcements);
+});
+
+// @desc    Restore a soft-deleted announcement
+// @route   PUT /api/announcements/:id/restore
+// @access  Private (Admin, Institute, Staff)
+const restoreAnnouncement = asyncHandler(async (req, res) => {
+    const announcement = await Announcement.findById(req.params.id);
+    if (!announcement) {
+        res.status(404);
+        throw new Error('Announcement not found');
+    }
+    // Check permissions
+    if (req.user.role !== 'Admin' && announcement.createdBy.toString() !== req.user._id.toString() && announcement.institute?.toString() !== req.user.institute?.toString()) {
+        res.status(403);
+        throw new Error('Not authorized to restore this announcement');
+    }
+    announcement.isDeleted = false;
+    await announcement.save();
+    res.json({ message: 'Announcement restored successfully', announcement });
+});
+
+// @desc    Permanently delete an announcement
+// @route   DELETE /api/announcements/:id/permanent
+// @access  Private (Admin, Institute, Staff)
+const permanentlyDeleteAnnouncement = asyncHandler(async (req, res) => {
+    const announcement = await Announcement.findById(req.params.id);
+    if (!announcement) {
+        res.status(404);
+        throw new Error('Announcement not found');
+    }
+    // Check permissions
+    if (req.user.role !== 'Admin' && announcement.createdBy.toString() !== req.user._id.toString() && announcement.institute?.toString() !== req.user.institute?.toString()) {
+        res.status(403);
+        throw new Error('Not authorized to permanently delete this announcement');
+    }
+    await announcement.deleteOne();
+    res.json({ message: 'Announcement permanently deleted' });
+});
+
 module.exports = {
     createAnnouncement,
     getAnnouncements,
     updateAnnouncement,
-    deleteAnnouncement
+    deleteAnnouncement,
+    getDeletedAnnouncements,
+    restoreAnnouncement,
+    permanentlyDeleteAnnouncement
 };

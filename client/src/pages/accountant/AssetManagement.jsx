@@ -521,7 +521,7 @@ const AssetManagement = () => {
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                         <thead>
-                            <tr className="bg-slate-50 border-b border-slate-100 text-xs font-bold text-slate-400 uppercase tracking-wider">
+                            <tr className="bg-slate-50 border-b border-slate-100 text-xs font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap">
                                 <th className="p-4 pl-6">Code</th>
                                 <th className="p-4">Asset Details</th>
                                 <th className="p-4">Category</th>
@@ -536,32 +536,32 @@ const AssetManagement = () => {
                         <tbody>
                             {filteredAssets.length === 0 ? (
                                 <tr>
-                                    <td colSpan={user?.role === 'Admin' ? 9 : 8} className="p-12 text-center text-slate-400 font-semibold text-sm">
+                                    <td colSpan={9} className="p-12 text-center text-slate-400 font-semibold text-sm">
                                         No assets match your search parameters.
                                     </td>
                                 </tr>
                             ) : filteredAssets.map((asset) => (
                                 <tr key={asset.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-all">
-                                    <td className="p-4 pl-6 text-sm font-bold text-indigo-600">{asset.id}</td>
-                                    <td className="p-4">
+                                    <td className="p-4 pl-6 text-sm font-bold text-indigo-600 whitespace-nowrap">{asset.id}</td>
+                                    <td className="p-4 min-w-[220px]">
                                         <div className="flex flex-col">
                                             <span className="text-sm font-extrabold text-slate-800">{asset.name}</span>
-                                            <span className="text-xs text-slate-400 font-medium mt-0.5">S/N: {asset.serialNumber}</span>
+                                            <span className="text-xs text-slate-400 font-medium mt-0.5 whitespace-nowrap">S/N: {asset.serialNumber}</span>
                                         </div>
                                     </td>
-                                    <td className="p-4 text-xs font-bold text-slate-500">
-                                        <span className="px-2.5 py-1 bg-slate-100 rounded-lg">{asset.category}</span>
+                                    <td className="p-4 text-xs font-bold text-slate-500 whitespace-nowrap">
+                                        <span className="px-2.5 py-1 bg-slate-100 rounded-lg whitespace-nowrap">{asset.category}</span>
                                     </td>
-                                    <td className="p-4 text-xs font-bold text-slate-600">
+                                    <td className="p-4 text-xs font-bold text-slate-600 whitespace-nowrap">
                                         {asset.instituteName || asset.institute?.name || 'HARTRON GANAUR'}
                                     </td>
-                                    <td className="p-4 text-sm font-semibold text-slate-600">
+                                    <td className="p-4 text-sm font-semibold text-slate-600 whitespace-nowrap">
                                         📅 {new Date(asset.purchaseDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                                     </td>
-                                    <td className="p-4 text-sm font-bold text-slate-800 text-right">{formatCurrency(asset.purchaseCost)}</td>
-                                    <td className="p-4 text-sm font-semibold text-slate-700">{asset.assignedTo || 'Unassigned'}</td>
-                                    <td className="p-4">
-                                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${asset.status === 'Active' ? 'bg-emerald-50 text-emerald-700' :
+                                    <td className="p-4 text-sm font-bold text-slate-800 text-right whitespace-nowrap">{formatCurrency(asset.purchaseCost)}</td>
+                                    <td className="p-4 text-sm font-semibold text-slate-700 whitespace-nowrap">{asset.assignedTo || 'Unassigned'}</td>
+                                    <td className="p-4 whitespace-nowrap">
+                                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold whitespace-nowrap ${asset.status === 'Active' ? 'bg-emerald-50 text-emerald-700' :
                                             asset.status === 'Under Maintenance' ? 'bg-amber-50 text-amber-700' :
                                                 asset.status === 'Stock' ? 'bg-indigo-50 text-indigo-700' : 'bg-rose-50 text-rose-700'
                                             }`}>

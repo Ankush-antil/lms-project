@@ -1,29 +1,27 @@
-require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
 const mongoose = require('mongoose');
+require('dotenv').config({ path: './server/.env' });
 
-const checkTests = async () => {
-    try {
-        await mongoose.connect(process.env.MONGO_URI);
-        console.log('Connected to DB');
-        
-        // Dynamically get the models or use Mongoose connection db
-        const tests = await mongoose.connection.db.collection('tests').find({}).toArray();
-        console.log(`Found ${tests.length} tests:`);
-        tests.forEach(t => {
-            console.log(`- ID: ${t._id}, Title: ${t.title}, Creator: ${t.createdBy || t.creator}, Question count: ${t.questions ? t.questions.length : 0}`);
-        });
+async function checkTests() {
+    await mongoose.connect(process.env.MONGO_URI);
+    const db = mongoose.connection.db;
 
-        const testsubmissions = await mongoose.connection.db.collection('testsubmissions').find({}).toArray();
-        console.log(`Found ${testsubmissions.length} test submissions:`);
-        testsubmissions.forEach(ts => {
-            console.log(`- ID: ${ts._id}, Student: ${ts.student}, Test: ${ts.test}`);
-        });
+    // Check test sample
+    const test = await db.collection('tests').findOne(
+        {},
+        { projection: { title: 1, inboxId: 1, isAssigned: 1, expiryDate: 1, institute: 1, status: 1 } }
+    );
+    console.log('Test sample:', JSON.stringify(test, null, 2));
 
-        process.exit();
-    } catch (err) {
-        console.error(err);
-        process.exit(1);
-    }
-};
+    const totalTests = await db.collection('tests').countDocuments();
+    const expiredTests = await db.collection('tests').countDocuments({ expiryDate: { $lt: new Date() } });
+    const notAssigned = await db.collection('tests').countDocuments({ isAssigned: false });
 
-checkTests();
+    console.log('Total tests:', totalTests);
+    console.log('Expired tests:', expiredTests);
+    console.log('Not assigned tests:', notAssigned);
+
+    await mongoose.disconnect();
+    console.log('Done!');
+}
+
+checkTests().catch(console.error);

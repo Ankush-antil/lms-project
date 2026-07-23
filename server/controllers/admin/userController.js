@@ -440,22 +440,49 @@ const updateUser = asyncHandler(async (req, res) => {
             }
         } else if (activeRole === 'Teacher') {
             if (!user.teacherProfile) user.teacherProfile = {};
-            if (req.body.assignedCourses !== undefined) {
-                user.teacherProfile.assignedCourses = req.body.assignedCourses;
-            } else {
-                user.teacherProfile.assignedCourses = req.body.course ? [req.body.course] : user.teacherProfile.assignedCourses;
-            }
-            user.teacherProfile.subjects = req.body.subjects ? (Array.isArray(req.body.subjects) ? req.body.subjects : req.body.subjects.split(',').map(s => s.trim())) : user.teacherProfile.subjects;
-            user.teacherProfile.studentAssignmentMode = req.body.studentAssignmentMode !== undefined ? req.body.studentAssignmentMode : user.teacherProfile.studentAssignmentMode;
-            user.teacherProfile.assignedSections = req.body.assignedSections !== undefined ? req.body.assignedSections : user.teacherProfile.assignedSections;
-            user.teacherProfile.assignedStudents = req.body.assignedStudents !== undefined ? req.body.assignedStudents : user.teacherProfile.assignedStudents;
+            const tp = req.body.teacherProfile || {};
 
-            if (req.body.controls !== undefined) {
-                user.teacherProfile.controls = req.body.controls;
+            const assignedCourses = req.body.assignedCourses !== undefined ? req.body.assignedCourses : tp.assignedCourses;
+            if (assignedCourses !== undefined) {
+                user.teacherProfile.assignedCourses = assignedCourses;
+            } else {
+                const courseVal = req.body.course !== undefined ? req.body.course : tp.course;
+                if (courseVal !== undefined) {
+                    user.teacherProfile.assignedCourses = courseVal ? [courseVal] : user.teacherProfile.assignedCourses;
+                }
+            }
+
+            const rawSubjects = req.body.subjects !== undefined ? req.body.subjects : tp.subjects;
+            if (rawSubjects !== undefined) {
+                user.teacherProfile.subjects = Array.isArray(rawSubjects) ? rawSubjects : rawSubjects.split(',').map(s => s.trim()).filter(Boolean);
+            }
+
+            const designationVal = req.body.designation !== undefined ? req.body.designation : tp.designation;
+            if (designationVal !== undefined) {
+                user.teacherProfile.designation = designationVal;
+            }
+
+            const salaryVal = req.body.salary !== undefined ? req.body.salary : tp.salary;
+            if (salaryVal !== undefined) {
+                user.teacherProfile.salary = salaryVal;
+            }
+
+            const assignMode = req.body.studentAssignmentMode !== undefined ? req.body.studentAssignmentMode : tp.studentAssignmentMode;
+            if (assignMode !== undefined) user.teacherProfile.studentAssignmentMode = assignMode;
+
+            const assignedSecs = req.body.assignedSections !== undefined ? req.body.assignedSections : tp.assignedSections;
+            if (assignedSecs !== undefined) user.teacherProfile.assignedSections = assignedSecs;
+
+            const assignedSts = req.body.assignedStudents !== undefined ? req.body.assignedStudents : tp.assignedStudents;
+            if (assignedSts !== undefined) user.teacherProfile.assignedStudents = assignedSts;
+
+            const controlsVal = req.body.controls !== undefined ? req.body.controls : tp.controls;
+            if (controlsVal !== undefined) {
+                user.teacherProfile.controls = controlsVal;
                 user.markModified('teacherProfile.controls');
 
                 // Propagate controls if scope is not 'single'
-                const scope = req.body.controlsScope || 'single';
+                const scope = req.body.controlsScope || tp.controlsScope || 'single';
                 if (scope !== 'single') {
                     const query = { role: 'Teacher', _id: { $ne: user._id } };
 
@@ -465,17 +492,18 @@ const updateUser = asyncHandler(async (req, res) => {
                     }
 
                     if (scope === 'selected') {
-                        const selectedIds = req.body.selectedPropagationStudents || [];
+                        const selectedIds = req.body.selectedPropagationStudents || tp.selectedPropagationStudents || [];
                         query._id = { $in: selectedIds };
                     }
 
                     if (scope !== 'selected' || (req.body.selectedPropagationStudents && req.body.selectedPropagationStudents.length > 0)) {
                         await User.updateMany(query, {
-                            $set: { 'teacherProfile.controls': req.body.controls }
+                            $set: { 'teacherProfile.controls': controlsVal }
                         });
                     }
                 }
             }
+            user.markModified('teacherProfile');
         } else if (activeRole === 'Editor') {
             if (!user.editorProfile) user.editorProfile = {};
             if (req.body.assignedCourses !== undefined) {

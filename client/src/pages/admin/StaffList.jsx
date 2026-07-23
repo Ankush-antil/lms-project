@@ -1664,16 +1664,41 @@ const StaffList = () => {
                                                     <th style={{ padding: '14px 16px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase' }}>#</th>
                                                     <th style={{ padding: '14px 16px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase' }}>Staff Name</th>
                                                     <th style={{ padding: '14px 16px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase' }}>Role / Designation</th>
+                                                    <th style={{ padding: '14px 16px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase' }}>Institute</th>
+                                                    <th style={{ padding: '14px 16px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Plus Points</th>
+                                                    <th style={{ padding: '14px 16px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Minus Points</th>
                                                     <th style={{ padding: '14px 16px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Action</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
                                                 {displayList.map((staff, idx) => {
+                                                    const getStaffPointsSum = (type) => {
+                                                        if (!pointsLogs || !Array.isArray(pointsLogs)) return 0;
+                                                        return pointsLogs
+                                                            .filter(l => (l.staffId === staff._id || l.staffName === staff.name) && l.type === type)
+                                                            .reduce((sum, l) => sum + (Number(l.points) || 1), 0);
+                                                    };
+                                                    const plusCount = getStaffPointsSum('plus');
+                                                    const minusCount = getStaffPointsSum('minus');
+
                                                     return (
                                                         <tr key={staff._id} style={{ borderBottom: '1px solid #f1f5f9', background: idx % 2 === 0 ? '#fff' : '#f8fafc' }}>
                                                             <td style={{ padding: '14px 16px', fontSize: '0.78rem', fontWeight: 700, color: '#94a3b8' }}>{idx + 1}</td>
                                                             <td style={{ padding: '14px 16px', fontSize: '0.85rem', fontWeight: 800, color: '#0f172a' }}>{staff.name}</td>
                                                             <td style={{ padding: '14px 16px', fontSize: '0.78rem', color: '#475569', fontWeight: 600 }}>{staff.role || 'Staff'}</td>
+                                                            <td style={{ padding: '14px 16px', fontSize: '0.78rem', color: '#475569', fontWeight: 600 }}>
+                                                                {staff.instituteName || staff.institute?.name || 'All Institutes'}
+                                                            </td>
+                                                            <td style={{ padding: '14px 16px', textAlign: 'center' }}>
+                                                                <span style={{ background: '#dcfce7', color: '#15803d', border: '1px solid #a7f3d0', padding: '3px 10px', borderRadius: '12px', fontSize: '0.78rem', fontWeight: 900 }}>
+                                                                    +{plusCount}
+                                                                </span>
+                                                            </td>
+                                                            <td style={{ padding: '14px 16px', textAlign: 'center' }}>
+                                                                <span style={{ background: '#fee2e2', color: '#dc2626', border: '1px solid #fecaca', padding: '3px 10px', borderRadius: '12px', fontSize: '0.78rem', fontWeight: 900 }}>
+                                                                    -{minusCount}
+                                                                </span>
+                                                            </td>
                                                             <td style={{ padding: '14px 16px', textAlign: 'center' }}>
                                                                 <div style={{ display: 'inline-flex', gap: '8px', alignItems: 'center', justifyContent: 'center' }}>
                                                                     <button

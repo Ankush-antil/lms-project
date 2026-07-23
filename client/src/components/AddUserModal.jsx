@@ -1647,7 +1647,7 @@ const AddUserModal = ({ isOpen, onClose, role, onSuccess }) => {
                                         <div>
                                             <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-3 block">Assign Other Role</label>
                                             <div className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-4 py-3 flex flex-wrap gap-x-5 gap-y-2.5">
-                                                {['Student', 'Teacher', 'Editor', 'Accountant', 'Marketer', 'Staff', 'Parent'].map(r => {
+                                                {['Student', 'Teacher', 'Editor', 'Accountant', 'Marketer', 'Parent'].map(r => {
                                                     const isPrimary = r === role;
                                                     const isChecked = (formData.allowedRoles || [role]).includes(r);
                                                     return (

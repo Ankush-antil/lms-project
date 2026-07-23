@@ -1,5 +1,5 @@
 import * as XLSX from 'xlsx';
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useAuth } from '../../context/AuthContext';
 import DashboardLayout from '../../components/layout/DashboardLayout';
@@ -357,6 +357,195 @@ const StaffList = () => {
     );
 
     const displayList = filtered.length > 0 ? filtered : (search ? [] : staffList);
+
+    // ── Pagination States & Handlers ─────────────
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(10);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [activeTab, search, filterInstitute, taskPriorityFilter, taskStatusFilter, taskDateFilter, itemsPerPage]);
+
+    const paginatedDisplayList = useMemo(() => {
+        const start = (currentPage - 1) * itemsPerPage;
+        return displayList.slice(start, start + itemsPerPage);
+    }, [displayList, currentPage, itemsPerPage]);
+
+    const renderEntriesPerPageSelector = () => (
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+            <span style={{ fontSize: '0.72rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                SHOW
+            </span>
+            <select
+                value={itemsPerPage}
+                onChange={(e) => {
+                    setItemsPerPage(Number(e.target.value));
+                    setCurrentPage(1);
+                }}
+                style={{
+                    padding: '6px 14px',
+                    borderRadius: '16px',
+                    border: '1.5px solid #e2e8f0',
+                    fontSize: '0.85rem',
+                    fontWeight: 900,
+                    color: '#0f172a',
+                    background: '#f8fafc',
+                    outline: 'none',
+                    cursor: 'pointer',
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.03)'
+                }}
+            >
+                <option value={5}>5</option>
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+            </select>
+            <span style={{ fontSize: '0.72rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                ENTRIES
+            </span>
+        </div>
+    );
+
+    const renderPaginationFooter = (totalCount, currentPg, setPg, perPage, setPerPage) => {
+        const totalPg = Math.max(1, Math.ceil(totalCount / perPage));
+        const startIdx = totalCount === 0 ? 0 : (currentPg - 1) * perPage + 1;
+        const endIdx = Math.min(totalCount, currentPg * perPage);
+
+        const pageNumbers = [];
+        let startPage = Math.max(1, currentPg - 2);
+        let endPage = Math.min(totalPg, startPage + 4);
+        if (endPage - startPage < 4) {
+            startPage = Math.max(1, endPage - 4);
+        }
+        for (let i = startPage; i <= endPage; i++) {
+            pageNumbers.push(i);
+        }
+
+        return (
+            <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justify: 'space-between',
+                padding: '14px 20px',
+                background: '#fff',
+                borderTop: '1px solid #f1f5f9',
+                flexWrap: 'wrap',
+                gap: '12px'
+            }}>
+                {/* Left: Showing X to Y of Z entries */}
+                <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#64748b' }}>
+                    Showing <span style={{ fontWeight: 900, color: '#0f172a' }}>{startIdx}</span> to <span style={{ fontWeight: 900, color: '#0f172a' }}>{endIdx}</span> of <span style={{ fontWeight: 900, color: '#0f172a' }}>{totalCount}</span> entries
+                </div>
+
+                {/* Right: Page Buttons */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: 'auto' }}>
+                    <button
+                        type="button"
+                        disabled={currentPg <= 1}
+                        onClick={() => setPg(prev => Math.max(1, prev - 1))}
+                        style={{
+                            padding: '6px 12px',
+                            borderRadius: '10px',
+                            border: '1px solid #e2e8f0',
+                            fontSize: '0.75rem',
+                            fontWeight: 800,
+                            background: currentPg <= 1 ? '#f8fafc' : '#fff',
+                            color: currentPg <= 1 ? '#cbd5e1' : '#334155',
+                            cursor: currentPg <= 1 ? 'not-allowed' : 'pointer',
+                            transition: 'all 0.15s'
+                        }}
+                    >
+                        Previous
+                    </button>
+
+                    {startPage > 1 && (
+                        <>
+                            <button
+                                type="button"
+                                onClick={() => setPg(1)}
+                                style={{
+                                    padding: '6px 10px',
+                                    borderRadius: '10px',
+                                    border: '1px solid #e2e8f0',
+                                    fontSize: '0.75rem',
+                                    fontWeight: 800,
+                                    background: currentPg === 1 ? '#0b1329' : '#fff',
+                                    color: currentPg === 1 ? '#fff' : '#334155',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                1
+                            </button>
+                            {startPage > 2 && <span style={{ fontSize: '0.75rem', color: '#94a3b8', padding: '0 2px' }}>...</span>}
+                        </>
+                    )}
+
+                    {pageNumbers.map(pg => (
+                        <button
+                            key={pg}
+                            type="button"
+                            onClick={() => setPg(pg)}
+                            style={{
+                                padding: '6px 11px',
+                                borderRadius: '10px',
+                                border: pg === currentPg ? 'none' : '1px solid #e2e8f0',
+                                fontSize: '0.75rem',
+                                fontWeight: 900,
+                                background: pg === currentPg ? '#0b1329' : '#fff',
+                                color: pg === currentPg ? '#fff' : '#334155',
+                                cursor: 'pointer',
+                                boxShadow: pg === currentPg ? '0 2px 6px rgba(11, 19, 41, 0.25)' : 'none'
+                            }}
+                        >
+                            {pg}
+                        </button>
+                    ))}
+
+                    {endPage < totalPg && (
+                        <>
+                            {endPage < totalPg - 1 && <span style={{ fontSize: '0.75rem', color: '#94a3b8', padding: '0 2px' }}>...</span>}
+                            <button
+                                type="button"
+                                onClick={() => setPg(totalPg)}
+                                style={{
+                                    padding: '6px 10px',
+                                    borderRadius: '10px',
+                                    border: '1px solid #e2e8f0',
+                                    fontSize: '0.75rem',
+                                    fontWeight: 800,
+                                    background: currentPg === totalPg ? '#0b1329' : '#fff',
+                                    color: currentPg === totalPg ? '#fff' : '#334155',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                {totalPg}
+                            </button>
+                        </>
+                    )}
+
+                    <button
+                        type="button"
+                        disabled={currentPg >= totalPg}
+                        onClick={() => setPg(prev => Math.min(totalPg, prev + 1))}
+                        style={{
+                            padding: '6px 12px',
+                            borderRadius: '10px',
+                            border: '1px solid #e2e8f0',
+                            fontSize: '0.75rem',
+                            fontWeight: 800,
+                            background: currentPg >= totalPg ? '#f8fafc' : '#fff',
+                            color: currentPg >= totalPg ? '#cbd5e1' : '#334155',
+                            cursor: currentPg >= totalPg ? 'not-allowed' : 'pointer',
+                            transition: 'all 0.15s'
+                        }}
+                    >
+                        Next
+                    </button>
+                </div>
+            </div>
+        );
+    };
 
     const handleAddTask = (e) => {
         e.preventDefault();
@@ -967,6 +1156,7 @@ const StaffList = () => {
                                     )}
                                 </div>
                                 <div className="flex items-center gap-2">
+                                    {renderEntriesPerPageSelector()}
                                     <input
                                         type="file"
                                         ref={importUsersRef}
@@ -1030,13 +1220,16 @@ const StaffList = () => {
                                                     <th style={{ padding: '13px 16px', width: '40px' }}>
                                                         <input
                                                             type="checkbox"
-                                                            checked={displayList.length > 0 && selectedIds.size === displayList.length}
+                                                            checked={paginatedDisplayList.length > 0 && paginatedDisplayList.every(s => selectedIds.has(s._id))}
                                                             onChange={() => {
-                                                                if (selectedIds.size === displayList.length) {
-                                                                    setSelectedIds(new Set());
-                                                                } else {
-                                                                    setSelectedIds(new Set(displayList.map(item => item._id)));
-                                                                }
+                                                                const pageIds = paginatedDisplayList.map(s => s._id);
+                                                                const allSelected = pageIds.every(id => selectedIds.has(id));
+                                                                setSelectedIds(prev => {
+                                                                    const next = new Set(prev);
+                                                                    if (allSelected) { pageIds.forEach(id => next.delete(id)); }
+                                                                    else { pageIds.forEach(id => next.add(id)); }
+                                                                    return next;
+                                                                });
                                                             }}
                                                             className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer accent-indigo-650"
                                                         />
@@ -1049,13 +1242,13 @@ const StaffList = () => {
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {displayList.length === 0 ? (
+                                                {paginatedDisplayList.length === 0 ? (
                                                     <tr>
                                                         <td colSpan={6} style={{ padding: '48px', textAlign: 'center', color: '#94a3b8', fontWeight: 700 }}>
                                                             No staff found
                                                         </td>
                                                     </tr>
-                                                ) : displayList.map((s, i) => (
+                                                ) : paginatedDisplayList.map((s, i) => (
                                                     <tr key={s._id || i} style={{ borderBottom: '1px solid #f8fafc', transition: 'background 0.15s' }}
                                                         onMouseEnter={e => e.currentTarget.style.background = '#fafafa'}
                                                         onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
@@ -1170,6 +1363,7 @@ const StaffList = () => {
                                             </tbody>
                                         </table>
                                     </div>
+                                    {renderPaginationFooter(displayList.length, currentPage, setCurrentPage, itemsPerPage, setItemsPerPage)}
                                 </div>
                             )}
 
@@ -1217,7 +1411,8 @@ const StaffList = () => {
                                         </div>
                                     )}
                                 </div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                                    {renderEntriesPerPageSelector()}
                                     <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#64748b' }}>Attendance Date:</span>
                                     <input
                                         type="date"
@@ -1232,12 +1427,29 @@ const StaffList = () => {
                                 </div>
                             </div>
 
-                             {/* Attendance Table */}
+                            {/* Attendance Table */}
                             <div style={{ background: '#fff', borderRadius: '20px', overflow: 'hidden', border: '1px solid #f1f5f9', boxShadow: '0 2px 12px rgba(0,0,0,0.04)' }}>
                                 <div style={{ overflowX: 'auto' }}>
                                     <table style={{ width: '100%', minWidth: '1000px', borderCollapse: 'collapse' }}>
                                         <thead>
                                             <tr style={{ background: '#f8fafc', borderBottom: '1px solid #f1f5f9' }}>
+                                                <th style={{ padding: '13px 14px', width: '40px' }}>
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={paginatedDisplayList.length > 0 && paginatedDisplayList.every(s => selectedIds.has(s._id))}
+                                                        onChange={() => {
+                                                            const pageIds = paginatedDisplayList.map(s => s._id);
+                                                            const allSelected = pageIds.every(id => selectedIds.has(id));
+                                                            setSelectedIds(prev => {
+                                                                const next = new Set(prev);
+                                                                if (allSelected) { pageIds.forEach(id => next.delete(id)); }
+                                                                else { pageIds.forEach(id => next.add(id)); }
+                                                                return next;
+                                                            });
+                                                        }}
+                                                        className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer accent-indigo-650"
+                                                    />
+                                                </th>
                                                 {[
                                                     'Name',
                                                     'Role',
@@ -1258,12 +1470,30 @@ const StaffList = () => {
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {displayList.length === 0 ? (
-                                                <tr><td colSpan={10} style={{ padding: '48px', textAlign: 'center', color: '#94a3b8', fontWeight: 700 }}>No staff found</td></tr>
-                                            ) : displayList.map((s, i) => {
+                                            {paginatedDisplayList.length === 0 ? (
+                                                <tr><td colSpan={12} style={{ padding: '48px', textAlign: 'center', color: '#94a3b8', fontWeight: 700 }}>No staff found</td></tr>
+                                            ) : paginatedDisplayList.map((s, i) => {
                                                 const rec = attendanceRecords[s._id] || { status: '', attendanceType: 'Physical', markedBy: 'Admin', teacherNote: '', studentNote: '', checkInTime: '', checkOutTime: '' };
                                                 return (
                                                     <tr key={s._id || i} style={{ borderBottom: '1px solid #f8fafc' }}>
+                                                        <td style={{ padding: '12px 14px', width: '40px' }}>
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={selectedIds.has(s._id)}
+                                                                onChange={() => {
+                                                                    setSelectedIds(prev => {
+                                                                        const next = new Set(prev);
+                                                                        if (next.has(s._id)) {
+                                                                            next.delete(s._id);
+                                                                        } else {
+                                                                            next.add(s._id);
+                                                                        }
+                                                                        return next;
+                                                                    });
+                                                                }}
+                                                                className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer accent-indigo-650"
+                                                            />
+                                                        </td>
                                                         {/* 1. Name */}
                                                         <td style={{ padding: '12px 14px', minWidth: '170px' }}>
                                                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -1367,6 +1597,7 @@ const StaffList = () => {
                                         </tbody>
                                     </table>
                                 </div>
+                                {renderPaginationFooter(displayList.length, currentPage, setCurrentPage, itemsPerPage, setItemsPerPage)}
                             </div>
                         </div>
                     )}
@@ -1386,26 +1617,59 @@ const StaffList = () => {
                                             <ChevronDown size={13} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', pointerEvents: 'none' }} />
                                         </div>
                                     )}
+                                    {renderEntriesPerPageSelector()}
                                 </div>
                             </div>
                             <div style={{ border: '1px solid #e2e8f0', borderRadius: '16px', overflow: 'hidden' }}>
                                 <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.78rem' }}>
                                     <thead>
                                         <tr style={{ borderBottom: '1px solid #e2e8f0', backgroundColor: '#f8fafc', color: '#64748b', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                                            <th style={{ padding: '12px 16px', width: '40px' }}>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={paginatedDisplayList.length > 0 && paginatedDisplayList.every(s => selectedIds.has(s._id))}
+                                                    onChange={() => {
+                                                        const pageIds = paginatedDisplayList.map(s => s._id);
+                                                        const allSelected = pageIds.every(id => selectedIds.has(id));
+                                                        setSelectedIds(prev => {
+                                                            const next = new Set(prev);
+                                                            if (allSelected) { pageIds.forEach(id => next.delete(id)); }
+                                                            else { pageIds.forEach(id => next.add(id)); }
+                                                            return next;
+                                                        });
+                                                    }}
+                                                    className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer accent-indigo-650"
+                                                />
+                                            </th>
                                             {['#', 'Staff Member', 'Role', 'Institute', 'Monthly Salary', 'Status', 'Action'].map(h => (
                                                 <th key={h} style={{ padding: '12px 16px' }}>{h}</th>
                                             ))}
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {displayList.length === 0 ? (
-                                            <tr><td colSpan={7} style={{ padding: '40px', textAlign: 'center', color: '#94a3b8', fontWeight: 700 }}>No staff found</td></tr>
-                                        ) : displayList.map((s, i) => {
+                                        {paginatedDisplayList.length === 0 ? (
+                                            <tr><td colSpan={8} style={{ padding: '40px', textAlign: 'center', color: '#94a3b8', fontWeight: 700 }}>No staff found</td></tr>
+                                        ) : paginatedDisplayList.map((s, i) => {
                                             const status = salaryPayouts[s.name] || s.staffProfile?.salaryStatus || 'Pending';
                                             const salary = s.staffProfile?.salary || 25000;
                                             return (
                                                 <tr key={s._id || i} style={{ borderBottom: '1px solid #f8fafc' }}>
-                                                    <td style={{ padding: '12px 16px', fontWeight: 700, color: '#94a3b8' }}>{i + 1}</td>
+                                                    <td style={{ padding: '12px 16px', width: '40px' }}>
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={selectedIds.has(s._id)}
+                                                            onChange={() => {
+                                                                setSelectedIds(prev => {
+                                                                    const next = new Set(prev);
+                                                                    if (next.has(s._id)) { next.delete(s._id); }
+                                                                    else { next.add(s._id); }
+                                                                    return next;
+                                                                });
+                                                            }}
+                                                            className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer accent-indigo-650"
+                                                        />
+                                                    </td>
+                                                    <td style={{ padding: '12px 16px', fontWeight: 700, color: '#94a3b8' }}>{(currentPage - 1) * itemsPerPage + i + 1}</td>
                                                     <td style={{ padding: '12px 16px' }}>
                                                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                                             <div style={{ width: 32, height: 32, borderRadius: '10px', background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '0.8rem', fontWeight: 900 }}>{s.name?.[0]?.toUpperCase() || '?'}</div>
@@ -1433,6 +1697,7 @@ const StaffList = () => {
                                         })}
                                     </tbody>
                                 </table>
+                                {renderPaginationFooter(displayList.length, currentPage, setCurrentPage, itemsPerPage, setItemsPerPage)}
                             </div>
                         </div>
                     )}
@@ -1467,6 +1732,7 @@ const StaffList = () => {
 
                             {/* Filters */}
                             <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
+                                {renderEntriesPerPageSelector()}
                                 <select value={taskPriorityFilter} onChange={e => setTaskPriorityFilter(e.target.value)} style={{ padding: '7px 12px', border: '1.5px solid #e2e8f0', borderRadius: '10px', fontSize: '0.8rem', fontWeight: 700, outline: 'none', cursor: 'pointer', background: '#fff' }}>
                                     <option value="">All Priorities</option>
                                     <option value="High">High</option>
@@ -1525,59 +1791,94 @@ const StaffList = () => {
 
                             {/* Task Table */}
                             <div style={{ border: '1px solid #e2e8f0', borderRadius: '16px', overflowX: 'auto' }}>
-                                <table style={{ width: '100%', minWidth: '1100px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.78rem' }}>
-                                    <thead>
-                                        <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', color: '#64748b', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
-                                            {[
-                                                '1. Staff',
-                                                '2. Role',
-                                                '3. Institute',
-                                                '4. Today’s surrendered task',
-                                                '5. Self created',
-                                                '6. Due Date',
-                                                '7. Priority',
-                                                '8. Status with Evidence',
-                                                '9. Verification Status',
-                                                '10. Individually all record'
-                                            ].map(h => (
-                                                <th key={h} style={{ padding: '12px 14px', textAlign: h.includes('Individually') ? 'center' : 'left' }}>{h}</th>
-                                            ))}
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {(() => {
-                                            const filterTaskByDate = (t) => {
-                                                if (!taskDateFilter || taskDateFilter === 'all' || taskDateFilter === 'year') return true;
-                                                const getFormattedDateStr = (d) => {
-                                                    if (!d) return '';
-                                                    try { return new Date(d).toISOString().split('T')[0]; } catch (e) { return d; }
-                                                };
-                                                const taskDate = getFormattedDateStr(t.due || t.createdAt || t.date || t.assignedDate);
-                                                const todayStr = new Date().toISOString().split('T')[0];
+                                {(() => {
+                                    const filterTaskByDate = (t) => {
+                                        if (!taskDateFilter || taskDateFilter === 'all' || taskDateFilter === 'year') return true;
+                                        const getFormattedDateStr = (d) => {
+                                            if (!d) return '';
+                                            try { return new Date(d).toISOString().split('T')[0]; } catch (e) { return d; }
+                                        };
+                                        const taskDate = getFormattedDateStr(t.due || t.createdAt || t.date || t.assignedDate);
+                                        const todayStr = new Date().toISOString().split('T')[0];
 
-                                                if (taskDateFilter === 'today') return taskDate === todayStr;
-                                                if (taskDateFilter === 'month') return taskDate.startsWith(todayStr.substring(0, 7));
-                                                if (taskDateFilter === 'particular') return !filterParticularDate || taskDate === filterParticularDate;
-                                                if (taskDateFilter === 'range') return (!filterStartDate || !filterEndDate) || (taskDate >= filterStartDate && taskDate <= filterEndDate);
-                                                return true;
-                                            };
+                                        if (taskDateFilter === 'today') return taskDate === todayStr;
+                                        if (taskDateFilter === 'month') return taskDate.startsWith(todayStr.substring(0, 7));
+                                        if (taskDateFilter === 'particular') return !filterParticularDate || taskDate === filterParticularDate;
+                                        if (taskDateFilter === 'range') return (!filterStartDate || !filterEndDate) || (taskDate >= filterStartDate && taskDate <= filterEndDate);
+                                        return true;
+                                    };
 
-                                            const filteredTasks = tasks.filter(t => 
-                                                (!taskPriorityFilter || t.priority === taskPriorityFilter) &&
-                                                (!taskStatusFilter || t.status === taskStatusFilter) &&
-                                                filterTaskByDate(t)
-                                            );
+                                    const filteredTasks = tasks.filter(t => 
+                                        (!taskPriorityFilter || t.priority === taskPriorityFilter) &&
+                                        (!taskStatusFilter || t.status === taskStatusFilter) &&
+                                        filterTaskByDate(t)
+                                    );
 
-                                            return (
-                                                <>
-                                                    {filteredTasks.map(t => {
+                                    const paginatedTasks = filteredTasks.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+                                    return (
+                                        <>
+                                            <table style={{ width: '100%', minWidth: '1100px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.78rem' }}>
+                                                <thead>
+                                                    <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', color: '#64748b', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
+                                                        <th style={{ padding: '12px 14px', width: '40px' }}>
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={paginatedTasks.length > 0 && paginatedTasks.every(t => selectedIds.has(t.id || t._id))}
+                                                                onChange={() => {
+                                                                    const pageIds = paginatedTasks.map(t => t.id || t._id);
+                                                                    const allSelected = pageIds.every(id => selectedIds.has(id));
+                                                                    setSelectedIds(prev => {
+                                                                        const next = new Set(prev);
+                                                                        if (allSelected) { pageIds.forEach(id => next.delete(id)); }
+                                                                        else { pageIds.forEach(id => next.add(id)); }
+                                                                        return next;
+                                                                    });
+                                                                }}
+                                                                className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer accent-indigo-650"
+                                                            />
+                                                        </th>
+                                                        {[
+                                                            '1. Staff',
+                                                            '2. Role',
+                                                            '3. Institute',
+                                                            '4. Today’s surrendered task',
+                                                            '5. Self created',
+                                                            '6. Due Date',
+                                                            '7. Priority',
+                                                            '8. Status with Evidence',
+                                                            '9. Verification Status',
+                                                            '10. Individually all record'
+                                                        ].map(h => (
+                                                            <th key={h} style={{ padding: '12px 14px', textAlign: h.includes('Individually') ? 'center' : 'left' }}>{h}</th>
+                                                        ))}
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {paginatedTasks.map(t => {
                                                         const staffMember = staffList.find(s => s._id === t.staffId || s.name === t.staffName) || {};
                                                         const isSelfCreated = t.isSelfCreated || t.source === 'Self';
                                                         const surrenderTask = t.title || t.surrenderedTask || '—';
                                                         const verificationStatus = t.verificationStatus || (t.status === 'done' ? 'Verified' : 'Pending');
+                                                        const taskId = t.id || t._id;
 
                                                         return (
-                                                            <tr key={t.id} style={{ borderBottom: '1px solid #f8fafc' }}>
+                                                            <tr key={taskId} style={{ borderBottom: '1px solid #f8fafc' }}>
+                                                                <td style={{ padding: '12px 14px', width: '40px' }}>
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={selectedIds.has(taskId)}
+                                                                        onChange={() => {
+                                                                            setSelectedIds(prev => {
+                                                                                const next = new Set(prev);
+                                                                                if (next.has(taskId)) { next.delete(taskId); }
+                                                                                else { next.add(taskId); }
+                                                                                return next;
+                                                                            });
+                                                                        }}
+                                                                        className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer accent-indigo-650"
+                                                                    />
+                                                                </td>
                                                                 {/* 1. Staff */}
                                                                 <td style={{ padding: '12px 14px', fontWeight: 800, color: '#334155', minWidth: '160px' }}>
                                                                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -1665,13 +1966,14 @@ const StaffList = () => {
                                                         );
                                                     })}
                                                     {filteredTasks.length === 0 && (
-                                                        <tr><td colSpan={10} style={{ padding: '40px', textAlign: 'center', color: '#94a3b8', fontWeight: 700 }}>No tasks match the filters</td></tr>
+                                                        <tr><td colSpan={11} style={{ padding: '40px', textAlign: 'center', color: '#94a3b8', fontWeight: 700 }}>No tasks match the filters</td></tr>
                                                     )}
-                                                </>
-                                            );
-                                        })()}
-                                    </tbody>
-                                </table>
+                                                </tbody>
+                                            </table>
+                                            {renderPaginationFooter(filteredTasks.length, currentPage, setCurrentPage, itemsPerPage, setItemsPerPage)}
+                                        </>
+                                    );
+                                })()}
                             </div>
                         </div>
                     )}
@@ -1694,6 +1996,7 @@ const StaffList = () => {
                                         </p>
                                     </div>
                                     <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                                        {!currentPreviewStaff && renderEntriesPerPageSelector()}
                                         {currentPreviewStaff && (
                                             <button
                                                 onClick={() => setSelectedPreviewStaff(null)}
@@ -1724,78 +2027,115 @@ const StaffList = () => {
 
                                 {/* View 1: Default Staff List View */}
                                 {!currentPreviewStaff ? (
-                                    <div style={{ overflowX: 'auto', border: '1px solid #e2e8f0', borderRadius: '20px' }}>
-                                        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-                                            <thead>
-                                                <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
-                                                    <th style={{ padding: '14px 16px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase' }}>#</th>
-                                                    <th style={{ padding: '14px 16px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase' }}>Staff Name</th>
-                                                    <th style={{ padding: '14px 16px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase' }}>Role / Designation</th>
-                                                    <th style={{ padding: '14px 16px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase' }}>Institute</th>
-                                                    <th style={{ padding: '14px 16px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Plus Points</th>
-                                                    <th style={{ padding: '14px 16px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Minus Points</th>
-                                                    <th style={{ padding: '14px 16px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Action</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {displayList.map((staff, idx) => {
-                                                    const getStaffPointsSum = (type) => {
-                                                        if (!pointsLogs || !Array.isArray(pointsLogs)) return 0;
-                                                        return pointsLogs
-                                                            .filter(l => (l.staffId === staff._id || l.staffName === staff.name) && l.type === type)
-                                                            .reduce((sum, l) => sum + (Number(l.points) || 1), 0);
-                                                    };
-                                                    const plusCount = getStaffPointsSum('plus');
-                                                    const minusCount = getStaffPointsSum('minus');
+                                    <div style={{ border: '1px solid #e2e8f0', borderRadius: '20px', overflow: 'hidden' }}>
+                                        <div style={{ overflowX: 'auto' }}>
+                                            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                                                <thead>
+                                                    <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
+                                                        <th style={{ padding: '14px 16px', width: '40px' }}>
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={paginatedDisplayList.length > 0 && paginatedDisplayList.every(s => selectedIds.has(s._id))}
+                                                                onChange={() => {
+                                                                    const pageIds = paginatedDisplayList.map(s => s._id);
+                                                                    const allSelected = pageIds.every(id => selectedIds.has(id));
+                                                                    setSelectedIds(prev => {
+                                                                        const next = new Set(prev);
+                                                                        if (allSelected) { pageIds.forEach(id => next.delete(id)); }
+                                                                        else { pageIds.forEach(id => next.add(id)); }
+                                                                        return next;
+                                                                    });
+                                                                }}
+                                                                className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer accent-indigo-650"
+                                                            />
+                                                        </th>
+                                                        <th style={{ padding: '14px 16px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase' }}>#</th>
+                                                        <th style={{ padding: '14px 16px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase' }}>Staff Name</th>
+                                                        <th style={{ padding: '14px 16px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase' }}>Role / Designation</th>
+                                                        <th style={{ padding: '14px 16px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase' }}>Institute</th>
+                                                        <th style={{ padding: '14px 16px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Plus Points</th>
+                                                        <th style={{ padding: '14px 16px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Minus Points</th>
+                                                        <th style={{ padding: '14px 16px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Action</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {paginatedDisplayList.length === 0 ? (
+                                                        <tr><td colSpan={8} style={{ padding: '40px', textAlign: 'center', color: '#94a3b8', fontWeight: 700 }}>No staff found</td></tr>
+                                                    ) : paginatedDisplayList.map((staff, idx) => {
+                                                        const getStaffPointsSum = (type) => {
+                                                            if (!pointsLogs || !Array.isArray(pointsLogs)) return 0;
+                                                            return pointsLogs
+                                                                .filter(l => (l.staffId === staff._id || l.staffName === staff.name) && l.type === type)
+                                                                .reduce((sum, l) => sum + (Number(l.points) || 1), 0);
+                                                        };
+                                                        const plusCount = getStaffPointsSum('plus');
+                                                        const minusCount = getStaffPointsSum('minus');
 
-                                                    return (
-                                                        <tr key={staff._id} style={{ borderBottom: '1px solid #f1f5f9', background: idx % 2 === 0 ? '#fff' : '#f8fafc' }}>
-                                                            <td style={{ padding: '14px 16px', fontSize: '0.78rem', fontWeight: 700, color: '#94a3b8' }}>{idx + 1}</td>
-                                                            <td style={{ padding: '14px 16px', fontSize: '0.85rem', fontWeight: 800, color: '#0f172a' }}>{staff.name}</td>
-                                                            <td style={{ padding: '14px 16px', fontSize: '0.78rem', color: '#475569', fontWeight: 600 }}>{staff.role || 'Staff'}</td>
-                                                            <td style={{ padding: '14px 16px', fontSize: '0.78rem', color: '#475569', fontWeight: 600 }}>
-                                                                {staff.instituteName || staff.institute?.name || 'All Institutes'}
-                                                            </td>
-                                                            <td style={{ padding: '14px 16px', textAlign: 'center' }}>
-                                                                <span style={{ background: '#dcfce7', color: '#15803d', border: '1px solid #a7f3d0', padding: '3px 10px', borderRadius: '12px', fontSize: '0.78rem', fontWeight: 900 }}>
-                                                                    +{plusCount}
-                                                                </span>
-                                                            </td>
-                                                            <td style={{ padding: '14px 16px', textAlign: 'center' }}>
-                                                                <span style={{ background: '#fee2e2', color: '#dc2626', border: '1px solid #fecaca', padding: '3px 10px', borderRadius: '12px', fontSize: '0.78rem', fontWeight: 900 }}>
-                                                                    -{minusCount}
-                                                                </span>
-                                                            </td>
-                                                            <td style={{ padding: '14px 16px', textAlign: 'center' }}>
-                                                                <div style={{ display: 'inline-flex', gap: '8px', alignItems: 'center', justifyContent: 'center' }}>
-                                                                    <button
-                                                                        onClick={() => setSelectedPreviewStaff(staff)}
-                                                                        style={{
-                                                                            background: '#e0e7ff', color: '#4338ca', border: 'none',
-                                                                            borderRadius: '8px', padding: '6px 14px', fontSize: '0.72rem',
-                                                                            fontWeight: 800, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px'
+                                                        return (
+                                                            <tr key={staff._id} style={{ borderBottom: '1px solid #f1f5f9', background: idx % 2 === 0 ? '#fff' : '#f8fafc' }}>
+                                                                <td style={{ padding: '14px 16px', width: '40px' }}>
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={selectedIds.has(staff._id)}
+                                                                        onChange={() => {
+                                                                            setSelectedIds(prev => {
+                                                                                const next = new Set(prev);
+                                                                                if (next.has(staff._id)) { next.delete(staff._id); }
+                                                                                else { next.add(staff._id); }
+                                                                                return next;
+                                                                            });
                                                                         }}
-                                                                    >
-                                                                        <Eye size={12} /> Preview Valuation
-                                                                    </button>
-                                                                    <button
-                                                                        onClick={() => openAddPointsModal(staff._id, 'minus')}
-                                                                        title="Add Valuation for this Staff"
-                                                                        style={{
-                                                                            background: '#dcfce7', color: '#15803d', border: 'none',
-                                                                            borderRadius: '8px', padding: '6px 10px', fontSize: '0.72rem',
-                                                                            fontWeight: 800, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px'
-                                                                        }}
-                                                                    >
-                                                                        <Plus size={12} />
-                                                                    </button>
-                                                                </div>
-                                                            </td>
-                                                        </tr>
-                                                    );
-                                                })}
-                                            </tbody>
-                                        </table>
+                                                                        className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer accent-indigo-650"
+                                                                    />
+                                                                </td>
+                                                                <td style={{ padding: '14px 16px', fontSize: '0.78rem', fontWeight: 700, color: '#94a3b8' }}>{(currentPage - 1) * itemsPerPage + idx + 1}</td>
+                                                                <td style={{ padding: '14px 16px', fontSize: '0.85rem', fontWeight: 800, color: '#0f172a' }}>{staff.name}</td>
+                                                                <td style={{ padding: '14px 16px', fontSize: '0.78rem', color: '#475569', fontWeight: 600 }}>{staff.role || 'Staff'}</td>
+                                                                <td style={{ padding: '14px 16px', fontSize: '0.78rem', color: '#475569', fontWeight: 600 }}>
+                                                                    {staff.instituteName || staff.institute?.name || 'All Institutes'}
+                                                                </td>
+                                                                <td style={{ padding: '14px 16px', textAlign: 'center' }}>
+                                                                    <span style={{ background: '#dcfce7', color: '#15803d', border: '1px solid #a7f3d0', padding: '3px 10px', borderRadius: '12px', fontSize: '0.78rem', fontWeight: 900 }}>
+                                                                        +{plusCount}
+                                                                    </span>
+                                                                </td>
+                                                                <td style={{ padding: '14px 16px', textAlign: 'center' }}>
+                                                                    <span style={{ background: '#fee2e2', color: '#dc2626', border: '1px solid #fecaca', padding: '3px 10px', borderRadius: '12px', fontSize: '0.78rem', fontWeight: 900 }}>
+                                                                        -{minusCount}
+                                                                    </span>
+                                                                </td>
+                                                                <td style={{ padding: '14px 16px', textAlign: 'center' }}>
+                                                                    <div style={{ display: 'inline-flex', gap: '8px', alignItems: 'center', justifyContent: 'center' }}>
+                                                                        <button
+                                                                            onClick={() => setSelectedPreviewStaff(staff)}
+                                                                            style={{
+                                                                                background: '#e0e7ff', color: '#4338ca', border: 'none',
+                                                                                borderRadius: '8px', padding: '6px 14px', fontSize: '0.72rem',
+                                                                                fontWeight: 800, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px'
+                                                                            }}
+                                                                        >
+                                                                            <Eye size={12} /> Preview Valuation
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={() => openAddPointsModal(staff._id, 'minus')}
+                                                                            title="Add Valuation for this Staff"
+                                                                            style={{
+                                                                                background: '#dcfce7', color: '#15803d', border: 'none',
+                                                                                borderRadius: '8px', padding: '6px 10px', fontSize: '0.72rem',
+                                                                                fontWeight: 800, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px'
+                                                                            }}
+                                                                        >
+                                                                            <Plus size={12} />
+                                                                        </button>
+                                                                    </div>
+                                                                </td>
+                                                            </tr>
+                                                        );
+                                                    })}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                        {renderPaginationFooter(displayList.length, currentPage, setCurrentPage, itemsPerPage, setItemsPerPage)}
                                     </div>
                                 ) : (
                                     // View 2: Detailed Plus/Minus Tables for Selected Staff

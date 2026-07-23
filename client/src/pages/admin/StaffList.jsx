@@ -136,6 +136,7 @@ const StaffList = () => {
     const [submittingAttendance, setSubmittingAttendance] = useState(false);
     const [viewAttendanceStaff, setViewAttendanceStaff] = useState(null);
     const [viewTaskStaffRecord, setViewTaskStaffRecord] = useState(null);
+    const [historyDateFilter, setHistoryDateFilter] = useState('');
     const [editingId, setEditingId] = useState(null);
     const [editRecord, setEditRecord] = useState({ status: '', checkInTime: '', checkOutTime: '' });
 
@@ -2299,7 +2300,7 @@ const StaffList = () => {
                     <div style={{ background: '#fff', borderRadius: '24px', padding: '32px', width: '100%', maxWidth: '1000px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', margin: '0 auto', position: 'relative', border: '1px solid #e2e8f0' }}>
 
                         {/* Header */}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', paddingBottom: '16px', borderBottom: '1px solid #f1f5f9' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', paddingBottom: '16px', borderBottom: '1px solid #f1f5f9', flexWrap: 'wrap', gap: '12px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
                                 <div style={{ width: 48, height: 48, borderRadius: '14px', background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '1.2rem', fontWeight: 900 }}>
                                     {viewTaskStaffRecord.name?.[0]?.toUpperCase() || '?'}
@@ -2309,14 +2310,52 @@ const StaffList = () => {
                                     <p style={{ margin: '2px 0 0', fontSize: '0.8rem', color: '#64748b', fontWeight: 600 }}>{viewTaskStaffRecord.email || 'Staff Member'} • <span style={{ color: '#4f46e5', fontWeight: 800 }}>{viewTaskStaffRecord.role || 'Staff'}</span></p>
                                 </div>
                             </div>
-                            <button onClick={() => setViewTaskStaffRecord(null)} style={{ background: '#f1f5f9', border: 'none', width: 36, height: 36, borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#64748b' }}>
-                                <X size={18} />
-                            </button>
+
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                {/* Calendar Date Picker */}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#f8fafc', border: '1px solid #cbd5e1', padding: '6px 14px', borderRadius: '14px' }}>
+                                    <Calendar size={16} style={{ color: '#4f46e5' }} />
+                                    <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#475569' }}>Date:</span>
+                                    <input
+                                        type="date"
+                                        value={historyDateFilter}
+                                        onChange={e => setHistoryDateFilter(e.target.value)}
+                                        style={{ border: 'none', background: 'transparent', fontSize: '0.8rem', fontWeight: 800, color: '#0f172a', outline: 'none', cursor: 'pointer' }}
+                                    />
+                                    {historyDateFilter && (
+                                        <button
+                                            onClick={() => setHistoryDateFilter('')}
+                                            title="Clear date filter"
+                                            style={{ background: '#fee2e2', border: 'none', color: '#ef4444', fontSize: '0.7rem', fontWeight: 800, padding: '3px 8px', borderRadius: '8px', cursor: 'pointer' }}
+                                        >
+                                            Clear
+                                        </button>
+                                    )}
+                                </div>
+
+                                <button onClick={() => { setViewTaskStaffRecord(null); setHistoryDateFilter(''); }} style={{ background: '#f1f5f9', border: 'none', width: 36, height: 36, borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#64748b' }}>
+                                    <X size={18} />
+                                </button>
+                            </div>
                         </div>
 
                         {/* Task History Stats & Table */}
                         {(() => {
-                            const staffTasksList = tasks.filter(t => t.staffId === viewTaskStaffRecord._id || t.staffName === viewTaskStaffRecord.name);
+                            let staffTasksList = tasks.filter(t => t.staffId === viewTaskStaffRecord._id || t.staffName === viewTaskStaffRecord.name);
+
+                            if (historyDateFilter) {
+                                staffTasksList = staffTasksList.filter(t => {
+                                    const formatD = (d) => {
+                                        if (!d) return '';
+                                        try { return new Date(d).toISOString().split('T')[0]; } catch (e) { return d; }
+                                    };
+                                    const dueStr = formatD(t.due);
+                                    const createdStr = formatD(t.createdAt);
+                                    const assignedStr = formatD(t.assignedDate || t.date);
+                                    return dueStr === historyDateFilter || createdStr === historyDateFilter || assignedStr === historyDateFilter;
+                                });
+                            }
+
                             const doneCount = staffTasksList.filter(t => t.status === 'done').length;
                             const inProgressCount = staffTasksList.filter(t => t.status === 'inprogress').length;
                             const pendingCount = staffTasksList.filter(t => t.status === 'pending').length;

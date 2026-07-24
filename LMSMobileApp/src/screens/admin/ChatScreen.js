@@ -141,35 +141,32 @@ const ChatScreen = ({ navigation }) => {
         if (!socket) return;
 
         const handleNewMessage = (msg) => {
-            const isFromActive = activeContact && (msg.sender === activeContact._id || msg.sender?._id === activeContact._id);
+            const isFromActive = activeContact && (
+                msg.sender === activeContact._id ||
+                msg.sender?._id === activeContact._id ||
+                String(msg.sender) === String(activeContact._id)
+            );
             if (isFromActive) {
                 setChatMessages(prev => [...prev, msg]);
-                axios.post(`/messages/read/${msg._id}`).catch(() => {});
+                axios.put(`/messages/${activeContact._id}/read`).catch(() => {});
             } else {
                 fetchData();
             }
         };
 
-        const handleTyping = ({ senderId }) => {
-            if (activeContact && senderId === activeContact._id) {
-                setIsPeerTyping(true);
+        // Server emits 'typing-status' with { senderId, isTyping }
+        const handleTypingStatus = ({ senderId, isTyping }) => {
+            if (activeContact && String(senderId) === String(activeContact._id)) {
+                setIsPeerTyping(!!isTyping);
             }
         };
 
-        const handleStopTyping = ({ senderId }) => {
-            if (activeContact && senderId === activeContact._id) {
-                setIsPeerTyping(false);
-            }
-        };
-
-        socket.on('chat-message', handleNewMessage);
-        socket.on('typing', handleTyping);
-        socket.on('stop-typing', handleStopTyping);
+        socket.on('receive-message', handleNewMessage);
+        socket.on('typing-status', handleTypingStatus);
 
         return () => {
-            socket.off('chat-message', handleNewMessage);
-            socket.off('typing', handleTyping);
-            socket.off('stop-typing', handleStopTyping);
+            socket.off('receive-message', handleNewMessage);
+            socket.off('typing-status', handleTypingStatus);
         };
     }, [socket, activeContact]);
 
@@ -254,16 +251,22 @@ const ChatScreen = ({ navigation }) => {
                 setChatMessages(prev => [...prev, data]);
             } else {
                 const { data } = await axios.post('/messages', {
-                    recipientId: activeContact._id,
+                    receiver: activeContact._id,
                     text: tempText
                 });
                 setChatMessages(prev => [...prev, data]);
                 
-                // Emit socket message for instant updates
+                // Emit socket event matching server handler 'send-message'
                 if (socket && socket.connected) {
-                    socket.emit('chat-message', {
-                        recipientId: activeContact._id,
-                        message: data
+                    socket.emit('send-message', {
+                        receiverId: activeContact._id,
+                        text: tempText,
+                        _id: data._id,
+                        createdAt: data.createdAt,
+                        sender: data.sender,
+                        fileUrl: data.fileUrl || '',
+                        fileName: data.fileName || '',
+                        fileType: data.fileType || ''
                     });
                 }
             }

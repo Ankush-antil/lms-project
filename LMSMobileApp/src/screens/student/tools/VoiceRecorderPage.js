@@ -101,33 +101,35 @@ const getDeterministicWaveform = (seedStr, count = 35) => {
 };
 
 const getWaveformData = (item, count = 35) => {
-    let rawWave = null;
-    if (item.waveform && Array.isArray(item.waveform)) {
-        rawWave = item.waveform;
-    } else if (item.metadata?.format) {
-        try {
-            const parsed = JSON.parse(item.metadata.format);
-            if (Array.isArray(parsed)) {
-                rawWave = parsed;
-            }
-        } catch (e) {}
-    }
-
-    if (rawWave && rawWave.length > 0) {
-        const step = rawWave.length / count;
-        const bars = [];
-        for (let i = 0; i < count; i++) {
-            const start = Math.floor(i * step);
-            const end = Math.floor((i + 1) * step);
-            const index = Math.floor(i * step);
-            const val = raw[index] || 0.15;
-            wave.push(Math.max(0.15, Math.min(1.0, val)));
+    try {
+        let rawWave = null;
+        if (item && item.waveform && Array.isArray(item.waveform)) {
+            rawWave = item.waveform;
+        } else if (item && item.metadata?.format) {
+            try {
+                const parsed = JSON.parse(item.metadata.format);
+                if (Array.isArray(parsed)) {
+                    rawWave = parsed;
+                }
+            } catch (e) {}
         }
-        return wave;
-    }
 
-    const seed = item.id || item._id || item.filename || 'default';
-    return getDeterministicWaveform(seed, count);
+        if (rawWave && rawWave.length > 0) {
+            const step = rawWave.length / count;
+            const bars = [];
+            for (let i = 0; i < count; i++) {
+                const index = Math.floor(i * step);
+                const val = rawWave[index] || 0.15;
+                bars.push(Math.max(0.15, Math.min(1.0, val)));
+            }
+            return bars;
+        }
+
+        const seed = (item && (item.id || item._id || item.filename)) || 'default';
+        return getDeterministicWaveform(seed, count);
+    } catch (e) {
+        return getDeterministicWaveform('default', count);
+    }
 };
 
 const VoiceRecorderPage = ({ route, navigation }) => {

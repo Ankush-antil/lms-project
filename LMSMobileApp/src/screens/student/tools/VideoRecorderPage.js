@@ -109,48 +109,65 @@ const VideoRecorderPage = ({ route, navigation }) => {
             Alert.alert("Read-Only", "Cannot record videos in a past date log.");
             return;
         }
-        if (!ImagePicker) {
-            return handlePickVideo();
-        }
         try {
-            const { status: cameraStatus } = await ImagePicker.requestCameraPermissionsAsync();
-            const { status: audioStatus } = await ImagePicker.requestMicrophonePermissionsAsync();
-
-            if (cameraStatus !== 'granted' || audioStatus !== 'granted') {
-                Alert.alert("Permission Required", "Please allow camera and microphone access to record videos.");
-                return;
+            if (!ImagePicker) {
+                try {
+                    ImagePicker = require('expo-image-picker');
+                } catch (e) {}
             }
 
-            const result = await ImagePicker.launchCameraAsync({
-                mediaTypes: ImagePicker.MediaTypeOptions.Videos,
-                quality: 1,
-                allowsEditing: false
-            });
+            if (ImagePicker && ImagePicker.requestCameraPermissionsAsync) {
+                const { status: cameraStatus } = await ImagePicker.requestCameraPermissionsAsync();
+                const { status: audioStatus } = await ImagePicker.requestMicrophonePermissionsAsync();
 
-            if (result.canceled || !result.assets || result.assets.length === 0) return;
+                if (cameraStatus !== 'granted') {
+                    Alert.alert("Permission Required", "Please allow camera access to record videos.");
+                    return;
+                }
 
-            const asset = result.assets[0];
-            const newLog = {
-                id: Date.now().toString(),
-                timestamp: new Date().toISOString(),
-                uri: asset.uri,
-                filename: `video_rec_${Date.now()}.mp4`,
-                size: asset.fileSize || 0,
-                synced: false
-            };
+                const mediaTypeOption = (ImagePicker.MediaTypeOptions && ImagePicker.MediaTypeOptions.Videos) ? ImagePicker.MediaTypeOptions.Videos : 'videos';
 
-            const updatedList = [newLog, ...localVideos];
-            setLocalVideos(updatedList);
-            await AsyncStorage.setItem('practice_videos', JSON.stringify(updatedList));
+                const result = await ImagePicker.launchCameraAsync({
+                    mediaTypes: mediaTypeOption,
+                    quality: 1,
+                    allowsEditing: false
+                });
 
-            Toast.show({
-                type: 'success',
-                text1: 'Video Recorded',
-                text2: 'Video saved in local workspace!'
-            });
+                if (result.canceled || !result.assets || result.assets.length === 0) return;
+
+                const asset = result.assets[0];
+                const newLog = {
+                    id: Date.now().toString(),
+                    timestamp: new Date().toISOString(),
+                    uri: asset.uri,
+                    filename: `video_rec_${Date.now()}.mp4`,
+                    size: asset.fileSize || 0,
+                    synced: false
+                };
+
+                const updatedList = [newLog, ...localVideos];
+                setLocalVideos(updatedList);
+                await AsyncStorage.setItem('practice_videos', JSON.stringify(updatedList));
+
+                Toast.show({
+                    type: 'success',
+                    text1: 'Video Recorded',
+                    text2: 'Video saved in local workspace!'
+                });
+            } else {
+                // Fallback prompt if ImagePicker not available
+                Alert.alert(
+                    "Camera Action",
+                    "Choose video from gallery or files:",
+                    [
+                        { text: "📁 Choose Video", onPress: handlePickVideo },
+                        { text: "Cancel", style: "cancel" }
+                    ]
+                );
+            }
         } catch (err) {
             console.error('Failed to record camera video:', err);
-            Alert.alert("Error", "Could not start camera video recording.");
+            Alert.alert("Error", err.message || "Could not launch camera for video recording.");
         }
     };
 
@@ -350,14 +367,25 @@ const VideoRecorderPage = ({ route, navigation }) => {
                             Record a video using your device camera, or choose a video file from your device below to log.
                         </Text>
                     </View>
-                    <TouchableOpacity
-                        activeOpacity={0.8}
-                        onPress={handleChooseOrRecord}
-                        style={styles.pickerButton}
-                    >
-                        <Ionicons name="videocam-outline" size={24} color={colors.white} style={{ marginRight: 8 }} />
-                        <Text style={styles.pickerButtonText}>Choose or Record Video</Text>
-                    </TouchableOpacity>
+                    <View style={{ flexDirection: 'row', gap: 10 }}>
+                        <TouchableOpacity
+                            activeOpacity={0.8}
+                            onPress={handleRecordVideoCamera}
+                            style={[styles.pickerButton, { flex: 1, backgroundColor: colors.danger || '#ef4444' }]}
+                        >
+                            <Ionicons name="videocam" size={20} color={colors.white} style={{ marginRight: 6 }} />
+                            <Text style={styles.pickerButtonText}>Record Video</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            activeOpacity={0.8}
+                            onPress={handlePickVideo}
+                            style={[styles.pickerButton, { flex: 1, backgroundColor: colors.accent || '#6366f1' }]}
+                        >
+                            <Ionicons name="folder-open-outline" size={20} color={colors.white} style={{ marginRight: 6 }} />
+                            <Text style={styles.pickerButtonText}>Choose File</Text>
+                        </TouchableOpacity>
+                    </View>
                 </View>
             )}
 

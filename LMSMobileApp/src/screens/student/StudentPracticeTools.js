@@ -334,7 +334,7 @@ const StudentPracticeTools = ({ navigation }) => {
                     isTodaySelected ? styles.infoBannerActive : styles.infoBannerReadOnly
                 ]}>
                     <Ionicons
-                        name={isTodaySelected ? "unlock-outline" : "lock-closed-outline"}
+                        name={isTodaySelected ? "lock-open-outline" : "lock-closed-outline"}
                         size={20}
                         color={isTodaySelected ? colors.success : colors.warning}
                         style={{ marginRight: 10, marginTop: 2 }}

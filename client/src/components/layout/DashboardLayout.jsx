@@ -193,7 +193,6 @@ const menuItems = {
         { name: 'Screen Recorder', icon: Video, path: '/admin/tools/screen-recorder' },
 
         { name: '_section_service_analytics', icon: BarChart3, path: null },
-        { name: 'User Usage Analytics', icon: BarChart3, path: '/admin/user-analytics' },
         { name: 'Drive Analytics', icon: HardDrive, path: '/admin/tools-analytics/drive' },
         { name: 'Chat Analytics', icon: MessageSquare, path: '/admin/tools-analytics/chat' },
         { name: 'Notes Analytics', icon: StickyNote, path: '/admin/tools-analytics/notes' },
@@ -201,6 +200,18 @@ const menuItems = {
         { name: 'SR. Analytics', icon: Video, path: '/admin/tools-analytics/screen-recorder' },
         { name: 'AR. Analytics', icon: Mic, path: '/admin/tools-analytics/voice-recorder' },
         { name: 'VR. Analytics', icon: MonitorPlay, path: '/admin/tools-analytics/video-recorder' },
+
+        { name: '_section_user_analytics', icon: BarChart3, path: null },
+        { name: 'All Users Analytics', icon: BarChart3, path: '/admin/user-analytics' },
+        { name: 'Guest Analytics', icon: Users, path: '/admin/user-analytics?tab=Guest%20Users' },
+        { name: 'Limited Analytics', icon: Shield, path: '/admin/user-analytics?tab=Limited%20Users' },
+        { name: 'Student Analytics', icon: GraduationCap, path: '/admin/user-analytics?tab=Students' },
+        { name: 'Teacher Analytics', icon: GraduationCap, path: '/admin/user-analytics?tab=Teachers' },
+        { name: 'Editor Analytics', icon: FileText, path: '/admin/user-analytics?tab=Editors' },
+        { name: 'Institute Analytics', icon: Building, path: '/admin/user-analytics?tab=Institutes' },
+        { name: 'Accountant Analytics', icon: Wallet, path: '/admin/user-analytics?tab=Accountants' },
+        { name: 'Marketer Analytics', icon: Megaphone, path: '/admin/user-analytics?tab=Marketers' },
+        { name: 'Parent Analytics', icon: Users, path: '/admin/user-analytics?tab=Parents' },
     ],
     Institute: [
         { name: 'Dashboard', icon: LayoutDashboard, path: '/institute' },
@@ -234,7 +245,17 @@ const menuItems = {
         { name: '_section_services', icon: Settings, path: null },
         { name: 'Drive', icon: HardDrive, path: '/institute/drive' },
         { name: 'Notes', icon: StickyNote, path: '/institute/notes' },
-        { name: 'Chat', icon: MessageSquare, path: '/institute/chat' }
+        { name: 'Chat', icon: MessageSquare, path: '/institute/chat' },
+
+        { name: '_section_user_analytics', icon: BarChart3, path: null },
+        { name: 'All Users Analytics', icon: BarChart3, path: '/institute/user-analytics' },
+        { name: 'Guest Analytics', icon: Users, path: '/institute/user-analytics?tab=Guest%20Users' },
+        { name: 'Limited Analytics', icon: Shield, path: '/institute/user-analytics?tab=Limited%20Users' },
+        { name: 'Student Analytics', icon: GraduationCap, path: '/institute/user-analytics?tab=Students' },
+        { name: 'Teacher Analytics', icon: GraduationCap, path: '/institute/user-analytics?tab=Teachers' },
+        { name: 'Editor Analytics', icon: FileText, path: '/institute/user-analytics?tab=Editors' },
+        { name: 'Accountant Analytics', icon: Wallet, path: '/institute/user-analytics?tab=Accountants' },
+        { name: 'Parent Analytics', icon: Users, path: '/institute/user-analytics?tab=Parents' }
     ],
     Teacher: [
         { name: 'Dashboard', icon: LayoutDashboard, path: '/teacher' },

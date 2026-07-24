@@ -6,6 +6,7 @@ import {
     Download, Shield, GraduationCap, FileText, Building, Wallet, Megaphone,
     UserCheck, Eye, Sparkles, Filter, CheckCircle2, AlertCircle, Calendar
 } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { useAuth } from '../../context/AuthContext';
 
@@ -37,10 +38,19 @@ const roleColors = {
 
 const UserUsageAnalyticsPage = () => {
     const { user } = useAuth();
+    const [searchParams, setSearchParams] = useSearchParams();
+    const tabQuery = searchParams.get('tab');
+
     const [loading, setLoading] = useState(true);
     const [summary, setSummary] = useState(null);
     const [categoriesData, setCategoriesData] = useState({});
-    const [activeTab, setActiveTab] = useState('Users');
+    const [activeTab, setActiveTab] = useState(tabQuery && roleIcons[tabQuery] ? tabQuery : 'Users');
+
+    useEffect(() => {
+        if (tabQuery && roleIcons[tabQuery]) {
+            setActiveTab(tabQuery);
+        }
+    }, [tabQuery]);
 
     // Filters
     const [searchTerm, setSearchTerm] = useState('');

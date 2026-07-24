@@ -153,6 +153,7 @@ const ChatNotificationBar = () => {
 const menuItems = {
     Admin: [
         { name: 'Dashboard', icon: LayoutDashboard, path: '/admin' },
+        { name: 'User Analytics', icon: BarChart3, path: '/admin/user-analytics' },
 
         { name: '_section_Users', icon: Users, path: null },
         { name: 'Users', icon: User, path: '/admin/users' },
@@ -164,7 +165,6 @@ const menuItems = {
         { name: 'Accountants', icon: Users, path: '/admin/accountants' },
         { name: 'Marketers', icon: Megaphone, path: '/admin/marketers' },
         { name: 'Parents', icon: Users, path: '/admin/parents' },
-        { name: 'User Analytics', icon: BarChart3, path: '/admin/user-analytics' },
 
         { name: '_section_content', icon: BookOpen, path: null },
         { name: 'Courses', icon: BookOpen, path: '/admin/courses' },
@@ -204,6 +204,7 @@ const menuItems = {
     ],
     Institute: [
         { name: 'Dashboard', icon: LayoutDashboard, path: '/institute' },
+        { name: 'User Analytics', icon: BarChart3, path: '/institute/user-analytics' },
 
         { name: '_section_Users', icon: Users, path: null },
         { name: 'Users', icon: User, path: '/institute/users' },
@@ -213,7 +214,6 @@ const menuItems = {
         { name: 'Editors', icon: Users, path: '/institute/editors' },
         { name: 'Accountants', icon: Users, path: '/institute/accountants' },
         { name: 'Parents', icon: Users, path: '/institute/parents' },
-        { name: 'User Analytics', icon: BarChart3, path: '/institute/user-analytics' },
 
         { name: '_section_content', icon: BookOpen, path: null },
         { name: 'Courses', icon: BookOpen, path: '/institute/courses' },

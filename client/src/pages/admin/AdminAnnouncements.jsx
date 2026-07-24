@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import {
     Megaphone, Search, RefreshCw, Plus, Edit2, Trash2, Calendar, Users,
-    Building, Eye, X, Send, AlertTriangle
+    Building, Eye, X, Send, AlertTriangle, Download, Upload
 } from 'lucide-react';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { useAuth } from '../../context/AuthContext';
@@ -15,6 +15,7 @@ const AdminAnnouncements = () => {
     const [announcements, setAnnouncements] = useState([]);
     const [institutes, setInstitutes] = useState([]);
     const [loading, setLoading] = useState(true);
+    const importFileRef = useRef(null);
 
     // Filters
     const [searchTerm, setSearchTerm] = useState('');
@@ -89,6 +90,88 @@ const AdminAnnouncements = () => {
         } catch (err) {
             console.error('[Reactivate Announcement Error]', err);
             toast.error('Failed to reactivate announcement');
+        }
+    };
+
+    const handleExportData = () => {
+        if (!announcements || announcements.length === 0) {
+            return toast.error('No announcements available to export.');
+        }
+
+        const headers = ['Title', 'Content', 'Target Audience', 'Institute Scope', 'Ending Date', 'Published Date', 'Status'];
+        const csvRows = [headers.join(',')];
+
+        announcements.forEach(ann => {
+            const title = `"${(ann.title || '').replace(/"/g, '""')}"`;
+            const content = `"${(ann.content || '').replace(/"/g, '""')}"`;
+            const audience = `"${ann.targetAudience || 'All'}"`;
+            const institute = `"${ann.institute?.name || 'Global'}"`;
+            const endDate = ann.endDate ? new Date(ann.endDate).toLocaleString() : '';
+            const pubDate = ann.createdAt ? new Date(ann.createdAt).toLocaleString() : '';
+            const status = isAnnouncementActive(ann) ? 'Active' : 'Inactive';
+
+            csvRows.push([title, content, audience, institute, endDate, pubDate, status].join(','));
+        });
+
+        const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.setAttribute('href', url);
+        link.setAttribute('download', `Announcements_Export_${new Date().toISOString().slice(0, 10)}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        toast.success('Announcements exported successfully!');
+    };
+
+    const handleImportData = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        try {
+            const text = await file.text();
+            if (file.name.endsWith('.json')) {
+                const parsed = JSON.parse(text);
+                const itemsToImport = Array.isArray(parsed) ? parsed : [parsed];
+                let count = 0;
+                for (const item of itemsToImport) {
+                    if (item.title && item.content) {
+                        await axios.post('/api/announcements', {
+                            title: item.title,
+                            content: item.content,
+                            targetAudience: item.targetAudience || 'All',
+                            endDate: item.endDate || null
+                        });
+                        count++;
+                    }
+                }
+                toast.success(`Successfully imported ${count} announcements!`);
+                fetchAnnouncements();
+            } else if (file.name.endsWith('.csv')) {
+                const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+                if (lines.length <= 1) return toast.error('CSV file is empty or missing data rows.');
+                
+                let count = 0;
+                for (let i = 1; i < lines.length; i++) {
+                    const parts = lines[i].split(',').map(p => p.replace(/^"|"$/g, '').trim());
+                    if (parts.length >= 2 && parts[0] && parts[1]) {
+                        await axios.post('/api/announcements', {
+                            title: parts[0],
+                            content: parts[1],
+                            targetAudience: parts[2] || 'All',
+                            endDate: parts[4] || null
+                        });
+                        count++;
+                    }
+                }
+                toast.success(`Successfully imported ${count} announcements!`);
+                fetchAnnouncements();
+            }
+        } catch (err) {
+            console.error('[Import Error]', err);
+            toast.error('Failed to parse or import file.');
+        } finally {
+            if (importFileRef.current) importFileRef.current.value = '';
         }
     };
 
@@ -630,13 +713,28 @@ const AdminAnnouncements = () => {
 
                     <div className="flex items-center gap-2 self-start sm:self-auto">
                         <button
-                            onClick={fetchAnnouncements}
-                            disabled={loading}
+                            onClick={handleExportData}
                             className="flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all cursor-pointer"
+                            title="Export Announcements CSV"
                         >
-                            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-                            <span>Refresh</span>
+                            <Download size={14} />
+                            <span>Export</span>
                         </button>
+                        <button
+                            onClick={() => importFileRef.current?.click()}
+                            className="flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all cursor-pointer"
+                            title="Import Announcements CSV/JSON"
+                        >
+                            <Upload size={14} />
+                            <span>Import</span>
+                        </button>
+                        <input
+                            type="file"
+                            ref={importFileRef}
+                            onChange={handleImportData}
+                            accept=".csv,.json"
+                            className="hidden"
+                        />
                         {user?.role && (
                             <>
                                 <button

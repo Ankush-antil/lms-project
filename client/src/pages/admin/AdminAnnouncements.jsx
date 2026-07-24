@@ -73,6 +73,10 @@ const AdminAnnouncements = () => {
             return toast.error('Please select a valid ending date');
         }
 
+        if (new Date(reactivateEndDate) <= new Date()) {
+            return toast.error('Ending date must be in the future.');
+        }
+
         try {
             await axios.put(`/api/announcements/${reactivateAnnouncement._id}`, {
                 isActive: true,
@@ -190,6 +194,10 @@ const AdminAnnouncements = () => {
         e.preventDefault();
         if (!formData.title.trim() || !formData.content.trim()) {
             return toast.error('Title and Content are required.');
+        }
+
+        if (formData.endDate && new Date(formData.endDate) < new Date(new Date().setHours(0, 0, 0, 0))) {
+            return toast.error('Ending date must be today or in the future.');
         }
 
         const payload = new FormData();
@@ -1060,6 +1068,7 @@ const AdminAnnouncements = () => {
                                             type="date"
                                             value={formData.endDate}
                                             onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
+                                            min={new Date().toISOString().split('T')[0]}
                                             className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:border-indigo-500 transition-all cursor-pointer"
                                         />
                                     </div>

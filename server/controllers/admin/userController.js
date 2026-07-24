@@ -108,6 +108,7 @@ const getUsers = asyncHandler(async (req, res) => {
         .populate('teacherProfile.assignedCourses', 'name')
         .populate('teacherProfile.assignedStudents', 'name email studentProfile')
         .populate('editorProfile.assignedCourses', 'name')
+        .populate('accountantProfile.assignedCourses', 'name')
         .populate('guestProfile.demoCourse', 'name');
 
     console.log(`[API] Found ${users.length} users for role: ${role || 'All'}`);
@@ -182,7 +183,10 @@ const createUser = asyncHandler(async (req, res) => {
             controls: req.body.controls
         };
     } else if (role === 'Accountant') {
+        const finalAssignedCourses = req.body.assignedCourses || (course ? [course] : []);
         userFields.accountantProfile = {
+            assignedCourses: finalAssignedCourses,
+            subjects: subjects ? (Array.isArray(subjects) ? subjects : subjects.split(',').map(s => s.trim())) : [],
             controls: req.body.controls
         };
     } else if (role === 'Staff') {
@@ -541,6 +545,17 @@ const updateUser = asyncHandler(async (req, res) => {
             }
         } else if (activeRole === 'Accountant') {
             if (!user.accountantProfile) user.accountantProfile = {};
+
+            if (req.body.assignedCourses !== undefined) {
+                user.accountantProfile.assignedCourses = req.body.assignedCourses;
+            } else if (req.body.course !== undefined) {
+                user.accountantProfile.assignedCourses = req.body.course ? [req.body.course] : user.accountantProfile.assignedCourses;
+            }
+
+            if (req.body.subjects !== undefined) {
+                user.accountantProfile.subjects = Array.isArray(req.body.subjects) ? req.body.subjects : req.body.subjects.split(',').map(s => s.trim()).filter(Boolean);
+            }
+            user.markModified('accountantProfile');
 
             if (req.body.controls !== undefined) {
                 user.accountantProfile.controls = req.body.controls;

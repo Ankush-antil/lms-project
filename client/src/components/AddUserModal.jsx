@@ -1341,7 +1341,7 @@ const AddUserModal = ({ isOpen, onClose, role, onSuccess }) => {
                                         </div>
                                     )}
 
-                                    {(role === 'Student' || role === 'Teacher' || role === 'Editor') && (
+                                    {(role === 'Student' || role === 'Teacher' || role === 'Editor' || role === 'Accountant') && (
                                         <>
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                 <div>

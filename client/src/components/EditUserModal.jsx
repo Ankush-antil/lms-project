@@ -1500,7 +1500,7 @@ const handleSubmit = async (e) => {
                                     </div>
                                 )}
 
-                                {(selectedRoleToEdit === 'Student' || selectedRoleToEdit === 'Teacher' || selectedRoleToEdit === 'Editor') && (
+                                 {(selectedRoleToEdit === 'Student' || selectedRoleToEdit === 'Teacher' || selectedRoleToEdit === 'Editor' || selectedRoleToEdit === 'Accountant') && (
                                     <>
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                             <div>

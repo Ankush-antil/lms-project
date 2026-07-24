@@ -1795,7 +1795,7 @@ const UsersList = () => {
                                                         <Trash2 size={16} />
                                                     </button>
                                                 </div>
-                                            ) : viewTab === 'limited' ? ( (
+                                            ) : viewTab === 'limited' ? (
                                                 <div className="flex items-center justify-end gap-1.5">
                                                     <button
                                                         onClick={() => {

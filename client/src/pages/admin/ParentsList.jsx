@@ -589,9 +589,17 @@ const ParentsList = () => {
                                         <td className="px-6 py-4">{parent.mobileNumber || 'N/A'}</td>
                                         <td className="px-6 py-4">
                                             {parent.parentProfile?.student ? (
-                                                <div className="flex flex-col">
-                                                    <span className="font-bold text-slate-800">{parent.parentProfile.student.name}</span>
-                                                    <span className="text-xs text-slate-400">{parent.parentProfile.student.email}</span>
+                                                <div 
+                                                    className="flex flex-col cursor-pointer group/student w-fit"
+                                                    onClick={() => openProfile(parent.parentProfile.student._id || parent.parentProfile.student)}
+                                                    title="Click to view student profile"
+                                                >
+                                                    <span className="font-bold text-slate-800 group-hover/student:text-indigo-650 group-hover/student:underline transition-colors">
+                                                        {parent.parentProfile.student.name || 'Student'}
+                                                    </span>
+                                                    <span className="text-xs text-slate-400 group-hover/student:text-indigo-500 transition-colors">
+                                                        {parent.parentProfile.student.email}
+                                                    </span>
                                                 </div>
                                             ) : (
                                                 <span className="text-red-500 font-semibold italic text-xs">No student linked</span>

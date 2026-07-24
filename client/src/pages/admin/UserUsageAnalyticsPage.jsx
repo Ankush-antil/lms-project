@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import {
@@ -338,27 +339,27 @@ const UserUsageAnalyticsPage = () => {
                 </div>
 
                 {/* ── USER DETAIL MODAL POPUP ── */}
-                {selectedUserDetail && (
+                {selectedUserDetail && createPortal(
                     <div
-                        className="fixed inset-0 z-[99999] flex items-center justify-center p-4"
-                        style={{ background: 'rgba(11,19,41,0.75)', backdropFilter: 'blur(5px)' }}
+                        className="fixed inset-0 z-[999999] flex items-center justify-center p-4 animate-fade-in"
+                        style={{ background: 'rgba(245, 245, 247, 0.85)', backdropFilter: 'blur(8px)' }}
                         onClick={(e) => { if (e.target === e.currentTarget) setSelectedUserDetail(null); }}
                     >
-                        <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden flex flex-col">
+                        <div className="bg-white rounded-3xl shadow-2xl border border-slate-200/80 max-w-md w-full overflow-hidden flex flex-col animate-slide-up">
                             {/* Header */}
-                            <div className="px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-indigo-50 to-white flex items-center justify-between">
+                            <div className="px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-indigo-50/80 to-white flex items-center justify-between">
                                 <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white font-black flex items-center justify-center text-sm shadow-md">
+                                    <div className="w-10 h-10 rounded-2xl bg-indigo-600 text-white font-black flex items-center justify-center text-sm shadow-md">
                                         {selectedUserDetail.name?.charAt(0).toUpperCase()}
                                     </div>
-                                    <div>
+                                    <div className="text-left">
                                         <h3 className="font-extrabold text-slate-800 text-sm">{selectedUserDetail.name}</h3>
                                         <p className="text-[10px] text-slate-400 font-bold">{selectedUserDetail.email}</p>
                                     </div>
                                 </div>
                                 <button
                                     onClick={() => setSelectedUserDetail(null)}
-                                    className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-all cursor-pointer"
+                                    className="p-1.5 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition-all cursor-pointer"
                                 >
                                     ✕
                                 </button>
@@ -367,26 +368,26 @@ const UserUsageAnalyticsPage = () => {
                             {/* Body */}
                             <div className="p-5 space-y-4 text-xs font-semibold text-slate-700 max-h-[75vh] overflow-y-auto">
                                 <div className="grid grid-cols-2 gap-2.5">
-                                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/80">
+                                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/80 text-left">
                                         <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Role</span>
                                         <span className="font-black text-slate-800 text-xs mt-0.5 block">{selectedUserDetail.role}</span>
                                     </div>
-                                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/80">
+                                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/80 text-left">
                                         <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Institute</span>
                                         <span className="font-black text-slate-800 text-xs mt-0.5 block truncate">{selectedUserDetail.instituteName}</span>
                                     </div>
-                                    <div className="bg-emerald-50 p-3 rounded-xl border border-emerald-200">
+                                    <div className="bg-emerald-50 p-3 rounded-xl border border-emerald-200 text-left">
                                         <span className="text-[9px] font-bold text-emerald-600 uppercase tracking-wider block">Time Spent</span>
                                         <span className="font-black text-emerald-950 text-sm mt-0.5 block">{selectedUserDetail.timeSpentFormatted}</span>
                                     </div>
-                                    <div className="bg-indigo-50 p-3 rounded-xl border border-indigo-200">
+                                    <div className="bg-indigo-50 p-3 rounded-xl border border-indigo-200 text-left">
                                         <span className="text-[9px] font-bold text-indigo-600 uppercase tracking-wider block">Total Clicks</span>
                                         <span className="font-black text-indigo-950 text-sm mt-0.5 block">{selectedUserDetail.clickCount.toLocaleString()}</span>
                                     </div>
                                 </div>
 
                                 {/* Role Specific Detailed Metrics */}
-                                <div className="border border-slate-200 rounded-xl p-3.5 bg-slate-50/60 space-y-2">
+                                <div className="border border-slate-200 rounded-xl p-3.5 bg-slate-50/60 space-y-2 text-left">
                                     <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 border-b border-slate-200 pb-1">
                                         Role Action Breakdown
                                     </h4>
@@ -405,13 +406,14 @@ const UserUsageAnalyticsPage = () => {
                             <div className="px-5 py-3 border-t border-slate-100 bg-slate-50 flex justify-end">
                                 <button
                                     onClick={() => setSelectedUserDetail(null)}
-                                    className="px-4 py-2 bg-[#0b1329] text-white font-bold rounded-xl text-xs cursor-pointer active:scale-95 transition-all"
+                                    className="px-5 py-2 bg-[#0b1329] text-white font-bold rounded-xl text-xs cursor-pointer active:scale-95 transition-all shadow-sm"
                                 >
                                     Close
                                 </button>
                             </div>
                         </div>
-                    </div>
+                    </div>,
+                    document.body
                 )}
 
             </div>

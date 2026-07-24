@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import {
     View, Text, StyleSheet, FlatList, TouchableOpacity,
-    TextInput, Modal, ActivityIndicator, Alert, ScrollView
+    TextInput, Modal, ActivityIndicator, Alert, ScrollView,
+    StatusBar, Platform
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AppHeader, EmptyState } from '../../components/common/UIComponents';
@@ -276,8 +277,8 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'space-between',
         paddingHorizontal: spacing.md,
-        paddingTop: 16,
-        paddingBottom: 12,
+        paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 24) + 16 : 54,
+        paddingBottom: 16,
         backgroundColor: colors.bgCard,
         borderBottomWidth: 1,
         borderBottomColor: colors.borderLight,

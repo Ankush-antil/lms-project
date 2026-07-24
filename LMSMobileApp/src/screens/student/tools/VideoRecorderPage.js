@@ -15,6 +15,7 @@ import { Video, ResizeMode } from 'expo-av';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as DocumentPicker from 'expo-document-picker';
+import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, fontSizes, borderRadius } from '../../../theme/colors';
 import { AppHeader } from '../../../components/common/UIComponents';
@@ -96,6 +97,71 @@ const VideoRecorderPage = ({ route, navigation }) => {
     const filteredCloudFiles = useMemo(() => {
         return cloudFiles.filter(c => parseDateToDdMmYyyy(c.createdAt) === dateParam);
     }, [cloudFiles, dateParam]);
+
+    // Record video using camera
+    const handleRecordVideoCamera = async () => {
+        if (isReadOnly) {
+            Alert.alert("Read-Only", "Cannot record videos in a past date log.");
+            return;
+        }
+        try {
+            const { status: cameraStatus } = await ImagePicker.requestCameraPermissionsAsync();
+            const { status: audioStatus } = await ImagePicker.requestMicrophonePermissionsAsync();
+
+            if (cameraStatus !== 'granted' || audioStatus !== 'granted') {
+                Alert.alert("Permission Required", "Please allow camera and microphone access to record videos.");
+                return;
+            }
+
+            const result = await ImagePicker.launchCameraAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+                quality: 1,
+                allowsEditing: false
+            });
+
+            if (result.canceled || !result.assets || result.assets.length === 0) return;
+
+            const asset = result.assets[0];
+            const newLog = {
+                id: Date.now().toString(),
+                timestamp: new Date().toISOString(),
+                uri: asset.uri,
+                filename: `video_rec_${Date.now()}.mp4`,
+                size: asset.fileSize || 0,
+                synced: false
+            };
+
+            const updatedList = [newLog, ...localVideos];
+            setLocalVideos(updatedList);
+            await AsyncStorage.setItem('practice_videos', JSON.stringify(updatedList));
+
+            Toast.show({
+                type: 'success',
+                text1: 'Video Recorded',
+                text2: 'Video saved in local workspace!'
+            });
+        } catch (err) {
+            console.error('Failed to record camera video:', err);
+            Alert.alert("Error", "Could not start camera video recording.");
+        }
+    };
+
+    // Prompt user to Choose existing video or Record with camera
+    const handleChooseOrRecord = () => {
+        if (isReadOnly) {
+            Alert.alert("Read-Only", "Cannot select/record videos in a past date log.");
+            return;
+        }
+        Alert.alert(
+            "Video Action",
+            "Choose how you want to add a video log:",
+            [
+                { text: "📹 Record with Camera", onPress: handleRecordVideoCamera },
+                { text: "📁 Choose from Files", onPress: handlePickVideo },
+                { text: "Cancel", style: "cancel" }
+            ]
+        );
+    };
 
     // Pick video from device
     const handlePickVideo = async () => {
@@ -278,7 +344,7 @@ const VideoRecorderPage = ({ route, navigation }) => {
                     </View>
                     <TouchableOpacity
                         activeOpacity={0.8}
-                        onPress={handlePickVideo}
+                        onPress={handleChooseOrRecord}
                         style={styles.pickerButton}
                     >
                         <Ionicons name="videocam-outline" size={24} color={colors.white} style={{ marginRight: 8 }} />

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
     View, Text, StyleSheet, FlatList, TouchableOpacity,
-    TextInput, RefreshControl, Modal, ActivityIndicator, Alert, ScrollView, Dimensions
+    TextInput, RefreshControl, Modal, ActivityIndicator, Alert, ScrollView, Dimensions, Linking
 } from 'react-native';
 import axios from 'axios';
 import * as DocumentPicker from 'expo-document-picker';
@@ -120,6 +120,21 @@ const DriveScreen = ({ navigation }) => {
                 }
             ]
         );
+    };
+
+    const handleOpenFile = (file) => {
+        if (!file || (!file.fileUrl && !file.url)) {
+            Alert.alert('Error', 'File URL not available.');
+            return;
+        }
+        const rawUrl = file.fileUrl || file.url;
+        const serverBase = BASE_URL.replace('/api', '');
+        const fullUrl = rawUrl.startsWith('http') ? rawUrl : `${serverBase}${rawUrl.startsWith('/') ? '' : '/'}${rawUrl}`;
+        
+        Linking.openURL(fullUrl).catch(err => {
+            console.error('Could not open file URL:', fullUrl, err);
+            Alert.alert('Error', 'Could not open file link in browser/viewer.');
+        });
     };
 
     const handleEnterFolder = (folder) => {
@@ -245,7 +260,12 @@ const DriveScreen = ({ navigation }) => {
                     <View style={styles.section}>
                         {files.length > 0 && <Text style={styles.sectionTitle}>Files</Text>}
                         {files.map(file => (
-                            <View key={file._id} style={styles.fileRow}>
+                            <TouchableOpacity
+                                key={file._id}
+                                style={styles.fileRow}
+                                onPress={() => handleOpenFile(file)}
+                                activeOpacity={0.7}
+                            >
                                 <Ionicons name="document-text" size={32} color={colors.accent} />
                                 <View style={styles.fileInfo}>
                                     <Text style={styles.fileName} numberOfLines={1}>{file.name}</Text>
@@ -257,7 +277,7 @@ const DriveScreen = ({ navigation }) => {
                                 >
                                     <Ionicons name="trash-outline" size={18} color={colors.danger} />
                                 </TouchableOpacity>
-                            </View>
+                            </TouchableOpacity>
                         ))}
                     </View>
 

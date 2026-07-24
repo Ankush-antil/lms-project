@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import * as XLSX from 'xlsx';
 import axios from 'axios';
@@ -7,7 +7,7 @@ import { useAuth } from '../../context/AuthContext';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import {
     Package, Plus, Search, Edit, Trash2, Calendar, DollarSign,
-    Wrench, X, Check, HardDrive, RefreshCw, AlertCircle
+    Wrench, X, Check, HardDrive, RefreshCw, AlertCircle, Upload, Download, ChevronDown
 } from 'lucide-react';
 
 const AssetManagement = () => {
@@ -344,9 +344,12 @@ const AssetManagement = () => {
         toast.success('Maintenance task status updated!');
     };
 
-    // Excel Export Helper
-    const handleExportExcel = () => {
-        const dataToExport = assets.map((item, idx) => ({
+    const [isExportDropdownOpen, setIsExportDropdownOpen] = useState(false);
+    const importAssetsRef = useRef(null);
+
+    // Multi-Format Export Helper
+    const exportAssets = (format) => {
+        const dataToExport = filteredAssets.map((item, idx) => ({
             'S.No': idx + 1,
             'Asset Code': item.id,
             'Asset Name': item.name,
@@ -360,11 +363,92 @@ const AssetManagement = () => {
             'Total Maintenance Logged': item.maintenanceLogs?.length || 0
         }));
 
-        const wb = XLSX.utils.book_new();
-        const ws = XLSX.utils.json_to_sheet(dataToExport);
-        XLSX.utils.book_append_sheet(wb, ws, 'Asset Inventory');
-        XLSX.writeFile(wb, 'Asset_Inventory_Report.xlsx');
-        toast.success('Excel report downloaded successfully!');
+        if (dataToExport.length === 0) {
+            toast.error('No asset data to export');
+            return;
+        }
+
+        if (format === 'json') {
+            const blob = new Blob([JSON.stringify(dataToExport, null, 2)], { type: 'application/json;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `Asset_Inventory_Report_${new Date().toISOString().split('T')[0]}.json`;
+            link.click();
+            URL.revokeObjectURL(url);
+            toast.success(`Exported ${dataToExport.length} assets to JSON`);
+        } else if (format === 'csv') {
+            const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+            const csv = XLSX.utils.sheet_to_csv(worksheet);
+            const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `Asset_Inventory_Report_${new Date().toISOString().split('T')[0]}.csv`;
+            link.click();
+            URL.revokeObjectURL(url);
+            toast.success(`Exported ${dataToExport.length} assets to CSV`);
+        } else if (format === 'excel') {
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.json_to_sheet(dataToExport);
+            XLSX.utils.book_append_sheet(wb, ws, 'Asset Inventory');
+            XLSX.writeFile(wb, `Asset_Inventory_Report_${new Date().toISOString().split('T')[0]}.xlsx`);
+            toast.success(`Exported ${dataToExport.length} assets to Excel`);
+        }
+    };
+
+    // Bulk Import Handler
+    const handleImportAssets = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+            try {
+                let importedList = [];
+                if (file.name.endsWith('.json')) {
+                    importedList = JSON.parse(evt.target.result);
+                } else {
+                    const data = new Uint8Array(evt.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+                    importedList = XLSX.utils.sheet_to_json(worksheet);
+                }
+
+                if (!Array.isArray(importedList) || importedList.length === 0) {
+                    toast.error('No valid asset records found in file');
+                    return;
+                }
+
+                const formattedNewAssets = importedList.map((row, idx) => ({
+                    id: row['Asset Code'] || row.id || `AST-${String(assets.length + idx + 1).padStart(3, '0')}`,
+                    name: row['Asset Name'] || row.name || row.Name || 'Imported Asset',
+                    category: row['Category'] || row.category || 'IT Equipment',
+                    serialNumber: row['Serial/Model No.'] || row.serialNumber || 'N/A',
+                    purchaseDate: row['Purchase Date'] || row.purchaseDate || new Date().toISOString().split('T')[0],
+                    purchaseCost: Number(row['Purchase Cost (INR)'] || row.purchaseCost || row.cost) || 0,
+                    assignedTo: row['Assigned To'] || row.assignedTo || 'Unassigned',
+                    status: row['Current Status'] || row.status || 'Active',
+                    notes: row['Remarks/Notes'] || row.notes || 'Imported via bulk upload',
+                    maintenanceLogs: []
+                }));
+
+                setAssets(prev => [...prev, ...formattedNewAssets]);
+                toast.success(`Successfully imported ${formattedNewAssets.length} assets!`);
+            } catch (err) {
+                console.error("Import error:", err);
+                toast.error("Failed to parse file. Please check format.");
+            }
+        };
+
+        if (file.name.endsWith('.json')) {
+            reader.readAsText(file);
+        } else {
+            reader.readAsArrayBuffer(file);
+        }
+
+        e.target.value = '';
     };
 
     // 6. Filter Asset List based on search and selected categories
@@ -408,16 +492,58 @@ const AssetManagement = () => {
                         <h1 className="text-3xl font-extrabold tracking-tight md:text-4xl">Asset & Inventory Desk</h1>
                     </div>
 
-                    <div className="flex flex-wrap gap-3">
+                    <div className="flex flex-wrap gap-2.5 items-center">
+                        <input
+                            type="file"
+                            ref={importAssetsRef}
+                            onChange={handleImportAssets}
+                            accept=".json,.csv,.xlsx,.xls"
+                            className="hidden"
+                        />
                         <button
-                            onClick={handleExportExcel}
-                            className="px-5 py-3 bg-white/10 hover:bg-white/20 text-white border border-white/10 rounded-2xl transition-all font-bold text-sm flex items-center gap-2 cursor-pointer"
+                            type="button"
+                            onClick={() => importAssetsRef.current?.click()}
+                            className="px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white border border-white/10 rounded-2xl transition-all font-bold text-sm flex items-center gap-1.5 cursor-pointer whitespace-nowrap active:scale-95"
                         >
-                            Export Excel
+                            <Upload size={16} /> Import
                         </button>
+                        <div className="relative">
+                            <button
+                                type="button"
+                                onClick={() => setIsExportDropdownOpen(!isExportDropdownOpen)}
+                                className="px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white border border-white/10 rounded-2xl transition-all font-bold text-sm flex items-center gap-1.5 cursor-pointer whitespace-nowrap active:scale-95"
+                            >
+                                <Download size={16} /> Export <ChevronDown size={14} />
+                            </button>
+                            {isExportDropdownOpen && (
+                                <div className="absolute right-0 mt-2 w-40 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 overflow-hidden py-1">
+                                    <button
+                                        type="button"
+                                        onClick={() => { exportAssets('excel'); setIsExportDropdownOpen(false); }}
+                                        className="w-full text-left px-4 py-2 hover:bg-slate-50 text-sm font-semibold text-slate-700 flex items-center gap-2 cursor-pointer"
+                                    >
+                                        Excel (.xlsx)
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => { exportAssets('csv'); setIsExportDropdownOpen(false); }}
+                                        className="w-full text-left px-4 py-2 hover:bg-slate-50 text-sm font-semibold text-slate-700 flex items-center gap-2 cursor-pointer"
+                                    >
+                                        CSV (.csv)
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => { exportAssets('json'); setIsExportDropdownOpen(false); }}
+                                        className="w-full text-left px-4 py-2 hover:bg-slate-50 text-sm font-semibold text-slate-700 flex items-center gap-2 cursor-pointer"
+                                    >
+                                        JSON (.json)
+                                    </button>
+                                </div>
+                            )}
+                        </div>
                         <button
                             onClick={openAddModal}
-                            className="px-5 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl transition-all font-bold text-sm flex items-center gap-2 shadow-lg hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+                            className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl transition-all font-bold text-sm flex items-center gap-2 shadow-lg hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
                         >
                             <Plus size={16} /> Add Asset
                         </button>

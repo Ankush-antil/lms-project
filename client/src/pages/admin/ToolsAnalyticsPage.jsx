@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import {
     BarChart3, Users, HardDrive, FileSignature, Database, Mic, MonitorPlay, Camera, Video,
-    Search, RefreshCw, Layers
+    Search, RefreshCw, Layers, MessageSquare, StickyNote
 } from 'lucide-react';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { useAuth } from '../../context/AuthContext';
@@ -296,14 +296,27 @@ const ToolsAnalyticsPage = () => {
     const totalActiveUsers = (analyticsData?.userSummary || []).length;
     const formBuilderCount = analyticsData?.otherTools?.formBuilder || 0;
 
+    const tabCounts = useMemo(() => {
+        if (!detailedData || !detailedData.length) return {};
+        return {
+            drive: detailedData.filter(s => s.drive && (s.drive.totalFiles > 0 || s.drive.totalFolders > 0 || s.drive.usedStorage > 0)).length,
+            chat: detailedData.filter(s => s.chat && (s.chat.totalChats > 0 || s.chat.totalMessagesSent > 0 || s.chat.totalMessagesReceived > 0)).length,
+            notes: detailedData.filter(s => s.notes && s.notes.totalNotes > 0).length,
+            screenshot: detailedData.filter(s => s.screenshot && s.screenshot.totalFiles > 0).length,
+            screenRecorder: detailedData.filter(s => s.screenRecorder && s.screenRecorder.totalFiles > 0).length,
+            voiceRecorder: detailedData.filter(s => s.voiceRecorder && s.voiceRecorder.totalFiles > 0).length,
+            videoRecorder: detailedData.filter(s => s.videoRecorder && s.videoRecorder.totalFiles > 0).length,
+        };
+    }, [detailedData]);
+
     const tabs = [
-        { id: 'drive', label: 'Drive Usage Analytics', icon: HardDrive },
-        { id: 'chat', label: 'Chat Usage Analytics', icon: Users },
-        { id: 'notes', label: 'Notes Usage Analytics', icon: FileSignature },
+        { id: 'drive', label: 'Drive Analytics', icon: HardDrive },
+        { id: 'chat', label: 'Chat Analytics', icon: MessageSquare },
+        { id: 'notes', label: 'Notes Analytics', icon: StickyNote },
         { id: 'screenshot', label: 'Screenshot Analytics', icon: Camera },
-        { id: 'screenRecorder', label: 'Screen Recording Usage Analytics', icon: Video },
-        { id: 'voiceRecorder', label: 'Audio Recording Usage Analytics', icon: Mic },
-        { id: 'videoRecorder', label: 'Video Recording Usage Analytics', icon: MonitorPlay }
+        { id: 'screenRecorder', label: 'Screen Recorder Analytics', icon: Video },
+        { id: 'voiceRecorder', label: 'Audio Analytics', icon: Mic },
+        { id: 'videoRecorder', label: 'Video Analytics', icon: MonitorPlay }
     ];
 
     return (
@@ -315,10 +328,10 @@ const ToolsAnalyticsPage = () => {
                     <div>
                         <h2 className="text-2xl font-black text-slate-850 tracking-tight flex items-center gap-2">
                             <BarChart3 className="text-indigo-650" size={26} />
-                            <span>Tools Analytics</span>
+                            <span>Service Analytics</span>
                         </h2>
                         <p className="text-xs font-semibold text-slate-400 mt-1 uppercase tracking-wider">
-                            Monitor tool usage, creator activities, and storage consumed
+                            Monitor tool usage, creator activities, and storage consumed across all services
                         </p>
                     </div>
 
@@ -330,6 +343,36 @@ const ToolsAnalyticsPage = () => {
                         <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
                         <span>Refresh Data</span>
                     </button>
+                </div>
+
+                {/* ── 7 SERVICE NAVIGATION TABS ── */}
+                <div className="bg-white p-2 rounded-2xl border border-slate-200/80 shadow-xs mb-6 overflow-x-auto custom-scrollbar">
+                    <div className="flex gap-1.5 min-w-max">
+                        {tabs.map(t => {
+                            const Icon = t.icon;
+                            const isActive = activeTab === t.id;
+                            const count = tabCounts[t.id] || 0;
+                            return (
+                                <button
+                                    key={t.id}
+                                    onClick={() => setActiveTab(t.id)}
+                                    className={`px-3.5 py-2 rounded-xl text-xs font-extrabold flex items-center gap-2 transition-all cursor-pointer select-none ${
+                                        isActive
+                                            ? 'bg-[#0b1329] text-white shadow-md shadow-indigo-950/20'
+                                            : 'bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200/60'
+                                    }`}
+                                >
+                                    <Icon size={14} className={isActive ? 'text-indigo-400' : 'text-slate-400'} />
+                                    <span>{t.label}</span>
+                                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                                        isActive ? 'bg-indigo-600/60 text-white' : 'bg-slate-200 text-slate-700'
+                                    }`}>
+                                        {count}
+                                    </span>
+                                </button>
+                            );
+                        })}
+                    </div>
                 </div>
 
                 {loading ? (

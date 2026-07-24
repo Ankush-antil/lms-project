@@ -266,17 +266,17 @@ const CoursesList = () => {
     };
 
     const filteredCourses = courses.filter(course => {
-        const matchesSearch = 
+        const matchesSearch =
             course.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
             course.code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
             course.institute?.name?.toLowerCase().includes(searchTerm.toLowerCase());
-            
-        const matchesInstitute = 
-            filterInstitute === 'All' || 
+
+        const matchesInstitute =
+            filterInstitute === 'All' ||
             (course.institute && (course.institute._id === filterInstitute || course.institute === filterInstitute));
-            
-        const matchesCourseName = 
-            filterCourseName === 'All' || 
+
+        const matchesCourseName =
+            filterCourseName === 'All' ||
             course.name === filterCourseName;
 
         const matchesSection = activeSection === 'demo' ? course.isDemo === true : !course.isDemo;
@@ -380,7 +380,7 @@ const CoursesList = () => {
                                     }}
                                     className="flex items-center gap-2 px-5 py-2.5 bg-[#0b1329] text-white font-bold rounded-2xl hover:bg-[#152244] shadow-xl shadow-[#0b1329]/15 transition-all active:scale-95 cursor-pointer text-sm"
                                 >
-                                    <Plus size={18} /> Add New Course
+                                    <Plus size={18} /> Add Course
                                 </button>
                             )}
                             {user?.institute?.controls?.course?.addNewDemoCourse !== false && (
@@ -392,7 +392,7 @@ const CoursesList = () => {
                                     }}
                                     className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white hover:bg-indigo-700 font-bold rounded-2xl shadow-xl shadow-indigo-600/15 transition-all active:scale-95 cursor-pointer text-sm"
                                 >
-                                    <Plus size={18} /> Add New Demo Course
+                                    <Plus size={18} /> Add Demo Course
                                 </button>
                             )}
                         </>
@@ -407,7 +407,7 @@ const CoursesList = () => {
                                 }}
                                 className="flex items-center gap-2 px-5 py-2.5 bg-[#0b1329] text-white font-bold rounded-2xl hover:bg-[#152244] shadow-xl shadow-[#0b1329]/15 transition-all active:scale-95 cursor-pointer text-sm"
                             >
-                                <Plus size={18} /> Add New Course
+                                <Plus size={18} /> Add Course
                             </button>
                             <button
                                 onClick={() => {
@@ -417,7 +417,7 @@ const CoursesList = () => {
                                 }}
                                 className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white hover:bg-indigo-700 font-bold rounded-2xl shadow-xl shadow-indigo-600/15 transition-all active:scale-95 cursor-pointer text-sm"
                             >
-                                <Plus size={18} /> Add New Demo Course
+                                <Plus size={18} /> Add Demo Course
                             </button>
                         </>
                     )}
@@ -431,7 +431,7 @@ const CoursesList = () => {
                                 }}
                                 className="flex items-center gap-2 px-5 py-2.5 bg-[#0b1329] text-white font-bold rounded-2xl hover:bg-[#152244] shadow-xl shadow-[#0b1329]/15 transition-all active:scale-95 cursor-pointer text-sm"
                             >
-                                <Plus size={18} /> Add New Course
+                                <Plus size={18} /> Add Course
                             </button>
                             <button
                                 onClick={() => {
@@ -441,7 +441,7 @@ const CoursesList = () => {
                                 }}
                                 className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white hover:bg-indigo-700 font-bold rounded-2xl shadow-xl shadow-indigo-600/15 transition-all active:scale-95 cursor-pointer text-sm"
                             >
-                                <Plus size={18} /> Add New Demo Course
+                                <Plus size={18} /> Add Demo Course
                             </button>
                         </>
                     )}
@@ -453,9 +453,8 @@ const CoursesList = () => {
                 <div className="flex border-b border-slate-250 gap-6 min-w-max">
                     <button
                         onClick={() => setActiveSection('lms')}
-                        className={`pb-3 text-sm font-black transition-all relative cursor-pointer ${
-                            activeSection === 'lms' ? 'text-[#0b1329]' : 'text-slate-400 hover:text-slate-600'
-                        }`}
+                        className={`pb-3 text-sm font-black transition-all relative cursor-pointer ${activeSection === 'lms' ? 'text-[#0b1329]' : 'text-slate-400 hover:text-slate-600'
+                            }`}
                     >
                         LMS Courses
                         {activeSection === 'lms' && (
@@ -464,9 +463,8 @@ const CoursesList = () => {
                     </button>
                     <button
                         onClick={() => setActiveSection('demo')}
-                        className={`pb-3 text-sm font-black transition-all relative cursor-pointer ${
-                            activeSection === 'demo' ? 'text-indigo-600' : 'text-slate-400 hover:text-indigo-600'
-                        }`}
+                        className={`pb-3 text-sm font-black transition-all relative cursor-pointer ${activeSection === 'demo' ? 'text-indigo-600' : 'text-slate-400 hover:text-indigo-600'
+                            }`}
                     >
                         Demo Courses
                         {activeSection === 'demo' && (
@@ -685,9 +683,9 @@ const CoursesList = () => {
 
                                         <td className="p-4 whitespace-nowrap text-center">
                                             <label className="relative inline-flex items-center cursor-pointer select-none">
-                                                <input 
-                                                    type="checkbox" 
-                                                    className="sr-only peer" 
+                                                <input
+                                                    type="checkbox"
+                                                    className="sr-only peer"
                                                     checked={course.showOnLanding || false}
                                                     onChange={() => handleToggleLanding(course._id)}
                                                 />
@@ -784,13 +782,12 @@ const CoursesList = () => {
                                             key={idx}
                                             disabled={p === '...'}
                                             onClick={() => p !== '...' && setCurrentPage(p)}
-                                            className={`w-8 h-8 text-xs font-bold rounded-xl transition-all ${
-                                                p === '...'
-                                                    ? 'text-slate-400 cursor-default bg-transparent'
-                                                    : currentPage === p
-                                                        ? 'bg-[#0b1329] text-white'
-                                                        : 'text-slate-600 bg-slate-50 hover:bg-slate-100 border border-slate-200'
-                                            }`}
+                                            className={`w-8 h-8 text-xs font-bold rounded-xl transition-all ${p === '...'
+                                                ? 'text-slate-400 cursor-default bg-transparent'
+                                                : currentPage === p
+                                                    ? 'bg-[#0b1329] text-white'
+                                                    : 'text-slate-600 bg-slate-50 hover:bg-slate-100 border border-slate-200'
+                                                }`}
                                         >
                                             {p}
                                         </button>

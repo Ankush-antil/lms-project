@@ -111,7 +111,7 @@ const TestsList = () => {
             const cleanCourse = expCourse ? decodeURIComponent(expCourse) : '';
             const cleanSubject = expSubject ? decodeURIComponent(expSubject) : '';
             const cleanInbox = expInbox ? decodeURIComponent(expInbox) : 'Inbox 1';
-            
+
             const path = [];
             if (cleanInst) {
                 path.push(cleanInst);
@@ -866,9 +866,9 @@ const TestsList = () => {
         }
 
         const titleMatch = (test.title || 'Untitled').toLowerCase().includes(debouncedSearchTerm.toLowerCase());
-        const subjectMatch = filterSubject === 'All' || 
+        const subjectMatch = filterSubject === 'All' ||
             (test.subject && test.subject.split(',').map(s => s.trim().toLowerCase()).includes(filterSubject.toLowerCase()));
-        const courseMatch = filterCourse === 'All' || 
+        const courseMatch = filterCourse === 'All' ||
             (test.course && test.course.split(',').map(c => c.trim().toLowerCase()).includes(filterCourse.toLowerCase()));
         const instituteMatch = filterInstitute === 'All' || test.institute === filterInstitute;
         const inboxMatch = filterInbox === 'All' || test.index === filterInbox;
@@ -885,9 +885,9 @@ const TestsList = () => {
 
     const filteredPublicTests = publicTests.filter(test => {
         const titleMatch = (test.title || '').toLowerCase().includes(debouncedSearchTerm.toLowerCase());
-        const subjectMatch = filterSubject === 'All' || 
+        const subjectMatch = filterSubject === 'All' ||
             (test.subject && test.subject.split(',').map(s => s.trim().toLowerCase()).includes(filterSubject.toLowerCase()));
-        const courseMatch = filterCourse === 'All' || 
+        const courseMatch = filterCourse === 'All' ||
             (test.course && test.course.split(',').map(c => c.trim().toLowerCase()).includes(filterCourse.toLowerCase()));
         const instituteMatch = filterInstitute === 'All' || test.institute === filterInstitute;
         const inboxMatch = filterInbox === 'All' || test.index === filterInbox;
@@ -975,19 +975,19 @@ const TestsList = () => {
             if (questionsKey && row[questionsKey]) {
                 try {
                     qList = typeof row[questionsKey] === 'string' ? JSON.parse(row[questionsKey]) : row[questionsKey];
-                } catch {}
+                } catch { }
             }
             let settingsObj = undefined;
             if (settingsKey && row[settingsKey]) {
                 try {
                     settingsObj = typeof row[settingsKey] === 'string' ? JSON.parse(row[settingsKey]) : row[settingsKey];
-                } catch {}
+                } catch { }
             }
             let publicSettingsObj = undefined;
             if (publicSettingsKey && row[publicSettingsKey]) {
                 try {
                     publicSettingsObj = typeof row[publicSettingsKey] === 'string' ? JSON.parse(row[publicSettingsKey]) : row[publicSettingsKey];
-                } catch {}
+                } catch { }
             }
 
             return {
@@ -1173,7 +1173,7 @@ const TestsList = () => {
                 if (trimmed) inboxes.add(trimmed);
             }
         });
-        
+
         // Natural numeric sorting (e.g. Inbox 1, Inbox 2, ..., Inbox 10, Inbox 22)
         const sortedInboxes = Array.from(inboxes).sort((a, b) => {
             const numA = parseInt(a.replace(/\D/g, ''), 10);
@@ -1183,7 +1183,7 @@ const TestsList = () => {
             }
             return a.localeCompare(b);
         });
-        
+
         return ['All', ...sortedInboxes];
     }, [currentTestsList, filterInstitute, filterCourse, filterSubject]);
 
@@ -2460,7 +2460,7 @@ const TestsList = () => {
                             onClick={() => navigate(`${basePath}/activities-builder`)}
                             className="flex items-center gap-2 px-5 py-2.5 bg-[#0b1329] hover:bg-[#152244] text-white rounded-xl text-sm font-bold shadow-md shadow-[#0b1329]/15 transition-all active:scale-95 cursor-pointer whitespace-nowrap"
                         >
-                            <Plus size={20} /> Create New Assessment
+                            <Plus size={20} /> Create Assessment
                         </button>
                     )}
                 </div>

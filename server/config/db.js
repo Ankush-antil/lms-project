@@ -12,8 +12,8 @@ if (dns.setDefaultResultOrder) {
 }
 
 const mongoOptions = {
-    serverSelectionTimeoutMS: 5000,
-    connectTimeoutMS: 5000,
+    serverSelectionTimeoutMS: 15000,
+    connectTimeoutMS: 15000,
     socketTimeoutMS: 45000,
     maxPoolSize: 20,
     minPoolSize: 5,
@@ -46,21 +46,21 @@ const connectDB = async (retries = 5) => {
                 return conn;
             }
         } catch (primaryErr) {
-            console.warn(`[DB] Primary SRV Connection Failed (${primaryErr.message}). Switching to Direct Replica Set URI...`);
+            console.warn(`[DB] Primary Connection Failed (${primaryErr.message}). Switching to Fallback URI...`);
         }
 
-        // Attempt 2: Direct Replica Set URI (Bypasses SRV lookup for DigitalOcean)
+        // Attempt 2: Direct Replica Set / Fallback URI
         try {
-            const directUri = process.env.DIRECT_MONGO_URI;
-            if (directUri) {
-                console.log("[DB] Connecting via Direct Replica Set URI...");
-                const conn = await mongoose.connect(directUri, mongoOptions);
-                console.log(`[DB] Connected via Direct Replica Set: ${conn.connection.host}`);
+            const fallbackUri = process.env.DIRECT_MONGO_URI || process.env.MONGO_FALLBACK_URI;
+            if (fallbackUri) {
+                console.log("[DB] Connecting via Fallback MongoDB URI...");
+                const conn = await mongoose.connect(fallbackUri, mongoOptions);
+                console.log(`[DB] Connected via Fallback MongoDB: ${conn.connection.host}`);
                 isConnecting = false;
                 return conn;
             }
-        } catch (directErr) {
-            console.error(`[DB] Direct Replica Connection Failed: ${directErr.message}`);
+        } catch (fallbackErr) {
+            console.error(`[DB] Fallback Connection Failed: ${fallbackErr.message}`);
         }
 
         retries -= 1;

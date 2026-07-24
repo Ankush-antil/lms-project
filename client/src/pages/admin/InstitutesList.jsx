@@ -38,6 +38,7 @@ const InstitutesList = () => {
     const [savingControls, setSavingControls] = useState(false);
     const [isTrashOpen, setIsTrashOpen] = useState(false);
     const [expandedSections, setExpandedSections] = useState({});
+    const [hiringModalData, setHiringModalData] = useState(null); // { instName, roles }
 
     // Bulk actions
     const [selectedIds, setSelectedIds] = useState(new Set());
@@ -718,7 +719,6 @@ const InstitutesList = () => {
                                                             <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">
                                                                 <TruncatedCell text={inst.contactEmail || 'No Email Listed'} maxLength={25} />
                                                             </div>
-                                                        </div>
                                                     </div>
                                                 </td>
                                                 <td className="p-4 whitespace-nowrap">
@@ -741,17 +741,76 @@ const InstitutesList = () => {
                                                         <span><TruncatedCell text={inst.address || 'Not specified'} maxLength={20} /></span>
                                                     </div>
                                                 </td>
-                                                <td className="p-4 whitespace-nowrap text-center">
-                                                    <label className="relative inline-flex items-center cursor-pointer select-none">
-                                                        <input 
-                                                            type="checkbox" 
-                                                            className="sr-only peer" 
-                                                            checked={inst.showOnLanding || false}
-                                                            onChange={() => handleToggleLanding(inst._id)}
-                                                        />
-                                                        <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
-                                                    </label>
-                                                </td>
+
+                                                    {/* ADMISSION TOGGLE COLUMN */}
+                                                    <td className="p-4 whitespace-nowrap text-center">
+                                                        <label className="relative inline-flex items-center cursor-pointer select-none" title={`Click to ${isAdmissionOpen ? 'Close' : 'Open'} Student Admissions`}>
+                                                            <input 
+                                                                type="checkbox" 
+                                                                className="sr-only peer" 
+                                                                checked={isAdmissionOpen}
+                                                                onChange={() => handleToggleAdmission(inst._id)}
+                                                            />
+                                                            <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>
+                                                        </label>
+                                                    </td>
+
+                                                    {/* HIRING ROLES COLUMN WITH CLIPPING-PROOF MODAL POPUP */}
+                                                    {(() => {
+                                                        const activeRoles = [];
+                                                        if (inst.controls?.teacher?.hiring !== false && inst.teacherHiring !== false) activeRoles.push('Teacher');
+                                                        if (inst.controls?.editor?.hiring !== false && inst.editorHiring !== false) activeRoles.push('Editor');
+                                                        if (inst.controls?.accountant?.hiring !== false) activeRoles.push('Accountant');
+                                                        if (inst.controls?.marketer?.hiring !== false) activeRoles.push('Marketer');
+                                                        if (inst.controls?.parent?.hiring !== false) activeRoles.push('Parent');
+
+                                                        const hiddenCount = activeRoles.length - 1;
+
+                                                        return (
+                                                            <td className="p-4 whitespace-nowrap text-center">
+                                                                {activeRoles.length === 0 ? (
+                                                                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-500 border border-slate-200">
+                                                                        Closed
+                                                                    </span>
+                                                                ) : (
+                                                                    <div className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap">
+                                                                        {/* Primary Role Chip */}
+                                                                        <span className="px-2.5 py-1 bg-indigo-50 border border-indigo-200 text-indigo-700 font-extrabold text-xs rounded-full shadow-2xs">
+                                                                            {activeRoles[0]}
+                                                                        </span>
+
+                                                                        {/* +More Button */}
+                                                                        {hiddenCount > 0 && (
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation();
+                                                                                    setHiringModalData({ instName: inst.name, roles: activeRoles });
+                                                                                }}
+                                                                                className="px-2.5 py-1 font-extrabold text-xs rounded-full transition-all shadow-xs cursor-pointer active:scale-95 border bg-[#0b1329] hover:bg-[#152244] text-white border-[#0b1329]"
+                                                                                title={`Click to view all ${activeRoles.length} active hiring roles`}
+                                                                            >
+                                                                                +{hiddenCount} more
+                                                                            </button>
+                                                                        )}
+                                                                    </div>
+                                                                )}
+                                                            </td>
+                                                        );
+                                                    })()}
+
+                                                    {/* SHOW ON LANDING TOGGLE COLUMN */}
+                                                    <td className="p-4 whitespace-nowrap text-center">
+                                                        <label className="relative inline-flex items-center cursor-pointer select-none" title="Toggle Public Landing Page Visibility">
+                                                            <input 
+                                                                type="checkbox" 
+                                                                className="sr-only peer" 
+                                                                checked={inst.showOnLanding || false}
+                                                                onChange={() => handleToggleLanding(inst._id)}
+                                                            />
+                                                            <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                                                        </label>
+                                                    </td>
                                                 <td className="p-4 whitespace-nowrap text-right sticky right-0 bg-white group-hover:bg-slate-50 border-l border-slate-100 shadow-[-8px_0_16px_-4px_rgba(0,0,0,0.06)] z-10">
                                                     <button
                                                         onClick={() => {
@@ -1266,6 +1325,61 @@ const InstitutesList = () => {
                     }
                 }}
             />
+            {hiringModalData && createPortal(
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-fade-in">
+                    <div 
+                        className="fixed inset-0" 
+                        onClick={() => setHiringModalData(null)} 
+                    />
+                    <div className="relative bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl border border-slate-100 z-50 text-center space-y-4 animate-in zoom-in-95 duration-200">
+                        {/* Header */}
+                        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                            <div className="flex items-center gap-2.5 text-left">
+                                <div className="w-9 h-9 rounded-2xl bg-indigo-50 text-indigo-700 flex items-center justify-center font-black text-base shadow-xs">
+                                    💼
+                                </div>
+                                <div>
+                                    <h4 className="font-extrabold text-slate-800 text-sm leading-tight">{hiringModalData.instName}</h4>
+                                    <p className="text-[11px] font-bold text-slate-400">All Active Hirings ({hiringModalData.roles.length})</p>
+                                </div>
+                            </div>
+                            <button 
+                                onClick={() => setHiringModalData(null)}
+                                className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center font-bold text-xs transition-colors cursor-pointer"
+                            >
+                                ✕
+                            </button>
+                        </div>
+
+                        {/* List of Active Roles */}
+                        <div className="grid grid-cols-1 gap-2 pt-1">
+                            {hiringModalData.roles.map((role, rIdx) => (
+                                <div 
+                                    key={rIdx} 
+                                    className="flex items-center justify-between p-3 bg-amber-50/80 hover:bg-amber-100/80 border border-amber-200/90 rounded-2xl transition-colors"
+                                >
+                                    <div className="flex items-center gap-2.5">
+                                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                                        <span className="font-extrabold text-amber-900 text-xs">{role} Role</span>
+                                    </div>
+                                    <span className="px-2.5 py-0.5 bg-amber-200/80 text-amber-900 font-extrabold text-[10px] rounded-full">
+                                        Actively Hiring
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Close Button */}
+                        <button 
+                            onClick={() => setHiringModalData(null)}
+                            className="w-full py-2.5 bg-[#0b1329] hover:bg-[#152244] text-white font-extrabold text-xs rounded-xl shadow-md transition-all active:scale-98 cursor-pointer"
+                        >
+                            Done
+                        </button>
+                    </div>
+                </div>,
+                document.body
+            )}
         </DashboardLayout>
     );
 };

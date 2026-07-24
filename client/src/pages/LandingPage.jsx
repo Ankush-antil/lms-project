@@ -7,7 +7,8 @@ import {
     BookOpen, Building, GraduationCap, Lock, Mail, Phone, Key,
     CheckCircle, Clock, ArrowRight, ChevronDown, LogOut, Compass,
     FileText, User, MapPin, Send, HelpCircle, X, ShieldAlert,
-    Sparkles, Shield, Award, MessageSquare, Video, Eye, EyeOff
+    Sparkles, Shield, Award, MessageSquare, Video, Eye, EyeOff,
+    Briefcase, TrendingUp, Users, Search, Navigation
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import loginIllustration from './login-illustration.png';
@@ -307,6 +308,7 @@ const LandingPage = () => {
     const [regName, setRegName] = useState('');
     const [regRequestEmail, setRegRequestEmail] = useState('');
     const [regRequestPassword, setRegRequestPassword] = useState('');
+    const [regRequestConfirmPassword, setRegRequestConfirmPassword] = useState('');
     const [regPhone, setRegPhone] = useState('');
     const [regTargetInstId, setRegTargetInstId] = useState('');
     const [regSubjects, setRegSubjects] = useState('');
@@ -324,6 +326,75 @@ const LandingPage = () => {
     const [regEmailOtpVerified, setRegEmailOtpVerified] = useState(false);
     const [regEmailOtp, setRegEmailOtp] = useState('');
     const [regEmailOtpLoading, setRegEmailOtpLoading] = useState(false);
+
+    // Map Picker states for Institute Address
+    const [showMapModal, setShowMapModal] = useState(false);
+    const [mapSearchQuery, setMapSearchQuery] = useState('');
+    const [mapSearching, setMapSearching] = useState(false);
+    const [mapCoords, setMapCoords] = useState({ lat: 28.6139, lng: 77.2090 });
+
+    const handleDetectLocation = () => {
+        if (!navigator.geolocation) {
+            toast.error("Geolocation is not supported by your browser");
+            return;
+        }
+        setMapSearching(true);
+        navigator.geolocation.getCurrentPosition(
+            async (position) => {
+                const { latitude, longitude } = position.coords;
+                setMapCoords({ lat: latitude, lng: longitude });
+                try {
+                    const res = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`);
+                    const data = await res.json();
+                    if (data && data.locality) {
+                        const parts = [data.locality, data.principalSubdivision, data.countryName].filter(Boolean);
+                        const fullAddress = data.description || parts.join(', ');
+                        setRegInstAddress(fullAddress);
+                        setMapCoords({ lat: latitude, lng: longitude });
+                        toast.success("Location auto-detected & address filled!");
+                    } else {
+                        setRegInstAddress(`Lat: ${latitude.toFixed(6)}, Lng: ${longitude.toFixed(6)}`);
+                    }
+                } catch {
+                    setRegInstAddress(`Lat: ${latitude.toFixed(6)}, Lng: ${longitude.toFixed(6)}`);
+                } finally {
+                    setMapSearching(false);
+                }
+            },
+            (err) => {
+                console.error("GPS error:", err);
+                toast.error("Could not fetch location. Please enter address or search on map.");
+                setMapSearching(false);
+            }
+        );
+    };
+
+    const handleSearchAddressOnMap = async (e) => {
+        if (e) e.preventDefault();
+        if (!mapSearchQuery || !mapSearchQuery.trim()) return;
+        setMapSearching(true);
+        try {
+            const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(mapSearchQuery.trim())}&limit=1`, {
+                headers: { 'Accept': 'application/json', 'Accept-Language': 'en' }
+            });
+            const data = await res.json();
+            if (data && data.length > 0) {
+                const first = data[0];
+                const lat = parseFloat(first.lat);
+                const lng = parseFloat(first.lon);
+                setMapCoords({ lat, lng });
+                setRegInstAddress(first.display_name);
+                toast.success("Location found! Click Confirm to use this address.");
+            } else {
+                toast.error("No location found. Try a different search.");
+            }
+        } catch (err) {
+            console.error("Map search error:", err);
+            toast.error("Location search failed. Please try again.");
+        } finally {
+            setMapSearching(false);
+        }
+    };
 
     const handleSendRegEmailOtp = async () => {
         if (!regRequestEmail.trim()) {
@@ -431,8 +502,13 @@ const LandingPage = () => {
     const handleRegisterRequestSubmit = async (e) => {
         e.preventDefault();
 
-        if (!regName.trim() || !regRequestEmail.trim() || !regRequestPassword.trim()) {
-            toast.error("Please fill in the required fields");
+        if (!regName.trim() || !regRequestEmail.trim() || !regRequestPassword.trim() || !regRequestConfirmPassword.trim()) {
+            toast.error("Please fill in all required fields");
+            return;
+        }
+
+        if (regRequestPassword !== regRequestConfirmPassword) {
+            toast.error("Password and Confirm Password do not match");
             return;
         }
 
@@ -494,6 +570,7 @@ const LandingPage = () => {
             setRegName('');
             setRegRequestEmail('');
             setRegRequestPassword('');
+            setRegRequestConfirmPassword('');
             setRegPhone('');
             setRegTargetInstId('');
             setRegSubjects('');
@@ -1311,40 +1388,76 @@ const LandingPage = () => {
                                                                                                     </button>
                                                                                                 )}
                                                                                             </div>
-                                                                                            <div className="flex items-center gap-1.5">
-                                                                                                {inst.admissionOpen && (
+                                                                                            <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                                                                                                {(inst.controls?.student?.admissionOpen !== false && inst.admissionOpen !== false) && (
                                                                                                     <button
                                                                                                         onClick={() => handleOpenApplyModal(courseObj)}
-                                                                                                        className="flex items-center gap-1 px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg text-[11px] transition-all active:scale-95"
+                                                                                                        className="flex items-center gap-1 px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg text-[11px] transition-all active:scale-95 flex-shrink-0"
                                                                                                     >
                                                                                                         <User size={11} /> Student
                                                                                                     </button>
                                                                                                 )}
-                                                                                                {inst.teacherHiring && (
+                                                                                                {(inst.controls?.teacher?.hiring !== false && inst.teacherHiring !== false) && (
                                                                                                     <button
                                                                                                         onClick={() => {
                                                                                                             setRegisterRole('Teacher');
                                                                                                             setRegTargetInstId(inst._id);
                                                                                                             setIsRegisterModalOpen(true);
                                                                                                         }}
-                                                                                                        className="flex items-center gap-1 px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-[11px] transition-all active:scale-95"
+                                                                                                        className="flex items-center gap-1 px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-[11px] transition-all active:scale-95 flex-shrink-0"
                                                                                                     >
                                                                                                         <GraduationCap size={11} /> Teacher
                                                                                                     </button>
                                                                                                 )}
-                                                                                                {inst.editorHiring && (
+                                                                                                {(inst.controls?.editor?.hiring !== false && inst.editorHiring !== false) && (
                                                                                                     <button
                                                                                                         onClick={() => {
                                                                                                             setRegisterRole('Editor');
                                                                                                             setRegTargetInstId(inst._id);
                                                                                                             setIsRegisterModalOpen(true);
                                                                                                         }}
-                                                                                                        className="flex items-center gap-1 px-2.5 py-1.5 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-lg text-[11px] transition-all active:scale-95"
+                                                                                                        className="flex items-center gap-1 px-2.5 py-1.5 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-lg text-[11px] transition-all active:scale-95 flex-shrink-0"
                                                                                                     >
                                                                                                         <FileText size={11} /> Editor
                                                                                                     </button>
                                                                                                 )}
-                                                                                                {!inst.admissionOpen && !inst.teacherHiring && !inst.editorHiring && (
+                                                                                                {(inst.controls?.accountant?.hiring !== false) && (
+                                                                                                    <button
+                                                                                                        onClick={() => {
+                                                                                                            setRegisterRole('Accountant');
+                                                                                                            setRegTargetInstId(inst._id);
+                                                                                                            setIsRegisterModalOpen(true);
+                                                                                                        }}
+                                                                                                        className="flex items-center gap-1 px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-[11px] transition-all active:scale-95 flex-shrink-0"
+                                                                                                    >
+                                                                                                        <Briefcase size={11} /> Accountant
+                                                                                                    </button>
+                                                                                                )}
+                                                                                                {(inst.controls?.marketer?.hiring !== false) && (
+                                                                                                    <button
+                                                                                                        onClick={() => {
+                                                                                                            setRegisterRole('Marketer');
+                                                                                                            setRegTargetInstId(inst._id);
+                                                                                                            setIsRegisterModalOpen(true);
+                                                                                                        }}
+                                                                                                        className="flex items-center gap-1 px-2.5 py-1.5 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg text-[11px] transition-all active:scale-95 flex-shrink-0"
+                                                                                                    >
+                                                                                                        <TrendingUp size={11} /> Marketer
+                                                                                                    </button>
+                                                                                                )}
+                                                                                                {(inst.controls?.parent?.hiring !== false) && (
+                                                                                                    <button
+                                                                                                        onClick={() => {
+                                                                                                            setRegisterRole('Parent');
+                                                                                                            setRegTargetInstId(inst._id);
+                                                                                                            setIsRegisterModalOpen(true);
+                                                                                                        }}
+                                                                                                        className="flex items-center gap-1 px-2.5 py-1.5 bg-rose-500 hover:bg-rose-600 text-white font-bold rounded-lg text-[11px] transition-all active:scale-95 flex-shrink-0"
+                                                                                                    >
+                                                                                                        <Users size={11} /> Parent
+                                                                                                    </button>
+                                                                                                )}
+                                                                                                {inst.admissionOpen === false && inst.teacherHiring === false && inst.editorHiring === false && inst.controls?.accountant?.hiring === false && inst.controls?.marketer?.hiring === false && inst.controls?.parent?.hiring === false && (
                                                                                                     <span className="text-[10px] font-bold text-slate-400 bg-slate-105 border border-slate-200/50 px-2 py-1 rounded-lg uppercase tracking-wider select-none">
                                                                                                         Closed
                                                                                                     </span>
@@ -2680,7 +2793,21 @@ const LandingPage = () => {
                                                                             />
                                                                         </div>
                                                                         <div className="space-y-1">
-                                                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Phone / Mobile</label>
+                                                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Confirm Password *</label>
+                                                                            <input
+                                                                                type="password"
+                                                                                value={regRequestConfirmPassword}
+                                                                                onChange={(e) => setRegRequestConfirmPassword(e.target.value)}
+                                                                                required
+                                                                                placeholder="Confirm password"
+                                                                                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 focus:border-[#0b1329] focus:outline-none rounded-xl text-xs font-semibold"
+                                                                            />
+                                                                        </div>
+                                                                    </div>
+
+                                                                    {registerRole !== 'Institute' && (
+                                                                        <div className="space-y-1">
+                                                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Phone / Mobile *</label>
                                                                             <input
                                                                                 type="text"
                                                                                 value={regPhone}
@@ -2689,7 +2816,7 @@ const LandingPage = () => {
                                                                                 className="w-full px-3 py-2 bg-slate-50 border border-slate-200 focus:border-[#0b1329] focus:outline-none rounded-xl text-xs font-semibold"
                                                                             />
                                                                         </div>
-                                                                    </div>
+                                                                    )}
 
                                                                     {/* Institute Specific Fields */}
                                                                     {registerRole === 'Institute' && (
@@ -2697,12 +2824,12 @@ const LandingPage = () => {
                                                                             <h4 className="text-[11px] font-bold text-indigo-900 uppercase tracking-wider">Institute Details</h4>
                                                                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                                                                 <div className="space-y-1">
-                                                                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Institute Code (Unique)</label>
+                                                                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Phone / Mobile *</label>
                                                                                     <input
                                                                                         type="text"
-                                                                                        value={regInstCode}
-                                                                                        onChange={(e) => setRegInstCode(e.target.value)}
-                                                                                        placeholder="e.g. OXFORD-01"
+                                                                                        value={regPhone}
+                                                                                        onChange={(e) => setRegPhone(e.target.value)}
+                                                                                        placeholder="e.g. +91 9876543210"
                                                                                         className="w-full px-3 py-2 bg-slate-50 border border-slate-200 focus:border-[#0b1329] focus:outline-none rounded-xl text-xs font-semibold"
                                                                                     />
                                                                                 </div>
@@ -2717,15 +2844,38 @@ const LandingPage = () => {
                                                                                     />
                                                                                 </div>
                                                                             </div>
-                                                                            <div className="space-y-1">
-                                                                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Address / Location</label>
-                                                                                <input
-                                                                                    type="text"
-                                                                                    value={regInstAddress}
-                                                                                    onChange={(e) => setRegInstAddress(e.target.value)}
-                                                                                    placeholder="e.g. Oxford Campus, New York, USA"
-                                                                                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 focus:border-[#0b1329] focus:outline-none rounded-xl text-xs font-semibold"
-                                                                                />
+                                                                            <div className="space-y-1.5">
+                                                                                <div className="flex items-center justify-between">
+                                                                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Address / Location</label>
+                                                                                    <div className="flex items-center gap-1.5">
+                                                                                        <button
+                                                                                            type="button"
+                                                                                            onClick={handleDetectLocation}
+                                                                                            disabled={mapSearching}
+                                                                                            className="flex items-center gap-1 px-2 py-0.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-md text-[10px] font-bold transition-all cursor-pointer"
+                                                                                            title="Auto-detect current GPS location"
+                                                                                        >
+                                                                                            <Navigation size={10} className={mapSearching ? "animate-spin" : ""} /> GPS Auto-Detect
+                                                                                        </button>
+                                                                                        <button
+                                                                                            type="button"
+                                                                                            onClick={() => setShowMapModal(true)}
+                                                                                            className="flex items-center gap-1 px-2 py-0.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-md text-[10px] font-bold transition-all cursor-pointer"
+                                                                                        >
+                                                                                            <MapPin size={10} /> Pick on Map
+                                                                                        </button>
+                                                                                    </div>
+                                                                                </div>
+                                                                                <div className="relative">
+                                                                                    <input
+                                                                                        type="text"
+                                                                                        value={regInstAddress}
+                                                                                        onChange={(e) => setRegInstAddress(e.target.value)}
+                                                                                        placeholder="e.g. Oxford Campus, Main Road, New Delhi, India"
+                                                                                        className="w-full px-3 py-2 pr-8 bg-slate-50 border border-slate-200 focus:border-[#0b1329] focus:outline-none rounded-xl text-xs font-semibold"
+                                                                                    />
+                                                                                    <MapPin size={14} className="absolute right-3 top-2.5 text-indigo-500 pointer-events-none" />
+                                                                                </div>
                                                                             </div>
                                                                         </div>
                                                                     )}
@@ -2886,8 +3036,42 @@ const LandingPage = () => {
                                                         </div>
                                                     )}
                                                 </AnimatePresence>
-                                            </div>
-                                        );
+
+                                            {/* Map Picker Modal */}
+                                            {showMapModal && (
+                                                <AnimatePresence>
+                                                    <motion.div key="map-modal-overlay" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[9999] flex items-center justify-center p-4" style={{ background: "rgba(11,19,41,0.72)", backdropFilter: "blur(4px)" }} onClick={(e) => { if (e.target === e.currentTarget) setShowMapModal(false); }}>
+                                                        <motion.div key="map-modal-card" initial={{ scale: 0.92, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.92, opacity: 0, y: 20 }} transition={{ type: "spring", stiffness: 300, damping: 28 }} className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col" style={{ maxHeight: "90vh" }}>
+                                                            <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100 bg-gradient-to-r from-indigo-50 to-white">
+                                                                <div className="flex items-center gap-2"><MapPin size={16} className="text-indigo-600" /><span className="font-bold text-sm text-slate-800">Pick Location on Map</span></div>
+                                                                <button type="button" onClick={() => setShowMapModal(false)} className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"><X size={16} className="text-slate-500" /></button>
+                                                            </div>
+                                                            <div className="px-4 py-3 border-b border-slate-100 bg-white">
+                                                                <form onSubmit={handleSearchAddressOnMap} className="flex gap-2">
+                                                                    <input type="text" value={mapSearchQuery} onChange={(e) => setMapSearchQuery(e.target.value)} placeholder="Search city, area, address..." className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:border-indigo-400 focus:outline-none" />
+                                                                    <button type="submit" disabled={mapSearching || !mapSearchQuery.trim()} className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 disabled:opacity-50 transition-all cursor-pointer active:scale-95">
+                                                                        {mapSearching ? (<div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />) : (<Search size={13} />)}
+                                                                        {mapSearching ? "Searching..." : "Search"}
+                                                                    </button>
+                                                                </form>
+                                                            </div>
+                                                            <div className="relative" style={{ minHeight: "300px" }}>
+                                                                <iframe title="Location Map" src={`https://www.openstreetmap.org/export/embed.html?bbox=${(mapCoords.lng-0.01).toFixed(5)},${(mapCoords.lat-0.01).toFixed(5)},${(mapCoords.lng+0.01).toFixed(5)},${(mapCoords.lat+0.01).toFixed(5)}&layer=mapnik&marker=${mapCoords.lat},${mapCoords.lng}`} width="100%" height="300" style={{ border: "none", display: "block" }} loading="lazy" />
+                                                                <div className="absolute bottom-2 left-2 bg-white/90 px-2 py-1 rounded-lg text-[10px] font-semibold text-slate-600 shadow-sm border border-slate-200">{mapCoords.lat.toFixed(5)}, {mapCoords.lng.toFixed(5)}</div>
+                                                            </div>
+                                                            <div className="px-4 py-3 border-t border-slate-100 bg-slate-50 flex items-center justify-between gap-3">
+                                                                <p className="text-[10px] text-slate-500 font-medium flex-1">Search for an address, then confirm to use it.</p>
+                                                                <div className="flex gap-2">
+                                                                    <button type="button" onClick={() => setShowMapModal(false)} className="px-4 py-2 bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 font-bold rounded-xl text-xs transition-all cursor-pointer">Cancel</button>
+                                                                    <button type="button" onClick={() => setShowMapModal(false)} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs shadow-md transition-all cursor-pointer flex items-center gap-1.5"><CheckCircle size={13} /> Confirm Location</button>
+                                                                </div>
+                                                            </div>
+                                                        </motion.div>
+                                                    </motion.div>
+                                                </AnimatePresence>
+                                            )}
+                                        </div>
+                                    );
 };
 
-                                        export default LandingPage;
+export default LandingPage;

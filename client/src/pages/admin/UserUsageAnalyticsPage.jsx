@@ -2,10 +2,11 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
+import * as XLSX from 'xlsx';
 import {
     BarChart3, Users, Clock, MousePointer, Activity, Search, RefreshCw,
     Download, Shield, GraduationCap, FileText, Building, Wallet, Megaphone,
-    UserCheck, Eye, Sparkles, Filter, CheckCircle2, AlertCircle, Calendar
+    UserCheck, Eye, Sparkles, Filter, CheckCircle2, AlertCircle, Calendar, ChevronDown
 } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import DashboardLayout from '../../components/layout/DashboardLayout';
@@ -44,6 +45,7 @@ const UserUsageAnalyticsPage = () => {
     const [summary, setSummary] = useState(null);
     const [categoriesData, setCategoriesData] = useState({});
     const [activeTab, setActiveTab] = useState(tabQuery && roleIcons[tabQuery] ? tabQuery : 'Guest Users');
+    const [isExportDropdownOpen, setIsExportDropdownOpen] = useState(false);
 
     useEffect(() => {
         if (tabQuery && roleIcons[tabQuery]) {
@@ -90,46 +92,60 @@ const UserUsageAnalyticsPage = () => {
         });
     }, [categoriesData, activeTab, searchTerm, engagementFilter]);
 
-    // CSV Export
-    const handleExportCSV = () => {
+    // Multi-Format Export (Excel, CSV, JSON)
+    const handleExport = (format) => {
         if (!currentList.length) {
             toast.error('No data available to export');
             return;
         }
 
-        const headers = ['Name', 'Email', 'Role', 'Institute', 'Time Spent', 'Total Clicks', 'Engagement', 'Last Active'];
-        const csvRows = [headers.join(',')];
+        const rows = currentList.map(item => ({
+            Name: item.name || '',
+            Email: item.email || '',
+            Role: item.role || '',
+            Institute: item.instituteName || '',
+            'Time Spent': item.timeSpentFormatted || '',
+            'Total Clicks': item.clickCount || 0,
+            Engagement: item.engagement || '',
+            'Last Active': item.lastActive ? new Date(item.lastActive).toLocaleString() : ''
+        }));
 
-        currentList.forEach(item => {
-            const row = [
-                `"${item.name.replace(/"/g, '""')}"`,
-                `"${item.email.replace(/"/g, '""')}"`,
-                `"${item.role}"`,
-                `"${item.instituteName.replace(/"/g, '""')}"`,
-                `"${item.timeSpentFormatted}"`,
-                item.clickCount,
-                `"${item.engagement}"`,
-                `"${new Date(item.lastActive).toLocaleString()}"`
-            ];
-            csvRows.push(row.join(','));
-        });
+        const filename = `User_Analytics_${activeTab.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}`;
 
-        const blob = new Blob([csvRows.join('\n')], { type: 'text/csv' });
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.setAttribute('href', url);
-        a.setAttribute('download', `LMS_User_Usage_Analytics_${activeTab.replace(/\s+/g, '_')}.csv`);
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        toast.success(`Exported ${currentList.length} records to CSV!`);
+        if (format === 'json') {
+            const blob = new Blob([JSON.stringify(rows, null, 2)], { type: 'application/json;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `${filename}.json`;
+            link.click();
+            toast.success(`Exported ${rows.length} records to JSON!`);
+        } else if (format === 'csv') {
+            const csv = XLSX.utils.sheet_to_csv(XLSX.utils.json_to_sheet(rows));
+            const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `${filename}.csv`;
+            link.click();
+            toast.success(`Exported ${rows.length} records to CSV!`);
+        } else if (format === 'excel') {
+            const ws = XLSX.utils.json_to_sheet(rows);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, activeTab);
+            const buf = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+            const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `${filename}.xlsx`;
+            link.click();
+            toast.success(`Exported ${rows.length} records to Excel!`);
+        }
     };
 
     const RoleIcon = roleIcons[activeTab] || Users;
 
     return (
         <DashboardLayout title="User Usage & Time Analytics">
-            <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto">
+            <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto font-sans">
                 
                 {/* ── HEADER TITLE ── */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
@@ -140,7 +156,7 @@ const UserUsageAnalyticsPage = () => {
                             </div>
                             <div>
                                 <h1 className="text-xl font-extrabold text-slate-900 tracking-tight">LMS User Usage & Activity Analytics</h1>
-                                <p className="text-xs text-slate-500 font-medium">Track total time spent, clicks, session metrics & role actions across 10 categories</p>
+                                <p className="text-xs text-slate-500 font-medium">Track total time spent, clicks, session metrics & role actions across categories</p>
                             </div>
                         </div>
                     </div>
@@ -153,12 +169,29 @@ const UserUsageAnalyticsPage = () => {
                         >
                             <RefreshCw size={14} className={loading ? "animate-spin" : ""} /> Refresh
                         </button>
-                        <button
-                            onClick={handleExportCSV}
-                            className="px-4 py-2 bg-[#0b1329] hover:bg-[#152244] text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition-all cursor-pointer active:scale-95"
-                        >
-                            <Download size={14} /> Export CSV
-                        </button>
+                        
+                        {/* Multi-Format Export Dropdown */}
+                        <div className="relative">
+                            <button
+                                onClick={() => setIsExportDropdownOpen(v => !v)}
+                                className="px-4 py-2 bg-[#0b1329] hover:bg-[#152244] text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition-all cursor-pointer active:scale-95"
+                            >
+                                <Download size={14} /> Export <ChevronDown size={13} />
+                            </button>
+                            {isExportDropdownOpen && (
+                                <div className="absolute right-0 mt-2 w-32 bg-white rounded-xl shadow-xl border border-slate-200 z-50 overflow-hidden py-1">
+                                    {['excel', 'csv', 'json'].map(fmt => (
+                                        <button
+                                            key={fmt}
+                                            onClick={() => { handleExport(fmt); setIsExportDropdownOpen(false); }}
+                                            className="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors uppercase cursor-pointer"
+                                        >
+                                            {fmt}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
 

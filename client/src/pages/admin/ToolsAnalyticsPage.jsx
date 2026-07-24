@@ -2,9 +2,10 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
+import * as XLSX from 'xlsx';
 import {
     BarChart3, Users, HardDrive, FileSignature, Database, Mic, MonitorPlay, Camera, Video,
-    Search, RefreshCw, Layers, MessageSquare, StickyNote
+    Search, RefreshCw, Layers, MessageSquare, StickyNote, Download, ChevronDown
 } from 'lucide-react';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { useAuth } from '../../context/AuthContext';
@@ -83,6 +84,7 @@ const ToolsAnalyticsPage = () => {
     const [selectedUserToEdit, setSelectedUserToEdit] = useState(null);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [togglingId, setTogglingId] = useState(null);
+    const [isExportDropdownOpen, setIsExportDropdownOpen] = useState(false);
 
     // Map activeTab to the service key used in studentProfile.toolsAccess
     const tabToServiceKey = {
@@ -93,6 +95,91 @@ const ToolsAnalyticsPage = () => {
         screenRecorder: 'screenRecorder',
         voiceRecorder: 'voiceRecorder',
         videoRecorder: 'videoRecorder'
+    };
+
+    // Multi-Format Export (Excel, CSV, JSON)
+    const handleExport = (format) => {
+        if (!filteredStudents.length) {
+            toast.error('No data available to export');
+            return;
+        }
+
+        const rows = filteredStudents.map(student => {
+            const serviceKey = tabToServiceKey[activeTab];
+            const currentControls = student.user?.studentProfile?.controls || {};
+            const isAccessDisabled = currentControls.toolsAccess?.[serviceKey] === false;
+            const status = isAccessDisabled ? 'Disabled' : 'Enabled';
+
+            let baseData = {
+                'Student Name': student.name || '',
+                Email: student.email || '',
+                Institute: student.instituteName || '',
+                Status: status
+            };
+
+            if (activeTab === 'drive') {
+                baseData['Folders'] = student.drive?.totalFolders || 0;
+                baseData['Files'] = student.drive?.totalFiles || 0;
+                baseData['Storage Consumed'] = formatBytes(student.drive?.usedStorage || 0);
+            } else if (activeTab === 'chat') {
+                baseData['Total Chats'] = student.chat?.totalChats || 0;
+                baseData['Messages Sent'] = student.chat?.totalMessagesSent || 0;
+                baseData['Messages Received'] = student.chat?.totalMessagesReceived || 0;
+            } else if (activeTab === 'notes') {
+                baseData['Total Notebooks'] = student.notes?.totalNotebooks || 0;
+                baseData['Total Sections'] = student.notes?.totalSections || 0;
+                baseData['Total Notes'] = student.notes?.totalNotes || 0;
+                baseData['Total Categories'] = student.notes?.totalCategories || 0;
+                baseData['Reminders Set'] = student.notes?.reminderCount || 0;
+                baseData['Uploaded Files'] = student.notes?.attachedFilesCount || 0;
+                baseData['Uploaded Images'] = student.notes?.imagesCount || 0;
+                baseData['Pinned Notes'] = student.notes?.pinnedCount || 0;
+            } else if (activeTab === 'screenshot') {
+                baseData['Screenshots'] = student.screenshot?.totalFiles || 0;
+                baseData['Storage Consumed'] = formatBytes(student.screenshot?.usedStorage || 0);
+            } else if (activeTab === 'screenRecorder') {
+                baseData['Screen Recordings'] = student.screenRecorder?.totalFiles || 0;
+                baseData['Storage Consumed'] = formatBytes(student.screenRecorder?.usedStorage || 0);
+            } else if (activeTab === 'voiceRecorder') {
+                baseData['Audio Recordings'] = student.voiceRecorder?.totalFiles || 0;
+                baseData['Storage Consumed'] = formatBytes(student.voiceRecorder?.usedStorage || 0);
+            } else if (activeTab === 'videoRecorder') {
+                baseData['Video Recordings'] = student.videoRecorder?.totalFiles || 0;
+                baseData['Storage Consumed'] = formatBytes(student.videoRecorder?.usedStorage || 0);
+            }
+
+            return baseData;
+        });
+
+        const filename = `Service_Analytics_${activeTab}_${new Date().toISOString().split('T')[0]}`;
+
+        if (format === 'json') {
+            const blob = new Blob([JSON.stringify(rows, null, 2)], { type: 'application/json;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `${filename}.json`;
+            link.click();
+            toast.success(`Exported ${rows.length} records to JSON!`);
+        } else if (format === 'csv') {
+            const csv = XLSX.utils.sheet_to_csv(XLSX.utils.json_to_sheet(rows));
+            const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `${filename}.csv`;
+            link.click();
+            toast.success(`Exported ${rows.length} records to CSV!`);
+        } else if (format === 'excel') {
+            const ws = XLSX.utils.json_to_sheet(rows);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, activeTab);
+            const buf = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+            const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `${filename}.xlsx`;
+            link.click();
+            toast.success(`Exported ${rows.length} records to Excel!`);
+        }
     };
 
 
@@ -333,14 +420,39 @@ const ToolsAnalyticsPage = () => {
                         </p>
                     </div>
 
-                    <button
-                        onClick={fetchAnalytics}
-                        disabled={loading}
-                        className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all self-start sm:self-auto cursor-pointer"
-                    >
-                        <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-                        <span>Refresh Data</span>
-                    </button>
+                    <div className="flex items-center gap-2 self-start sm:self-auto">
+                        <button
+                            onClick={fetchAnalytics}
+                            disabled={loading}
+                            className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all cursor-pointer disabled:opacity-50"
+                        >
+                            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+                            <span>Refresh Data</span>
+                        </button>
+
+                        {/* Multi-Format Export Dropdown */}
+                        <div className="relative">
+                            <button
+                                onClick={() => setIsExportDropdownOpen(v => !v)}
+                                className="px-4 py-2 bg-[#0b1329] hover:bg-[#152244] text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition-all cursor-pointer active:scale-95"
+                            >
+                                <Download size={14} /> Export <ChevronDown size={13} />
+                            </button>
+                            {isExportDropdownOpen && (
+                                <div className="absolute right-0 mt-2 w-32 bg-white rounded-xl shadow-xl border border-slate-200 z-50 overflow-hidden py-1">
+                                    {['excel', 'csv', 'json'].map(fmt => (
+                                        <button
+                                            key={fmt}
+                                            onClick={() => { handleExport(fmt); setIsExportDropdownOpen(false); }}
+                                            className="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors uppercase cursor-pointer"
+                                        >
+                                            {fmt}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
                 </div>
 
                 {/* ── 7 SERVICE NAVIGATION TABS ── */}

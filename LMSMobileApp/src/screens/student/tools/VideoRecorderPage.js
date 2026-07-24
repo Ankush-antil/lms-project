@@ -15,12 +15,6 @@ import { Video, ResizeMode } from 'expo-av';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as DocumentPicker from 'expo-document-picker';
-let ImagePicker;
-try {
-    ImagePicker = require('expo-image-picker');
-} catch (e) {
-    ImagePicker = null;
-}
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, fontSizes, borderRadius } from '../../../theme/colors';
 import { AppHeader } from '../../../components/common/UIComponents';
@@ -109,25 +103,27 @@ const VideoRecorderPage = ({ route, navigation }) => {
             Alert.alert("Read-Only", "Cannot record videos in a past date log.");
             return;
         }
-        try {
-            if (!ImagePicker) {
-                try {
-                    ImagePicker = require('expo-image-picker');
-                } catch (e) {}
-            }
 
-            if (ImagePicker && ImagePicker.requestCameraPermissionsAsync) {
-                const { status: cameraStatus } = await ImagePicker.requestCameraPermissionsAsync();
-                const { status: audioStatus } = await ImagePicker.requestMicrophonePermissionsAsync();
+        let ImagePickerModule = null;
+        try {
+            ImagePickerModule = require('expo-image-picker');
+        } catch (e) {
+            console.warn('[VIDEO_RECORDER] expo-image-picker native module unavailable:', e?.message);
+        }
+
+        if (ImagePickerModule && typeof ImagePickerModule.launchCameraAsync === 'function') {
+            try {
+                const { status: cameraStatus } = await ImagePickerModule.requestCameraPermissionsAsync();
+                const { status: audioStatus } = await ImagePickerModule.requestMicrophonePermissionsAsync();
 
                 if (cameraStatus !== 'granted') {
-                    Alert.alert("Permission Required", "Please allow camera access to record videos.");
+                    Alert.alert("Permission Required", "Please allow camera access in settings to record videos.");
                     return;
                 }
 
-                const mediaTypeOption = (ImagePicker.MediaTypeOptions && ImagePicker.MediaTypeOptions.Videos) ? ImagePicker.MediaTypeOptions.Videos : 'videos';
+                const mediaTypeOption = (ImagePickerModule.MediaTypeOptions && ImagePickerModule.MediaTypeOptions.Videos) ? ImagePickerModule.MediaTypeOptions.Videos : 'videos';
 
-                const result = await ImagePicker.launchCameraAsync({
+                const result = await ImagePickerModule.launchCameraAsync({
                     mediaTypes: mediaTypeOption,
                     quality: 1,
                     allowsEditing: false
@@ -154,20 +150,13 @@ const VideoRecorderPage = ({ route, navigation }) => {
                     text1: 'Video Recorded',
                     text2: 'Video saved in local workspace!'
                 });
-            } else {
-                // Fallback prompt if ImagePicker not available
-                Alert.alert(
-                    "Camera Action",
-                    "Choose video from gallery or files:",
-                    [
-                        { text: "📁 Choose Video", onPress: handlePickVideo },
-                        { text: "Cancel", style: "cancel" }
-                    ]
-                );
+            } catch (err) {
+                console.warn('Camera launch failed, falling back to file picker:', err?.message);
+                handlePickVideo();
             }
-        } catch (err) {
-            console.error('Failed to record camera video:', err);
-            Alert.alert("Error", err.message || "Could not launch camera for video recording.");
+        } else {
+            // Fallback cleanly to document picker when ExponentImagePicker is not present in Expo Go build
+            handlePickVideo();
         }
     };
 

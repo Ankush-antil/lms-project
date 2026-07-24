@@ -624,14 +624,41 @@ const getApplications = asyncHandler(async (req, res) => {
 
     if (!phone) {
         res.status(400);
-        throw new Error('Please provide a phone number');
+        throw new Error('Please provide a phone number or email');
     }
 
-    const applications = await Application.find({ guestPhone: phone })
-        .populate('course', 'name code description')
-        .populate('institute', 'name code address contactEmail');
+    const searchStr = phone.trim();
 
-    res.json(applications);
+    const applications = await Application.find({
+        $or: [{ guestPhone: searchStr }, { guestEmail: searchStr }]
+    })
+        .populate('course', 'name code description')
+        .populate('institute', 'name code address contactEmail helplineNumber');
+
+    // Fetch Teacher, Editor, Institute registration requests matching phone OR email
+    const RegistrationRequest = require('../../models/RegistrationRequest');
+    const regRequests = await RegistrationRequest.find({
+        $or: [{ phone: searchStr }, { email: searchStr }]
+    }).populate('targetInstitute', 'name code address contactEmail helplineNumber');
+
+    const formattedRegRequests = regRequests.map(r => ({
+        _id: r._id,
+        isRegistrationRequest: true,
+        role: r.role,
+        course: {
+            name: `${r.role} Application`,
+            code: r.role.toUpperCase(),
+            description: r.subjectSpecialization ? `Subjects: ${r.subjectSpecialization}` : (r.eligibility || `Application to join as ${r.role}`)
+        },
+        institute: r.targetInstitute || { name: 'Admin / System', code: 'MAIN' },
+        status: r.status === 'Approved' ? 'Accepted' : (r.status === 'Pending' ? 'Under Review' : r.status),
+        guestName: r.name,
+        guestEmail: r.email,
+        guestPhone: r.phone || '',
+        createdAt: r.createdAt
+    }));
+
+    res.json([...applications, ...formattedRegRequests]);
 });
 
 // @desc    Generate and send simulated OTP (logs to console & saves in DB)

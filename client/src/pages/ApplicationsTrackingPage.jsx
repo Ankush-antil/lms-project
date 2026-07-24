@@ -427,19 +427,34 @@ const ApplicationsTrackingPage = () => {
                                                         <div className="flex items-start gap-2.5">
                                                             <CheckCircle size={20} className="text-emerald-600 flex-shrink-0 mt-0.5" />
                                                             <div>
-                                                                <p className="text-sm font-bold text-emerald-800">Your application was accepted!</p>
-                                                                <p className="text-xs text-emerald-650 mt-0.5 font-medium">Create your login credentials below to set up your student account.</p>
+                                                                <p className="text-sm font-bold text-emerald-800">
+                                                                    {app.isRegistrationRequest ? `Your ${app.role} application was approved!` : 'Your application was accepted!'}
+                                                                </p>
+                                                                <p className="text-xs text-emerald-650 mt-0.5 font-medium">
+                                                                    {app.isRegistrationRequest
+                                                                        ? `Your ${app.role} user account is created. Click below to login to your portal.`
+                                                                        : 'Create your login credentials below to set up your student account.'}
+                                                                </p>
                                                             </div>
                                                         </div>
-                                                        <button
-                                                            onClick={() => {
-                                                                setRegisteringApp(app);
-                                                                setRegEmail(app.guestEmail || '');
-                                                            }}
-                                                            className="w-full sm:w-auto px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs uppercase tracking-wider rounded-xl transition-all active:scale-95 shadow-md flex items-center justify-center gap-1.5 whitespace-nowrap"
-                                                        >
-                                                            Create Account to Login
-                                                        </button>
+                                                        {app.isRegistrationRequest ? (
+                                                            <button
+                                                                onClick={() => navigate('/login')}
+                                                                className="w-full sm:w-auto px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs uppercase tracking-wider rounded-xl transition-all active:scale-95 shadow-md flex items-center justify-center gap-1.5 whitespace-nowrap cursor-pointer"
+                                                            >
+                                                                Login to {app.role} Portal
+                                                            </button>
+                                                        ) : (
+                                                            <button
+                                                                onClick={() => {
+                                                                    setRegisteringApp(app);
+                                                                    setRegEmail(app.guestEmail || '');
+                                                                }}
+                                                                className="w-full sm:w-auto px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs uppercase tracking-wider rounded-xl transition-all active:scale-95 shadow-md flex items-center justify-center gap-1.5 whitespace-nowrap cursor-pointer"
+                                                            >
+                                                                Create Account to Login
+                                                            </button>
+                                                        )}
                                                     </div>
                                                 </div>
                                             )}
@@ -461,7 +476,7 @@ const ApplicationsTrackingPage = () => {
                                     </p>
                                     <button
                                         onClick={() => navigate('/')}
-                                        className="mt-4 px-5 py-2.5 bg-gradient-to-r from-[#1e60a3] to-[#49a8f5] text-white rounded-xl text-xs font-bold hover:from-[#1b5592] hover:to-[#3b93db] transition-all shadow-md active:scale-95"
+                                        className="mt-4 px-5 py-2.5 bg-gradient-to-r from-[#1e60a3] to-[#49a8f5] text-white rounded-xl text-xs font-bold hover:from-[#1b5592] hover:to-[#3b93db] transition-all shadow-md active:scale-95 cursor-pointer"
                                     >
                                         Browse Institutes →
                                     </button>
@@ -479,52 +494,69 @@ const ApplicationsTrackingPage = () => {
                             exit={{ opacity: 0, y: -12 }}
                             className="space-y-4"
                         >
-                            <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                                <Compass size={18} className="text-indigo-500" />
-                                Student Portal Preview
-                            </h2>
-                            <div className="bg-white/40 backdrop-blur-md border border-white/60 rounded-[2rem] overflow-hidden shadow-md">
-                                 {/* Preview header bar */}
-                                 <div className="bg-[#0b1329] px-5 py-4 flex items-center gap-3">
-                                     <div className="w-8 h-8 bg-indigo-600 rounded-xl flex items-center justify-center text-white font-black text-sm">L</div>
-                                     <div>
-                                         <p className="text-white font-bold text-sm">LMSPortal — Student View</p>
-                                         <p className="text-white/40 text-[10px]">Preview Mode — Read Only</p>
-                                     </div>
-                                     <span className="ml-auto text-[9px] bg-amber-400/20 text-amber-400 border border-amber-400/30 px-2 py-1 rounded-full font-bold uppercase">Demo</span>
-                                 </div>
+                            {(() => {
+                                const hasTeacherApp = applications.some(a => a.role === 'Teacher');
+                                const hasEditorApp = applications.some(a => a.role === 'Editor');
+                                const roleName = hasTeacherApp ? 'Teacher' : (hasEditorApp ? 'Editor' : 'Student');
 
-                                 <div className="p-6 space-y-4">
-                                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                         {['My Tests', 'Study Files', 'Performance', 'Tools'].map((item, i) => (
-                                             <div key={i} className="bg-white/35 border border-white/50 rounded-xl p-3 text-center">
-                                                 <div className="w-8 h-8 bg-indigo-50 border border-indigo-105 rounded-lg flex items-center justify-center mx-auto mb-2 shadow-sm">
-                                                     <BookOpen size={14} className="text-indigo-650" />
-                                                 </div>
-                                                 <p className="text-xs font-black text-slate-700">{item}</p>
-                                             </div>
-                                         ))}
-                                     </div>
+                                return (
+                                    <>
+                                        <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                                            <Compass size={18} className="text-indigo-500" />
+                                            {roleName} Portal Preview
+                                        </h2>
+                                        <div className="bg-white/40 backdrop-blur-md border border-white/60 rounded-[2rem] overflow-hidden shadow-md">
+                                            {/* Preview header bar */}
+                                            <div className="bg-[#0b1329] px-5 py-4 flex items-center gap-3">
+                                                <div className="w-8 h-8 bg-indigo-600 rounded-xl flex items-center justify-center text-white font-black text-sm">
+                                                    {roleName[0]}
+                                                </div>
+                                                <div>
+                                                    <p className="text-white font-bold text-sm">LMSPortal — {roleName} Workspace View</p>
+                                                    <p className="text-white/40 text-[10px]">Preview Mode — Read Only</p>
+                                                </div>
+                                                <span className="ml-auto text-[9px] bg-amber-400/20 text-amber-400 border border-amber-400/30 px-2 py-1 rounded-full font-bold uppercase">Demo</span>
+                                            </div>
 
-                                     <div className="bg-indigo-50/70 border border-indigo-100/50 rounded-xl p-4 flex items-start gap-3">
-                                         <AlertCircle size={16} className="text-indigo-500 flex-shrink-0 mt-0.5" />
-                                         <div>
-                                             <p className="text-xs font-bold text-indigo-700">This is a Preview</p>
-                                             <p className="text-[11px] text-indigo-600 mt-0.5 font-semibold">
-                                                 Once your application is accepted and you create your account, you'll have full access to this portal with real course content, tests, and tools.
-                                             </p>
-                                         </div>
-                                     </div>
+                                            <div className="p-6 space-y-4">
+                                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                                    {(roleName === 'Teacher'
+                                                        ? ['Assigned Courses', 'Video Lectures', 'Student Evaluation', 'Class Notices']
+                                                        : roleName === 'Editor'
+                                                        ? ['Course Content', 'Quiz Builder', 'Media Library', 'Submissions']
+                                                        : ['My Tests', 'Study Files', 'Performance', 'Tools']
+                                                    ).map((item, i) => (
+                                                        <div key={i} className="bg-white/35 border border-white/50 rounded-xl p-3 text-center">
+                                                            <div className="w-8 h-8 bg-indigo-50 border border-indigo-105 rounded-lg flex items-center justify-center mx-auto mb-2 shadow-sm">
+                                                                <BookOpen size={14} className="text-indigo-650" />
+                                                            </div>
+                                                            <p className="text-xs font-black text-slate-700">{item}</p>
+                                                        </div>
+                                                    ))}
+                                                </div>
 
-                                     {applications.length > 0 && applications.some(a => a.status === 'Applied' || a.status === 'Under Review') && (
-                                         <div className="bg-amber-50/70 border border-amber-200/50 rounded-xl p-4">
-                                             <p className="text-xs font-bold text-amber-700">You have {applications.filter(a => a.status === 'Applied' || a.status === 'Under Review').length} pending application(s)</p>
-                                             <p className="text-[11px] text-amber-600 mt-1 font-semibold">Waiting for institute review. You'll be notified once accepted.</p>
-                                         </div>
-                                     )}
-                                 </div>
-                             </div>
-                         </motion.div>
+                                                <div className="bg-indigo-50/70 border border-indigo-100/50 rounded-xl p-4 flex items-start gap-3">
+                                                    <AlertCircle size={16} className="text-indigo-500 flex-shrink-0 mt-0.5" />
+                                                    <div>
+                                                        <p className="text-xs font-bold text-indigo-700">This is a {roleName} Workspace Preview</p>
+                                                        <p className="text-[11px] text-indigo-600 mt-0.5 font-semibold">
+                                                            Once your application is approved by the institute, you will have full access to your {roleName.toLowerCase()} dashboard, courses, and tools.
+                                                        </p>
+                                                    </div>
+                                                </div>
+
+                                                {applications.length > 0 && applications.some(a => a.status === 'Applied' || a.status === 'Under Review') && (
+                                                    <div className="bg-amber-50/70 border border-amber-200/50 rounded-xl p-4">
+                                                        <p className="text-xs font-bold text-amber-700">You have {applications.filter(a => a.status === 'Applied' || a.status === 'Under Review').length} pending application(s)</p>
+                                                        <p className="text-[11px] text-amber-600 mt-1 font-semibold">Waiting for institute review. You'll be notified once accepted.</p>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </>
+                                );
+                            })()}
+                        </motion.div>
                     )}
 
                     {/* ── LOCKED SECTIONS ── */}

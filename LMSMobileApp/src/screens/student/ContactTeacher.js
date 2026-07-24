@@ -14,7 +14,8 @@ import {
     ScrollView,
     Alert,
     Image,
-    Linking
+    Linking,
+    Keyboard
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import axios from 'axios';
@@ -60,6 +61,28 @@ const ContactTeacher = ({ navigation }) => {
 
     const chatScrollViewRef = useRef(null);
     const typingTimeoutRef = useRef(null);
+
+    const [keyboardOffset, setKeyboardOffset] = useState(0);
+
+    useEffect(() => {
+        const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+        const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+        const showSub = Keyboard.addListener(showEvent, (e) => {
+            setKeyboardOffset(e.endCoordinates ? e.endCoordinates.height : 250);
+            setTimeout(() => {
+                chatScrollViewRef.current?.scrollToEnd({ animated: true });
+            }, 100);
+        });
+        const hideSub = Keyboard.addListener(hideEvent, () => {
+            setKeyboardOffset(0);
+        });
+
+        return () => {
+            showSub.remove();
+            hideSub.remove();
+        };
+    }, []);
 
     const handleCloseChat = () => {
         if (socket && socket.connected && activeContact) {
@@ -766,7 +789,7 @@ const ContactTeacher = ({ navigation }) => {
                         )}
 
                         {/* Input Bar */}
-                        <View style={styles.chatInputBar}>
+                        <View style={[styles.chatInputBar, { marginBottom: Platform.OS === 'ios' ? 0 : keyboardOffset }]}>
                             <TouchableOpacity 
                                 activeOpacity={0.7} 
                                 style={styles.inputLeftIcon}

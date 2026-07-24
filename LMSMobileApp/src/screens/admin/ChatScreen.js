@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import {
     View, Text, StyleSheet, FlatList, TouchableOpacity,
     RefreshControl, Modal, TextInput, KeyboardAvoidingView,
-    Platform, ActivityIndicator, ScrollView, Alert, Image, StatusBar
+    Platform, ActivityIndicator, ScrollView, Alert, Image, StatusBar, Keyboard
 } from 'react-native';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
@@ -45,6 +45,28 @@ const ChatScreen = ({ navigation }) => {
     const [cameraFlash, setCameraFlash] = useState('off');
     const chatScrollViewRef = useRef(null);
     const cameraRef = useRef(null);
+
+    const [keyboardOffset, setKeyboardOffset] = useState(0);
+
+    useEffect(() => {
+        const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+        const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+        const showSub = Keyboard.addListener(showEvent, (e) => {
+            setKeyboardOffset(e.endCoordinates ? e.endCoordinates.height : 250);
+            setTimeout(() => {
+                chatScrollViewRef.current?.scrollToEnd({ animated: true });
+            }, 100);
+        });
+        const hideSub = Keyboard.addListener(hideEvent, () => {
+            setKeyboardOffset(0);
+        });
+
+        return () => {
+            showSub.remove();
+            hideSub.remove();
+        };
+    }, []);
 
     const handleCloseChat = () => {
         if (socket && socket.connected && activeContact) {
@@ -789,7 +811,7 @@ const ChatScreen = ({ navigation }) => {
                                 </View>
                             )}
 
-                            <View style={styles.whatsappInputArea}>
+                            <View style={[styles.whatsappInputArea, { marginBottom: Platform.OS === 'ios' ? 0 : keyboardOffset }]}>
                                 <View style={styles.whatsappInputContainer}>
                                     <TouchableOpacity style={styles.inputIconButton} onPress={() => setShowEmojiPicker(prev => !prev)}>
                                         <Ionicons name="happy-outline" size={22} color={showEmojiPicker ? '#00a884' : '#777'} />

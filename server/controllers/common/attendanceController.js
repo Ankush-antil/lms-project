@@ -962,12 +962,12 @@ exports.getStaffAttendanceHistory = async (req, res) => {
     try {
         const { staffId } = req.params;
         
-        const staff = await User.findById(staffId).select('name email avatar role staffProfile');
-        if (!staff || !['Staff', 'Teacher', 'Editor', 'Accountant', 'Marketer'].includes(staff.role)) {
+        const staff = await User.findById(staffId).select('name email avatar role staffProfile teacherProfile studentProfile');
+        if (!staff) {
             return res.status(404).json({ message: 'Staff member not found' });
         }
         
-        const physicalRecords = staff.staffProfile?.physicalAttendance || [];
+        const physicalRecords = staff.staffProfile?.physicalAttendance || staff.teacherProfile?.physicalAttendance || staff.studentProfile?.physicalAttendance || [];
         
         const history = physicalRecords.map(rec => ({
             _id: rec.date,

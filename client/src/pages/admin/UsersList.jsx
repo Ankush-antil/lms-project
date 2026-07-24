@@ -1431,7 +1431,7 @@ const UsersList = () => {
                                 </th>
                                 <th className="p-4 font-semibold whitespace-nowrap">ID</th>
                                 <th className="p-4 font-semibold whitespace-nowrap">
-                                    {viewTab === 'registered' ? 'Institute' : (viewTab === 'guest' || viewTab === 'applications') ? 'Course & Institute' : viewTab === 'role-requests' ? 'Institute' : 'Test Title'}
+                                    {viewTab === 'registered' ? 'Institute' : (viewTab === 'guest' || viewTab === 'applications') ? 'Course & Institute' : viewTab === 'role-requests' ? 'Institute' : 'Submitted Test'}
                                 </th>
                                 <th className="p-4 font-semibold whitespace-nowrap">Mobile</th>
                                 <th className="p-4 font-semibold whitespace-nowrap">Status</th>

@@ -3200,13 +3200,8 @@ const InteractiveMapPicker = ({ coords, setCoords }) => {
         if (!mapRef.current) return;
 
         if (!mapInstanceRef.current) {
-            const map = L.map(mapRef.current, {
-                minZoom: 12,
-                maxZoom: 19,
-            }).setView([coords.lat, coords.lng], 15);
-
+            const map = L.map(mapRef.current).setView([coords.lat, coords.lng], 15);
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                minZoom: 12,
                 maxZoom: 19,
                 attribution: '&copy; OpenStreetMap'
             }).addTo(map);
@@ -3237,7 +3232,8 @@ const InteractiveMapPicker = ({ coords, setCoords }) => {
 
     useEffect(() => {
         if (mapInstanceRef.current && markerRef.current) {
-            mapInstanceRef.current.setView([coords.lat, coords.lng], 15);
+            const currentZoom = mapInstanceRef.current.getZoom() || 15;
+            mapInstanceRef.current.setView([coords.lat, coords.lng], currentZoom, { animate: true });
             markerRef.current.setLatLng([coords.lat, coords.lng]);
         }
     }, [coords.lat, coords.lng]);

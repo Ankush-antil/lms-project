@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../components/layout/DashboardLayout';
-import { Download,  Upload,  Search, Filter, Plus, Trash2, Edit, ChevronDown, Calendar, CheckCircle, XCircle, FileText, Sun, Save, UserCheck, ChevronLeft, ChevronRight, Laptop } from 'lucide-react';
+import { Download,  Upload,  Search, Filter, Plus, Trash2, Edit, ChevronDown, Calendar, CheckCircle, XCircle, FileText, Sun, Save, UserCheck, ChevronLeft, ChevronRight, Laptop, Eye } from 'lucide-react';
 import AddUserModal from '../../components/AddUserModal';
 import EditUserModal from '../../components/EditUserModal';
 import BulkEditModal from '../../components/common/BulkEditModal';

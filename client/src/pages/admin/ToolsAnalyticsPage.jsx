@@ -24,14 +24,12 @@ const ToggleSwitch = ({ checked, onChange, disabled }) => (
         type="button"
         onClick={onChange}
         disabled={disabled}
-        className={`relative inline-flex h-5 w-10 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-            checked ? 'bg-emerald-500' : 'bg-slate-300'
-        } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+        className={`relative inline-flex h-5 w-10 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${checked ? 'bg-emerald-500' : 'bg-slate-300'
+            } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
     >
         <span
-            className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
-                checked ? 'translate-x-5' : 'translate-x-0'
-            }`}
+            className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${checked ? 'translate-x-5' : 'translate-x-0'
+                }`}
         />
     </button>
 );
@@ -310,13 +308,13 @@ const ToolsAnalyticsPage = () => {
     }, [detailedData]);
 
     const tabs = [
-        { id: 'drive', label: 'Drive Analytics', icon: HardDrive },
-        { id: 'chat', label: 'Chat Analytics', icon: MessageSquare },
-        { id: 'notes', label: 'Notes Analytics', icon: StickyNote },
-        { id: 'screenshot', label: 'Screenshot Analytics', icon: Camera },
-        { id: 'screenRecorder', label: 'Screen Recorder Analytics', icon: Video },
-        { id: 'voiceRecorder', label: 'Audio Analytics', icon: Mic },
-        { id: 'videoRecorder', label: 'Video Analytics', icon: MonitorPlay }
+        { id: 'drive', label: 'Drive', icon: HardDrive },
+        { id: 'chat', label: 'Chat', icon: MessageSquare },
+        { id: 'notes', label: 'Notes', icon: StickyNote },
+        { id: 'screenshot', label: 'Screenshot', icon: Camera },
+        { id: 'screenRecorder', label: 'Screen Recorder', icon: Video },
+        { id: 'voiceRecorder', label: 'Audio Recorder', icon: Mic },
+        { id: 'videoRecorder', label: 'Video Recorder', icon: MonitorPlay }
     ];
 
     return (
@@ -356,17 +354,15 @@ const ToolsAnalyticsPage = () => {
                                 <button
                                     key={t.id}
                                     onClick={() => setActiveTab(t.id)}
-                                    className={`px-3.5 py-2 rounded-xl text-xs font-extrabold flex items-center gap-2 transition-all cursor-pointer select-none ${
-                                        isActive
+                                    className={`px-3.5 py-2 rounded-xl text-xs font-extrabold flex items-center gap-2 transition-all cursor-pointer select-none ${isActive
                                             ? 'bg-[#0b1329] text-white shadow-md shadow-indigo-950/20'
                                             : 'bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200/60'
-                                    }`}
+                                        }`}
                                 >
                                     <Icon size={14} className={isActive ? 'text-indigo-400' : 'text-slate-400'} />
                                     <span>{t.label}</span>
-                                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
-                                        isActive ? 'bg-indigo-600/60 text-white' : 'bg-slate-200 text-slate-700'
-                                    }`}>
+                                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${isActive ? 'bg-indigo-600/60 text-white' : 'bg-slate-200 text-slate-700'
+                                        }`}>
                                         {count}
                                     </span>
                                 </button>
@@ -382,82 +378,6 @@ const ToolsAnalyticsPage = () => {
                     </div>
                 ) : (
                     <>
-                        {/* Tool-wise Usage Grid */}
-                        {activeToolKeys.length > 0 && (
-                            <div className="mb-8 animate-fade-in">
-                                <h3 className="text-lg font-black text-slate-800 mb-4 flex items-center gap-2 text-left">
-                                    <span>🛠️</span> Tool Wise Usage Summary
-                                </h3>
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                    {activeToolKeys.map(toolKey => {
-                                        const meta = toolMeta[toolKey];
-                                        const ToolIcon = meta.icon;
-
-                                        let count = 0;
-                                        let sizeBytes = 0;
-
-                                        if (toolKey === 'form-builder') {
-                                            count = formBuilderCount;
-                                        } else if (toolKey === 'database-creator') {
-                                            count = 0;
-                                        } else {
-                                            const stat = practiceToolStats.find(s => s._id === toolKey) || { count: 0, totalSizeBytes: 0 };
-                                            count = stat.count;
-                                            sizeBytes = stat.totalSizeBytes;
-                                        }
-
-                                        const percentage = totalPracticeActions > 0 && toolKey !== 'form-builder' && toolKey !== 'database-creator'
-                                            ? Math.round((count / totalPracticeActions) * 100)
-                                            : 0;
-
-                                        return (
-                                            <div key={toolKey} className="bg-white p-5 rounded-2xl border border-slate-200/60 shadow-sm hover:shadow-md transition-all flex flex-col justify-between">
-                                                <div>
-                                                    <div className="flex items-center justify-between mb-3">
-                                                        <div className="flex items-center gap-3">
-                                                            <div className={`p-2.5 rounded-xl border ${meta.color}`}>
-                                                                <ToolIcon size={20} />
-                                                            </div>
-                                                            <div className="text-left">
-                                                                <h4 className="font-extrabold text-slate-800 text-sm">{meta.label}</h4>
-                                                                <p className="text-[10px] font-bold text-slate-400 uppercase">{count} {toolKey === 'form-builder' ? 'Forms' : 'Actions'}</p>
-                                                            </div>
-                                                        </div>
-                                                        {meta.isComingSoon ? (
-                                                            <span className="text-[9px] font-black uppercase text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded">
-                                                                Soon
-                                                            </span>
-                                                        ) : (
-                                                            percentage > 0 && (
-                                                                <span className="text-xs font-black text-indigo-650 bg-indigo-50 px-2.5 py-1 rounded-lg">
-                                                                    {percentage}%
-                                                                </span>
-                                                            )
-                                                        )}
-                                                    </div>
-                                                </div>
-
-                                                <div className="space-y-1.5 mt-4 pt-3 border-t border-slate-50">
-                                                    <div className="flex justify-between text-xs font-bold text-slate-500">
-                                                        <span>Storage Consumed</span>
-                                                        <span>{meta.isComingSoon ? 'N/A' : formatBytes(sizeBytes)}</span>
-                                                    </div>
-                                                    {!meta.isComingSoon && (
-                                                        <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-                                                            <div
-                                                                className="bg-indigo-650 h-2 rounded-full transition-all duration-500"
-                                                                style={{ width: `${Math.min(100, percentage)}%` }}
-                                                            />
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                        )}
-
                         {/* Detailed Table Section */}
                         <div className="bg-white rounded-3xl border border-slate-200/60 shadow-sm overflow-hidden mb-8">
 
@@ -646,8 +566,8 @@ const ToolsAnalyticsPage = () => {
                                                             <td className="py-3.5 px-4 text-center text-slate-600">{row.chat.totalDevices}</td>
                                                             <td className="py-3.5 px-4 text-center">
                                                                 <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase ${row.isActive
-                                                                        ? 'bg-emerald-50 text-emerald-600 border border-emerald-200'
-                                                                        : 'bg-slate-100 text-slate-450'
+                                                                    ? 'bg-emerald-50 text-emerald-600 border border-emerald-200'
+                                                                    : 'bg-slate-100 text-slate-450'
                                                                     }`}>
                                                                     {row.chat.status}
                                                                 </span>
@@ -849,8 +769,8 @@ const ToolsAnalyticsPage = () => {
                                                 disabled={currentPage === 1}
                                                 onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                                                 className={`px-4 py-2 rounded-full border text-xs font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer ${currentPage === 1
-                                                        ? 'bg-slate-50 border-slate-200 text-slate-400'
-                                                        : 'bg-white hover:bg-slate-50 border-slate-250 text-slate-700'
+                                                    ? 'bg-slate-50 border-slate-200 text-slate-400'
+                                                    : 'bg-white hover:bg-slate-50 border-slate-250 text-slate-700'
                                                     }`}
                                             >
                                                 Previous
@@ -873,8 +793,8 @@ const ToolsAnalyticsPage = () => {
                                                             key={idx}
                                                             onClick={() => setCurrentPage(pageNum)}
                                                             className={`w-8 h-8 rounded-full font-bold text-xs flex items-center justify-center transition-all cursor-pointer ${isPageActive
-                                                                    ? 'bg-[#0b1329] text-white shadow-md shadow-black/10'
-                                                                    : 'hover:bg-slate-100 text-slate-700'
+                                                                ? 'bg-[#0b1329] text-white shadow-md shadow-black/10'
+                                                                : 'hover:bg-slate-100 text-slate-700'
                                                                 }`}
                                                         >
                                                             {pageNum}
@@ -888,8 +808,8 @@ const ToolsAnalyticsPage = () => {
                                                 disabled={currentPage === totalPages || totalPages === 0}
                                                 onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                                                 className={`px-4 py-2 rounded-full border text-xs font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer ${(currentPage === totalPages || totalPages === 0)
-                                                        ? 'bg-slate-50 border-slate-200 text-slate-400'
-                                                        : 'bg-white hover:bg-slate-50 border-slate-250 text-slate-700'
+                                                    ? 'bg-slate-50 border-slate-200 text-slate-400'
+                                                    : 'bg-white hover:bg-slate-50 border-slate-250 text-slate-700'
                                                     }`}
                                             >
                                                 Next

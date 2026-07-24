@@ -1254,7 +1254,7 @@ const UsersList = () => {
                             onClick={() => setIsAddGuestModalOpen(true)}
                             className="px-4 py-2.5 bg-[#0b1329] hover:bg-slate-800 text-white border border-[#0b1329] rounded-2xl transition-all flex items-center gap-1.5 text-sm font-bold shadow-md shadow-[#0b1329]/20 cursor-pointer active:scale-95 flex items-center gap-2"
                         >
-                            <Plus size={15} /> Add New Limited User
+                            <Plus size={15} /> Add New Guest User
                         </button>
                     )}
                 </div>

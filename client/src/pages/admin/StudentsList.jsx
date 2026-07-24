@@ -1,11 +1,11 @@
+import React, { useRef, useState, useEffect } from 'react';
 import * as XLSX from 'xlsx';
 import { useAuth } from '../../context/AuthContext';
-import { useRef,  useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../components/layout/DashboardLayout';
-import { Download,  Upload,  Search, Filter, Plus, Trash2, Edit, ChevronDown, Calendar, CheckCircle, XCircle, FileText, Sun, Save, UserCheck, ChevronLeft, ChevronRight, Laptop, Eye } from 'lucide-react';
+import { Download, Upload, Search, Filter, Plus, Trash2, Edit, ChevronDown, Calendar, CheckCircle, XCircle, FileText, Sun, Save, UserCheck, ChevronLeft, ChevronRight, Laptop, Eye } from 'lucide-react';
 import AddUserModal from '../../components/AddUserModal';
 import EditUserModal from '../../components/EditUserModal';
 import BulkEditModal from '../../components/common/BulkEditModal';
@@ -21,7 +21,7 @@ const calculateSpendingTime = (checkIn, checkOut) => {
         const clean = timeStr.trim().toUpperCase();
         let hours = 0;
         let minutes = 0;
-        
+
         const ampmMatch = clean.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/);
         if (ampmMatch) {
             hours = parseInt(ampmMatch[1], 10);
@@ -31,7 +31,7 @@ const calculateSpendingTime = (checkIn, checkOut) => {
             if (ampm === 'AM' && hours === 12) hours = 0;
             return hours * 60 + minutes;
         }
-        
+
         const HHMMMatch = clean.match(/^(\d{1,2}):(\d{2})$/);
         if (HHMMMatch) {
             hours = parseInt(HHMMMatch[1], 10);
@@ -40,18 +40,18 @@ const calculateSpendingTime = (checkIn, checkOut) => {
         }
         return null;
     };
-    
+
     const startMins = parseTimeToMinutes(checkIn);
     const endMins = parseTimeToMinutes(checkOut);
-    
+
     if (startMins === null || endMins === null) return '—';
-    
+
     let diff = endMins - startMins;
     if (diff < 0) diff += 24 * 60;
-    
+
     const hrs = Math.floor(diff / 60);
     const mins = diff % 60;
-    
+
     if (hrs > 0) {
         return `${hrs} hr${hrs > 1 ? 's' : ''} ${mins > 0 ? `${mins} min${mins > 1 ? 's' : ''}` : ''}`;
     }
@@ -84,7 +84,7 @@ const StudentsList = () => {
     const [institutes, setInstitutes] = useState([]);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('directory'); // directory, attendance, fee
-    
+
     // Bulk action states
     const [selectedIds, setSelectedIds] = useState(new Set());
     const [bulkAction, setBulkAction] = useState('');
@@ -191,7 +191,7 @@ const StudentsList = () => {
                 date: attendanceDate,
                 attendanceRecords: recordsToSave
             });
-            
+
             toast.success(`Student attendance saved for ${attendanceDate}!`);
             await fetchData();
         } catch (err) {
@@ -547,7 +547,7 @@ const StudentsList = () => {
 
         const getUserPageAccess = (u) => {
             const accessList = [];
-            
+
             if (u.allowedRoles?.includes('Student') && u.studentProfile?.controls) {
                 const enabledPages = Object.entries(u.studentProfile.controls)
                     .filter(([_, value]) => value && value.enabled !== false)
@@ -556,7 +556,7 @@ const StudentsList = () => {
                     accessList.push(`Student: (${enabledPages.join(', ')})`);
                 }
             }
-            
+
             if (u.allowedRoles?.includes('Teacher') && u.teacherProfile?.controls) {
                 const enabledPages = Object.entries(u.teacherProfile.controls)
                     .filter(([_, value]) => value && value.enabled !== false)
@@ -565,7 +565,7 @@ const StudentsList = () => {
                     accessList.push(`Teacher: (${enabledPages.join(', ')})`);
                 }
             }
-            
+
             if (u.allowedRoles?.includes('Editor') && u.editorProfile?.controls) {
                 const enabledPages = Object.entries(u.editorProfile.controls)
                     .filter(([_, value]) => value && value.enabled !== false)
@@ -574,7 +574,7 @@ const StudentsList = () => {
                     accessList.push(`Editor: (${enabledPages.join(', ')})`);
                 }
             }
-            
+
             if (u.allowedRoles?.includes('Accountant') && u.accountantProfile?.controls) {
                 const enabledPages = Object.entries(u.accountantProfile.controls)
                     .filter(([_, value]) => value && value.enabled !== false)
@@ -601,20 +601,20 @@ const StudentsList = () => {
                     accessList.push(`Parent: (${enabledPages.join(', ')})`);
                 }
             }
-            
+
             return accessList.join(' | ');
         };
 
         const rows = list.map(u => {
-            const courseNames = u.studentProfile?.course?.name || 
-                                (u.studentProfile?.coursesList && u.studentProfile.coursesList.length > 0 
-                                    ? u.studentProfile.coursesList.map(c => c.course?.name).filter(Boolean).join(', ') 
-                                    : '');
+            const courseNames = u.studentProfile?.course?.name ||
+                (u.studentProfile?.coursesList && u.studentProfile.coursesList.length > 0
+                    ? u.studentProfile.coursesList.map(c => c.course?.name).filter(Boolean).join(', ')
+                    : '');
 
-            const subjectNames = u.studentProfile?.subject || 
-                                 (u.studentProfile?.coursesList && u.studentProfile.coursesList.length > 0 
-                                     ? u.studentProfile.coursesList.flatMap(c => c.subjects || []).filter(Boolean).join(', ') 
-                                     : '');
+            const subjectNames = u.studentProfile?.subject ||
+                (u.studentProfile?.coursesList && u.studentProfile.coursesList.length > 0
+                    ? u.studentProfile.coursesList.flatMap(c => c.subjects || []).filter(Boolean).join(', ')
+                    : '');
 
             return {
                 'Admission No.': u.admissionNo || '',
@@ -814,7 +814,7 @@ const StudentsList = () => {
                                 onClick={() => setIsModalOpen(true)}
                                 className="btn-primary flex items-center gap-2 whitespace-nowrap text-xs sm:text-sm"
                             >
-                                <Plus size={18} /> <span className="hidden xs:inline">Add Student</span><span className="xs:hidden">Add</span>
+                                <Plus size={18} /> <span className="hidden xs:inline">Add Student</span><span className="xs:hidden">Add Student</span>
                             </button>
                         )}
                     </div>
@@ -826,41 +826,37 @@ const StudentsList = () => {
                 <div className="flex border-b border-slate-200 gap-1 min-w-max">
                     <button
                         onClick={() => setActiveTab('directory')}
-                        className={`pb-3 px-3 sm:px-4 font-bold text-xs sm:text-sm transition-all border-b-2 flex items-center gap-1.5 sm:gap-2 cursor-pointer whitespace-nowrap ${
-                            activeTab === 'directory' 
-                                ? 'border-indigo-650 text-indigo-650' 
+                        className={`pb-3 px-3 sm:px-4 font-bold text-xs sm:text-sm transition-all border-b-2 flex items-center gap-1.5 sm:gap-2 cursor-pointer whitespace-nowrap ${activeTab === 'directory'
+                                ? 'border-indigo-650 text-indigo-650'
                                 : 'border-transparent text-slate-400 hover:text-slate-600'
-                        }`}
+                            }`}
                     >
                         <UserCheck size={15} /> Student Directory
                     </button>
                     <button
                         onClick={() => setActiveTab('attendance')}
-                        className={`pb-3 px-3 sm:px-4 font-bold text-xs sm:text-sm transition-all border-b-2 flex items-center gap-1.5 sm:gap-2 cursor-pointer whitespace-nowrap ${
-                            activeTab === 'attendance' 
-                                ? 'border-indigo-650 text-indigo-650' 
+                        className={`pb-3 px-3 sm:px-4 font-bold text-xs sm:text-sm transition-all border-b-2 flex items-center gap-1.5 sm:gap-2 cursor-pointer whitespace-nowrap ${activeTab === 'attendance'
+                                ? 'border-indigo-650 text-indigo-650'
                                 : 'border-slate-400 hover:text-slate-600 border-transparent'
-                        }`}
+                            }`}
                     >
                         <Calendar size={15} /> Physical Attendance
                     </button>
                     <button
                         onClick={() => setActiveTab('lms-attendance')}
-                        className={`pb-3 px-3 sm:px-4 font-bold text-xs sm:text-sm transition-all border-b-2 flex items-center gap-1.5 sm:gap-2 cursor-pointer whitespace-nowrap ${
-                            activeTab === 'lms-attendance' 
-                                ? 'border-indigo-650 text-indigo-650' 
+                        className={`pb-3 px-3 sm:px-4 font-bold text-xs sm:text-sm transition-all border-b-2 flex items-center gap-1.5 sm:gap-2 cursor-pointer whitespace-nowrap ${activeTab === 'lms-attendance'
+                                ? 'border-indigo-650 text-indigo-650'
                                 : 'border-slate-400 hover:text-slate-600 border-transparent'
-                        }`}
+                            }`}
                     >
                         <Laptop size={15} /> LMS Attendance
                     </button>
                     <button
                         onClick={() => setActiveTab('fee')}
-                        className={`pb-3 px-3 sm:px-4 font-bold text-xs sm:text-sm transition-all border-b-2 flex items-center gap-1.5 sm:gap-2 cursor-pointer whitespace-nowrap ${
-                            activeTab === 'fee' 
-                                ? 'border-indigo-650 text-indigo-650' 
+                        className={`pb-3 px-3 sm:px-4 font-bold text-xs sm:text-sm transition-all border-b-2 flex items-center gap-1.5 sm:gap-2 cursor-pointer whitespace-nowrap ${activeTab === 'fee'
+                                ? 'border-indigo-650 text-indigo-650'
                                 : 'border-slate-400 hover:text-slate-600 border-transparent'
-                        }`}
+                            }`}
                     >
                         <Plus size={15} /> Fee Management
                     </button>
@@ -1079,11 +1075,10 @@ const StudentsList = () => {
                                                     </div>
                                                 </td>
                                                 <td className="p-4 whitespace-nowrap">
-                                                    <span className={`inline-flex items-center px-2.5 py-1 rounded-xl text-xs font-bold font-mono ${
-                                                        student.admissionNo
+                                                    <span className={`inline-flex items-center px-2.5 py-1 rounded-xl text-xs font-bold font-mono ${student.admissionNo
                                                             ? 'bg-indigo-50 text-indigo-700 border border-indigo-100'
                                                             : 'bg-slate-100 text-slate-400'
-                                                    }`}>
+                                                        }`}>
                                                         {student.admissionNo || (student._id ? `#${student._id.slice(-6)}` : 'N/A')}
                                                     </span>
                                                 </td>
@@ -1093,13 +1088,13 @@ const StudentsList = () => {
                                                         const assignedCourses = student.studentProfile?.coursesList && student.studentProfile.coursesList.length > 0
                                                             ? student.studentProfile.coursesList.map(c => c.course?.name || c.course).filter(Boolean)
                                                             : [student.studentProfile?.course?.name || student.studentProfile?.course].filter(Boolean);
-                                                        
+
                                                         if (assignedCourses.length === 0) return 'N/A';
-                                                        
+
                                                         const firstCourse = assignedCourses[0];
                                                         const hasMoreCourses = assignedCourses.length > 1;
                                                         const isCoursePopoverOpen = activeCoursePopoverStudentId === student._id;
-                                                        
+
                                                         return (
                                                             <div className="flex items-center gap-1">
                                                                 <button
@@ -1115,8 +1110,8 @@ const StudentsList = () => {
                                                                 </button>
                                                                 {isCoursePopoverOpen && (
                                                                     <>
-                                                                        <div 
-                                                                            className="fixed inset-0 z-30" 
+                                                                        <div
+                                                                            className="fixed inset-0 z-30"
                                                                             onClick={() => setActiveCoursePopoverStudentId(null)}
                                                                         />
                                                                         <div className="absolute left-4 top-full mt-1 bg-white border border-slate-150 rounded-2xl shadow-xl p-3.5 z-40 min-w-[160px] max-w-[240px]">
@@ -1145,11 +1140,11 @@ const StudentsList = () => {
                                                         if (subjectStr === 'N/A') return 'N/A';
                                                         const subjects = subjectStr.split(',').map(s => s.trim()).filter(Boolean);
                                                         if (subjects.length === 0) return 'N/A';
-                                                        
+
                                                         const firstSubject = subjects[0];
                                                         const hasMore = subjects.length > 1;
                                                         const isPopoverOpen = activeSubjectPopoverStudentId === student._id;
-                                                        
+
                                                         return (
                                                             <div className="flex items-center gap-1">
                                                                 <button
@@ -1165,8 +1160,8 @@ const StudentsList = () => {
                                                                 </button>
                                                                 {isPopoverOpen && (
                                                                     <>
-                                                                        <div 
-                                                                            className="fixed inset-0 z-30" 
+                                                                        <div
+                                                                            className="fixed inset-0 z-30"
                                                                             onClick={() => setActiveSubjectPopoverStudentId(null)}
                                                                         />
                                                                         <div className="absolute left-4 top-full mt-1 bg-white border border-slate-150 rounded-2xl shadow-xl p-3.5 z-40 min-w-[160px]">
@@ -1193,16 +1188,14 @@ const StudentsList = () => {
                                                     <button
                                                         type="button"
                                                         onClick={() => handleToggleStatus(student._id, student.isActive)}
-                                                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${
-                                                            student.isActive !== false ? 'bg-emerald-500' : 'bg-slate-200'
-                                                        }`}
+                                                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${student.isActive !== false ? 'bg-emerald-500' : 'bg-slate-200'
+                                                            }`}
                                                         title={student.isActive !== false ? 'Click to Deactivate Account' : 'Click to Activate Account'}
                                                     >
                                                         <span className="sr-only">Toggle status</span>
                                                         <span
-                                                            className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                                                                student.isActive !== false ? 'translate-x-5' : 'translate-x-0'
-                                                            }`}
+                                                            className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${student.isActive !== false ? 'translate-x-5' : 'translate-x-0'
+                                                                }`}
                                                         />
                                                     </button>
                                                 </td>
@@ -1662,13 +1655,12 @@ const StudentsList = () => {
                                                     key={idx}
                                                     disabled={p === '...'}
                                                     onClick={() => p !== '...' && setCurrentPage(p)}
-                                                    className={`w-8 h-8 text-xs font-bold rounded-xl transition-all ${
-                                                        p === '...'
+                                                    className={`w-8 h-8 text-xs font-bold rounded-xl transition-all ${p === '...'
                                                             ? 'text-slate-400 cursor-default bg-transparent'
                                                             : currentPage === p
                                                                 ? 'bg-[#0b1329] text-white shadow-md'
                                                                 : 'text-slate-600 hover:bg-slate-100 bg-transparent'
-                                                    }`}
+                                                        }`}
                                                 >
                                                     {p}
                                                 </button>
@@ -1889,11 +1881,10 @@ const StudentsList = () => {
                                                         </div>
                                                     </td>
                                                     <td className="p-4 text-center">
-                                                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-extrabold ${
-                                                            lmsStatus === 'Present'
+                                                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-extrabold ${lmsStatus === 'Present'
                                                                 ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
                                                                 : 'bg-rose-100 text-rose-700 border border-rose-200'
-                                                        }`}>
+                                                            }`}>
                                                             {lmsStatus}
                                                         </span>
                                                     </td>

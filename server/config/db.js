@@ -1,15 +1,16 @@
 const mongoose = require('mongoose');
 const dns = require('dns');
 
-// Safely configure DNS to prioritize IPv4 on DigitalOcean
-try {
-    dns.setServers(['8.8.8.8', '1.1.1.1']);
-} catch (e) {}
 if (dns.setDefaultResultOrder) {
     try {
         dns.setDefaultResultOrder('ipv4first');
     } catch (e) {}
 }
+
+mongoose.connection.on('disconnected', () => {
+    console.warn('[DB] Mongoose connection lost. Retrying connection...');
+    connectDB(3);
+});
 
 const mongoOptions = {
     serverSelectionTimeoutMS: 15000,

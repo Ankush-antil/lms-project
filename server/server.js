@@ -88,10 +88,13 @@ app.use((req, res, next) => {
     next();
 });
 
-// Prevent Cloudflare/CDN from caching API responses
+// Prevent Cloudflare/CDN from caching API responses & ensure DB connection
 app.use('/api', (req, res, next) => {
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
     res.setHeader('Pragma', 'no-cache');
+    if (mongoose.connection.readyState !== 1) {
+        connectDB(1).catch(() => {});
+    }
     next();
 });
 

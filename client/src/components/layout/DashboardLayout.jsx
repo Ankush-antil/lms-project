@@ -193,6 +193,7 @@ const menuItems = {
         { name: 'Screen Recorder', icon: Video, path: '/admin/tools/screen-recorder' },
 
         { name: '_section_service_analytics', icon: BarChart3, path: null },
+        { name: 'User Analytics', icon: BarChart3, path: '/admin/user-analytics' },
         { name: 'Drive Analytics', icon: HardDrive, path: '/admin/tools-analytics/drive' },
         { name: 'Chat Analytics', icon: MessageSquare, path: '/admin/tools-analytics/chat' },
         { name: 'Notes Analytics', icon: StickyNote, path: '/admin/tools-analytics/notes' },
@@ -200,7 +201,6 @@ const menuItems = {
         { name: 'SR. Analytics', icon: Video, path: '/admin/tools-analytics/screen-recorder' },
         { name: 'AR. Analytics', icon: Mic, path: '/admin/tools-analytics/voice-recorder' },
         { name: 'VR. Analytics', icon: MonitorPlay, path: '/admin/tools-analytics/video-recorder' },
-        { name: 'User Analytics', icon: BarChart3, path: '/admin/user-analytics' },
     ],
     Institute: [
         { name: 'Dashboard', icon: LayoutDashboard, path: '/institute' },
@@ -235,6 +235,8 @@ const menuItems = {
         { name: 'Drive', icon: HardDrive, path: '/institute/drive' },
         { name: 'Notes', icon: StickyNote, path: '/institute/notes' },
         { name: 'Chat', icon: MessageSquare, path: '/institute/chat' },
+
+        { name: '_section_service_analytics', icon: BarChart3, path: null },
         { name: 'User Analytics', icon: BarChart3, path: '/institute/user-analytics' }
     ],
     Teacher: [

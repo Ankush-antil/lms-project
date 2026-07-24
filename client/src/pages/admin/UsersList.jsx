@@ -1423,7 +1423,7 @@ const UsersList = () => {
                                 </th>
                                 {viewTab !== 'applications' && (
                                     <th className="p-4 font-semibold whitespace-nowrap">
-                                        {viewTab === 'role-requests' ? 'Role Shift' : 'Role'}
+                                        Role
                                     </th>
                                 )}
                                 <th className="p-4 font-semibold whitespace-nowrap">
@@ -1519,15 +1519,9 @@ const UsersList = () => {
                                         {viewTab !== 'applications' && (
                                             <td className="p-4 whitespace-nowrap">
                                                 {viewTab === 'role-requests' ? (
-                                                    <div className="flex items-center gap-1.5">
-                                                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${getRoleBadgeClass(u.isRegistrationRequest ? 'Applicant' : u.user?.role)}`}>
-                                                            {u.isRegistrationRequest ? 'Applicant' : u.user?.role}
-                                                        </span>
-                                                        <span className="text-slate-400 font-bold">➔</span>
-                                                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${getRoleBadgeClass(u.requestedRole)}`}>
-                                                            {u.requestedRole}
-                                                        </span>
-                                                    </div>
+                                                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${getRoleBadgeClass(u.requestedRole)}`}>
+                                                        {u.requestedRole}
+                                                    </span>
                                                 ) : viewTab === 'registered' ? (
                                                     (() => {
                                                         const roles = u.allowedRoles && u.allowedRoles.length > 0 ? u.allowedRoles : [u.role];
@@ -1768,28 +1762,10 @@ const UsersList = () => {
                                                     )}
                                                 </div>
                                             ) : viewTab === 'role-requests' ? (
-                                                <div className="flex items-center justify-end gap-1.5">
-                                                    {u.status === 'Pending' ? (
-                                                        <>
-                                                            <button
-                                                                onClick={() => handleApproveRoleRequest(u)}
-                                                                className="px-3 py-1 bg-emerald-600 text-white rounded-xl text-xs font-bold hover:bg-emerald-700 active:scale-95 transition-all shadow-sm cursor-pointer"
-                                                            >
-                                                                Approve
-                                                            </button>
-                                                            <button
-                                                                onClick={() => handleRejectRoleRequest(u)}
-                                                                className="px-3 py-1 bg-rose-600 text-white rounded-xl text-xs font-bold hover:bg-rose-700 active:scale-95 transition-all shadow-sm cursor-pointer"
-                                                            >
-                                                                Reject
-                                                            </button>
-                                                        </>
-                                                    ) : (
-                                                        <span className={`text-xs font-bold px-3 ${u.status === 'Approved' ? 'text-emerald-600' : 'text-rose-600'}`}>{u.status}</span>
-                                                    )}
+                                                <div className="flex items-center justify-end">
                                                     <button
                                                         onClick={() => handleDeleteRoleRequest(u)}
-                                                        className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                        className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
                                                         title="Move to Recycle Bin"
                                                     >
                                                         <Trash2 size={16} />

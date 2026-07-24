@@ -29,25 +29,29 @@ const CreateUserScreen = ({ navigation, route }) => {
     const [selectedCourse, setSelectedCourse] = useState('');
     const [studentSubject, setStudentSubject] = useState('');
     const [teacherSubjects, setTeacherSubjects] = useState('');
+    const [subjects, setSubjects] = useState([]);
     
     const [institutes, setInstitutes] = useState([]);
     const [courses, setCourses] = useState([]);
     const [loadingDropdowns, setLoadingDropdowns] = useState(true);
     const [submitting, setSubmitting] = useState(false);
 
-    // Dropdown toggle states (since React Native Picker requires external library, we use custom simple dialogs or selects)
+    // Dropdown toggle states
     const [showInstSelect, setShowInstSelect] = useState(false);
     const [showCourseSelect, setShowCourseSelect] = useState(false);
+    const [showSubjectSelect, setShowSubjectSelect] = useState(false);
 
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const [instRes, courseRes] = await Promise.all([
+                const [instRes, courseRes, subjRes] = await Promise.all([
                     axios.get('/setup/institutes'),
                     axios.get('/setup/courses'),
+                    axios.get('/setup/subjects').catch(() => ({ data: [] })),
                 ]);
                 setInstitutes(instRes.data || []);
                 setCourses(courseRes.data || []);
+                setSubjects(subjRes.data || []);
                 
                 if (route.params?.instituteId) {
                     setSelectedInstitute(route.params.instituteId);
@@ -63,6 +67,14 @@ const CreateUserScreen = ({ navigation, route }) => {
         };
         fetchData();
     }, [isInstitute, user]);
+
+    const availableSubjects = React.useMemo(() => {
+        if (!selectedCourse) return subjects;
+        return subjects.filter(s => {
+            const matchCourse = s.course && (s.course._id === selectedCourse || s.course === selectedCourse);
+            return matchCourse;
+        });
+    }, [subjects, selectedCourse]);
 
     const handleCreateUser = async () => {
         if (!name.trim() || !email.trim() || !password.trim() || !selectedInstitute) {
@@ -287,12 +299,45 @@ const CreateUserScreen = ({ navigation, route }) => {
                     {/* Subject (Student-specific) */}
                     {role === 'Student' && (
                         <View style={styles.formGroup}>
-                            <Text style={styles.label}>Primary Subject</Text>
-                            <View style={styles.inputWrapper}>
+                            <Text style={styles.label}>Select Primary Subject</Text>
+                            <TouchableOpacity
+                                style={styles.dropdownTrigger}
+                                onPress={() => setShowSubjectSelect(!showSubjectSelect)}
+                            >
+                                <Text style={studentSubject ? styles.dropdownSelected : styles.dropdownPlaceholder}>
+                                    {studentSubject || 'Choose Subject'}
+                                </Text>
+                                <Ionicons name={showSubjectSelect ? 'chevron-up' : 'chevron-down'} size={18} color={colors.text} />
+                            </TouchableOpacity>
+
+                            {showSubjectSelect && (
+                                <View style={styles.dropdownMenu}>
+                                    {loadingDropdowns ? (
+                                        <ActivityIndicator size="small" color={colors.primary} style={styles.pv} />
+                                    ) : (availableSubjects.length > 0 ? availableSubjects : subjects).length > 0 ? (
+                                        (availableSubjects.length > 0 ? availableSubjects : subjects).map(s => (
+                                            <TouchableOpacity
+                                                key={s._id || s.name}
+                                                style={styles.dropdownItem}
+                                                onPress={() => {
+                                                    setStudentSubject(s.name);
+                                                    setShowSubjectSelect(false);
+                                                }}
+                                            >
+                                                <Text style={styles.itemText}>{s.name} {s.code ? `(${s.code})` : ''}</Text>
+                                            </TouchableOpacity>
+                                        ))
+                                    ) : (
+                                        <Text style={styles.noData}>No subjects found</Text>
+                                    )}
+                                </View>
+                            )}
+
+                            <View style={[styles.inputWrapper, { marginTop: 8 }]}>
                                 <Ionicons name="library-outline" size={18} color={colors.textMuted} />
                                 <TextInput
                                     style={styles.input}
-                                    placeholder="e.g. Mathematics"
+                                    placeholder="Or type subject name manually"
                                     placeholderTextColor={colors.textMuted}
                                     value={studentSubject}
                                     onChangeText={setStudentSubject}
@@ -304,12 +349,55 @@ const CreateUserScreen = ({ navigation, route }) => {
                     {/* Subjects (Teacher-specific) */}
                     {role === 'Teacher' && (
                         <View style={styles.formGroup}>
-                            <Text style={styles.label}>Subjects Expertise (Comma separated)</Text>
-                            <View style={styles.inputWrapper}>
+                            <Text style={styles.label}>Select Teaching Subjects</Text>
+                            <TouchableOpacity
+                                style={styles.dropdownTrigger}
+                                onPress={() => setShowSubjectSelect(!showSubjectSelect)}
+                            >
+                                <Text style={teacherSubjects ? styles.dropdownSelected : styles.dropdownPlaceholder}>
+                                    {teacherSubjects || 'Choose Subjects'}
+                                </Text>
+                                <Ionicons name={showSubjectSelect ? 'chevron-up' : 'chevron-down'} size={18} color={colors.text} />
+                            </TouchableOpacity>
+
+                            {showSubjectSelect && (
+                                <View style={styles.dropdownMenu}>
+                                    {loadingDropdowns ? (
+                                        <ActivityIndicator size="small" color={colors.primary} style={styles.pv} />
+                                    ) : (availableSubjects.length > 0 ? availableSubjects : subjects).length > 0 ? (
+                                        (availableSubjects.length > 0 ? availableSubjects : subjects).map(s => {
+                                            const currentList = teacherSubjects ? teacherSubjects.split(',').map(t => t.trim()).filter(Boolean) : [];
+                                            const isSelected = currentList.includes(s.name);
+                                            return (
+                                                <TouchableOpacity
+                                                    key={s._id || s.name}
+                                                    style={[styles.dropdownItem, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}
+                                                    onPress={() => {
+                                                        let nextList = [];
+                                                        if (isSelected) {
+                                                            nextList = currentList.filter(item => item !== s.name);
+                                                        } else {
+                                                            nextList = [...currentList, s.name];
+                                                        }
+                                                        setTeacherSubjects(nextList.join(', '));
+                                                    }}
+                                                >
+                                                    <Text style={styles.itemText}>{s.name} {s.code ? `(${s.code})` : ''}</Text>
+                                                    {isSelected && <Ionicons name="checkmark-circle" size={18} color={colors.success} />}
+                                                </TouchableOpacity>
+                                            );
+                                        })
+                                    ) : (
+                                        <Text style={styles.noData}>No subjects found</Text>
+                                    )}
+                                </View>
+                            )}
+
+                            <View style={[styles.inputWrapper, { marginTop: 8 }]}>
                                 <Ionicons name="copy-outline" size={18} color={colors.textMuted} />
                                 <TextInput
                                     style={styles.input}
-                                    placeholder="e.g. Physics, Chemistry"
+                                    placeholder="Or enter custom subjects (e.g. Physics, Chemistry)"
                                     placeholderTextColor={colors.textMuted}
                                     value={teacherSubjects}
                                     onChangeText={setTeacherSubjects}

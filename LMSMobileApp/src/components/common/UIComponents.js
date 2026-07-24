@@ -105,8 +105,8 @@ export const Badge = ({ label, color = colors.accent, bg, style }) => (
 const styles = StyleSheet.create({
     header: {
         backgroundColor: colors.primary,
-        paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight + 8 : 50,
-        paddingBottom: 14,
+        paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 24) + 12 : 54,
+        paddingBottom: 16,
         paddingHorizontal: spacing.md,
         elevation: 4,
         shadowColor: '#000',

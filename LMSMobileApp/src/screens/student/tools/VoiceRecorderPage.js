@@ -376,6 +376,12 @@ const VoiceRecorderPage = ({ route, navigation }) => {
                             }
                             setRecording(null);
                         }
+                        try {
+                            await Audio.setAudioModeAsync({
+                                allowsRecordingIOS: false,
+                                playsInSilentModeIOS: true,
+                            });
+                        } catch (e) {}
                     }
                 }
             ]
@@ -397,6 +403,17 @@ const VoiceRecorderPage = ({ route, navigation }) => {
             const uri = recording.getURI();
             setRecording(null);
             setShowRecorder(false);
+
+            try {
+                await Audio.setAudioModeAsync({
+                    allowsRecordingIOS: false,
+                    playsInSilentModeIOS: true,
+                    shouldDuckAndroid: true,
+                    playThroughEarpieceAndroid: false
+                });
+            } catch (e) {
+                console.error("Failed to reset audio mode:", e);
+            }
 
             const finalDurationSec = Math.round(elapsedMillis / 1000) || 1;
 
@@ -420,6 +437,9 @@ const VoiceRecorderPage = ({ route, navigation }) => {
             });
         } catch (err) {
             console.error('Failed to stop recording', err);
+            setShowRecorder(false);
+            setRecording(null);
+            setIsRecording(false);
             Alert.alert("Error", "Could not stop and save recording.");
         }
     };

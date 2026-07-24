@@ -15,7 +15,12 @@ import { Video, ResizeMode } from 'expo-av';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as DocumentPicker from 'expo-document-picker';
-import * as ImagePicker from 'expo-image-picker';
+let ImagePicker;
+try {
+    ImagePicker = require('expo-image-picker');
+} catch (e) {
+    ImagePicker = null;
+}
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, fontSizes, borderRadius } from '../../../theme/colors';
 import { AppHeader } from '../../../components/common/UIComponents';
@@ -103,6 +108,9 @@ const VideoRecorderPage = ({ route, navigation }) => {
         if (isReadOnly) {
             Alert.alert("Read-Only", "Cannot record videos in a past date log.");
             return;
+        }
+        if (!ImagePicker) {
+            return handlePickVideo();
         }
         try {
             const { status: cameraStatus } = await ImagePicker.requestCameraPermissionsAsync();

@@ -2859,7 +2859,17 @@ const LandingPage = () => {
                                                                                         </button>
                                                                                         <button
                                                                                             type="button"
-                                                                                            onClick={() => setShowMapModal(true)}
+                                                                                            onClick={() => {
+                                                                                                setShowMapModal(true);
+                                                                                                if (navigator.geolocation) {
+                                                                                                    navigator.geolocation.getCurrentPosition(
+                                                                                                        (pos) => {
+                                                                                                            setMapCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+                                                                                                        },
+                                                                                                        () => {} // silently fail — modal already open with default/last coords
+                                                                                                    );
+                                                                                                }
+                                                                                            }}
                                                                                             className="flex items-center gap-1 px-2 py-0.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-md text-[10px] font-bold transition-all cursor-pointer"
                                                                                         >
                                                                                             <MapPin size={10} /> Pick on Map
@@ -3042,11 +3052,13 @@ const LandingPage = () => {
                                                 <AnimatePresence>
                                                     <motion.div key="map-modal-overlay" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[9999] flex items-center justify-center p-4" style={{ background: "rgba(11,19,41,0.72)", backdropFilter: "blur(4px)" }} onClick={(e) => { if (e.target === e.currentTarget) setShowMapModal(false); }}>
                                                         <motion.div key="map-modal-card" initial={{ scale: 0.92, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.92, opacity: 0, y: 20 }} transition={{ type: "spring", stiffness: 300, damping: 28 }} className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col" style={{ maxHeight: "90vh" }}>
+                                                            {/* Header */}
                                                             <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100 bg-gradient-to-r from-indigo-50 to-white">
                                                                 <div className="flex items-center gap-2"><MapPin size={16} className="text-indigo-600" /><span className="font-bold text-sm text-slate-800">Pick Location on Map</span></div>
                                                                 <button type="button" onClick={() => setShowMapModal(false)} className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"><X size={16} className="text-slate-500" /></button>
                                                             </div>
-                                                            <div className="px-4 py-3 border-b border-slate-100 bg-white">
+                                                            {/* Search + My Location Bar */}
+                                                            <div className="px-4 py-3 border-b border-slate-100 bg-white flex flex-col gap-2">
                                                                 <form onSubmit={handleSearchAddressOnMap} className="flex gap-2">
                                                                     <input type="text" value={mapSearchQuery} onChange={(e) => setMapSearchQuery(e.target.value)} placeholder="Search city, area, address..." className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:border-indigo-400 focus:outline-none" />
                                                                     <button type="submit" disabled={mapSearching || !mapSearchQuery.trim()} className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 disabled:opacity-50 transition-all cursor-pointer active:scale-95">
@@ -3054,16 +3066,67 @@ const LandingPage = () => {
                                                                         {mapSearching ? "Searching..." : "Search"}
                                                                     </button>
                                                                 </form>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        if (!navigator.geolocation) { toast.error("GPS not supported"); return; }
+                                                                        setMapSearching(true);
+                                                                        navigator.geolocation.getCurrentPosition(
+                                                                            (pos) => { setMapCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude }); setMapSearching(false); },
+                                                                            () => { toast.error("GPS access denied"); setMapSearching(false); }
+                                                                        );
+                                                                    }}
+                                                                    disabled={mapSearching}
+                                                                    className="flex items-center justify-center gap-1.5 w-full px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-xl text-[11px] font-bold transition-all cursor-pointer disabled:opacity-50"
+                                                                >
+                                                                    <Navigation size={11} className={mapSearching ? "animate-spin" : ""} />
+                                                                    {mapSearching ? "Detecting GPS..." : "📍 Use My Current GPS Location"}
+                                                                </button>
                                                             </div>
+                                                            {/* Map Preview */}
                                                             <div className="relative" style={{ minHeight: "300px" }}>
-                                                                <iframe title="Location Map" src={`https://www.openstreetmap.org/export/embed.html?bbox=${(mapCoords.lng-0.01).toFixed(5)},${(mapCoords.lat-0.01).toFixed(5)},${(mapCoords.lng+0.01).toFixed(5)},${(mapCoords.lat+0.01).toFixed(5)}&layer=mapnik&marker=${mapCoords.lat},${mapCoords.lng}`} width="100%" height="300" style={{ border: "none", display: "block" }} loading="lazy" />
-                                                                <div className="absolute bottom-2 left-2 bg-white/90 px-2 py-1 rounded-lg text-[10px] font-semibold text-slate-600 shadow-sm border border-slate-200">{mapCoords.lat.toFixed(5)}, {mapCoords.lng.toFixed(5)}</div>
+                                                                <iframe
+                                                                    key={`${mapCoords.lat.toFixed(4)}-${mapCoords.lng.toFixed(4)}`}
+                                                                    title="Location Map"
+                                                                    src={`https://www.openstreetmap.org/export/embed.html?bbox=${(mapCoords.lng-0.01).toFixed(5)},${(mapCoords.lat-0.01).toFixed(5)},${(mapCoords.lng+0.01).toFixed(5)},${(mapCoords.lat+0.01).toFixed(5)}&layer=mapnik&marker=${mapCoords.lat},${mapCoords.lng}`}
+                                                                    width="100%" height="300" style={{ border: "none", display: "block" }} loading="lazy"
+                                                                />
+                                                                <div className="absolute bottom-2 left-2 bg-white/95 backdrop-blur-sm px-2.5 py-1.5 rounded-xl text-[10px] font-bold text-slate-700 shadow border border-slate-200 flex items-center gap-1">
+                                                                    <MapPin size={10} className="text-indigo-500" />
+                                                                    {mapCoords.lat.toFixed(5)}, {mapCoords.lng.toFixed(5)}
+                                                                </div>
                                                             </div>
+                                                            {/* Footer */}
                                                             <div className="px-4 py-3 border-t border-slate-100 bg-slate-50 flex items-center justify-between gap-3">
-                                                                <p className="text-[10px] text-slate-500 font-medium flex-1">Search for an address, then confirm to use it.</p>
+                                                                <p className="text-[10px] text-slate-500 font-medium flex-1">Search or use GPS, then click <strong>Confirm</strong> to fill the address.</p>
                                                                 <div className="flex gap-2">
                                                                     <button type="button" onClick={() => setShowMapModal(false)} className="px-4 py-2 bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 font-bold rounded-xl text-xs transition-all cursor-pointer">Cancel</button>
-                                                                    <button type="button" onClick={() => setShowMapModal(false)} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs shadow-md transition-all cursor-pointer flex items-center gap-1.5"><CheckCircle size={13} /> Confirm Location</button>
+                                                                    <button
+                                                                        type="button"
+                                                                        disabled={mapSearching}
+                                                                        onClick={async () => {
+                                                                            setMapSearching(true);
+                                                                            try {
+                                                                                const res = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${mapCoords.lat}&longitude=${mapCoords.lng}&localityLanguage=en`);
+                                                                                const d = await res.json();
+                                                                                if (d && d.locality) {
+                                                                                    const parts = [d.locality, d.principalSubdivision, d.countryName].filter(Boolean);
+                                                                                    setRegInstAddress(d.description || parts.join(', '));
+                                                                                } else {
+                                                                                    setRegInstAddress(`Lat: ${mapCoords.lat.toFixed(6)}, Lng: ${mapCoords.lng.toFixed(6)}`);
+                                                                                }
+                                                                            } catch {
+                                                                                setRegInstAddress(`Lat: ${mapCoords.lat.toFixed(6)}, Lng: ${mapCoords.lng.toFixed(6)}`);
+                                                                            } finally {
+                                                                                setMapSearching(false);
+                                                                                setShowMapModal(false);
+                                                                            }
+                                                                        }}
+                                                                        className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-bold rounded-xl text-xs shadow-md transition-all cursor-pointer flex items-center gap-1.5"
+                                                                    >
+                                                                        {mapSearching ? <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <CheckCircle size={13} />}
+                                                                        Confirm Location
+                                                                    </button>
                                                                 </div>
                                                             </div>
                                                         </motion.div>

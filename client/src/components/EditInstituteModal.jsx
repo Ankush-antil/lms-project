@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
 import axios from 'axios';
 import { X, Phone, Mail, Headphones, FileText, Shield, ImageIcon, Building, Upload, Check, ChevronDown, ChevronUp } from 'lucide-react';

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, BookOpen, FileText, Link as LinkIcon } from 'lucide-react';
 import { createPortal } from 'react-dom';
 

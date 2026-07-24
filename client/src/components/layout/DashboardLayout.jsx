@@ -153,7 +153,6 @@ const ChatNotificationBar = () => {
 const menuItems = {
     Admin: [
         { name: 'Dashboard', icon: LayoutDashboard, path: '/admin' },
-        { name: 'User Analytics', icon: BarChart3, path: '/admin/user-analytics' },
 
         { name: '_section_Users', icon: Users, path: null },
         { name: 'Users', icon: User, path: '/admin/users' },
@@ -201,10 +200,10 @@ const menuItems = {
         { name: 'SR. Analytics', icon: Video, path: '/admin/tools-analytics/screen-recorder' },
         { name: 'AR. Analytics', icon: Mic, path: '/admin/tools-analytics/voice-recorder' },
         { name: 'VR. Analytics', icon: MonitorPlay, path: '/admin/tools-analytics/video-recorder' },
+        { name: 'User Analytics', icon: BarChart3, path: '/admin/user-analytics' },
     ],
     Institute: [
         { name: 'Dashboard', icon: LayoutDashboard, path: '/institute' },
-        { name: 'User Analytics', icon: BarChart3, path: '/institute/user-analytics' },
 
         { name: '_section_Users', icon: Users, path: null },
         { name: 'Users', icon: User, path: '/institute/users' },
@@ -235,7 +234,8 @@ const menuItems = {
         { name: '_section_services', icon: Settings, path: null },
         { name: 'Drive', icon: HardDrive, path: '/institute/drive' },
         { name: 'Notes', icon: StickyNote, path: '/institute/notes' },
-        { name: 'Chat', icon: MessageSquare, path: '/institute/chat' }
+        { name: 'Chat', icon: MessageSquare, path: '/institute/chat' },
+        { name: 'User Analytics', icon: BarChart3, path: '/institute/user-analytics' }
     ],
     Teacher: [
         { name: 'Dashboard', icon: LayoutDashboard, path: '/teacher' },

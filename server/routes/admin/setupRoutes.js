@@ -36,6 +36,7 @@ const {
     getDeletedApplications,
     restoreApplication,
     permanentlyDeleteApplication,
+    importApplications,
     deleteSubject,
     getDeletedSubjects,
     restoreSubject,

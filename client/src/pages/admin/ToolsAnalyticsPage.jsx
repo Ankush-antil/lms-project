@@ -686,8 +686,14 @@ const ToolsAnalyticsPage = () => {
                                                 <tr className="bg-slate-50/70 text-slate-400 font-extrabold text-[11px] uppercase tracking-wider border-b border-slate-100">
                                                     <th className="py-3.5 px-6">Student Name</th>
                                                     <th className="py-3.5 px-4">Institute Name</th>
-                                                    <th className="py-3.5 px-4 text-center">Total Notes</th>
+                                                    <th className="py-3.5 px-4 text-center">Total Notebooks</th>
                                                     <th className="py-3.5 px-4 text-center">Total Sections</th>
+                                                    <th className="py-3.5 px-4 text-center">Total Notes</th>
+                                                    <th className="py-3.5 px-4 text-center">Total Categories</th>
+                                                    <th className="py-3.5 px-4 text-center">Reminders</th>
+                                                    <th className="py-3.5 px-4 text-center">Upload Files</th>
+                                                    <th className="py-3.5 px-4 text-center">Upload Images</th>
+                                                    <th className="py-3.5 px-4 text-center">Pinned Content</th>
                                                     <th className="py-3.5 px-4 text-right">Total Storage</th>
                                                     <th className="py-3.5 px-4 text-right">Used Storage</th>
                                                     <th className="py-3.5 px-4 text-right">Remaining Storage</th>
@@ -701,15 +707,21 @@ const ToolsAnalyticsPage = () => {
                                             <tbody className="divide-y divide-slate-100 text-xs font-bold text-slate-700">
                                                 {currentEntries.length === 0 ? (
                                                     <tr>
-                                                        <td colSpan="12" className="text-center py-10 text-slate-400">No student records found.</td>
+                                                        <td colSpan="18" className="text-center py-10 text-slate-400">No student records found.</td>
                                                     </tr>
                                                 ) : (
                                                     currentEntries.map((row, idx) => (
                                                         <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
                                                             <td className="py-3.5 px-6 font-extrabold text-slate-850">{row.name}</td>
                                                             <td className="py-3.5 px-4 font-semibold text-slate-500">{row.instituteName}</td>
-                                                            <td className="py-3.5 px-4 text-center text-slate-800">{row.notes.totalNotes}</td>
-                                                            <td className="py-3.5 px-4 text-center text-slate-400 font-medium">{row.notes.totalSections}</td>
+                                                            <td className="py-3.5 px-4 text-center text-slate-800">{row.notes.totalNotebooks || 0}</td>
+                                                            <td className="py-3.5 px-4 text-center text-slate-800">{row.notes.totalSections || 0}</td>
+                                                            <td className="py-3.5 px-4 text-center text-indigo-650 font-black">{row.notes.totalNotes || 0}</td>
+                                                            <td className="py-3.5 px-4 text-center text-slate-800">{row.notes.totalCategories || 0}</td>
+                                                            <td className="py-3.5 px-4 text-center text-amber-600 font-extrabold">{row.notes.remindersCount || 0}</td>
+                                                            <td className="py-3.5 px-4 text-center text-blue-600 font-bold">{row.notes.attachedFilesCount || 0}</td>
+                                                            <td className="py-3.5 px-4 text-center text-purple-600 font-bold">{row.notes.imagesCount || 0}</td>
+                                                            <td className="py-3.5 px-4 text-center text-emerald-600 font-extrabold">{row.notes.pinnedCount || 0}</td>
                                                             <td className="py-3.5 px-4 text-right font-medium text-slate-400">{formatBytes(row.notes.totalStorage)}</td>
                                                             <td className="py-3.5 px-4 text-right font-black text-indigo-650">{formatBytes(row.notes.usedStorage)}</td>
                                                             <td className="py-3.5 px-4 text-right font-extrabold text-emerald-600">{formatBytes(row.notes.remainingStorage)}</td>

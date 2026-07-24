@@ -200,7 +200,52 @@ router.get('/detailed-analytics', protect, async (req, res) => {
                 $group: {
                     _id: '$student',
                     totalNotes: { $sum: 1 },
-                    usedStorage: { $sum: { $add: [{ $strLenCP: '$title' }, { $strLenCP: '$content' }] } },
+                    usedStorage: { $sum: { $add: [{ $strLenCP: { $ifNull: ['$title', ''] } }, { $strLenCP: { $ifNull: ['$content', ''] } }] } },
+                    notebooks: { $addToSet: '$notebook' },
+                    sections: { $addToSet: '$section' },
+                    categories: { $addToSet: '$category' },
+                    remindersCount: {
+                        $sum: {
+                            $cond: [
+                                {
+                                    $and: [
+                                        { $ne: ['$reminderAt', ''] },
+                                        { $ne: ['$reminderAt', null] }
+                                    ]
+                                },
+                                1,
+                                0
+                            ]
+                        }
+                    },
+                    attachedFilesCount: {
+                        $sum: {
+                            $cond: [
+                                {
+                                    $and: [
+                                        { $ne: ['$attachedFile', null] },
+                                        { $ne: ['$attachedFile', ''] }
+                                    ]
+                                },
+                                1,
+                                0
+                            ]
+                        }
+                    },
+                    imagesCount: {
+                        $sum: {
+                            $size: { $ifNull: ['$images', []] }
+                        }
+                    },
+                    pinnedCount: {
+                        $sum: {
+                            $cond: [
+                                { $eq: ['$isPinned', true] },
+                                1,
+                                0
+                            ]
+                        }
+                    },
                     lastActivity: { $max: '$updatedAt' }
                 }
             }
@@ -421,7 +466,13 @@ router.get('/detailed-analytics', protect, async (req, res) => {
                 },
                 notes: {
                     totalNotes: notes.totalNotes || 0,
-                    totalSections: 0,
+                    totalNotebooks: notes.notebooks ? notes.notebooks.filter(Boolean).length : 0,
+                    totalSections: notes.sections ? notes.sections.filter(Boolean).length : 0,
+                    totalCategories: notes.categories ? notes.categories.filter(Boolean).length : 0,
+                    remindersCount: notes.remindersCount || 0,
+                    attachedFilesCount: notes.attachedFilesCount || 0,
+                    imagesCount: notes.imagesCount || 0,
+                    pinnedCount: notes.pinnedCount || 0,
                     totalStorage: 5 * 1024 * 1024 * 1024,
                     usedStorage: notes.usedStorage || 0,
                     remainingStorage: (5 * 1024 * 1024 * 1024) - (notes.usedStorage || 0),

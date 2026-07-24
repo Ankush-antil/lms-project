@@ -16,6 +16,7 @@ import {
     Image,
     Linking
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
 import { useSocket } from '../../context/SocketContext';
@@ -477,15 +478,16 @@ const ContactTeacher = ({ navigation }) => {
             {/* Chat Modal with Light theme from Image */}
             {activeContact && (
                 <Modal
-                    visible={true}
+                    visible={!!activeContact}
                     animationType="slide"
                     transparent={false}
                     onRequestClose={handleCloseChat}
                 >
-                    <KeyboardAvoidingView 
-                        style={styles.chatContainer} 
-                        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-                    >
+                    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }} edges={['top', 'bottom']}>
+                        <KeyboardAvoidingView 
+                            style={styles.chatContainer} 
+                            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                        >
                         {/* Chat Header */}
                         <View style={styles.chatHeader}>
                             <TouchableOpacity 
@@ -794,7 +796,8 @@ const ContactTeacher = ({ navigation }) => {
                             ) : null}
                         </View>
                     </KeyboardAvoidingView>
-                </Modal>
+                </SafeAreaView>
+            </Modal>
             )}
 
             <ImagePreviewModal

@@ -381,7 +381,8 @@ const ChatScreen = ({ navigation }) => {
     };
 
     const isUserOnline = (userId) => {
-        return onlineUsers.some(u => u.userId === userId);
+        // onlineUsers is an array of string userId IDs from server
+        return onlineUsers.includes(String(userId));
     };
 
     const handleCall = (contact, type) => {
@@ -543,11 +544,11 @@ const ChatScreen = ({ navigation }) => {
                     {activeTab === 'chats' ? (
                         <FlatList
                             data={recentChats}
-                            keyExtractor={(item, index) => item._id || item.otherUser?._id || String(index)}
+                            keyExtractor={(item, index) => item.contact?._id || String(index)}
                             contentContainerStyle={styles.list}
                             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchData(); }} />}
                             renderItem={({ item }) => {
-                                const contact = item.otherUser;
+                                const contact = item.contact || item.otherUser;
                                 if (!contact) return null;
                                 const online = isUserOnline(contact._id);
                                 return (
@@ -563,7 +564,7 @@ const ChatScreen = ({ navigation }) => {
                                         <View style={styles.threadInfo}>
                                             <Text style={styles.threadName}>{contact.name}</Text>
                                             <Text style={styles.threadMsg} numberOfLines={1}>
-                                                {item.lastMessage?.text || 'Sent an attachment'}
+                                                {item.lastMessage?.text || (item.lastMessage?.fileUrl ? '📎 Attachment' : 'No messages yet')}
                                             </Text>
                                         </View>
                                         {item.unreadCount > 0 && (

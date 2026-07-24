@@ -1664,19 +1664,25 @@ const UsersList = () => {
                                         {/* Actions column */}
                                         <td className="p-4 text-right whitespace-nowrap sticky right-0 bg-white group-hover:bg-slate-50 transition-colors border-l border-slate-100 shadow-[-8px_0_16px_-4px_rgba(0,0,0,0.06)]">
                                             {viewTab === 'registered' ? (
-                                                (currentUser?._id !== u._id && u.role !== 'Admin') ? (
+                                                <div className="flex items-center justify-end gap-1">
                                                     <button
-                                                        onClick={() => handleDelete(u._id)}
-                                                        className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors ml-2"
-                                                        title="Delete User"
+                                                        type="button"
+                                                        onClick={() => openProfile(u._id)}
+                                                        className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
+                                                        title="View User Profile"
                                                     >
-                                                        <Trash2 size={18} />
+                                                        <Eye size={18} />
                                                     </button>
-                                                ) : (
-                                                    <span className="text-xs text-slate-400 font-semibold italic px-2">
-                                                        {u.role === 'Admin' ? 'Admin' : 'You'}
-                                                    </span>
-                                                )
+                                                    {(currentUser?._id !== u._id && u.role !== 'Admin') && (
+                                                        <button
+                                                            onClick={() => handleDelete(u._id)}
+                                                            className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                                                            title="Delete User"
+                                                        >
+                                                            <Trash2 size={18} />
+                                                        </button>
+                                                    )}
+                                                </div>
                                             ) : viewTab === 'role-requests' ? (
                                                 <div className="flex items-center justify-end gap-1.5">
                                                     {u.status === 'Pending' ? (
@@ -1727,6 +1733,14 @@ const UsersList = () => {
                                                 </div>
                                             ) : viewTab === 'guest' ? (
                                                 <div className="flex items-center justify-end gap-1">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => openProfile(u._id)}
+                                                        className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
+                                                        title="View User Profile"
+                                                    >
+                                                        <Eye size={18} />
+                                                    </button>
                                                     <button
                                                         onClick={() => {
                                                             const actualUser = users.find(usr => usr._id === u._id);

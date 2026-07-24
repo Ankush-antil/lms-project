@@ -285,6 +285,7 @@ const getTests = asyncHandler(async (req, res) => {
     const tests = await dbQuery
         .populate('createdBy', 'name email role')
         .populate('collaborators', 'name email role')
+        .populate('assignedStudents', 'name email')
         .sort({ createdAt: -1 });
     console.log(`[Admin-Tests] Found ${tests.length} tests`);
     res.json(tests);

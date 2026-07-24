@@ -2604,7 +2604,7 @@ const TestsList = () => {
                 </div>
 
                 {/* Filters */}
-                {(activeTab === 'lms' || activeTab === 'public' || activeTab === 'draft') && (
+                {(activeTab === 'lms' || activeTab === 'lms-single' || activeTab === 'lms-selected' || activeTab === 'public' || activeTab === 'draft') && (
                     <>
                         {/* Institute Filter */}
                         {(userInfo?.role === 'Admin' || uniqueInstitutes.length > 2) && (
@@ -2918,6 +2918,342 @@ const TestsList = () => {
                                     >
                                         <ChevronRight size={16} />
                                     </button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )
+            ) : activeTab === 'lms-single' ? (
+                /* ── LMS SINGLE STUDENT TABLE ── */
+                loading ? (
+                    <div className="flex justify-center items-center py-20">
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#0b1329]"></div>
+                    </div>
+                ) : (
+                    <div className="bg-white rounded-xl shadow-sm border border-slate-200/80 overflow-hidden">
+                        <div className="overflow-x-auto">
+                            <table className="min-w-full text-left border-collapse">
+                                <thead>
+                                    <tr className="bg-slate-50 border-b border-slate-200 text-slate-550 text-xs uppercase tracking-wider">
+                                        <th className="p-4 w-10">
+                                            <input
+                                                type="checkbox"
+                                                checked={paginatedTests.length > 0 && selectedIds.size === paginatedTests.length}
+                                                onChange={() => {
+                                                    if (selectedIds.size === paginatedTests.length) {
+                                                        setSelectedIds(new Set());
+                                                    } else {
+                                                        setSelectedIds(new Set(paginatedTests.map(item => item._id)));
+                                                    }
+                                                }}
+                                                className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer accent-indigo-650"
+                                            />
+                                        </th>
+                                        <th className="p-4 font-extrabold whitespace-nowrap">Test Title</th>
+                                        <th className="p-4 font-extrabold whitespace-nowrap">Assigned Student</th>
+                                        <th className="p-4 font-extrabold whitespace-nowrap">Course</th>
+                                        <th className="p-4 font-extrabold whitespace-nowrap text-center">RI</th>
+                                        <th className="p-4 font-extrabold whitespace-nowrap">Subject</th>
+                                        <th className="p-4 font-extrabold whitespace-nowrap">Duration</th>
+                                        <th className="p-4 font-extrabold whitespace-nowrap">Questions</th>
+                                        <th className="p-4 font-extrabold whitespace-nowrap">Test Inbox</th>
+                                        <th className="p-4 font-extrabold whitespace-nowrap">Created By</th>
+                                        <th className="p-4 font-extrabold text-center whitespace-nowrap">Responses</th>
+                                        <th className="p-4 font-extrabold text-right whitespace-nowrap sticky right-0 bg-slate-50 border-l border-slate-200 z-10">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                    {paginatedTests.length === 0 ? (
+                                        <tr>
+                                            <td colSpan="12" className="p-12 text-center">
+                                                <FileText className="mx-auto text-slate-300 mb-3" size={40} />
+                                                <p className="text-slate-500 text-sm font-semibold">No single-student tests found</p>
+                                                <p className="text-slate-400 text-xs mt-1">Tests assigned to a particular student will appear here.</p>
+                                            </td>
+                                        </tr>
+                                    ) : paginatedTests.map((test) => (
+                                        <tr key={test._id} className="hover:bg-slate-50 transition-colors group">
+                                            <td className="p-4 w-10">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selectedIds.has(test._id)}
+                                                    onChange={() => {
+                                                        setSelectedIds(prev => {
+                                                            const next = new Set(prev);
+                                                            if (next.has(test._id)) {
+                                                                next.delete(test._id);
+                                                            } else {
+                                                                next.add(test._id);
+                                                            }
+                                                            return next;
+                                                        });
+                                                    }}
+                                                    className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500/30 cursor-pointer accent-indigo-650"
+                                                />
+                                            </td>
+                                            <td className="p-4 whitespace-nowrap">
+                                                <div className="flex items-center gap-3 font-semibold text-slate-800">
+                                                    <div className="p-2 bg-slate-100 text-[#0b1329] rounded-lg flex-shrink-0">
+                                                        <FileText size={16} />
+                                                    </div>
+                                                    <TruncatedCell text={test.title || 'Untitled'} maxLength={20} />
+                                                </div>
+                                            </td>
+                                            <td className="p-4 whitespace-nowrap">
+                                                {test.assignedStudents?.length > 0 ? (
+                                                    <div className="flex flex-col">
+                                                        <span className="text-slate-700 text-xs font-bold">{test.assignedStudents[0]?.name || 'Student'}</span>
+                                                        <span className="text-slate-400 text-[10px]">{test.assignedStudents[0]?.email || ''}</span>
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-slate-400 italic text-xs">N/A</span>
+                                                )}
+                                            </td>
+                                            <td className="p-4 whitespace-nowrap">
+                                                <span className="px-2.5 py-0.5 bg-slate-100 text-[#0b1329] rounded-full text-xs font-semibold">
+                                                    <TruncatedCell text={test.course || 'N/A'} maxLength={20} />
+                                                </span>
+                                            </td>
+                                            <td className="p-4 whitespace-nowrap text-center">
+                                                <button
+                                                    onClick={() => handleOpenRi(test)}
+                                                    className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 hover:text-indigo-850 border border-indigo-200 text-indigo-750 text-xs font-bold rounded-xl transition-all active:scale-95 flex items-center gap-1 mx-auto cursor-pointer"
+                                                    title="View Relevant Information (RI)"
+                                                >
+                                                    <Info size={13} />
+                                                    <span>RI</span>
+                                                </button>
+                                            </td>
+                                            <td className="p-4 whitespace-nowrap">
+                                                <span className="px-2.5 py-0.5 bg-amber-50 text-amber-705 rounded-full text-xs font-semibold">
+                                                    <TruncatedCell text={test.subject || 'N/A'} maxLength={20} />
+                                                </span>
+                                            </td>
+                                            <td className="p-4 whitespace-nowrap">
+                                                <span className="text-slate-600 text-xs font-medium">{test.settings?.duration || 0} mins</span>
+                                            </td>
+                                            <td className="p-4 whitespace-nowrap text-slate-600 text-xs font-mono">
+                                                {test.questions?.length || 0} Qs
+                                            </td>
+                                            <td className="p-4 whitespace-nowrap">
+                                                {test.index ? (() => {
+                                                    const subjectKey = `${test.index}::${(test.subject || '').toLowerCase()}`;
+                                                    const displayName = inboxDisplayNames[subjectKey] || inboxDisplayNames[test.index] || test.index;
+                                                    return (
+                                                        <span className="font-bold text-[#0b1329] px-2 py-0.5 bg-slate-100 border border-slate-200 rounded text-xs">
+                                                            {displayName}
+                                                        </span>
+                                                    );
+                                                })() : (
+                                                    <span className="text-slate-400 italic text-xs">No Index</span>
+                                                )}
+                                            </td>
+                                            <td className="p-4 whitespace-nowrap">
+                                                <div className="flex flex-col">
+                                                    <span className="text-slate-700 text-xs font-bold">{test.createdBy?.name || 'N/A'}</span>
+                                                    <span className="text-slate-400 text-[10px] font-semibold">{test.createdBy?.role || 'N/A'}</span>
+                                                </div>
+                                            </td>
+                                            <td className="p-4 whitespace-nowrap text-center">
+                                                <button
+                                                    onClick={() => handleOpenResponses(test, 'connected')}
+                                                    className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-[#0b1329] text-xs font-extrabold rounded-xl transition-all active:scale-95 flex items-center gap-1.5 mx-auto"
+                                                >
+                                                    <span>Responses</span>
+                                                </button>
+                                            </td>
+                                            <td className="p-4 text-right whitespace-nowrap sticky right-0 bg-white group-hover:bg-slate-50 transition-colors border-l border-slate-100">
+                                                <button onClick={() => handlePreviewTest(test)} className="p-1.5 text-slate-405 border border-slate-200 hover:text-[#0b1329] hover:bg-slate-100 hover:border-slate-300 rounded-lg transition-colors" title="Preview Test"><Eye size={15} /></button>
+                                                <button onClick={() => navigate(getEditPath(test._id))} className="p-1.5 text-slate-405 border border-slate-200 hover:text-[#0b1329] hover:bg-slate-100 hover:border-slate-300 rounded-lg transition-colors ml-1.5" title="Edit Test"><Edit size={15} /></button>
+                                                <button onClick={() => handleDuplicate(test)} className="p-1.5 text-slate-405 border border-slate-200 hover:text-[#0b1329] hover:bg-slate-100 hover:border-slate-300 rounded-lg transition-colors ml-1.5" title="Duplicate"><CopyPlus size={15} /></button>
+                                                <button onClick={() => handleDelete(test._id)} className="p-1.5 text-slate-405 border border-slate-200 hover:text-red-600 hover:bg-red-50 hover:border-red-200 rounded-lg transition-colors ml-1.5" title="Delete"><Trash2 size={15} /></button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                        {filteredTests.length > 0 && (
+                            <div className="flex justify-between items-center p-4 border-t border-slate-100 bg-slate-50/50">
+                                <span className="text-xs font-semibold text-slate-500">
+                                    Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredTests.length)} of {filteredTests.length} Assessments
+                                </span>
+                                <div className="flex gap-1.5">
+                                    <button disabled={currentPage === 1} onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))} className="p-1.5 rounded-xl border border-slate-200 bg-white text-slate-650 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"><ChevronLeft size={16} /></button>
+                                    {getPageNumbers(filteredTests.length).map((p, idx) => (
+                                        <button key={idx} disabled={p === '...'} onClick={() => p !== '...' && setCurrentPage(p)} className={`w-8 h-8 text-xs font-bold rounded-xl transition-all cursor-pointer ${p === '...' ? 'text-slate-400 cursor-default bg-transparent' : currentPage === p ? 'bg-[#0b1329] text-white shadow-md' : 'text-slate-655 hover:bg-slate-100 bg-transparent'}`}>{p}</button>
+                                    ))}
+                                    <button disabled={currentPage === Math.ceil(filteredTests.length / itemsPerPage)} onClick={() => setCurrentPage(prev => Math.min(prev + 1, Math.ceil(filteredTests.length / itemsPerPage)))} className="p-1.5 rounded-xl border border-slate-200 bg-white text-slate-655 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"><ChevronRight size={16} /></button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )
+            ) : activeTab === 'lms-selected' ? (
+                /* ── LMS SELECTED STUDENTS TABLE ── */
+                loading ? (
+                    <div className="flex justify-center items-center py-20">
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#0b1329]"></div>
+                    </div>
+                ) : (
+                    <div className="bg-white rounded-xl shadow-sm border border-slate-200/80 overflow-hidden">
+                        <div className="overflow-x-auto">
+                            <table className="min-w-full text-left border-collapse">
+                                <thead>
+                                    <tr className="bg-slate-50 border-b border-slate-200 text-slate-550 text-xs uppercase tracking-wider">
+                                        <th className="p-4 w-10">
+                                            <input
+                                                type="checkbox"
+                                                checked={paginatedTests.length > 0 && selectedIds.size === paginatedTests.length}
+                                                onChange={() => {
+                                                    if (selectedIds.size === paginatedTests.length) {
+                                                        setSelectedIds(new Set());
+                                                    } else {
+                                                        setSelectedIds(new Set(paginatedTests.map(item => item._id)));
+                                                    }
+                                                }}
+                                                className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer accent-indigo-650"
+                                            />
+                                        </th>
+                                        <th className="p-4 font-extrabold whitespace-nowrap">Test Title</th>
+                                        <th className="p-4 font-extrabold whitespace-nowrap">Assigned Students</th>
+                                        <th className="p-4 font-extrabold whitespace-nowrap">Course</th>
+                                        <th className="p-4 font-extrabold whitespace-nowrap text-center">RI</th>
+                                        <th className="p-4 font-extrabold whitespace-nowrap">Subject</th>
+                                        <th className="p-4 font-extrabold whitespace-nowrap">Duration</th>
+                                        <th className="p-4 font-extrabold whitespace-nowrap">Questions</th>
+                                        <th className="p-4 font-extrabold whitespace-nowrap">Test Inbox</th>
+                                        <th className="p-4 font-extrabold whitespace-nowrap">Created By</th>
+                                        <th className="p-4 font-extrabold text-center whitespace-nowrap">Responses</th>
+                                        <th className="p-4 font-extrabold text-right whitespace-nowrap sticky right-0 bg-slate-50 border-l border-slate-200 z-10">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                    {paginatedTests.length === 0 ? (
+                                        <tr>
+                                            <td colSpan="12" className="p-12 text-center">
+                                                <FileText className="mx-auto text-slate-300 mb-3" size={40} />
+                                                <p className="text-slate-500 text-sm font-semibold">No selected-students tests found</p>
+                                                <p className="text-slate-400 text-xs mt-1">Tests assigned to selected students will appear here.</p>
+                                            </td>
+                                        </tr>
+                                    ) : paginatedTests.map((test) => (
+                                        <tr key={test._id} className="hover:bg-slate-50 transition-colors group">
+                                            <td className="p-4 w-10">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selectedIds.has(test._id)}
+                                                    onChange={() => {
+                                                        setSelectedIds(prev => {
+                                                            const next = new Set(prev);
+                                                            if (next.has(test._id)) {
+                                                                next.delete(test._id);
+                                                            } else {
+                                                                next.add(test._id);
+                                                            }
+                                                            return next;
+                                                        });
+                                                    }}
+                                                    className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500/30 cursor-pointer accent-indigo-650"
+                                                />
+                                            </td>
+                                            <td className="p-4 whitespace-nowrap">
+                                                <div className="flex items-center gap-3 font-semibold text-slate-800">
+                                                    <div className="p-2 bg-slate-100 text-[#0b1329] rounded-lg flex-shrink-0">
+                                                        <FileText size={16} />
+                                                    </div>
+                                                    <TruncatedCell text={test.title || 'Untitled'} maxLength={20} />
+                                                </div>
+                                            </td>
+                                            <td className="p-4 whitespace-nowrap">
+                                                {test.assignedStudents?.length > 0 ? (
+                                                    <div className="flex flex-col gap-0.5">
+                                                        {test.assignedStudents.slice(0, 2).map((s, i) => (
+                                                            <span key={i} className="text-xs text-slate-700 font-semibold">{s?.name || 'Student'}</span>
+                                                        ))}
+                                                        {test.assignedStudents.length > 2 && (
+                                                            <span className="text-[10px] text-slate-400">+{test.assignedStudents.length - 2} more</span>
+                                                        )}
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-slate-400 italic text-xs">N/A</span>
+                                                )}
+                                            </td>
+                                            <td className="p-4 whitespace-nowrap">
+                                                <span className="px-2.5 py-0.5 bg-slate-100 text-[#0b1329] rounded-full text-xs font-semibold">
+                                                    <TruncatedCell text={test.course || 'N/A'} maxLength={20} />
+                                                </span>
+                                            </td>
+                                            <td className="p-4 whitespace-nowrap text-center">
+                                                <button
+                                                    onClick={() => handleOpenRi(test)}
+                                                    className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 hover:text-indigo-850 border border-indigo-200 text-indigo-750 text-xs font-bold rounded-xl transition-all active:scale-95 flex items-center gap-1 mx-auto cursor-pointer"
+                                                    title="View Relevant Information (RI)"
+                                                >
+                                                    <Info size={13} />
+                                                    <span>RI</span>
+                                                </button>
+                                            </td>
+                                            <td className="p-4 whitespace-nowrap">
+                                                <span className="px-2.5 py-0.5 bg-amber-50 text-amber-705 rounded-full text-xs font-semibold">
+                                                    <TruncatedCell text={test.subject || 'N/A'} maxLength={20} />
+                                                </span>
+                                            </td>
+                                            <td className="p-4 whitespace-nowrap">
+                                                <span className="text-slate-600 text-xs font-medium">{test.settings?.duration || 0} mins</span>
+                                            </td>
+                                            <td className="p-4 whitespace-nowrap text-slate-600 text-xs font-mono">
+                                                {test.questions?.length || 0} Qs
+                                            </td>
+                                            <td className="p-4 whitespace-nowrap">
+                                                {test.index ? (() => {
+                                                    const subjectKey = `${test.index}::${(test.subject || '').toLowerCase()}`;
+                                                    const displayName = inboxDisplayNames[subjectKey] || inboxDisplayNames[test.index] || test.index;
+                                                    return (
+                                                        <span className="font-bold text-[#0b1329] px-2 py-0.5 bg-slate-100 border border-slate-200 rounded text-xs">
+                                                            {displayName}
+                                                        </span>
+                                                    );
+                                                })() : (
+                                                    <span className="text-slate-400 italic text-xs">No Index</span>
+                                                )}
+                                            </td>
+                                            <td className="p-4 whitespace-nowrap">
+                                                <div className="flex flex-col">
+                                                    <span className="text-slate-700 text-xs font-bold">{test.createdBy?.name || 'N/A'}</span>
+                                                    <span className="text-slate-400 text-[10px] font-semibold">{test.createdBy?.role || 'N/A'}</span>
+                                                </div>
+                                            </td>
+                                            <td className="p-4 whitespace-nowrap text-center">
+                                                <button
+                                                    onClick={() => handleOpenResponses(test, 'connected')}
+                                                    className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-[#0b1329] text-xs font-extrabold rounded-xl transition-all active:scale-95 flex items-center gap-1.5 mx-auto"
+                                                >
+                                                    <span>Responses</span>
+                                                </button>
+                                            </td>
+                                            <td className="p-4 text-right whitespace-nowrap sticky right-0 bg-white group-hover:bg-slate-50 transition-colors border-l border-slate-100">
+                                                <button onClick={() => handlePreviewTest(test)} className="p-1.5 text-slate-405 border border-slate-200 hover:text-[#0b1329] hover:bg-slate-100 hover:border-slate-300 rounded-lg transition-colors" title="Preview Test"><Eye size={15} /></button>
+                                                <button onClick={() => navigate(getEditPath(test._id))} className="p-1.5 text-slate-405 border border-slate-200 hover:text-[#0b1329] hover:bg-slate-100 hover:border-slate-300 rounded-lg transition-colors ml-1.5" title="Edit Test"><Edit size={15} /></button>
+                                                <button onClick={() => handleDuplicate(test)} className="p-1.5 text-slate-405 border border-slate-200 hover:text-[#0b1329] hover:bg-slate-100 hover:border-slate-300 rounded-lg transition-colors ml-1.5" title="Duplicate"><CopyPlus size={15} /></button>
+                                                <button onClick={() => handleDelete(test._id)} className="p-1.5 text-slate-405 border border-slate-200 hover:text-red-600 hover:bg-red-50 hover:border-red-200 rounded-lg transition-colors ml-1.5" title="Delete"><Trash2 size={15} /></button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                        {filteredTests.length > 0 && (
+                            <div className="flex justify-between items-center p-4 border-t border-slate-100 bg-slate-50/50">
+                                <span className="text-xs font-semibold text-slate-500">
+                                    Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredTests.length)} of {filteredTests.length} Assessments
+                                </span>
+                                <div className="flex gap-1.5">
+                                    <button disabled={currentPage === 1} onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))} className="p-1.5 rounded-xl border border-slate-200 bg-white text-slate-650 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"><ChevronLeft size={16} /></button>
+                                    {getPageNumbers(filteredTests.length).map((p, idx) => (
+                                        <button key={idx} disabled={p === '...'} onClick={() => p !== '...' && setCurrentPage(p)} className={`w-8 h-8 text-xs font-bold rounded-xl transition-all cursor-pointer ${p === '...' ? 'text-slate-400 cursor-default bg-transparent' : currentPage === p ? 'bg-[#0b1329] text-white shadow-md' : 'text-slate-655 hover:bg-slate-100 bg-transparent'}`}>{p}</button>
+                                    ))}
+                                    <button disabled={currentPage === Math.ceil(filteredTests.length / itemsPerPage)} onClick={() => setCurrentPage(prev => Math.min(prev + 1, Math.ceil(filteredTests.length / itemsPerPage)))} className="p-1.5 rounded-xl border border-slate-200 bg-white text-slate-655 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"><ChevronRight size={16} /></button>
                                 </div>
                             </div>
                         )}

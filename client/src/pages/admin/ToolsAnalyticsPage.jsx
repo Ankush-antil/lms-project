@@ -501,8 +501,7 @@ const ToolsAnalyticsPage = () => {
                             {/* Dynamic Tables depending on Active Tab */}
                             <div className="overflow-x-auto">
                                 <table className="w-full text-left border-collapse whitespace-nowrap">
-                                    
-                                    {/* Tab 1: Drive Usage Analytics */}
+                                                                  {/* Tab 1: Drive Usage Analytics */}
                                     {activeTab === 'drive' && (
                                         <>
                                             <thead>
@@ -520,7 +519,7 @@ const ToolsAnalyticsPage = () => {
                                                     <th className="py-3.5 px-4 text-right">Last Activity</th>
                                                     <th className="py-3.5 px-4 text-center">Trash Files</th>
                                                     <th className="py-3.5 px-4 text-center">Total Devices</th>
-                                                    <th className="py-3.5 px-4 text-center">Service Status</th>
+                                                    <th className="py-3.5 px-4 text-center">Status</th>
                                                     <th className="py-3.5 px-6 text-right">Actions</th>
                                                 </tr>
                                             </thead>
@@ -598,6 +597,7 @@ const ToolsAnalyticsPage = () => {
                                                     <th className="py-3.5 px-4 text-right">Last Msg</th>
                                                     <th className="py-3.5 px-4 text-right">Last Activity</th>
                                                     <th className="py-3.5 px-4 text-center">Devices</th>
+                                                    <th className="py-3.5 px-4 text-center">User Status</th>
                                                     <th className="py-3.5 px-4 text-center">Status</th>
                                                     <th className="py-3.5 px-6 text-right">Actions</th>
                                                 </tr>
@@ -605,7 +605,7 @@ const ToolsAnalyticsPage = () => {
                                             <tbody className="divide-y divide-slate-100 text-xs font-bold text-slate-700">
                                                 {currentEntries.length === 0 ? (
                                                     <tr>
-                                                        <td colSpan="21" className="text-center py-10 text-slate-400">No student records found.</td>
+                                                        <td colSpan="22" className="text-center py-10 text-slate-400">No student records found.</td>
                                                     </tr>
                                                 ) : (
                                                     currentEntries.map((row, idx) => (
@@ -682,7 +682,7 @@ const ToolsAnalyticsPage = () => {
                                                     <th className="py-3.5 px-4 text-right">Last Activity</th>
                                                     <th className="py-3.5 px-4 text-center">Trash Files</th>
                                                     <th className="py-3.5 px-4 text-center">Total Devices</th>
-                                                    <th className="py-3.5 px-4 text-center">Service Status</th>
+                                                    <th className="py-3.5 px-4 text-center">Status</th>
                                                     <th className="py-3.5 px-6 text-right">Actions</th>
                                                 </tr>
                                             </thead>
@@ -750,7 +750,7 @@ const ToolsAnalyticsPage = () => {
                                                     <th className="py-3.5 px-4 text-center">Total Shared Files</th>
                                                     <th className="py-3.5 px-4 text-right">Last Activity</th>
                                                     <th className="py-3.5 px-4 text-center">Trash Files</th>
-                                                    <th className="py-3.5 px-4 text-center">Service Status</th>
+                                                    <th className="py-3.5 px-4 text-center">Status</th>
                                                     <th className="py-3.5 px-6 text-right">Actions</th>
                                                 </tr>
                                             </thead>
@@ -809,7 +809,7 @@ const ToolsAnalyticsPage = () => {
                                                 )}
                                             </tbody>
                                         </>
-                                    )}
+                                    )}      )}
 
                                 </table>
                             </div>

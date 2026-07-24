@@ -505,6 +505,23 @@ const AccountantsList = () => {
                 </div>
 
                 <div className="flex flex-wrap items-center gap-4 w-full md:w-auto justify-between md:justify-end">
+                    {user?.role === 'Admin' && (
+                        <div className="relative w-[180px]">
+                            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                            <select
+                                value={filterInstitute}
+                                onChange={(e) => setFilterInstitute(e.target.value)}
+                                className="w-full bg-slate-50 border border-slate-100 rounded-2xl pl-9 pr-8 py-3 text-sm font-bold text-slate-700 outline-none appearance-none cursor-pointer focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500/50 transition-all truncate"
+                            >
+                                <option value="All">All Institutes</option>
+                                {institutes.map(inst => (
+                                    <option key={inst._id} value={inst._id}>{inst.name}</option>
+                                ))}
+                            </select>
+                            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
+                        </div>
+                    )}
+
                     {/* Entries selector */}
                     <div className="flex items-center gap-2">
                         <span className="text-xs font-bold text-slate-400 uppercase tracking-wider select-none">Show</span>
@@ -532,23 +549,6 @@ const AccountantsList = () => {
                         />
                         <span className="text-xs font-bold text-slate-400 uppercase tracking-wider select-none">entries</span>
                     </div>
-
-                    {user?.role === 'Admin' && (
-                        <div className="relative w-[180px]">
-                            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-                            <select
-                                value={filterInstitute}
-                                onChange={(e) => setFilterInstitute(e.target.value)}
-                                className="w-full bg-slate-50 border border-slate-100 rounded-2xl pl-9 pr-8 py-3 text-sm font-bold text-slate-700 outline-none appearance-none cursor-pointer focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500/50 transition-all truncate"
-                            >
-                                <option value="All">All Institutes</option>
-                                {institutes.map(inst => (
-                                    <option key={inst._id} value={inst._id}>{inst.name}</option>
-                                ))}
-                            </select>
-                            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
-                        </div>
-                    )}
                 </div>
             </div>
 

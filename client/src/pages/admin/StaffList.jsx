@@ -14,7 +14,7 @@ import toast from 'react-hot-toast';
 import AddUserModal from '../../components/AddUserModal';
 import EditUserModal from '../../components/EditUserModal';
 import BulkEditModal from '../../components/common/BulkEditModal';
-import StudentAttendanceDetailModal from '../../components/common/StudentAttendanceDetailModal';
+import StaffAttendanceDetailModal from '../../components/common/StaffAttendanceDetailModal';
 import { useUserProfile } from '../../components/common/UserProfileContext';
 
 const calculateSpendingTime = (checkIn, checkOut) => {
@@ -2610,9 +2610,8 @@ const StaffList = () => {
                 document.body
             )}
             {viewAttendanceStaff && (
-                <StudentAttendanceDetailModal
+                <StaffAttendanceDetailModal
                     staffId={viewAttendanceStaff._id}
-                    roleType="staff"
                     onClose={() => setViewAttendanceStaff(null)}
                     onDataChange={fetchStaffData}
                 />

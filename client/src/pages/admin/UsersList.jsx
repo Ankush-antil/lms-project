@@ -1197,6 +1197,28 @@ const UsersList = () => {
                         <Trash2 size={16} className="text-red-500" /> Recycle Bin
                     </button>
 
+                    {/* Dynamic Import Button */}
+                    {(() => {
+                        const importConfig = {
+                            registered: { ref: importUsersRef, handler: handleImportUsers },
+                            limited: { ref: importLimitedRef, handler: handleImportLimitedUsers },
+                            guest: { ref: importGuestRef, handler: handleImportGuestUsers },
+                            'role-requests': { ref: importRoleRequestsRef, handler: handleImportRoleRequests },
+                        };
+                        const cfg = importConfig[viewTab];
+                        return cfg ? (
+                            <>
+                                <button
+                                    onClick={() => cfg.ref.current?.click()}
+                                    className="px-4 py-2.5 bg-[#0b1329] hover:bg-slate-800 text-white rounded-2xl transition-all flex items-center gap-1.5 text-sm font-bold shadow-md shadow-[#0b1329]/10 cursor-pointer active:scale-95"
+                                >
+                                    <Upload size={15} /> Import
+                                </button>
+                                <input ref={cfg.ref} type="file" accept=".json,.csv,.xlsx" onChange={cfg.handler} className="hidden" />
+                            </>
+                        ) : null;
+                    })()}
+
                     {/* Dynamic Export Dropdown */}
                     {(() => {
                         const exportConfig = {
@@ -1223,28 +1245,6 @@ const UsersList = () => {
                                     </div>
                                 )}
                             </div>
-                        ) : null;
-                    })()}
-
-                    {/* Dynamic Import Button */}
-                    {(() => {
-                        const importConfig = {
-                            registered: { ref: importUsersRef, handler: handleImportUsers },
-                            limited: { ref: importLimitedRef, handler: handleImportLimitedUsers },
-                            guest: { ref: importGuestRef, handler: handleImportGuestUsers },
-                            'role-requests': { ref: importRoleRequestsRef, handler: handleImportRoleRequests },
-                        };
-                        const cfg = importConfig[viewTab];
-                        return cfg ? (
-                            <>
-                                <button
-                                    onClick={() => cfg.ref.current?.click()}
-                                    className="px-4 py-2.5 bg-[#0b1329] hover:bg-slate-800 text-white rounded-2xl transition-all flex items-center gap-1.5 text-sm font-bold shadow-md shadow-[#0b1329]/10 cursor-pointer active:scale-95"
-                                >
-                                    <Upload size={15} /> Import
-                                </button>
-                                <input ref={cfg.ref} type="file" accept=".json,.csv,.xlsx" onChange={cfg.handler} className="hidden" />
-                            </>
                         ) : null;
                     })()}
 

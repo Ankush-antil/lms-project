@@ -1544,7 +1544,7 @@ const AddUserModal = ({ isOpen, onClose, role, onSuccess }) => {
 
 
 
-                                    {role === 'Teacher' && selectedCoursesList.length > 0 && (
+                                    {(role === 'Teacher' || role === 'Accountant') && selectedCoursesList.length > 0 && (
                                                 <div className="bg-slate-50/50 p-5 rounded-[24px] border border-slate-150 space-y-4 mt-4 animate-fade-in">
                                                     <div>
                                                         <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-3 block">Student Assignment Mode</label>

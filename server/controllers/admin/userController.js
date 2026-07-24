@@ -109,6 +109,7 @@ const getUsers = asyncHandler(async (req, res) => {
         .populate('teacherProfile.assignedStudents', 'name email studentProfile')
         .populate('editorProfile.assignedCourses', 'name')
         .populate('accountantProfile.assignedCourses', 'name')
+        .populate('accountantProfile.assignedStudents', 'name email studentProfile')
         .populate('guestProfile.demoCourse', 'name');
 
     console.log(`[API] Found ${users.length} users for role: ${role || 'All'}`);
@@ -187,6 +188,9 @@ const createUser = asyncHandler(async (req, res) => {
         userFields.accountantProfile = {
             assignedCourses: finalAssignedCourses,
             subjects: subjects ? (Array.isArray(subjects) ? subjects : subjects.split(',').map(s => s.trim())) : [],
+            studentAssignmentMode: studentAssignmentMode || 'all',
+            assignedSections: assignedSections || [],
+            assignedStudents: assignedStudents || [],
             controls: req.body.controls
         };
     } else if (role === 'Staff') {
@@ -555,6 +559,16 @@ const updateUser = asyncHandler(async (req, res) => {
             if (req.body.subjects !== undefined) {
                 user.accountantProfile.subjects = Array.isArray(req.body.subjects) ? req.body.subjects : req.body.subjects.split(',').map(s => s.trim()).filter(Boolean);
             }
+
+            const assignMode = req.body.studentAssignmentMode !== undefined ? req.body.studentAssignmentMode : (req.body.accountantProfile?.studentAssignmentMode);
+            if (assignMode !== undefined) user.accountantProfile.studentAssignmentMode = assignMode;
+
+            const assignedSecs = req.body.assignedSections !== undefined ? req.body.assignedSections : (req.body.accountantProfile?.assignedSections);
+            if (assignedSecs !== undefined) user.accountantProfile.assignedSections = assignedSecs;
+
+            const assignedSts = req.body.assignedStudents !== undefined ? req.body.assignedStudents : (req.body.accountantProfile?.assignedStudents);
+            if (assignedSts !== undefined) user.accountantProfile.assignedStudents = assignedSts;
+
             user.markModified('accountantProfile');
 
             if (req.body.controls !== undefined) {

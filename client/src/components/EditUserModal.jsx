@@ -201,9 +201,9 @@ const EditUserModal = ({ user, isOpen, onClose, onSuccess }) => {
             batch: role === 'Student' ? (user?.studentProfile?.batch || '') : '',
             section: role === 'Student' ? (user?.studentProfile?.section || '') : '',
             callEnabled: user?.callEnabled || false,
-            studentAssignmentMode: role === 'Teacher' ? (user?.teacherProfile?.studentAssignmentMode || 'all') : 'all',
-            assignedSections: role === 'Teacher' ? (user?.teacherProfile?.assignedSections || []) : [],
-            assignedStudents: role === 'Teacher' ? (user?.teacherProfile?.assignedStudents?.map(s => s._id || s) || []) : [],
+            studentAssignmentMode: (role === 'Teacher' || role === 'Accountant') ? (user?.teacherProfile?.studentAssignmentMode || user?.accountantProfile?.studentAssignmentMode || 'all') : 'all',
+            assignedSections: (role === 'Teacher' || role === 'Accountant') ? (user?.teacherProfile?.assignedSections || user?.accountantProfile?.assignedSections || []) : [],
+            assignedStudents: (role === 'Teacher' || role === 'Accountant') ? (user?.teacherProfile?.assignedStudents?.map(s => s._id || s) || user?.accountantProfile?.assignedStudents?.map(s => s._id || s) || []) : [],
             controls: role === 'Student' ? { ...DEFAULT_STUDENT_CONTROLS, ...(user?.studentProfile?.controls || {}) } :
                       role === 'Teacher' ? { ...DEFAULT_TEACHER_CONTROLS, ...(user?.teacherProfile?.controls || {}) } :
                       role === 'Editor' ? { ...DEFAULT_EDITOR_CONTROLS, ...(user?.editorProfile?.controls || {}) } :
@@ -1704,7 +1704,7 @@ const handleSubmit = async (e) => {
 
 
 
-                                {selectedRoleToEdit === 'Teacher' && selectedCoursesList.length > 0 && (
+                                {(selectedRoleToEdit === 'Teacher' || selectedRoleToEdit === 'Accountant') && selectedCoursesList.length > 0 && (
                                             <div className="bg-slate-50/50 p-5 rounded-[24px] border border-slate-150 space-y-4 mt-4 animate-fade-in">
                                                 <div>
                                                     <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-3 block">Student Assignment Mode</label>

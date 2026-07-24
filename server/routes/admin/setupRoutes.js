@@ -36,8 +36,10 @@ const {
     getDeletedApplications,
     restoreApplication,
     permanentlyDeleteApplication,
-    importApplications,
     deleteSubject,
+    getDeletedSubjects,
+    restoreSubject,
+    permanentlyDeleteSubject,
     getActivityTypes,
     createActivityType,
     updateActivityType,
@@ -87,6 +89,15 @@ router.route('/subjects')
     .get(protect, adminOrEditor, getSubjects)
     .post(protect, adminOrEditor, createSubject)
     .delete(protect, adminOrEditor, deleteSubject);
+
+router.route('/subjects/trash')
+    .get(protect, adminOrEditor, getDeletedSubjects);
+
+router.route('/subjects/trash/:id/restore')
+    .put(protect, adminOrEditor, restoreSubject);
+
+router.route('/subjects/trash/:id/permanent')
+    .delete(protect, adminOrEditor, permanentlyDeleteSubject);
 
 router.route('/subjects/update')
     .put(protect, adminOrEditor, updateSubjectDetails);

@@ -7,6 +7,7 @@ import * as XLSX from 'xlsx';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { Search, Filter, Eye, X, BookOpen, Calendar, HelpCircle, FileText, CheckCircle, AlertCircle, Plus, Edit2, Upload, Download, Trash2 } from 'lucide-react';
 import TruncatedCell from '../../components/common/TruncatedCell';
+import RecycleBinModal from '../../components/common/RecycleBinModal';
 
 const SubjectsList = () => {
     const { user: currentUser } = useAuth();
@@ -14,6 +15,7 @@ const SubjectsList = () => {
     const [filterCourse, setFilterCourse] = useState('All');
     const [subjects, setSubjects] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [isTrashOpen, setIsTrashOpen] = useState(false);
 
     // Bulk actions
     const [selectedIds, setSelectedIds] = useState(new Set());
@@ -497,6 +499,13 @@ const SubjectsList = () => {
                     <p className="text-slate-500">Manage all subjects, courses, institutes, and check assigned teachers and tests details.</p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
+                    <button
+                        onClick={() => setIsTrashOpen(true)}
+                        className="px-3.5 py-2.5 text-slate-500 hover:text-red-650 hover:bg-red-50 bg-white border border-slate-200 rounded-2xl transition-all flex items-center gap-1.5 text-sm font-bold shadow-sm cursor-pointer whitespace-nowrap"
+                        title="Recycle Bin"
+                    >
+                        <Trash2 size={16} className="text-red-500" /> Recycle Bin
+                    </button>
                     <input
                         type="file"
                         ref={importSubjectsRef}
@@ -1360,6 +1369,17 @@ const SubjectsList = () => {
                 </div>,
                 document.body
             )}
+
+            <RecycleBinModal
+                isOpen={isTrashOpen}
+                onClose={() => setIsTrashOpen(false)}
+                trashUrl="/api/setup/subjects/trash"
+                restoreUrlPattern={(id) => `/api/setup/subjects/trash/${id}/restore`}
+                permanentDeleteUrlPattern={(id) => `/api/setup/subjects/trash/${id}/permanent`}
+                onRestoreSuccess={fetchData}
+                title="Subjects Recycle Bin"
+                renderItemDetail={(item) => item.courseName || ''}
+            />
 
             <style>{`
                 .animate-fade-in { animation: fadeIn 0.2s ease-out forwards; }

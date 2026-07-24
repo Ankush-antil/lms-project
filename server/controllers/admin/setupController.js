@@ -1709,6 +1709,18 @@ const deleteSubject = asyncHandler(async (req, res) => {
     const courses = await Course.find(query);
 
     for (const course of courses) {
+        const durationObj = (course.subjectDurations || []).find(sd => sd && sd.subjectName?.toLowerCase() === subjectName.toLowerCase());
+        const dur = durationObj ? durationObj.duration : 0;
+
+        const DeletedSubject = require('../../models/DeletedSubject');
+        await DeletedSubject.create({
+            name: subjectName,
+            course: course._id,
+            courseName: course.name,
+            institute: course.institute,
+            duration: dur
+        });
+
         const filteredSubjects = (course.subjects || []).filter(s => typeof s === 'string' && s.toLowerCase() !== subjectName.toLowerCase());
         const filteredDurations = (course.subjectDurations || []).filter(sd => sd && sd.subjectName?.toLowerCase() !== subjectName.toLowerCase());
         
@@ -1754,6 +1766,63 @@ const deleteSubject = asyncHandler(async (req, res) => {
     }
 
     res.json({ message: 'Subject deleted successfully' });
+});
+
+// @desc    Get all deleted subjects
+// @route   GET /api/setup/subjects/trash
+// @access  Private (Admin / Editor)
+const getDeletedSubjects = asyncHandler(async (req, res) => {
+    const query = {};
+    if (req.user && (req.user.role === 'Institute' || req.user.role === 'Editor')) {
+        if (req.user.institute) {
+            query.institute = req.user.institute;
+        }
+    }
+    const DeletedSubject = require('../../models/DeletedSubject');
+    const items = await DeletedSubject.find(query).sort({ createdAt: -1 });
+    res.json(items);
+});
+
+// @desc    Restore a subject from trash
+// @route   PUT /api/setup/subjects/trash/:id/restore
+// @access  Private (Admin / Editor)
+const restoreSubject = asyncHandler(async (req, res) => {
+    const DeletedSubject = require('../../models/DeletedSubject');
+    const item = await DeletedSubject.findById(req.params.id);
+    if (!item) {
+        res.status(404);
+        throw new Error('Deleted subject not found');
+    }
+
+    const course = await Course.findById(item.course);
+    if (course) {
+        if (!course.subjects.includes(item.name)) {
+            course.subjects.push(item.name);
+        }
+        if (!course.subjectDurations) course.subjectDurations = [];
+        const existingDur = course.subjectDurations.find(sd => sd.subjectName?.toLowerCase() === item.name.toLowerCase());
+        if (!existingDur) {
+            course.subjectDurations.push({ subjectName: item.name, duration: item.duration || 0 });
+        }
+        await course.save();
+    }
+
+    await item.deleteOne();
+    res.json({ message: 'Subject restored successfully' });
+});
+
+// @desc    Permanently delete a subject from trash
+// @route   DELETE /api/setup/subjects/trash/:id/permanent
+// @access  Private (Admin / Editor)
+const permanentlyDeleteSubject = asyncHandler(async (req, res) => {
+    const DeletedSubject = require('../../models/DeletedSubject');
+    const item = await DeletedSubject.findById(req.params.id);
+    if (!item) {
+        res.status(404);
+        throw new Error('Deleted subject not found');
+    }
+    await item.deleteOne();
+    res.json({ message: 'Subject permanently deleted' });
 });
 
 const importInstitutes = asyncHandler(async (req, res) => {
@@ -1977,6 +2046,9 @@ module.exports = {
     importApplications,
     toggleCourseFlag,
     deleteSubject,
+    getDeletedSubjects,
+    restoreSubject,
+    permanentlyDeleteSubject,
     
     getActivityTypes,
     createActivityType,

@@ -713,20 +713,27 @@ const AdminAnnouncements = () => {
 
                     <div className="flex items-center gap-2 self-start sm:self-auto">
                         <button
-                            onClick={handleExportData}
-                            className="flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all cursor-pointer"
-                            title="Export Announcements CSV"
+                            onClick={() => setIsRecycleBinOpen(true)}
+                            className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs rounded-xl transition-all cursor-pointer shadow-sm"
                         >
-                            <Download size={14} />
-                            <span>Export</span>
+                            <Trash2 size={14} className="text-red-500" />
+                            <span>Recycle Bin</span>
                         </button>
                         <button
                             onClick={() => importFileRef.current?.click()}
-                            className="flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all cursor-pointer"
+                            className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs rounded-xl transition-all cursor-pointer shadow-sm"
                             title="Import Announcements CSV/JSON"
                         >
-                            <Upload size={14} />
+                            <Upload size={14} className="text-slate-600" />
                             <span>Import</span>
+                        </button>
+                        <button
+                            onClick={handleExportData}
+                            className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs rounded-xl transition-all cursor-pointer shadow-sm"
+                            title="Export Announcements CSV"
+                        >
+                            <Download size={14} className="text-slate-600" />
+                            <span>Export</span>
                         </button>
                         <input
                             type="file"
@@ -736,22 +743,13 @@ const AdminAnnouncements = () => {
                             className="hidden"
                         />
                         {user?.role && (
-                            <>
-                                <button
-                                    onClick={() => setIsRecycleBinOpen(true)}
-                                    className="flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all cursor-pointer"
-                                >
-                                    <Trash2 size={14} />
-                                    <span>Recycle Bin</span>
-                                </button>
-                                <button
-                                    onClick={openCreateModal}
-                                    className="flex items-center gap-2 px-4 py-2.5 bg-[#3E3ADD] hover:bg-[#2d2aab] text-white font-extrabold text-xs rounded-xl shadow-sm shadow-indigo-650/10 transition-all cursor-pointer"
-                                >
-                                    <Plus size={14} />
-                                    <span>Create Announcement</span>
-                                </button>
-                            </>
+                            <button
+                                onClick={openCreateModal}
+                                className="flex items-center gap-2 px-4 py-2.5 bg-[#3E3ADD] hover:bg-[#2d2aab] text-white font-extrabold text-xs rounded-xl shadow-sm shadow-indigo-650/10 transition-all cursor-pointer"
+                            >
+                                <Plus size={14} />
+                                <span>Create Announcement</span>
+                            </button>
                         )}
                     </div>
                 </div>

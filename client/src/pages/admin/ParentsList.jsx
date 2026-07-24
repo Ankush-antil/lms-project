@@ -407,10 +407,10 @@ const ParentsList = () => {
                     <button
                         type="button"
                         onClick={() => setIsTrashOpen(true)}
-                        className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-2xl text-xs flex items-center gap-2 active:scale-95 transition-all cursor-pointer whitespace-nowrap"
+                        className="px-4 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold rounded-2xl text-xs flex items-center gap-2 active:scale-95 transition-all shadow-sm cursor-pointer whitespace-nowrap"
                         title="Recycle Bin"
                     >
-                        <Trash2 size={14} className="text-slate-600" /> Recycle Bin
+                        <Trash2 size={14} className="text-red-500" /> Recycle Bin
                     </button>
                     <input
                         type="file"
@@ -422,17 +422,17 @@ const ParentsList = () => {
                     <button
                         type="button"
                         onClick={() => importUsersRef.current?.click()}
-                        className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-2xl text-xs flex items-center gap-2 active:scale-95 transition-all shadow-md shadow-indigo-650/10 cursor-pointer whitespace-nowrap"
+                        className="px-4 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold rounded-2xl text-xs flex items-center gap-2 active:scale-95 transition-all shadow-sm cursor-pointer whitespace-nowrap"
                     >
-                        <Upload size={14} /> Import
+                        <Upload size={14} className="text-slate-600" /> Import
                     </button>
                     <div className="relative">
                         <button
                             type="button"
                             onClick={() => setIsExportDropdownOpen(!isExportDropdownOpen)}
-                            className="px-4 py-2.5 bg-[#0b1329] text-white hover:bg-slate-800 font-bold rounded-2xl text-xs flex items-center gap-2 active:scale-95 transition-all shadow-md shadow-[#0b1329]/10 cursor-pointer whitespace-nowrap"
+                            className="px-4 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold rounded-2xl text-xs flex items-center gap-2 active:scale-95 transition-all shadow-sm cursor-pointer whitespace-nowrap"
                         >
-                            <Download size={14} /> Export
+                            <Download size={14} className="text-slate-600" /> Export
                         </button>
                         {isExportDropdownOpen && (
                             <div className="absolute right-0 mt-2 w-40 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 overflow-hidden py-1">

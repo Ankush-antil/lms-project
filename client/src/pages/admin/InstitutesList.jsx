@@ -176,7 +176,7 @@ const InstitutesList = () => {
     const fetchPendingRequests = async () => {
         try {
             setLoadingRequests(true);
-            const { data } = await axios.get('/api/registration-requests/admin');
+            const { data } = await axios.get('/api/registration-requests/admin?role=Institute&status=Pending');
             setPendingRequests(data);
             setLoadingRequests(false);
         } catch (err) {

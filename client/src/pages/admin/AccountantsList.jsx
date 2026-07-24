@@ -575,6 +575,8 @@ const AccountantsList = () => {
                                 <th className="p-4 font-semibold whitespace-nowrap">Accountant Name</th>
                                 <th className="p-4 font-semibold whitespace-nowrap">ID</th>
                                 <th className="p-4 font-semibold whitespace-nowrap">Institute</th>
+                                <th className="p-4 font-semibold whitespace-nowrap">Assigned Course</th>
+                                <th className="p-4 font-semibold whitespace-nowrap">Subjects</th>
                                 <th className="p-4 font-semibold whitespace-nowrap">Mobile</th>
                                 <th className="p-4 font-semibold whitespace-nowrap">Status</th>
                                 <th className="p-4 font-semibold text-right whitespace-nowrap sticky right-0 bg-slate-50 border-l border-slate-200 z-10">Actions</th>
@@ -583,7 +585,7 @@ const AccountantsList = () => {
                         <tbody className="divide-y divide-slate-100">
                             {loading ? (
                                 <tr>
-                                    <td colSpan="7" className="p-8 text-center text-slate-500">
+                                    <td colSpan="9" className="p-8 text-center text-slate-500">
                                         <div className="flex justify-center items-center gap-2">
                                             <div className="w-5 h-5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
                                             Loading accountants...
@@ -638,6 +640,20 @@ const AccountantsList = () => {
                                         <td className="p-4 text-slate-600 whitespace-nowrap">
                                             <TruncatedCell text={accountant.institute?.name || accountant.institute || 'N/A'} maxLength={20} />
                                         </td>
+                                        <td className="p-4 whitespace-nowrap text-sm text-slate-650 font-medium">
+                                            {accountant.accountantProfile?.assignedCourses?.length > 0 ? (
+                                                <TruncatedCell text={accountant.accountantProfile.assignedCourses.map(c => c.name || c).join(', ')} maxLength={20} />
+                                            ) : (
+                                                <span className="text-slate-400 text-xs">N/A</span>
+                                            )}
+                                        </td>
+                                        <td className="p-4 whitespace-nowrap text-sm text-slate-650 font-medium">
+                                            {accountant.accountantProfile?.subjects?.length > 0 ? (
+                                                <TruncatedCell text={accountant.accountantProfile.subjects.join(', ')} maxLength={20} />
+                                            ) : (
+                                                <span className="text-slate-400 text-xs">N/A</span>
+                                            )}
+                                        </td>
                                         <td className="p-4 text-slate-600 text-sm whitespace-nowrap">{accountant.mobileNumber || 'N/A'}</td>
                                         <td className="p-4 whitespace-nowrap">
                                              <button
@@ -687,7 +703,7 @@ const AccountantsList = () => {
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan="7" className="p-8 text-center text-slate-500">
+                                    <td colSpan="9" className="p-8 text-center text-slate-500">
                                         No accountants found.
                                     </td>
                                 </tr>

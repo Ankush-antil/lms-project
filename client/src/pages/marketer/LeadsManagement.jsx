@@ -2,13 +2,14 @@ import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
+import * as XLSX from 'xlsx';
 import { useAuth } from '../../context/AuthContext';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { 
     Users, Search, Plus, Filter, ArrowRight, Check, X, 
     Calendar, Mail, Phone, Clock, FileText, ChevronRight,
     TrendingUp, UserCheck, Inbox, RefreshCw, BarChart2,
-    Eye, MoreHorizontal, Settings, Trash2
+    Eye, MoreHorizontal, Settings, Trash2, Download, ChevronDown
 } from 'lucide-react';
 
 const LeadsManagement = () => {
@@ -261,6 +262,57 @@ const LeadsManagement = () => {
         }
     };
 
+    const [isExportDropdownOpen, setIsExportDropdownOpen] = useState(false);
+
+    const exportLeads = (format) => {
+        const listToExport = filteredLeads;
+        if (!listToExport || listToExport.length === 0) {
+            toast.error('No lead data to export');
+            return;
+        }
+
+        const dataRows = listToExport.map((lead, idx) => ({
+            'S.No': idx + 1,
+            'Lead Name': lead.guestName || lead.name || 'N/A',
+            'Phone': lead.guestPhone || lead.phone || 'N/A',
+            'Email': lead.guestEmail || lead.email || 'N/A',
+            'Course Interested': typeof lead.course === 'object' ? lead.course?.name || 'N/A' : (lead.course || 'N/A'),
+            'Lead Source': lead.source || 'Direct',
+            'Pipeline Stage': lead.stage || 'New',
+            'Institute': lead.institute?.name || 'N/A',
+            'Created Date': lead.createdAt ? new Date(lead.createdAt).toLocaleDateString() : 'N/A',
+            'Notes': lead.statement || lead.notes || ''
+        }));
+
+        if (format === 'json') {
+            const blob = new Blob([JSON.stringify(dataRows, null, 2)], { type: 'application/json;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `Leads_Pipeline_Report_${new Date().toISOString().split('T')[0]}.json`;
+            link.click();
+            URL.revokeObjectURL(url);
+            toast.success(`Exported ${dataRows.length} leads to JSON`);
+        } else if (format === 'csv') {
+            const worksheet = XLSX.utils.json_to_sheet(dataRows);
+            const csv = XLSX.utils.sheet_to_csv(worksheet);
+            const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `Leads_Pipeline_Report_${new Date().toISOString().split('T')[0]}.csv`;
+            link.click();
+            URL.revokeObjectURL(url);
+            toast.success(`Exported ${dataRows.length} leads to CSV`);
+        } else if (format === 'excel') {
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.json_to_sheet(dataRows);
+            XLSX.utils.book_append_sheet(wb, ws, 'Leads Pipeline');
+            XLSX.writeFile(wb, `Leads_Pipeline_Report_${new Date().toISOString().split('T')[0]}.xlsx`);
+            toast.success(`Exported ${dataRows.length} leads to Excel`);
+        }
+    };
+
     return (
         <DashboardLayout role={user?.role || 'Marketer'}>
             {/* Header section */}
@@ -271,16 +323,52 @@ const LeadsManagement = () => {
                     </h1>
                     <p className="text-slate-500 text-xs mt-1">Capture, organize, and convert leads through visual pipeline stages</p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 items-center flex-wrap">
                     <button
                         onClick={() => setViewMode(viewMode === 'list' ? 'kanban' : 'list')}
                         className="px-4 py-2.5 bg-white border border-slate-200 text-slate-700 font-bold rounded-2xl hover:bg-slate-50 text-xs transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
                     >
                         <BarChart2 size={14} /> View as {viewMode === 'list' ? 'Kanban' : 'List'}
                     </button>
+                    
+                    <div className="relative">
+                        <button
+                            type="button"
+                            onClick={() => setIsExportDropdownOpen(!isExportDropdownOpen)}
+                            className="px-4 py-2.5 bg-[#0b1329] hover:bg-slate-800 text-white font-bold rounded-2xl text-xs transition-all flex items-center gap-1.5 cursor-pointer shadow-md shadow-[#0b1329]/10 active:scale-95 whitespace-nowrap"
+                        >
+                            <Download size={14} /> Export <ChevronDown size={12} />
+                        </button>
+                        {isExportDropdownOpen && (
+                            <div className="absolute right-0 mt-2 w-40 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 overflow-hidden py-1">
+                                <button
+                                    type="button"
+                                    onClick={() => { exportLeads('excel'); setIsExportDropdownOpen(false); }}
+                                    className="w-full text-left px-4 py-2 hover:bg-slate-50 text-xs font-semibold text-slate-700 flex items-center gap-2 cursor-pointer"
+                                >
+                                    Excel (.xlsx)
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => { exportLeads('csv'); setIsExportDropdownOpen(false); }}
+                                    className="w-full text-left px-4 py-2 hover:bg-slate-50 text-xs font-semibold text-slate-700 flex items-center gap-2 cursor-pointer"
+                                >
+                                    CSV (.csv)
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => { exportLeads('json'); setIsExportDropdownOpen(false); }}
+                                    className="w-full text-left px-4 py-2 hover:bg-slate-50 text-xs font-semibold text-slate-700 flex items-center gap-2 cursor-pointer"
+                                >
+                                    JSON (.json)
+                                </button>
+                            </div>
+                        )}
+                    </div>
+
                     <button
                         onClick={() => setIsAddModalOpen(true)}
-                        className="px-4 py-2.5 bg-indigo-600 text-white font-bold rounded-2xl hover:bg-indigo-700 text-xs transition-all flex items-center gap-1.5 cursor-pointer shadow-md shadow-indigo-600/10"
+                        className="px-4 py-2.5 bg-indigo-600 text-white font-bold rounded-2xl hover:bg-indigo-700 text-xs transition-all flex items-center gap-1.5 cursor-pointer shadow-md shadow-indigo-600/10 active:scale-95"
                     >
                         <Plus size={14} /> Add Lead
                     </button>

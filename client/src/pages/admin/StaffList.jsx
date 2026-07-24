@@ -16,6 +16,7 @@ import EditUserModal from '../../components/EditUserModal';
 import BulkEditModal from '../../components/common/BulkEditModal';
 import StaffAttendanceDetailModal from '../../components/common/StaffAttendanceDetailModal';
 import { useUserProfile } from '../../components/common/UserProfileContext';
+import RecycleBinModal from '../../components/common/RecycleBinModal';
 
 const calculateSpendingTime = (checkIn, checkOut) => {
     if (!checkIn || !checkOut) return 'â€”';
@@ -67,6 +68,7 @@ const StaffList = () => {
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
     const [activeTab, setActiveTab] = useState('directory'); // directory, attendance, salary, task
+    const [isTrashOpen, setIsTrashOpen] = useState(false);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [selectedStaff, setSelectedStaff] = useState(null);
@@ -1052,6 +1054,66 @@ const StaffList = () => {
                                 <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b', fontWeight: 600 }}>Manage staff accounts, attendance, salaries, and tasks</p>
                             </div>
                         </div>
+
+                        {/* Action Toolbar: Recycle Bin -> Import -> Export */}
+                        <div className="flex items-center gap-2 flex-wrap justify-end">
+                            <button
+                                type="button"
+                                onClick={() => setIsTrashOpen(true)}
+                                className="px-3.5 py-2.5 text-slate-500 hover:text-red-500 hover:bg-red-50 bg-white border border-slate-200 rounded-2xl transition-all flex items-center gap-1.5 text-sm font-bold shadow-sm cursor-pointer whitespace-nowrap"
+                                title="Recycle Bin"
+                            >
+                                <Trash2 size={16} className="text-red-500" /> Recycle Bin
+                            </button>
+                            <input
+                                type="file"
+                                ref={importUsersRef}
+                                onChange={handleImportUsers}
+                                accept=".json,.csv,.xlsx,.xls"
+                                className="hidden"
+                            />
+                            <button
+                                type="button"
+                                onClick={() => importUsersRef.current?.click()}
+                                className="px-4 py-2.5 bg-[#0b1329] hover:bg-slate-800 text-white rounded-2xl transition-all flex items-center gap-1.5 text-sm font-bold shadow-md shadow-[#0b1329]/10 cursor-pointer whitespace-nowrap active:scale-95"
+                            >
+                                <Upload size={16} /> Import
+                            </button>
+                            <div className="relative">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsExportDropdownOpen(!isExportDropdownOpen)}
+                                    className="px-4 py-2.5 bg-[#0b1329] hover:bg-slate-800 text-white rounded-2xl transition-all flex items-center gap-1.5 text-sm font-bold shadow-md shadow-[#0b1329]/10 cursor-pointer whitespace-nowrap active:scale-95"
+                                >
+                                    <Download size={16} /> Export <ChevronDown size={13} />
+                                </button>
+                                {isExportDropdownOpen && (
+                                    <div className="absolute right-0 mt-2 w-40 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 overflow-hidden py-1">
+                                        <button
+                                            type="button"
+                                            onClick={() => { exportUsers('excel'); setIsExportDropdownOpen(false); }}
+                                            className="w-full text-left px-4 py-2 hover:bg-slate-50 text-sm font-semibold text-slate-700 flex items-center gap-2 cursor-pointer"
+                                        >
+                                            Excel (.xlsx)
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => { exportUsers('csv'); setIsExportDropdownOpen(false); }}
+                                            className="w-full text-left px-4 py-2 hover:bg-slate-50 text-sm font-semibold text-slate-700 flex items-center gap-2 cursor-pointer"
+                                        >
+                                            CSV (.csv)
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => { exportUsers('json'); setIsExportDropdownOpen(false); }}
+                                            className="w-full text-left px-4 py-2 hover:bg-slate-50 text-sm font-semibold text-slate-700 flex items-center gap-2 cursor-pointer"
+                                        >
+                                            JSON (.json)
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
                     </div>
 
 
@@ -1158,55 +1220,6 @@ const StaffList = () => {
                                 </div>
                                 <div className="flex items-center gap-2">
                                     {renderEntriesPerPageSelector()}
-                                    <input
-                                        type="file"
-                                        ref={importUsersRef}
-                                        onChange={handleImportUsers}
-                                        accept=".json,.csv,.xlsx,.xls"
-                                        className="hidden"
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={() => importUsersRef.current?.click()}
-                                        className="px-4 py-2 bg-[#0b1329] hover:bg-slate-800 text-white rounded-2xl transition-all flex items-center gap-1.5 text-sm font-bold shadow-md shadow-[#0b1329]/10 cursor-pointer whitespace-nowrap"
-                                    >
-                                        <Upload size={16} /> Import
-                                    </button>
-                                    <div className="relative">
-                                        <button
-                                            type="button"
-                                            onClick={() => setIsExportDropdownOpen(!isExportDropdownOpen)}
-                                            className="px-4 py-2 bg-[#0b1329] hover:bg-slate-800 text-white rounded-2xl transition-all flex items-center gap-1.5 text-sm font-bold shadow-md shadow-[#0b1329]/10 cursor-pointer whitespace-nowrap"
-                                        >
-                                            <Download size={16} /> Export
-                                        </button>
-                                        {isExportDropdownOpen && (
-                                            <div className="absolute right-0 mt-2 w-40 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 overflow-hidden py-1">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => { exportUsers('excel'); setIsExportDropdownOpen(false); }}
-                                                    className="w-full text-left px-4 py-2 hover:bg-slate-50 text-sm font-semibold text-slate-700 flex items-center gap-2 cursor-pointer"
-                                                >
-                                                    Excel (.xlsx)
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => { exportUsers('csv'); setIsExportDropdownOpen(false); }}
-                                                    className="w-full text-left px-4 py-2 hover:bg-slate-50 text-sm font-semibold text-slate-700 flex items-center gap-2 cursor-pointer"
-                                                >
-                                                    CSV (.csv)
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => { exportUsers('json'); setIsExportDropdownOpen(false); }}
-                                                    className="w-full text-left px-4 py-2 hover:bg-slate-50 text-sm font-semibold text-slate-700 flex items-center gap-2 cursor-pointer"
-                                                >
-                                                    JSON (.json)
-                                                </button>
-                                            </div>
-                                        )}
-                                    </div>
-
                                 </div>
                             </div>
 
@@ -2402,6 +2415,16 @@ const StaffList = () => {
                 onSuccess={async () => {
                     await fetchStaffData();
                 }}
+            />
+            <RecycleBinModal
+                isOpen={isTrashOpen}
+                onClose={() => setIsTrashOpen(false)}
+                trashUrl="/api/users/trash?role=Staff"
+                restoreUrlPattern={(id) => `/api/users/${id}/restore`}
+                permanentDeleteUrlPattern={(id) => `/api/users/${id}/permanent`}
+                onRestoreSuccess={fetchStaffData}
+                title="Staff Recycle Bin"
+                renderItemDetail={(item) => item.email || item.institute?.name || ''}
             />
             {showPointsModal && createPortal(
                 <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', zIndex: 99999, display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: '60px 20px 40px', overflowY: 'auto' }}>

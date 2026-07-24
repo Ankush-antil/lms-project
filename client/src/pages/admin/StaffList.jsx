@@ -1642,14 +1642,14 @@ const StaffList = () => {
                                                     className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer accent-indigo-650"
                                                 />
                                             </th>
-                                            {['#', 'Staff Member', 'Role', 'Institute', 'Monthly Salary', 'Status', 'Action'].map(h => (
+                                            {['Staff Member', 'Role', 'Institute', 'Monthly Salary', 'Status', 'Action'].map(h => (
                                                 <th key={h} style={{ padding: '12px 16px' }}>{h}</th>
                                             ))}
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {paginatedDisplayList.length === 0 ? (
-                                            <tr><td colSpan={8} style={{ padding: '40px', textAlign: 'center', color: '#94a3b8', fontWeight: 700 }}>No staff found</td></tr>
+                                            <tr><td colSpan={7} style={{ padding: '40px', textAlign: 'center', color: '#94a3b8', fontWeight: 700 }}>No staff found</td></tr>
                                         ) : paginatedDisplayList.map((s, i) => {
                                             const status = salaryPayouts[s.name] || s.staffProfile?.salaryStatus || 'Pending';
                                             const salary = s.staffProfile?.salary || 25000;
@@ -1670,7 +1670,7 @@ const StaffList = () => {
                                                             className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer accent-indigo-650"
                                                         />
                                                     </td>
-                                                    <td style={{ padding: '12px 16px', fontWeight: 700, color: '#94a3b8' }}>{(currentPage - 1) * itemsPerPage + i + 1}</td>
+
                                                     <td style={{ padding: '12px 16px' }}>
                                                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                                             <div style={{ width: 32, height: 32, borderRadius: '10px', background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '0.8rem', fontWeight: 900 }}>{s.name?.[0]?.toUpperCase() || '?'}</div>
@@ -2050,7 +2050,7 @@ const StaffList = () => {
                                                                 className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer accent-indigo-650"
                                                             />
                                                         </th>
-                                                        <th style={{ padding: '14px 16px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase' }}>#</th>
+
                                                         <th style={{ padding: '14px 16px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase' }}>Staff Name</th>
                                                         <th style={{ padding: '14px 16px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase' }}>Role / Designation</th>
                                                         <th style={{ padding: '14px 16px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase' }}>Institute</th>
@@ -2061,7 +2061,7 @@ const StaffList = () => {
                                                 </thead>
                                                 <tbody>
                                                     {paginatedDisplayList.length === 0 ? (
-                                                        <tr><td colSpan={8} style={{ padding: '40px', textAlign: 'center', color: '#94a3b8', fontWeight: 700 }}>No staff found</td></tr>
+                                                        <tr><td colSpan={7} style={{ padding: '40px', textAlign: 'center', color: '#94a3b8', fontWeight: 700 }}>No staff found</td></tr>
                                                     ) : paginatedDisplayList.map((staff, idx) => {
                                                         const getStaffPointsSum = (type) => {
                                                             if (!pointsLogs || !Array.isArray(pointsLogs)) return 0;
@@ -2089,7 +2089,7 @@ const StaffList = () => {
                                                                         className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer accent-indigo-650"
                                                                     />
                                                                 </td>
-                                                                <td style={{ padding: '14px 16px', fontSize: '0.78rem', fontWeight: 700, color: '#94a3b8' }}>{(currentPage - 1) * itemsPerPage + idx + 1}</td>
+
                                                                 <td style={{ padding: '14px 16px', fontSize: '0.85rem', fontWeight: 800, color: '#0f172a' }}>{staff.name}</td>
                                                                 <td style={{ padding: '14px 16px', fontSize: '0.78rem', color: '#475569', fontWeight: 600 }}>{staff.role || 'Staff'}</td>
                                                                 <td style={{ padding: '14px 16px', fontSize: '0.78rem', color: '#475569', fontWeight: 600 }}>
@@ -2117,17 +2117,7 @@ const StaffList = () => {
                                                                         >
                                                                             <Eye size={12} /> Preview Valuation
                                                                         </button>
-                                                                        <button
-                                                                            onClick={() => openAddPointsModal(staff._id, 'minus')}
-                                                                            title="Add Valuation for this Staff"
-                                                                            style={{
-                                                                                background: '#dcfce7', color: '#15803d', border: 'none',
-                                                                                borderRadius: '8px', padding: '6px 10px', fontSize: '0.72rem',
-                                                                                fontWeight: 800, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px'
-                                                                            }}
-                                                                        >
-                                                                            <Plus size={12} />
-                                                                        </button>
+
                                                                     </div>
                                                                 </td>
                                                             </tr>

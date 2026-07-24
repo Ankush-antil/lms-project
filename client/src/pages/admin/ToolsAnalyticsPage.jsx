@@ -67,6 +67,68 @@ const ToolsAnalyticsPage = () => {
     // Edit User Modal State
     const [selectedUserToEdit, setSelectedUserToEdit] = useState(null);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [togglingId, setTogglingId] = useState(null);
+
+    // Map activeTab to the service key used in studentProfile.toolsAccess
+    const tabToServiceKey = {
+        drive: 'drive',
+        chat: 'chat',
+        notes: 'notes',
+        screenshot: 'screenshot',
+        screenRecorder: 'screenRecorder',
+        voiceRecorder: 'voiceRecorder',
+        videoRecorder: 'videoRecorder'
+    };
+
+
+    const handleToggleService = async (row) => {
+        const userId = row.user?._id;
+        if (!userId || togglingId === userId) return;
+        const serviceKey = tabToServiceKey[activeTab];
+        const currentControls = row.user?.studentProfile?.controls || {};
+        const currentVal = currentControls.toolsAccess?.[serviceKey];
+        const newVal = currentVal === false ? true : false; // toggle; default is enabled (true)
+        setTogglingId(userId);
+        try {
+            await axios.put(`/api/users/${userId}`, {
+                controls: {
+                    ...currentControls,
+                    toolsAccess: {
+                        ...(currentControls.toolsAccess || {}),
+                        [serviceKey]: newVal
+                    }
+                }
+            });
+            // Update local data optimistically
+            setDetailedData(prev => prev.map(s => {
+                if (s.user?._id === userId) {
+                    return {
+                        ...s,
+                        user: {
+                            ...s.user,
+                            studentProfile: {
+                                ...s.user.studentProfile,
+                                controls: {
+                                    ...currentControls,
+                                    toolsAccess: {
+                                        ...(currentControls.toolsAccess || {}),
+                                        [serviceKey]: newVal
+                                    }
+                                }
+                            }
+                        }
+                    };
+                }
+                return s;
+            }));
+            toast.success(`Service ${newVal ? 'enabled' : 'disabled'} successfully`);
+        } catch (err) {
+            console.error('[Toggle Service Error]', err);
+            toast.error('Failed to update service status');
+        } finally {
+            setTogglingId(null);
+        }
+    };
 
     const fetchAnalytics = async () => {
         setLoading(true);
@@ -458,13 +520,14 @@ const ToolsAnalyticsPage = () => {
                                                     <th className="py-3.5 px-4 text-right">Last Activity</th>
                                                     <th className="py-3.5 px-4 text-center">Trash Files</th>
                                                     <th className="py-3.5 px-4 text-center">Total Devices</th>
+                                                    <th className="py-3.5 px-4 text-center">Service Status</th>
                                                     <th className="py-3.5 px-6 text-right">Actions</th>
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y divide-slate-100 text-xs font-bold text-slate-700">
                                                 {currentEntries.length === 0 ? (
                                                     <tr>
-                                                        <td colSpan="14" className="text-center py-10 text-slate-400">No student records found.</td>
+                                                        <td colSpan="15" className="text-center py-10 text-slate-400">No student records found.</td>
                                                     </tr>
                                                 ) : (
                                                     currentEntries.map((row, idx) => (
@@ -482,6 +545,20 @@ const ToolsAnalyticsPage = () => {
                                                             <td className="py-3.5 px-4 text-right text-slate-400 font-semibold">{formatDate(row.drive.lastActivity)}</td>
                                                             <td className="py-3.5 px-4 text-center text-amber-600">{row.drive.trashFiles}</td>
                                                             <td className="py-3.5 px-4 text-center text-slate-600">{row.drive.totalDevices}</td>
+                                                            <td className="py-3.5 px-4 text-center">
+                                                                {(() => {
+                                                                    const enabled = row.user?.studentProfile?.controls?.toolsAccess?.drive !== false;
+                                                                    return (
+                                                                        <button
+                                                                            onClick={() => handleToggleService(row)}
+                                                                            disabled={togglingId === row.user?._id}
+                                                                            className={`px-3 py-1 rounded-lg text-[10px] font-black border transition-all cursor-pointer ${enabled ? 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100' : 'bg-rose-50 text-rose-600 border-rose-200 hover:bg-rose-100'} disabled:opacity-50 disabled:cursor-not-allowed`}
+                                                                        >
+                                                                            {togglingId === row.user?._id ? '...' : enabled ? 'Enabled' : 'Disabled'}
+                                                                        </button>
+                                                                    );
+                                                                })()}
+                                                            </td>
                                                             <td className="py-3.5 px-6 text-right">
                                                                 <button 
                                                                     onClick={() => handleEditAccess(row.user)}
@@ -561,6 +638,20 @@ const ToolsAnalyticsPage = () => {
                                                                     {row.chat.status}
                                                                 </span>
                                                             </td>
+                                                            <td className="py-3.5 px-4 text-center">
+                                                                {(() => {
+                                                                    const enabled = row.user?.studentProfile?.controls?.toolsAccess?.chat !== false;
+                                                                    return (
+                                                                        <button
+                                                                            onClick={() => handleToggleService(row)}
+                                                                            disabled={togglingId === row.user?._id}
+                                                                            className={`px-3 py-1 rounded-lg text-[10px] font-black border transition-all cursor-pointer ${enabled ? 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100' : 'bg-rose-50 text-rose-600 border-rose-200 hover:bg-rose-100'} disabled:opacity-50 disabled:cursor-not-allowed`}
+                                                                        >
+                                                                            {togglingId === row.user?._id ? '...' : enabled ? 'Enabled' : 'Disabled'}
+                                                                        </button>
+                                                                    );
+                                                                })()}
+                                                            </td>
                                                             <td className="py-3.5 px-6 text-right">
                                                                 <button 
                                                                     onClick={() => handleEditAccess(row.user)}
@@ -591,13 +682,14 @@ const ToolsAnalyticsPage = () => {
                                                     <th className="py-3.5 px-4 text-right">Last Activity</th>
                                                     <th className="py-3.5 px-4 text-center">Trash Files</th>
                                                     <th className="py-3.5 px-4 text-center">Total Devices</th>
+                                                    <th className="py-3.5 px-4 text-center">Service Status</th>
                                                     <th className="py-3.5 px-6 text-right">Actions</th>
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y divide-slate-100 text-xs font-bold text-slate-700">
                                                 {currentEntries.length === 0 ? (
                                                     <tr>
-                                                        <td colSpan="11" className="text-center py-10 text-slate-400">No student records found.</td>
+                                                        <td colSpan="12" className="text-center py-10 text-slate-400">No student records found.</td>
                                                     </tr>
                                                 ) : (
                                                     currentEntries.map((row, idx) => (
@@ -612,6 +704,20 @@ const ToolsAnalyticsPage = () => {
                                                             <td className="py-3.5 px-4 text-right text-slate-400 font-semibold">{formatDate(row.notes.lastActivity)}</td>
                                                             <td className="py-3.5 px-4 text-center text-slate-400 font-medium">{row.notes.trashFiles}</td>
                                                             <td className="py-3.5 px-4 text-center text-slate-600">{row.notes.totalDevices}</td>
+                                                            <td className="py-3.5 px-4 text-center">
+                                                                {(() => {
+                                                                    const enabled = row.user?.studentProfile?.controls?.toolsAccess?.notes !== false;
+                                                                    return (
+                                                                        <button
+                                                                            onClick={() => handleToggleService(row)}
+                                                                            disabled={togglingId === row.user?._id}
+                                                                            className={`px-3 py-1 rounded-lg text-[10px] font-black border transition-all cursor-pointer ${enabled ? 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100' : 'bg-rose-50 text-rose-600 border-rose-200 hover:bg-rose-100'} disabled:opacity-50 disabled:cursor-not-allowed`}
+                                                                        >
+                                                                            {togglingId === row.user?._id ? '...' : enabled ? 'Enabled' : 'Disabled'}
+                                                                        </button>
+                                                                    );
+                                                                })()}
+                                                            </td>
                                                             <td className="py-3.5 px-6 text-right">
                                                                 <button 
                                                                     onClick={() => handleEditAccess(row.user)}
@@ -644,13 +750,14 @@ const ToolsAnalyticsPage = () => {
                                                     <th className="py-3.5 px-4 text-center">Total Shared Files</th>
                                                     <th className="py-3.5 px-4 text-right">Last Activity</th>
                                                     <th className="py-3.5 px-4 text-center">Trash Files</th>
+                                                    <th className="py-3.5 px-4 text-center">Service Status</th>
                                                     <th className="py-3.5 px-6 text-right">Actions</th>
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y divide-slate-100 text-xs font-bold text-slate-700">
                                                 {currentEntries.length === 0 ? (
                                                     <tr>
-                                                        <td colSpan="13" className="text-center py-10 text-slate-400">No student records found.</td>
+                                                        <td colSpan="14" className="text-center py-10 text-slate-400">No student records found.</td>
                                                     </tr>
                                                 ) : (
                                                     currentEntries.map((row, idx) => {
@@ -674,6 +781,20 @@ const ToolsAnalyticsPage = () => {
                                                                 <td className="py-3.5 px-4 text-center text-slate-400 font-medium">{tool.totalSharedFiles}</td>
                                                                 <td className="py-3.5 px-4 text-right text-slate-400 font-semibold">{formatDate(tool.lastActivity)}</td>
                                                                 <td className="py-3.5 px-4 text-center text-slate-400 font-medium">{tool.trashFiles}</td>
+                                                                <td className="py-3.5 px-4 text-center">
+                                                                    {(() => {
+                                                                        const enabled = row.user?.studentProfile?.controls?.toolsAccess?.[activeTab] !== false;
+                                                                        return (
+                                                                            <button
+                                                                                onClick={() => handleToggleService(row)}
+                                                                                disabled={togglingId === row.user?._id}
+                                                                                className={`px-3 py-1 rounded-lg text-[10px] font-black border transition-all cursor-pointer ${enabled ? 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100' : 'bg-rose-50 text-rose-600 border-rose-200 hover:bg-rose-100'} disabled:opacity-50 disabled:cursor-not-allowed`}
+                                                                            >
+                                                                                {togglingId === row.user?._id ? '...' : enabled ? 'Enabled' : 'Disabled'}
+                                                                            </button>
+                                                                        );
+                                                                    })()}
+                                                                </td>
                                                                 <td className="py-3.5 px-6 text-right">
                                                                     <button 
                                                                         onClick={() => handleEditAccess(row.user)}

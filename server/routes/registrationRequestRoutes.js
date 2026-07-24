@@ -5,7 +5,8 @@ const {
     getAdminRequests,
     resolveAdminRequest,
     getInstituteRequests,
-    resolveInstituteRequest
+    resolveInstituteRequest,
+    deleteRequest
 } = require('../controllers/registrationRequestController');
 const { protect, admin, adminOrInstitute } = require('../middleware/authMiddleware');
 
@@ -19,5 +20,6 @@ router.put('/:id/admin-resolve', protect, admin, resolveAdminRequest);
 // Institute routes
 router.get('/institute', protect, adminOrInstitute, getInstituteRequests);
 router.put('/:id/institute-resolve', protect, adminOrInstitute, resolveInstituteRequest);
+router.delete('/:id', protect, adminOrInstitute, deleteRequest);
 
 module.exports = router;

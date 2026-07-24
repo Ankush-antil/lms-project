@@ -81,15 +81,45 @@ const UsersList = () => {
 
             if (currentUser?.role === 'Admin' || currentUser?.role === 'Institute') {
                 promises.push(axios.get('/api/users/role-requests'));
+                if (currentUser?.role === 'Admin') {
+                    promises.push(axios.get('/api/registration-requests/admin'));
+                } else {
+                    promises.push(axios.get('/api/registration-requests/institute'));
+                }
             }
 
             const results = await Promise.all(promises);
             setUsers(results[0].data);
             setGuests(results[1].data);
             setLimitedUsers(results[2].data);
-            if (results[3]) {
-                setRoleRequests(results[3].data);
+
+            let combinedRoleRequests = [];
+            if (results[3]?.data) {
+                combinedRoleRequests = [...results[3].data];
             }
+            if (results[4]?.data) {
+                const mappedRegReqs = results[4].data.map(req => ({
+                    _id: req._id,
+                    isRegistrationRequest: true,
+                    name: req.name,
+                    email: req.email,
+                    phone: req.phone || '',
+                    user: {
+                        name: req.name,
+                        email: req.email,
+                        role: 'Applicant'
+                    },
+                    requestedRole: req.role,
+                    institute: req.targetInstitute,
+                    subjectSpecialization: req.subjectSpecialization,
+                    eligibility: req.eligibility,
+                    status: req.status,
+                    createdAt: req.createdAt
+                }));
+                combinedRoleRequests = [...mappedRegReqs, ...combinedRoleRequests];
+            }
+            setRoleRequests(combinedRoleRequests);
+
             const instsRes = await axios.get('/api/setup/institutes');
             setInstitutes(instsRes.data);
             setLoading(false);
@@ -226,34 +256,64 @@ const UsersList = () => {
         }
     };
 
-    const handleApproveRoleRequest = async (id) => {
+    const handleApproveRoleRequest = async (reqItem) => {
+        const isObj = typeof reqItem === 'object';
+        const id = isObj ? reqItem._id : reqItem;
+        const item = isObj ? reqItem : roleRequests.find(r => r._id === id);
+
         try {
-            await axios.put(`/api/users/role-requests/${id}/approve`);
-            toast.success('Role request approved successfully');
+            if (item?.isRegistrationRequest) {
+                const endpoint = item.requestedRole === 'Institute'
+                    ? `/api/registration-requests/${id}/admin-resolve`
+                    : `/api/registration-requests/${id}/institute-resolve`;
+                await axios.put(endpoint, { status: 'Approved' });
+            } else {
+                await axios.put(`/api/users/role-requests/${id}/approve`);
+            }
+            toast.success('Request approved successfully');
             fetchData();
         } catch (error) {
             toast.error(error.response?.data?.message || 'Error approving request');
         }
     };
 
-    const handleRejectRoleRequest = async (id) => {
+    const handleRejectRoleRequest = async (reqItem) => {
+        const isObj = typeof reqItem === 'object';
+        const id = isObj ? reqItem._id : reqItem;
+        const item = isObj ? reqItem : roleRequests.find(r => r._id === id);
+
         try {
-            await axios.put(`/api/users/role-requests/${id}/reject`);
-            toast.success('Role request rejected successfully');
+            if (item?.isRegistrationRequest) {
+                const endpoint = item.requestedRole === 'Institute'
+                    ? `/api/registration-requests/${id}/admin-resolve`
+                    : `/api/registration-requests/${id}/institute-resolve`;
+                await axios.put(endpoint, { status: 'Rejected' });
+            } else {
+                await axios.put(`/api/users/role-requests/${id}/reject`);
+            }
+            toast.success('Request rejected successfully');
             fetchData();
         } catch (error) {
             toast.error(error.response?.data?.message || 'Error rejecting request');
         }
     };
 
-    const handleDeleteRoleRequest = async (id) => {
-        if (window.confirm('Are you sure you want to move this role request to the Recycle Bin?')) {
+    const handleDeleteRoleRequest = async (reqItem) => {
+        const isObj = typeof reqItem === 'object';
+        const id = isObj ? reqItem._id : reqItem;
+        const item = isObj ? reqItem : roleRequests.find(r => r._id === id);
+
+        if (window.confirm('Are you sure you want to delete this request?')) {
             try {
-                await axios.delete(`/api/users/role-requests/${id}`);
+                if (item?.isRegistrationRequest) {
+                    await axios.delete(`/api/registration-requests/${id}`);
+                } else {
+                    await axios.delete(`/api/users/role-requests/${id}`);
+                }
                 setRoleRequests(prev => prev.filter(r => r._id !== id));
-                toast.success('Role request moved to Recycle Bin');
+                toast.success('Request deleted successfully');
             } catch (error) {
-                toast.error(error.response?.data?.message || 'Error deleting role request');
+                toast.error(error.response?.data?.message || 'Error deleting request');
             }
         }
     };
@@ -285,12 +345,22 @@ const UsersList = () => {
     };
 
     const filteredRoleRequests = useMemo(() => {
-        return roleRequests.filter(req =>
-            (filterInstitute === 'All' || (req.user?.institute?._id === filterInstitute || req.user?.institute === filterInstitute)) &&
-            ((req.user?.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-                (req.user?.email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-                (req.requestedRole || '').toLowerCase().includes(searchTerm.toLowerCase()))
-        );
+        return roleRequests.filter(req => {
+            const instId = req.isRegistrationRequest
+                ? (req.institute?._id || req.institute)
+                : (req.institute?._id || req.institute || req.user?.institute?._id || req.user?.institute);
+            const name = req.isRegistrationRequest ? req.name : (req.user?.name || '');
+            const email = req.isRegistrationRequest ? req.email : (req.user?.email || '');
+            const role = req.requestedRole || '';
+
+            const matchesInst = filterInstitute === 'All' || instId === filterInstitute;
+            const matchesSearch = (name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                (email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                (role || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                (req.subjectSpecialization && req.subjectSpecialization.toLowerCase().includes(searchTerm.toLowerCase()));
+
+            return matchesInst && matchesSearch;
+        });
     }, [roleRequests, searchTerm, filterInstitute]);
 
     const filteredUsers = users.filter(user =>
@@ -1418,7 +1488,7 @@ const UsersList = () => {
                                                     ) : viewTab === 'applications' ? (
                                                         (u.guestName || 'G')[0]?.toUpperCase()
                                                     ) : viewTab === 'role-requests' ? (
-                                                        u.user?.name?.[0]?.toUpperCase() || 'U'
+                                                        u.isRegistrationRequest ? (u.name?.[0]?.toUpperCase() || 'A') : (u.user?.name?.[0]?.toUpperCase() || 'U')
                                                     ) : (
                                                         u.name[0]?.toUpperCase()
                                                     )}
@@ -1429,10 +1499,10 @@ const UsersList = () => {
                                                             }`}
                                                         onClick={viewTab === 'registered' ? () => openProfile(u._id) : undefined}
                                                     >
-                                                        <TruncatedCell text={viewTab === 'registered' ? u.name : viewTab === 'guest' ? u.name : viewTab === 'applications' ? u.guestName : viewTab === 'role-requests' ? (u.user?.name || 'User') : u.name} maxLength={20} />
+                                                        <TruncatedCell text={viewTab === 'registered' ? u.name : viewTab === 'guest' ? u.name : viewTab === 'applications' ? u.guestName : viewTab === 'role-requests' ? (u.isRegistrationRequest ? u.name : (u.user?.name || 'User')) : u.name} maxLength={20} />
                                                     </span>
                                                     <span className="text-xs text-slate-400">
-                                                        <TruncatedCell text={viewTab === 'registered' ? u.email : viewTab === 'guest' ? u.email : viewTab === 'applications' ? u.guestEmail : viewTab === 'role-requests' ? (u.user?.email || 'N/A') : u.email} maxLength={25} />
+                                                        <TruncatedCell text={viewTab === 'registered' ? u.email : viewTab === 'guest' ? u.email : viewTab === 'applications' ? u.guestEmail : viewTab === 'role-requests' ? (u.isRegistrationRequest ? u.email : (u.user?.email || 'N/A')) : u.email} maxLength={25} />
                                                     </span>
                                                     {viewTab === 'registered' && u.role === 'Student' && (
                                                         <span className="text-[10px] text-slate-500 font-extrabold mt-0.5 tracking-wide max-w-[200px] truncate" title={u.studentProfile?.coursesList && u.studentProfile.coursesList.length > 0 ? u.studentProfile.coursesList.map(c => c.course?.name || c.course).filter(Boolean).join(', ') : u.studentProfile?.course?.name || 'No Course'}>
@@ -1450,8 +1520,8 @@ const UsersList = () => {
                                             <td className="p-4 whitespace-nowrap">
                                                 {viewTab === 'role-requests' ? (
                                                     <div className="flex items-center gap-1.5">
-                                                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${getRoleBadgeClass(u.user?.role)}`}>
-                                                            {u.user?.role}
+                                                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${getRoleBadgeClass(u.isRegistrationRequest ? 'Applicant' : u.user?.role)}`}>
+                                                            {u.isRegistrationRequest ? 'Applicant' : u.user?.role}
                                                         </span>
                                                         <span className="text-slate-400 font-bold">➔</span>
                                                         <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${getRoleBadgeClass(u.requestedRole)}`}>
@@ -1537,14 +1607,24 @@ const UsersList = () => {
                                                 <TruncatedCell text={u.institute?.name || u.institute || 'N/A'} maxLength={20} />
                                             ) : viewTab === 'role-requests' ? (
                                                 <div className="flex flex-col">
-                                                    {u.requestedRole === 'Student' && u.course && (
-                                                        <span className="font-bold text-slate-700 text-xs">
+                                                    <span className="font-bold text-slate-700 text-xs">
+                                                        <TruncatedCell text={u.institute?.name || (typeof u.institute === 'string' ? u.institute : 'N/A')} maxLength={20} />
+                                                    </span>
+                                                    {u.subjectSpecialization && (
+                                                        <span className="text-[10px] text-indigo-600 font-bold">
+                                                            Subjects: <TruncatedCell text={u.subjectSpecialization} maxLength={22} />
+                                                        </span>
+                                                    )}
+                                                    {u.eligibility && (
+                                                        <span className="text-[10px] text-purple-600 font-medium">
+                                                            Qual: <TruncatedCell text={u.eligibility} maxLength={22} />
+                                                        </span>
+                                                    )}
+                                                    {!u.isRegistrationRequest && u.requestedRole === 'Student' && u.course && (
+                                                        <span className="text-[10px] text-slate-500 font-medium">
                                                             Course: <TruncatedCell text={u.course.name} maxLength={20} />
                                                         </span>
                                                     )}
-                                                    <span className="text-[10px] text-slate-400">
-                                                        <TruncatedCell text={u.institute?.name || 'N/A'} maxLength={20} />
-                                                    </span>
                                                 </div>
                                             ) : viewTab === 'guest' ? (
                                                 <div className="flex flex-col">
@@ -1581,7 +1661,7 @@ const UsersList = () => {
                                             {viewTab === 'registered' ? (
                                                 u.mobileNumber || 'N/A'
                                             ) : viewTab === 'role-requests' ? (
-                                                u.user?.mobileNumber || 'N/A'
+                                                u.isRegistrationRequest ? (u.phone || 'N/A') : (u.user?.mobileNumber || 'N/A')
                                             ) : viewTab === 'guest' ? (
                                                 u.mobileNumber || 'N/A'
                                             ) : viewTab === 'applications' ? (
@@ -1692,13 +1772,13 @@ const UsersList = () => {
                                                     {u.status === 'Pending' ? (
                                                         <>
                                                             <button
-                                                                onClick={() => handleApproveRoleRequest(u._id)}
+                                                                onClick={() => handleApproveRoleRequest(u)}
                                                                 className="px-3 py-1 bg-emerald-600 text-white rounded-xl text-xs font-bold hover:bg-emerald-700 active:scale-95 transition-all shadow-sm cursor-pointer"
                                                             >
                                                                 Approve
                                                             </button>
                                                             <button
-                                                                onClick={() => handleRejectRoleRequest(u._id)}
+                                                                onClick={() => handleRejectRoleRequest(u)}
                                                                 className="px-3 py-1 bg-rose-600 text-white rounded-xl text-xs font-bold hover:bg-rose-700 active:scale-95 transition-all shadow-sm cursor-pointer"
                                                             >
                                                                 Reject
@@ -1708,14 +1788,14 @@ const UsersList = () => {
                                                         <span className={`text-xs font-bold px-3 ${u.status === 'Approved' ? 'text-emerald-600' : 'text-rose-600'}`}>{u.status}</span>
                                                     )}
                                                     <button
-                                                        onClick={() => handleDeleteRoleRequest(u._id)}
+                                                        onClick={() => handleDeleteRoleRequest(u)}
                                                         className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                                                         title="Move to Recycle Bin"
                                                     >
                                                         <Trash2 size={16} />
                                                     </button>
                                                 </div>
-                                            ) : viewTab === 'limited' ? (
+                                            ) : viewTab === 'limited' ? ( (
                                                 <div className="flex items-center justify-end gap-1.5">
                                                     <button
                                                         onClick={() => {

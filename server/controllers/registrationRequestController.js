@@ -47,11 +47,21 @@ const createRequest = asyncHandler(async (req, res) => {
     });
 });
 
-// @desc    Get all pending Institute registration requests
+// @desc    Get all Institute registration requests
 // @route   GET /api/registration-requests/admin
 // @access  Private (Admin)
 const getAdminRequests = asyncHandler(async (req, res) => {
-    const requests = await RegistrationRequest.find({ role: 'Institute', status: 'Pending' }).sort({ createdAt: -1 });
+    const { status, role } = req.query;
+    const query = {};
+    if (role && role !== 'all') {
+        query.role = role;
+    }
+    if (status && status !== 'all') {
+        query.status = status;
+    }
+    const requests = await RegistrationRequest.find(query)
+        .populate('targetInstitute', 'name code')
+        .sort({ createdAt: -1 });
     res.json(requests);
 });
 
@@ -108,14 +118,17 @@ const resolveAdminRequest = asyncHandler(async (req, res) => {
     });
 });
 
-// @desc    Get all pending Teacher & Editor registration requests for active Institute
+// @desc    Get all Teacher & Editor registration requests for active Institute
 // @route   GET /api/registration-requests/institute
 // @access  Private (Institute or Admin)
 const getInstituteRequests = asyncHandler(async (req, res) => {
     let query = {
-        status: 'Pending',
         role: { $in: ['Teacher', 'Editor'] }
     };
+
+    if (req.query.status && req.query.status !== 'all') {
+        query.status = req.query.status;
+    }
 
     if (req.user.role === 'Institute') {
         if (!req.user.institute) {
@@ -193,10 +206,24 @@ const resolveInstituteRequest = asyncHandler(async (req, res) => {
     });
 });
 
+// @desc    Delete registration request
+// @route   DELETE /api/registration-requests/:id
+// @access  Private (Admin or Institute)
+const deleteRequest = asyncHandler(async (req, res) => {
+    const request = await RegistrationRequest.findById(req.params.id);
+    if (!request) {
+        res.status(404);
+        throw new Error('Registration request not found');
+    }
+    await RegistrationRequest.deleteOne({ _id: request._id });
+    res.json({ success: true, message: 'Registration request deleted successfully' });
+});
+
 module.exports = {
     createRequest,
     getAdminRequests,
     resolveAdminRequest,
     getInstituteRequests,
-    resolveInstituteRequest
+    resolveInstituteRequest,
+    deleteRequest
 };

@@ -14,6 +14,7 @@ import toast from 'react-hot-toast';
 import AddUserModal from '../../components/AddUserModal';
 import EditUserModal from '../../components/EditUserModal';
 import BulkEditModal from '../../components/common/BulkEditModal';
+import StudentAttendanceDetailModal from '../../components/common/StudentAttendanceDetailModal';
 import { useUserProfile } from '../../components/common/UserProfileContext';
 
 const calculateSpendingTime = (checkIn, checkOut) => {
@@ -1584,24 +1585,11 @@ const StaffList = () => {
                                                         {/* 12. Action */}
                                                         <td style={{ padding: '12px 14px', textAlign: 'center' }}>
                                                             <button
+                                                                type="button"
                                                                 onClick={() => setViewAttendanceStaff(s)}
-                                                                title="View Staff Attendance Record"
-                                                                style={{
-                                                                    padding: '6px 12px',
-                                                                    background: '#eef2ff',
-                                                                    color: '#4f46e5',
-                                                                    border: '1px solid #c7d2fe',
-                                                                    borderRadius: '8px',
-                                                                    fontSize: '0.75rem',
-                                                                    fontWeight: 800,
-                                                                    cursor: 'pointer',
-                                                                    display: 'inline-flex',
-                                                                    alignItems: 'center',
-                                                                    gap: '6px',
-                                                                    whiteSpace: 'nowrap'
-                                                                }}
+                                                                className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-650 rounded-xl text-xs font-bold transition-all border border-indigo-200/60 cursor-pointer"
                                                             >
-                                                                <Eye size={15} /> View Record
+                                                                Logs
                                                             </button>
                                                         </td>
                                                     </tr>
@@ -2621,117 +2609,13 @@ const StaffList = () => {
                 </div>,
                 document.body
             )}
-            {viewAttendanceStaff && createPortal(
-                <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', zIndex: 99999, display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: '60px 20px 40px', overflowY: 'auto' }}>
-                    <div style={{ background: '#fff', borderRadius: '24px', padding: '32px', width: '100%', maxWidth: '1000px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', margin: '0 auto', position: 'relative', border: '1px solid #e2e8f0' }}>
-
-                        {/* Header */}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', paddingBottom: '16px', borderBottom: '1px solid #f1f5f9' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                                <div style={{ width: 48, height: 48, borderRadius: '14px', background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '1.2rem', fontWeight: 900 }}>
-                                    {viewAttendanceStaff.name?.[0]?.toUpperCase() || '?'}
-                                </div>
-                                <div>
-                                    <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 900, color: '#0f172a' }}>{viewAttendanceStaff.name}</h3>
-                                    <p style={{ margin: '2px 0 0', fontSize: '0.8rem', color: '#64748b', fontWeight: 600 }}>{viewAttendanceStaff.email} • <span style={{ color: '#4f46e5', fontWeight: 800 }}>{viewAttendanceStaff.role}</span></p>
-                                </div>
-                            </div>
-                            <button onClick={() => setViewAttendanceStaff(null)} style={{ background: '#f1f5f9', border: 'none', width: 36, height: 36, borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#64748b' }}>
-                                <X size={18} />
-                            </button>
-                        </div>
-
-                        {/* Attendance History Stats */}
-                        {(() => {
-                            const logs = viewAttendanceStaff.staffProfile?.physicalAttendance || viewAttendanceStaff.teacherProfile?.physicalAttendance || viewAttendanceStaff.studentProfile?.physicalAttendance || [];
-                            const presentCount = logs.filter(l => l.status === 'Present').length;
-                            const absentCount = logs.filter(l => l.status === 'Absent').length;
-                            const leaveCount = logs.filter(l => l.status === 'Leave').length;
-                            const holidayCount = logs.filter(l => l.status === 'Holiday').length;
-
-                            return (
-                                <>
-                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '12px', marginBottom: '24px' }}>
-                                        <div style={{ background: '#f8fafc', padding: '14px', borderRadius: '14px', border: '1px solid #e2e8f0' }}>
-                                            <div style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 800, textTransform: 'uppercase' }}>Total Days Recorded</div>
-                                            <div style={{ fontSize: '1.3rem', fontWeight: 900, color: '#0f172a', marginTop: '4px' }}>{logs.length}</div>
-                                        </div>
-                                        <div style={{ background: '#ecfdf5', padding: '14px', borderRadius: '14px', border: '1px solid #a7f3d0' }}>
-                                            <div style={{ fontSize: '0.7rem', color: '#059669', fontWeight: 800, textTransform: 'uppercase' }}>Present</div>
-                                            <div style={{ fontSize: '1.3rem', fontWeight: 900, color: '#047857', marginTop: '4px' }}>{presentCount}</div>
-                                        </div>
-                                        <div style={{ background: '#fef2f2', padding: '14px', borderRadius: '14px', border: '1px solid #fecaca' }}>
-                                            <div style={{ fontSize: '0.7rem', color: '#dc2626', fontWeight: 800, textTransform: 'uppercase' }}>Absent</div>
-                                            <div style={{ fontSize: '1.3rem', fontWeight: 900, color: '#b91c1c', marginTop: '4px' }}>{absentCount}</div>
-                                        </div>
-                                        <div style={{ background: '#fffbeb', padding: '14px', borderRadius: '14px', border: '1px solid #fde68a' }}>
-                                            <div style={{ fontSize: '0.7rem', color: '#d97706', fontWeight: 800, textTransform: 'uppercase' }}>Leave</div>
-                                            <div style={{ fontSize: '1.3rem', fontWeight: 900, color: '#b45309', marginTop: '4px' }}>{leaveCount}</div>
-                                        </div>
-                                        <div style={{ background: '#eff6ff', padding: '14px', borderRadius: '14px', border: '1px solid #bfdbfe' }}>
-                                            <div style={{ fontSize: '0.7rem', color: '#2563eb', fontWeight: 800, textTransform: 'uppercase' }}>Holiday</div>
-                                            <div style={{ fontSize: '1.3rem', fontWeight: 900, color: '#1d4ed8', marginTop: '4px' }}>{holidayCount}</div>
-                                        </div>
-                                    </div>
-
-                                    {/* History Table */}
-                                    <h4 style={{ margin: '0 0 12px', fontSize: '0.9rem', fontWeight: 800, color: '#0f172a' }}>Full Attendance History Logs</h4>
-                                    {logs.length === 0 ? (
-                                        <div style={{ padding: '24px', textAlign: 'center', background: '#f8fafc', borderRadius: '14px', color: '#94a3b8', fontWeight: 700, fontSize: '0.85rem' }}>
-                                            No attendance records found for this staff member.
-                                        </div>
-                                    ) : (
-                                        <div style={{ overflowX: 'auto', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
-                                            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-                                                <thead>
-                                                    <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                                                        {['Date', 'Status', 'Attendance Type', 'Marked By', 'Admin Note', 'Staff Note', 'Check-In', 'Check-Out', 'Time Spent'].map(th => (
-                                                            <th key={th} style={{ padding: '10px 12px', fontSize: '0.68rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{th}</th>
-                                                        ))}
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    {logs.map((log, idx) => (
-                                                        <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                                                            <td style={{ padding: '10px 12px', fontSize: '0.78rem', fontWeight: 800, color: '#0f172a', whiteSpace: 'nowrap' }}>
-                                                                📅 {log.date}
-                                                            </td>
-                                                            <td style={{ padding: '10px 12px' }}>
-                                                                {renderStatusBadge(log.status)}
-                                                            </td>
-                                                            <td style={{ padding: '10px 12px', fontSize: '0.75rem', fontWeight: 700, color: '#475569' }}>
-                                                                {log.source || 'Physical'}
-                                                            </td>
-                                                            <td style={{ padding: '10px 12px', fontSize: '0.75rem', fontWeight: 700, color: '#475569' }}>
-                                                                {log.markedBy || 'Admin'}
-                                                            </td>
-                                                            <td style={{ padding: '10px 12px', fontSize: '0.75rem', color: '#64748b' }}>
-                                                                {log.teacherNote || log.note || '—'}
-                                                            </td>
-                                                            <td style={{ padding: '10px 12px', fontSize: '0.75rem', color: '#64748b' }}>
-                                                                {log.studentNote || log.leaveNote || '—'}
-                                                            </td>
-                                                            <td style={{ padding: '10px 12px', fontSize: '0.75rem', color: '#64748b' }}>
-                                                                {log.checkInTime || '—'}
-                                                            </td>
-                                                            <td style={{ padding: '10px 12px', fontSize: '0.75rem', color: '#64748b' }}>
-                                                                {log.checkOutTime || '—'}
-                                                            </td>
-                                                            <td style={{ padding: '10px 12px', fontSize: '0.75rem', fontWeight: 700, color: '#475569', whiteSpace: 'nowrap' }}>
-                                                                {calculateSpendingTime(log.checkInTime, log.checkOutTime)}
-                                                            </td>
-                                                        </tr>
-                                                    ))}
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    )}
-                                </>
-                            );
-                        })()}
-                    </div>
-                </div>,
-                document.body
+            {viewAttendanceStaff && (
+                <StudentAttendanceDetailModal
+                    staffId={viewAttendanceStaff._id}
+                    roleType="staff"
+                    onClose={() => setViewAttendanceStaff(null)}
+                    onDataChange={fetchData}
+                />
             )}
             {showAddTaskModal && createPortal(
                 <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', zIndex: 99999, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '20px' }} onClick={() => setShowAddTaskModal(false)}>

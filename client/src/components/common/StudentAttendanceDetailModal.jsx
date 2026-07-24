@@ -110,7 +110,7 @@ const CalendarHeatmap = ({ history, viewMonth, onMonthChange }) => {
 };
 
 // ─── Main Modal ────────────────────────────────────────────────────────────────
-const StudentAttendanceDetailModal = ({ studentId, onClose, onDataChange }) => {
+const StudentAttendanceDetailModal = ({ studentId, staffId, roleType = 'student', onClose, onDataChange }) => {
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [viewMonth, setViewMonth] = useState(new Date());
@@ -123,14 +123,22 @@ const StudentAttendanceDetailModal = ({ studentId, onClose, onDataChange }) => {
     const fetchHistory = useCallback(async () => {
         try {
             setLoading(true);
-            const { data: res } = await axios.get(`/api/attendance/student/${studentId}/history`);
+            const targetId = staffId || studentId;
+            const isStaffMember = roleType === 'staff' || !!staffId;
+            const endpoint = isStaffMember
+                ? `/api/attendance/staff/${targetId}/history`
+                : `/api/attendance/student/${targetId}/history`;
+            const { data: res } = await axios.get(endpoint);
+            if (res.staff && !res.student) {
+                res.student = res.staff;
+            }
             setData(res);
         } catch {
             toast.error('Failed to load attendance history');
         } finally {
             setLoading(false);
         }
-    }, [studentId]);
+    }, [studentId, staffId, roleType]);
 
     useEffect(() => { fetchHistory(); }, [fetchHistory]);
 
@@ -145,7 +153,8 @@ const StudentAttendanceDetailModal = ({ studentId, onClose, onDataChange }) => {
         try {
             setSavingNote(true);
             const record = data.history.find(r => r.date === date);
-            await axios.post(`/api/users/${studentId}/physical-attendance`, {
+            const targetId = staffId || studentId;
+            await axios.post(`/api/users/${targetId}/physical-attendance`, {
                 date,
                 status: record?.status || 'Present',
                 teacherNote: noteText
@@ -165,7 +174,12 @@ const StudentAttendanceDetailModal = ({ studentId, onClose, onDataChange }) => {
         if (!window.confirm(`"${date}" ki attendance delete karna chahte hain?`)) return;
         try {
             setDeletingDate(date);
-            await axios.delete(`/api/attendance/student/${studentId}/date/${date}`);
+            const targetId = staffId || studentId;
+            const isStaffMember = roleType === 'staff' || !!staffId;
+            const endpoint = isStaffMember
+                ? `/api/attendance/staff/${targetId}/date/${date}`
+                : `/api/attendance/student/${targetId}/date/${date}`;
+            await axios.delete(endpoint);
             toast.success('Attendance deleted');
             await fetchHistory();
             if (onDataChange) onDataChange();
@@ -178,7 +192,12 @@ const StudentAttendanceDetailModal = ({ studentId, onClose, onDataChange }) => {
 
     const handleLeaveApproval = async (date, approved) => {
         try {
-            await axios.post(`/api/attendance/student/${studentId}/date/${date}/leave-approve`, { approved });
+            const targetId = staffId || studentId;
+            const isStaffMember = roleType === 'staff' || !!staffId;
+            const endpoint = isStaffMember
+                ? `/api/attendance/staff/${targetId}/date/${date}/leave-approve`
+                : `/api/attendance/student/${targetId}/date/${date}/leave-approve`;
+            await axios.post(endpoint, { approved });
             toast.success(`Leave application ${approved ? 'approved' : 'rejected'}`);
             await fetchHistory();
             if (onDataChange) onDataChange();

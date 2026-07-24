@@ -163,52 +163,6 @@ const UserUsageAnalyticsPage = () => {
                     </div>
                 </div>
 
-                {/* ── TOP KPI SUMMARY CARDS ── */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex items-center gap-3.5">
-                        <div className="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-650 flex items-center justify-center flex-shrink-0">
-                            <Users size={24} />
-                        </div>
-                        <div>
-                            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Total Users & Visitors</p>
-                            <h3 className="text-xl font-black text-slate-900 mt-0.5">{summary?.totalUsersTracked || 0}</h3>
-                            <p className="text-[10px] text-emerald-600 font-bold mt-0.5">Across all 10 roles</p>
-                        </div>
-                    </div>
-
-                    <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex items-center gap-3.5">
-                        <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-650 flex items-center justify-center flex-shrink-0">
-                            <Clock size={24} />
-                        </div>
-                        <div>
-                            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Total LMS Time Spent</p>
-                            <h3 className="text-xl font-black text-slate-900 mt-0.5">{summary?.totalTimeSpentFormatted || '0m'}</h3>
-                            <p className="text-[10px] text-slate-500 font-medium mt-0.5">Avg {summary?.avgTimePerUserFormatted || '0m'} / user</p>
-                        </div>
-                    </div>
-
-                    <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex items-center gap-3.5">
-                        <div className="w-12 h-12 rounded-xl bg-amber-50 text-amber-650 flex items-center justify-center flex-shrink-0">
-                            <MousePointer size={24} />
-                        </div>
-                        <div>
-                            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Total Clicks & Interactions</p>
-                            <h3 className="text-xl font-black text-slate-900 mt-0.5">{summary?.totalClicksAll ? summary.totalClicksAll.toLocaleString() : 0}</h3>
-                            <p className="text-[10px] text-amber-600 font-bold mt-0.5">Tracked feature clicks</p>
-                        </div>
-                    </div>
-
-                    <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex items-center gap-3.5">
-                        <div className="w-12 h-12 rounded-xl bg-purple-50 text-purple-650 flex items-center justify-center flex-shrink-0">
-                            <Activity size={24} />
-                        </div>
-                        <div>
-                            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Active Today Sessions</p>
-                            <h3 className="text-xl font-black text-slate-900 mt-0.5">{summary?.activeSessionsToday || 0}</h3>
-                            <p className="text-[10px] text-purple-600 font-bold mt-0.5">Sessions logged today</p>
-                        </div>
-                    </div>
-                </div>
 
                 {/* ── 10 ROLE CATEGORY TABS ── */}
                 <div className="bg-white p-2 rounded-2xl border border-slate-200/80 shadow-xs overflow-x-auto custom-scrollbar">

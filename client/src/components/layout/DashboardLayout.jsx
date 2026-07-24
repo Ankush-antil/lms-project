@@ -10,7 +10,7 @@ import {
     BarChart3, UserPlus, Trash2, Wallet, CreditCard, HardDrive,
     Calculator, Megaphone, Calendar, StickyNote, Briefcase, DollarSign, CheckSquare,
     RefreshCw, Award, Package, Mic, MonitorPlay, Camera, Video, Phone,
-    FileSignature, Database
+    FileSignature, Database, Shield
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useSocket } from '../../context/SocketContext';
@@ -200,6 +200,8 @@ const menuItems = {
         { name: 'SR. Analytics', icon: Video, path: '/admin/tools-analytics/screen-recorder' },
         { name: 'AR. Analytics', icon: Mic, path: '/admin/tools-analytics/voice-recorder' },
         { name: 'VR. Analytics', icon: MonitorPlay, path: '/admin/tools-analytics/video-recorder' },
+
+        { name: 'User Analytics', icon: BarChart3, path: '/admin/user-analytics', standalone: true },
     ],
     Institute: [
         { name: 'Dashboard', icon: LayoutDashboard, path: '/institute' },
@@ -233,7 +235,18 @@ const menuItems = {
         { name: '_section_services', icon: Settings, path: null },
         { name: 'Drive', icon: HardDrive, path: '/institute/drive' },
         { name: 'Notes', icon: StickyNote, path: '/institute/notes' },
-        { name: 'Chat', icon: MessageSquare, path: '/institute/chat' }
+        { name: 'Chat', icon: MessageSquare, path: '/institute/chat' },
+
+        { name: '_section_service_analytics', icon: BarChart3, path: null },
+        { name: 'Drive Analytics', icon: HardDrive, path: '/admin/tools-analytics/drive' },
+        { name: 'Chat Analytics', icon: MessageSquare, path: '/admin/tools-analytics/chat' },
+        { name: 'Notes Analytics', icon: StickyNote, path: '/admin/tools-analytics/notes' },
+        { name: 'Sc. Analytics', icon: Camera, path: '/admin/tools-analytics/screenshot' },
+        { name: 'SR. Analytics', icon: Video, path: '/admin/tools-analytics/screen-recorder' },
+        { name: 'AR. Analytics', icon: Mic, path: '/admin/tools-analytics/voice-recorder' },
+        { name: 'VR. Analytics', icon: MonitorPlay, path: '/admin/tools-analytics/video-recorder' },
+
+        { name: 'User Analytics', icon: BarChart3, path: '/institute/user-analytics', standalone: true },
     ],
     Teacher: [
         { name: 'Dashboard', icon: LayoutDashboard, path: '/teacher' },
@@ -1240,7 +1253,7 @@ const Sidebar = ({ role = 'Admin', collapsed, onToggle, isMobileOpen }) => {
                                 );
                             }
 
-                            const showItem = currentSection === null || activeSection === currentSection;
+                            const showItem = item.standalone || currentSection === null || activeSection === currentSection;
                             if (!showItem) return null;
 
                             const active = isActive(item.path);
@@ -1317,7 +1330,7 @@ const Sidebar = ({ role = 'Admin', collapsed, onToggle, isMobileOpen }) => {
                                     );
                                 }
 
-                                const showItem = currentSection === null || activeSection === currentSection;
+                                const showItem = item.standalone || currentSection === null || activeSection === currentSection;
                                 if (!showItem) return null;
 
                                 const active = isActive(item.path);

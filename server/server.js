@@ -118,6 +118,7 @@ app.use('/api/auth', require('./routes/common/authRoutes'));
 app.use('/api/users/profile', require('./routes/common/profileRoutes'));
 app.use('/api/users/teacher-students', require('./routes/teacher/teacherRoutes'));
 app.use('/api/users', require('./routes/admin/userRoutes'));
+app.use('/api/analytics', require('./routes/analyticsRoutes'));
 app.use('/api/setup', require('./routes/admin/setupRoutes'));
 app.use('/api/dashboard', require('./routes/admin/dashboardRoutes'));
 app.use('/api/tests', require('./routes/testRoutes'));

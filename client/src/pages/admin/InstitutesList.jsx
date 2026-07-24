@@ -300,6 +300,23 @@ const InstitutesList = () => {
         }
     };
 
+    const handleToggleAdmission = async (id) => {
+        try {
+            const inst = institutes.find(i => i._id === id);
+            const current = inst?.controls?.student?.admissionOpen !== false;
+            const { data } = await axios.patch(`/api/setup/institutes/${id}/controls`, {
+                section: 'student',
+                field: 'admissionOpen',
+                value: !current
+            });
+            setInstitutes(institutes.map(i => i._id === id ? { ...i, controls: { ...i.controls, student: { ...i.controls?.student, admissionOpen: !current } } } : i));
+            toast.success(`Student admissions ${!current ? 'opened' : 'closed'}`);
+        } catch (error) {
+            console.error('Error toggling admission:', error);
+            toast.error(error.response?.data?.message || 'Failed to toggle admission');
+        }
+    };
+
     const filteredInstitutes = institutes.filter(inst =>
         inst.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         inst.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -719,8 +736,9 @@ const InstitutesList = () => {
                                                             <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">
                                                                 <TruncatedCell text={inst.contactEmail || 'No Email Listed'} maxLength={25} />
                                                             </div>
-                                                    </div>
-                                                </td>
+                                                            </div>
+                                                        </div>
+                                                    </td>
                                                 <td className="p-4 whitespace-nowrap">
                                                     <span className="font-mono text-xs bg-slate-100 text-slate-700 px-2.5 py-1 rounded-md font-bold">
                                                         {inst.code}
@@ -744,11 +762,11 @@ const InstitutesList = () => {
 
                                                     {/* ADMISSION TOGGLE COLUMN */}
                                                     <td className="p-4 whitespace-nowrap text-center">
-                                                        <label className="relative inline-flex items-center cursor-pointer select-none" title={`Click to ${isAdmissionOpen ? 'Close' : 'Open'} Student Admissions`}>
+                                                        <label className="relative inline-flex items-center cursor-pointer select-none" title={`Click to ${inst.controls?.student?.admissionOpen !== false ? 'Close' : 'Open'} Student Admissions`}>
                                                             <input 
                                                                 type="checkbox" 
                                                                 className="sr-only peer" 
-                                                                checked={isAdmissionOpen}
+                                                                checked={inst.controls?.student?.admissionOpen !== false}
                                                                 onChange={() => handleToggleAdmission(inst._id)}
                                                             />
                                                             <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>

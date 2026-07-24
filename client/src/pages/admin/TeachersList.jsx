@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../components/layout/DashboardLayout';
-import { Download,  Upload,  Search, Plus, Trash2, Edit, Filter, ChevronDown, Calendar, UserCheck, Save } from 'lucide-react';
+import { Download,  Upload,  Search, Plus, Trash2, Edit, Filter, ChevronDown, Calendar, UserCheck, Save, Eye } from 'lucide-react';
 import AddUserModal from '../../components/AddUserModal';
 import EditUserModal from '../../components/EditUserModal';
 import BulkEditModal from '../../components/common/BulkEditModal';
@@ -825,7 +825,14 @@ const TeachersList = () => {
                                             </button>
                                         </td>
                                         <td className="p-4 text-right whitespace-nowrap sticky right-0 bg-white group-hover:bg-slate-50 transition-colors shadow-[-8px_0_16px_-4px_rgba(0,0,0,0.06)] border-l border-slate-100">
-
+                                            <button
+                                                type="button"
+                                                onClick={() => openProfile(teacher._id)}
+                                                className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
+                                                title="View Profile"
+                                            >
+                                                <Eye size={20} />
+                                            </button>
                                             {(user?.role === 'Admin' || user?.institute?.controls?.teacher?.editTeacher !== false) && (
                                                 <button
                                                     onClick={() => {

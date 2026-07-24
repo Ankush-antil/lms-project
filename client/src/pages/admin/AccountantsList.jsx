@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../components/layout/DashboardLayout';
-import { Download,  Upload,  Search, Plus, Trash2, Edit, Filter, ChevronDown } from 'lucide-react';
+import { Download,  Upload,  Search, Plus, Trash2, Edit, Filter, ChevronDown, Eye } from 'lucide-react';
 import AddUserModal from '../../components/AddUserModal';
 import EditUserModal from '../../components/EditUserModal';
 import BulkEditModal from '../../components/common/BulkEditModal';
@@ -657,6 +657,14 @@ const AccountantsList = () => {
                                              </button>
                                          </td>
                                         <td className="p-4 text-right whitespace-nowrap sticky right-0 bg-white group-hover:bg-slate-50 transition-colors border-l border-slate-100">
+                                            <button
+                                                type="button"
+                                                onClick={() => openProfile(accountant._id)}
+                                                className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors ml-2 cursor-pointer"
+                                                title="View Profile"
+                                            >
+                                                <Eye size={20} />
+                                            </button>
                                             <button
                                                 onClick={() => {
                                                     setSelectedUser(accountant);

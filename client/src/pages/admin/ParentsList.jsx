@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../components/layout/DashboardLayout';
-import { Download,  Upload,  Search, Plus, Trash2, Edit, Filter, ChevronDown } from 'lucide-react';
+import { Download,  Upload,  Search, Plus, Trash2, Edit, Filter, ChevronDown, Eye } from 'lucide-react';
 import AddUserModal from '../../components/AddUserModal';
 import EditUserModal from '../../components/EditUserModal';
 import BulkEditModal from '../../components/common/BulkEditModal';
@@ -617,17 +617,27 @@ const ParentsList = () => {
                                         <td className="px-6 py-4 text-right">
                                             <div className="flex justify-end gap-2">
                                                 <button
+                                                    type="button"
+                                                    onClick={() => openProfile(parent._id)}
+                                                    className="p-2 text-slate-500 hover:text-indigo-650 hover:bg-indigo-50 rounded-xl transition-all cursor-pointer"
+                                                    title="View Profile"
+                                                >
+                                                    <Eye size={16} />
+                                                </button>
+                                                <button
                                                     onClick={() => {
                                                         setSelectedUser(parent);
                                                         setIsEditModalOpen(true);
                                                     }}
                                                     className="p-2 text-slate-500 hover:text-indigo-650 hover:bg-indigo-50 rounded-xl transition-all cursor-pointer"
+                                                    title="Edit Parent"
                                                 >
                                                     <Edit size={16} />
                                                 </button>
                                                 <button
                                                     onClick={() => handleDelete(parent._id)}
                                                     className="p-2 text-slate-500 hover:text-red-650 hover:bg-red-50 rounded-xl transition-all cursor-pointer"
+                                                    title="Delete Parent"
                                                 >
                                                     <Trash2 size={16} />
                                                 </button>

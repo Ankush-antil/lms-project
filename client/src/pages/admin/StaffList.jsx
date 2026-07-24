@@ -1321,6 +1321,19 @@ const StaffList = () => {
                                                         <td style={{ padding: '13px 16px', textAlign: 'right', whiteSpace: 'nowrap' }}>
                                                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px' }}>
                                                                 <button
+                                                                    onClick={() => openProfile(s._id)}
+                                                                    title="View Profile"
+                                                                    style={{
+                                                                        padding: '6px 8px', border: 'none', borderRadius: '8px',
+                                                                        background: 'transparent', color: '#94a3b8', cursor: 'pointer',
+                                                                        transition: 'all 0.15s'
+                                                                    }}
+                                                                    onMouseEnter={e => { e.currentTarget.style.background = '#eef2ff'; e.currentTarget.style.color = '#4f46e5'; }}
+                                                                    onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#94a3b8'; }}
+                                                                >
+                                                                    <Eye size={16} />
+                                                                </button>
+                                                                <button
                                                                     onClick={() => {
                                                                         setSelectedStaff(s);
                                                                         setIsEditModalOpen(true);

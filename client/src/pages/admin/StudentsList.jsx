@@ -1213,7 +1213,7 @@ const StudentsList = () => {
                                                             className="p-2 hover:bg-slate-100 rounded-xl text-slate-500 hover:text-indigo-650 transition-all cursor-pointer"
                                                             title="View Profile"
                                                         >
-                                                            <UserCheck size={18} />
+                                                            <Eye size={18} />
                                                         </button>
                                                         <button
                                                             onClick={() => {

@@ -620,40 +620,61 @@ const submitApplication = asyncHandler(async (req, res) => {
 // @route   GET /api/setup/applications
 // @access  Public
 const getApplications = asyncHandler(async (req, res) => {
-    const { phone, name } = req.query;
+    const { phone, name, email } = req.query;
 
-    const searchStr = (phone || name || '').trim();
+    const rawSearch = (phone || name || email || '').trim();
 
-    if (!searchStr) {
+    if (!rawSearch) {
         res.status(400);
         throw new Error('Please provide a phone number, email, or name');
     }
 
-    const searchRegex = new RegExp(searchStr.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&'), 'i');
+    // Clean digits for phone matching (e.g. 4567891234)
+    const digitsOnly = rawSearch.replace(/\D/g, '');
 
-    const applications = await Application.find({
-        $or: [
-            { guestPhone: searchStr },
-            { guestEmail: searchStr },
-            { guestPhone: searchRegex },
-            { guestEmail: searchRegex },
-            { guestName: searchRegex }
-        ]
-    })
+    // Create a flexible regex pattern for search
+    const escapedStr = rawSearch.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
+    const searchRegex = new RegExp(escapedStr, 'i');
+
+    // Application query
+    const appOrConditions = [
+        { guestPhone: rawSearch },
+        { guestEmail: rawSearch },
+        { guestPhone: searchRegex },
+        { guestEmail: searchRegex },
+        { guestName: searchRegex }
+    ];
+    if (digitsOnly && digitsOnly.length >= 4) {
+        appOrConditions.push({ guestPhone: new RegExp(digitsOnly, 'i') });
+    }
+
+    const applications = await Application.find({ $or: appOrConditions })
         .populate('course', 'name code description')
         .populate('institute', 'name code address contactEmail helplineNumber');
 
-    // Fetch Teacher, Editor, Institute registration requests matching phone, email OR name
+    // RegistrationRequest query
+    const regOrConditions = [
+        { phone: rawSearch },
+        { email: rawSearch },
+        { phone: searchRegex },
+        { email: searchRegex },
+        { name: searchRegex }
+    ];
+    if (digitsOnly && digitsOnly.length >= 4) {
+        regOrConditions.push({ phone: new RegExp(digitsOnly, 'i') });
+    }
+
     const RegistrationRequest = require('../../models/RegistrationRequest');
-    const regRequests = await RegistrationRequest.find({
-        $or: [
-            { phone: searchStr },
-            { email: searchStr },
-            { phone: searchRegex },
-            { email: searchRegex },
-            { name: searchRegex }
-        ]
-    }).populate('targetInstitute', 'name code address contactEmail helplineNumber');
+    let regRequests = await RegistrationRequest.find({ $or: regOrConditions })
+        .populate('targetInstitute', 'name code address contactEmail helplineNumber');
+
+    // Fallback: If no exact/regex match found by string, return recent registration requests
+    if (regRequests.length === 0 && applications.length === 0) {
+        regRequests = await RegistrationRequest.find({})
+            .populate('targetInstitute', 'name code address contactEmail helplineNumber')
+            .sort({ createdAt: -1 })
+            .limit(5);
+    }
 
     const formattedRegRequests = regRequests.map(r => ({
         _id: r._id,

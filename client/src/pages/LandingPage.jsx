@@ -454,12 +454,13 @@ const LandingPage = () => {
 
         try {
             setSubmittingRegRequest(true);
+            const userPhone = regPhone || guestSession?.phone || '';
             const payload = {
                 role: registerRole,
                 name: regName,
                 email: regRequestEmail,
                 password: regRequestPassword,
-                phone: regPhone,
+                phone: userPhone,
                 targetInstitute: (registerRole === 'Teacher' || registerRole === 'Editor') ? regTargetInstId : undefined,
                 subjectSpecialization: (registerRole === 'Teacher' || registerRole === 'Editor') ? regSubjects : '',
                 eligibility: registerRole === 'Editor' ? regEligibility : '',
@@ -467,11 +468,20 @@ const LandingPage = () => {
                     code: regInstCode,
                     address: regInstAddress,
                     contactEmail: regInstContactEmail || regRequestEmail,
-                    phone: regInstPhone || regPhone
+                    phone: regInstPhone || userPhone
                 } : undefined
             };
 
             await axios.post('/api/registration-requests', payload);
+
+            const updatedSession = {
+                username: regName,
+                email: regRequestEmail,
+                phone: userPhone,
+                role: registerRole
+            };
+            setGuestSession(updatedSession);
+            localStorage.setItem('lms_guest_session', JSON.stringify(updatedSession));
 
             toast.success(
                 registerRole === 'Institute'

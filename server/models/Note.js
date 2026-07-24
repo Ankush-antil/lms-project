@@ -24,15 +24,15 @@ const noteSchema = new mongoose.Schema({
     },
     notebook: {
         type: String,
-        default: 'My Notebook'
+        default: 'Notebook 1'
     },
     section: {
         type: String,
-        default: 'General'
+        default: 'Section 1'
     },
     category: {
         type: String,
-        default: 'General'
+        default: 'Category 1'
     },
     isPinned: {
         type: Boolean,

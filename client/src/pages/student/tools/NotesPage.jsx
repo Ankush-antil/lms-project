@@ -15,9 +15,9 @@ import axios from 'axios';
 import { getTodayDdMmYyyy } from '../../../utils/dateUtils';
 import { useAuth } from '../../../context/AuthContext';
 
-const DEFAULT_NOTEBOOKS = ['General'];
-const DEFAULT_SECTIONS = ['General'];
-const DEFAULT_CATEGORIES = ['General'];
+const DEFAULT_NOTEBOOKS = ['Notebook 1'];
+const DEFAULT_SECTIONS = ['Section 1'];
+const DEFAULT_CATEGORIES = ['Category 1'];
 
 // Web Audio Alarm Tone Synthesizer
 const playAlarmSound = () => {
@@ -127,8 +127,8 @@ const NotesPage = () => {
         const saved = localStorage.getItem('lms_notebooks');
         return saved ? JSON.parse(saved) : DEFAULT_NOTEBOOKS;
     });
-    const [activeNotebook, setActiveNotebook] = useState('General');
-    const [noteNotebook, setNoteNotebook] = useState('General');
+    const [activeNotebook, setActiveNotebook] = useState('Notebook 1');
+    const [noteNotebook, setNoteNotebook] = useState('Notebook 1');
     const [isAddNotebookModalOpen, setIsAddNotebookModalOpen] = useState(false);
     const [newNotebookName, setNewNotebookName] = useState('');
     const [editingNotebook, setEditingNotebook] = useState(null);
@@ -137,14 +137,14 @@ const NotesPage = () => {
     // Tier 2: Section States (Notebook-scoped)
     const [sectionsMap, setSectionsMap] = useState(() => {
         const saved = localStorage.getItem('lms_notebook_sections_map');
-        return saved ? JSON.parse(saved) : { 'General': ['General'] };
+        return saved ? JSON.parse(saved) : { 'Notebook 1': ['Section 1'] };
     });
     const sections = useMemo(() => {
-        return sectionsMap[activeNotebook] || ['General'];
+        return sectionsMap[activeNotebook] || ['Section 1'];
     }, [sectionsMap, activeNotebook]);
 
-    const [activeSection, setActiveSection] = useState('General');
-    const [noteSection, setNoteSection] = useState('General');
+    const [activeSection, setActiveSection] = useState('Section 1');
+    const [noteSection, setNoteSection] = useState('Section 1');
     const [expandedSection, setExpandedSection] = useState(null);
     const [isAddSectionModalOpen, setIsAddSectionModalOpen] = useState(false);
     const [newSectionName, setNewSectionName] = useState('');
@@ -157,7 +157,7 @@ const NotesPage = () => {
         return saved ? JSON.parse(saved) : DEFAULT_CATEGORIES;
     });
     const [activeCategory, setActiveCategory] = useState('All Categories');
-    const [noteCategory, setNoteCategory] = useState('General');
+    const [noteCategory, setNoteCategory] = useState('Category 1');
     const [isAddCategoryModalOpen, setIsAddCategoryModalOpen] = useState(false);
     const [newCategoryName, setNewCategoryName] = useState('');
     const [editingCategory, setEditingCategory] = useState(null);
@@ -299,11 +299,11 @@ const NotesPage = () => {
         setTitle(note.title || '');
         setContent(note.content || '');
         setShareWithTeacher(note.shareWithTeacher || false);
-        setNoteNotebook(note.notebook || 'My Notebook');
-        setActiveNotebook(note.notebook || 'My Notebook');
-        setNoteSection(note.section || 'General');
-        setActiveSection(note.section || 'General');
-        setNoteCategory(note.category || 'General');
+        setNoteNotebook(note.notebook || 'Notebook 1');
+        setActiveNotebook(note.notebook || 'Notebook 1');
+        setNoteSection(note.section || 'Section 1');
+        setActiveSection(note.section || 'Section 1');
+        setNoteCategory(note.category || 'Category 1');
         setActiveCategory(note.category || 'All Categories');
         setIsPinned(note.isPinned || false);
         setReminderAt(note.reminderAt || '');
@@ -321,9 +321,9 @@ const NotesPage = () => {
         setTitle('');
         setContent('');
         setShareWithTeacher(false);
-        setNoteNotebook(activeNotebook || 'My Notebook');
-        setNoteSection(activeSection || 'General');
-        setNoteCategory(activeCategory !== 'All Categories' ? activeCategory : 'General');
+        setNoteNotebook(activeNotebook || 'Notebook 1');
+        setNoteSection(activeSection || 'Section 1');
+        setNoteCategory(activeCategory !== 'All Categories' ? activeCategory : 'Category 1');
         setIsPinned(false);
         setReminderAt('');
         setImages([]);
@@ -336,8 +336,8 @@ const NotesPage = () => {
     const handleSelectNotebook = (nb) => {
         setActiveNotebook(nb);
         setNoteNotebook(nb);
-        const nbSections = sectionsMap[nb] || ['General'];
-        const firstSec = nbSections[0] || 'General';
+        const nbSections = sectionsMap[nb] || ['Section 1'];
+        const firstSec = nbSections[0] || 'Section 1';
         setActiveSection(firstSec);
         setNoteSection(firstSec);
         setActiveCategory('All Categories');
@@ -373,14 +373,14 @@ const NotesPage = () => {
         localStorage.setItem('lms_notebooks', JSON.stringify(updated));
 
         // Initialize isolated section list for this specific notebook
-        const updatedMap = { ...sectionsMap, [name]: ['General'] };
+        const updatedMap = { ...sectionsMap, [name]: ['Section 1'] };
         setSectionsMap(updatedMap);
         localStorage.setItem('lms_notebook_sections_map', JSON.stringify(updatedMap));
 
         setActiveNotebook(name);
         setNoteNotebook(name);
-        setActiveSection('General');
-        setNoteSection('General');
+        setActiveSection('Section 1');
+        setNoteSection('Section 1');
         setNewNotebookName('');
         setIsAddNotebookModalOpen(false);
         toast.success(`Notebook "${name}" created! 📚`);
@@ -403,6 +403,8 @@ const NotesPage = () => {
         setIsAddCategoryModalOpen(false);
         toast.success(`Category "${name}" created! 🏷️`);
     };
+
+
 
     // Pin Toggle Handlers
     const togglePinCurrentNote = () => {
@@ -898,14 +900,14 @@ const NotesPage = () => {
                 (note.title || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
                 (note.content || '').toLowerCase().includes(searchQuery.toLowerCase());
             
-            const noteNb = note.notebook || 'General';
-            const matchesNotebook = activeNotebook === 'All' || noteNb === activeNotebook || (activeNotebook === 'General' && noteNb === 'My Notebook');
+            const noteNb = note.notebook || 'Notebook 1';
+            const matchesNotebook = activeNotebook === 'All' || noteNb === activeNotebook || noteNb === 'General' || noteNb === 'My Notebook';
 
-            const noteSec = note.section || 'General';
-            const matchesSection = activeSection === 'All' || noteSec === activeSection;
+            const noteSec = note.section || 'Section 1';
+            const matchesSection = activeSection === 'All' || noteSec === activeSection || noteSec === 'General';
 
-            const noteCat = note.category || 'General';
-            const matchesCategory = activeCategory === 'All Categories' || noteCat.trim().toLowerCase() === activeCategory.trim().toLowerCase();
+            const noteCat = note.category || 'Category 1';
+            const matchesCategory = activeCategory === 'All Categories' || noteCat.trim().toLowerCase() === activeCategory.trim().toLowerCase() || noteCat === 'General';
 
             return matchesSearch && matchesNotebook && matchesSection && matchesCategory;
         });
@@ -916,7 +918,7 @@ const NotesPage = () => {
         return drafts.filter(draft => {
             const matchesSearch = draft.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 draft.content.toLowerCase().includes(searchQuery.toLowerCase());
-            const draftSec = draft.section || 'General';
+            const draftSec = draft.section || 'Section 1';
             const matchesSection = activeSection === 'All' || draftSec === activeSection;
             return matchesSearch && matchesSection;
         });

@@ -272,7 +272,8 @@ const getMessages = asyncHandler(async (req, res) => {
 // @route   POST /api/chat/messages
 // @access  Private
 const sendMessage = asyncHandler(async (req, res) => {
-    const { receiver, text, test, testTitle, questionIndex, questionText, fileUrl, fileName, fileType, inboxId } = req.body;
+    const receiver = req.body.receiver || req.body.recipientId;
+    const { text, test, testTitle, questionIndex, questionText, fileUrl, fileName, fileType, inboxId } = req.body;
     const sender = req.user._id;
 
     if (!receiver || (!text && !fileUrl)) {

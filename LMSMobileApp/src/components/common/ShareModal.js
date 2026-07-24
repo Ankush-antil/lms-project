@@ -82,6 +82,7 @@ export const ShareModal = ({ visible, onClose, shareData }) => {
             if (shareData.type === 'file') {
                 // Send file message
                 const { data } = await axios.post('/messages', {
+                    receiver: contactId,
                     recipientId: contactId,
                     text: shareData.message || '',
                     fileUrl: shareData.fileUrl,
@@ -92,6 +93,7 @@ export const ShareModal = ({ visible, onClose, shareData }) => {
             } else {
                 // Send text/link message
                 const { data } = await axios.post('/messages', {
+                    receiver: contactId,
                     recipientId: contactId,
                     text: shareData.text || shareData.message || ''
                 });
@@ -101,6 +103,7 @@ export const ShareModal = ({ visible, onClose, shareData }) => {
             // Emit socket message for real-time delivery
             if (socket && socket.connected) {
                 socket.emit('chat-message', {
+                    receiver: contactId,
                     recipientId: contactId,
                     message: resMessage
                 });

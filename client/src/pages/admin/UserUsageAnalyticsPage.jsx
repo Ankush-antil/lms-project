@@ -11,7 +11,6 @@ import DashboardLayout from '../../components/layout/DashboardLayout';
 import { useAuth } from '../../context/AuthContext';
 
 const roleIcons = {
-    'Users': Users,
     'Guest Users': Eye,
     'Limited Users': Shield,
     'Students': GraduationCap,
@@ -24,7 +23,6 @@ const roleIcons = {
 };
 
 const roleColors = {
-    'Users': 'from-indigo-600 to-blue-600',
     'Guest Users': 'from-slate-600 to-zinc-600',
     'Limited Users': 'from-rose-600 to-red-600',
     'Students': 'from-emerald-600 to-teal-600',
@@ -44,7 +42,7 @@ const UserUsageAnalyticsPage = () => {
     const [loading, setLoading] = useState(true);
     const [summary, setSummary] = useState(null);
     const [categoriesData, setCategoriesData] = useState({});
-    const [activeTab, setActiveTab] = useState(tabQuery && roleIcons[tabQuery] ? tabQuery : 'Users');
+    const [activeTab, setActiveTab] = useState(tabQuery && roleIcons[tabQuery] ? tabQuery : 'Guest Users');
 
     useEffect(() => {
         if (tabQuery && roleIcons[tabQuery]) {

@@ -1351,9 +1351,11 @@ const UsersList = () => {
                                 <th className="p-4 font-semibold whitespace-nowrap">
                                     {viewTab === 'registered' ? 'User Details' : (viewTab === 'guest' || viewTab === 'applications') ? 'Guest Name & Email' : viewTab === 'role-requests' ? 'User Details' : 'Test Taker Details'}
                                 </th>
-                                <th className="p-4 font-semibold whitespace-nowrap">
-                                    {viewTab === 'role-requests' ? 'Role Shift' : 'Role'}
-                                </th>
+                                {viewTab !== 'applications' && (
+                                    <th className="p-4 font-semibold whitespace-nowrap">
+                                        {viewTab === 'role-requests' ? 'Role Shift' : 'Role'}
+                                    </th>
+                                )}
                                 <th className="p-4 font-semibold whitespace-nowrap">
                                     {viewTab === 'limited' ? 'Submitted Date' : 'Created/Applied Date'}
                                 </th>
@@ -1362,14 +1364,16 @@ const UsersList = () => {
                                     {viewTab === 'registered' ? 'Institute' : (viewTab === 'guest' || viewTab === 'applications') ? 'Course & Institute' : viewTab === 'role-requests' ? 'Institute' : 'Test Title'}
                                 </th>
                                 <th className="p-4 font-semibold whitespace-nowrap">Mobile</th>
-                                <th className="p-4 font-semibold whitespace-nowrap">Status</th>
+                                {viewTab !== 'applications' && (
+                                    <th className="p-4 font-semibold whitespace-nowrap">Status</th>
+                                )}
                                 <th className="p-4 font-semibold text-right whitespace-nowrap sticky right-0 bg-slate-50 border-l border-slate-200 z-10 shadow-[-8px_0_16px_-4px_rgba(0,0,0,0.06)]">Actions</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
                             {loading ? (
                                 <tr>
-                                    <td colSpan="9" className="p-8 text-center text-slate-500">
+                                    <td colSpan={viewTab === 'applications' ? 7 : 9} className="p-8 text-center text-slate-500">
                                         <div className="flex justify-center items-center gap-2">
                                             <div className="w-5 h-5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
                                             Loading directory items...
@@ -1444,75 +1448,77 @@ const UsersList = () => {
                                         </td>
 
                                         {/* Role column */}
-                                        <td className="p-4 whitespace-nowrap">
-                                            {viewTab === 'role-requests' ? (
-                                                <div className="flex items-center gap-1.5">
-                                                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${getRoleBadgeClass(u.user?.role)}`}>
-                                                        {u.user?.role}
-                                                    </span>
-                                                    <span className="text-slate-400 font-bold">➔</span>
-                                                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${getRoleBadgeClass(u.requestedRole)}`}>
-                                                        {u.requestedRole}
-                                                    </span>
-                                                </div>
-                                            ) : viewTab === 'registered' ? (
-                                                (() => {
-                                                    const roles = u.allowedRoles && u.allowedRoles.length > 0 ? u.allowedRoles : [u.role];
-                                                    return (
-                                                        <div className="flex items-center relative overflow-visible">
-                                                            <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${getRoleBadgeClass(roles[0])}`}>
-                                                                {roles[0]}
-                                                            </span>
-                                                            {roles.length > 1 && (
-                                                                <div className="relative overflow-visible flex items-center">
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={(e) => {
-                                                                            e.stopPropagation();
-                                                                            setActiveRolesTooltipUserId(activeRolesTooltipUserId === u._id ? null : u._id);
-                                                                        }}
-                                                                        className="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-full text-[10px] font-black transition-all ml-1.5 cursor-pointer select-none"
-                                                                    >
-                                                                        +{roles.length - 1} more
-                                                                    </button>
-                                                                    {activeRolesTooltipUserId === u._id && (
-                                                                        <>
-                                                                            <div
-                                                                                className="fixed inset-0 z-[60]"
-                                                                                onClick={(e) => {
-                                                                                    e.stopPropagation();
-                                                                                    setActiveRolesTooltipUserId(null);
-                                                                                }}
-                                                                            />
-                                                                            <div
-                                                                                className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 bg-white border border-slate-150 rounded-2xl shadow-xl z-[70] p-2.5 min-w-[120px] flex flex-col gap-1.5 animate-in fade-in slide-in-from-bottom-1 duration-150"
-                                                                                onClick={(e) => e.stopPropagation()}
-                                                                            >
-                                                                                <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-1.5 pb-1 border-b border-slate-100 text-center">
-                                                                                    All Roles
+                                        {viewTab !== 'applications' && (
+                                            <td className="p-4 whitespace-nowrap">
+                                                {viewTab === 'role-requests' ? (
+                                                    <div className="flex items-center gap-1.5">
+                                                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${getRoleBadgeClass(u.user?.role)}`}>
+                                                            {u.user?.role}
+                                                        </span>
+                                                        <span className="text-slate-400 font-bold">➔</span>
+                                                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${getRoleBadgeClass(u.requestedRole)}`}>
+                                                            {u.requestedRole}
+                                                        </span>
+                                                    </div>
+                                                ) : viewTab === 'registered' ? (
+                                                    (() => {
+                                                        const roles = u.allowedRoles && u.allowedRoles.length > 0 ? u.allowedRoles : [u.role];
+                                                        return (
+                                                            <div className="flex items-center relative overflow-visible">
+                                                                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${getRoleBadgeClass(roles[0])}`}>
+                                                                    {roles[0]}
+                                                                </span>
+                                                                {roles.length > 1 && (
+                                                                    <div className="relative overflow-visible flex items-center">
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                setActiveRolesTooltipUserId(activeRolesTooltipUserId === u._id ? null : u._id);
+                                                                            }}
+                                                                            className="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-full text-[10px] font-black transition-all ml-1.5 cursor-pointer select-none"
+                                                                        >
+                                                                            +{roles.length - 1} more
+                                                                        </button>
+                                                                        {activeRolesTooltipUserId === u._id && (
+                                                                            <>
+                                                                                <div
+                                                                                    className="fixed inset-0 z-[60]"
+                                                                                    onClick={(e) => {
+                                                                                        e.stopPropagation();
+                                                                                        setActiveRolesTooltipUserId(null);
+                                                                                    }}
+                                                                                />
+                                                                                <div
+                                                                                    className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 bg-white border border-slate-150 rounded-2xl shadow-xl z-[70] p-2.5 min-w-[120px] flex flex-col gap-1.5 animate-in fade-in slide-in-from-bottom-1 duration-150"
+                                                                                    onClick={(e) => e.stopPropagation()}
+                                                                                >
+                                                                                    <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-1.5 pb-1 border-b border-slate-100 text-center">
+                                                                                        All Roles
+                                                                                    </div>
+                                                                                    {roles.map((roleName) => (
+                                                                                        <span
+                                                                                            key={roleName}
+                                                                                            className={`px-2.5 py-1 rounded-xl text-[10px] font-bold text-center ${getRoleBadgeClass(roleName)}`}
+                                                                                        >
+                                                                                            {roleName}
+                                                                                        </span>
+                                                                                    ))}
                                                                                 </div>
-                                                                                {roles.map((roleName) => (
-                                                                                    <span
-                                                                                        key={roleName}
-                                                                                        className={`px-2.5 py-1 rounded-xl text-[10px] font-bold text-center ${getRoleBadgeClass(roleName)}`}
-                                                                                    >
-                                                                                        {roleName}
-                                                                                    </span>
-                                                                                ))}
-                                                                            </div>
-                                                                        </>
-                                                                    )}
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    );
-                                                })()
-                                            ) : (
-                                                <span className={`px-3 py-1 rounded-full text-xs font-bold ${getRoleBadgeClass(viewTab === 'guest' ? 'Limited User' : viewTab === 'limited' ? 'Guest User' : viewTab === 'applications' ? 'Guest User' : 'Limited User')}`}>
-                                                    {viewTab === 'guest' ? 'Limited User' : viewTab === 'limited' ? 'Guest User' : viewTab === 'applications' ? 'Application' : 'Limited User'}
-                                                </span>
-                                            )}
-                                        </td>
+                                                                            </>
+                                                                        )}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    })()
+                                                ) : (
+                                                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${getRoleBadgeClass(viewTab === 'guest' ? 'Limited User' : viewTab === 'limited' ? 'Guest User' : viewTab === 'applications' ? 'Guest User' : 'Limited User')}`}>
+                                                        {viewTab === 'guest' ? 'Limited User' : viewTab === 'limited' ? 'Guest User' : viewTab === 'applications' ? 'Application' : 'Limited User'}
+                                                    </span>
+                                                )}
+                                            </td>
+                                        )}
 
                                         {/* Date column */}
                                         <td className="p-4 text-slate-600 text-sm whitespace-nowrap">
@@ -1588,78 +1594,71 @@ const UsersList = () => {
                                         </td>
 
                                         {/* Status column */}
-                                        <td className="p-4 whitespace-nowrap">
-                                            {viewTab === 'registered' ? (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => handleToggleStatus(u._id, u.isActive)}
-                                                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${u.isActive !== false ? 'bg-emerald-500' : 'bg-slate-200'
-                                                        }`}
-                                                    title={u.isActive !== false ? 'Click to Deactivate Account' : 'Click to Activate Account'}
-                                                >
-                                                    <span className="sr-only">Toggle status</span>
-                                                    <span
-                                                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${u.isActive !== false ? 'translate-x-5' : 'translate-x-0'
+                                        {viewTab !== 'applications' && (
+                                            <td className="p-4 whitespace-nowrap">
+                                                {viewTab === 'registered' ? (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleToggleStatus(u._id, u.isActive)}
+                                                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${u.isActive !== false ? 'bg-emerald-500' : 'bg-slate-200'
                                                             }`}
-                                                    />
-                                                </button>
-                                            ) : viewTab === 'role-requests' ? (
-                                                <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${u.status === 'Approved'
-                                                        ? 'bg-emerald-50 text-emerald-600 border border-emerald-100'
-                                                        : u.status === 'Rejected'
-                                                            ? 'bg-rose-50 text-rose-600 border border-rose-100'
-                                                            : 'bg-amber-50 text-amber-600 border border-amber-100'
-                                                    }`}>
-                                                    {u.status}
-                                                </span>
-                                            ) : viewTab === 'guest' ? (
-                                                <div className="flex flex-col items-center gap-1">
-                                                    <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-600 border border-emerald-100">
-                                                        Registered
+                                                        title={u.isActive !== false ? 'Click to Deactivate Account' : 'Click to Activate Account'}
+                                                    >
+                                                        <span className="sr-only">Toggle status</span>
+                                                        <span
+                                                            className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${u.isActive !== false ? 'translate-x-5' : 'translate-x-0'
+                                                                }`}
+                                                        />
+                                                    </button>
+                                                ) : viewTab === 'role-requests' ? (
+                                                    <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${u.status === 'Approved'
+                                                            ? 'bg-emerald-50 text-emerald-600 border border-emerald-100'
+                                                            : u.status === 'Rejected'
+                                                                ? 'bg-rose-50 text-rose-600 border border-rose-100'
+                                                                : 'bg-amber-50 text-amber-600 border border-amber-100'
+                                                        }`}>
+                                                        {u.status}
                                                     </span>
-                                                    {u.guestProfile?.demoExpiryDate && (
-                                                        <span className={`text-[10px] font-bold ${new Date(u.guestProfile.demoExpiryDate) < new Date()
-                                                                ? 'text-rose-500 bg-rose-50 px-2 py-0.5 rounded-md border border-rose-100'
-                                                                : 'text-amber-600 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-100'
-                                                            }`}>
-                                                            {(() => {
-                                                                const diff = new Date(u.guestProfile.demoExpiryDate) - new Date();
-                                                                const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
-                                                                return days <= 0 ? 'Expired' : `${days}d Left`;
-                                                            })()}
+                                                ) : viewTab === 'guest' ? (
+                                                    <div className="flex flex-col items-center gap-1">
+                                                        <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-600 border border-emerald-100">
+                                                            Registered
                                                         </span>
-                                                    )}
-                                                </div>
-                                            ) : viewTab === 'applications' ? (
-                                                <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${u.status === 'Accepted' || u.status === 'Registered'
-                                                        ? 'bg-emerald-50 text-emerald-600 border border-emerald-100'
-                                                        : u.status === 'Rejected'
-                                                            ? 'bg-rose-50 text-rose-600 border border-rose-100'
-                                                            : 'bg-amber-50 text-amber-600 border border-amber-100'
-                                                    }`}>
-                                                    {u.status}
-                                                </span>
-                                            ) : (
-                                                (() => {
-                                                    if (u.submissions?.length === 1) {
-                                                        const singleSub = u.submissions[0];
-                                                        const isCompleted = singleSub.completedStatus === 'Completed' || !singleSub.completedStatus;
-                                                        return (
-                                                            <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${isCompleted ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-slate-100 text-slate-500 border border-slate-200'}`}>
-                                                                {singleSub.completedStatus || 'Completed'} (Score: {singleSub.score || 0})
+                                                        {u.guestProfile?.demoExpiryDate && (
+                                                            <span className={`text-[10px] font-bold ${new Date(u.guestProfile.demoExpiryDate) < new Date()
+                                                                    ? 'text-rose-500 bg-rose-50 px-2 py-0.5 rounded-md border border-rose-100'
+                                                                    : 'text-amber-600 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-100'
+                                                                }`}>
+                                                                {(() => {
+                                                                    const diff = new Date(u.guestProfile.demoExpiryDate) - new Date();
+                                                                    const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+                                                                    return days <= 0 ? 'Expired' : `${days}d Left`;
+                                                                })()}
                                                             </span>
-                                                        );
-                                                    } else {
-                                                        const completedCount = u.submissions?.filter(s => s.completedStatus === 'Completed' || !s.completedStatus).length || 0;
-                                                        return (
-                                                            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-650 border border-indigo-100">
-                                                                {completedCount}/{u.submissions?.length} Completed
-                                                            </span>
-                                                        );
-                                                    }
-                                                })()
-                                            )}
-                                        </td>
+                                                        )}
+                                                    </div>
+                                                ) : (
+                                                    (() => {
+                                                        if (u.submissions?.length === 1) {
+                                                            const singleSub = u.submissions[0];
+                                                            const isCompleted = singleSub.completedStatus === 'Completed' || !singleSub.completedStatus;
+                                                            return (
+                                                                <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${isCompleted ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-slate-100 text-slate-500 border border-slate-200'}`}>
+                                                                    {singleSub.completedStatus || 'Completed'} (Score: {singleSub.score || 0})
+                                                                </span>
+                                                            );
+                                                        } else {
+                                                            const completedCount = u.submissions?.filter(s => s.completedStatus === 'Completed' || !s.completedStatus).length || 0;
+                                                            return (
+                                                                <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-650 border border-indigo-100">
+                                                                    {completedCount}/{u.submissions?.length} Completed
+                                                                </span>
+                                                            );
+                                                        }
+                                                    })()
+                                                )}
+                                            </td>
+                                        )}
 
                                         {/* Actions column */}
                                         <td className="p-4 text-right whitespace-nowrap sticky right-0 bg-white group-hover:bg-slate-50 transition-colors border-l border-slate-100 shadow-[-8px_0_16px_-4px_rgba(0,0,0,0.06)]">

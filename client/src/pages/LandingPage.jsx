@@ -319,6 +319,48 @@ const LandingPage = () => {
     const [regInstPhone, setRegInstPhone] = useState('');
     const [submittingRegRequest, setSubmittingRegRequest] = useState(false);
 
+    // Email OTP states for registration request modal
+    const [regEmailOtpSent, setRegEmailOtpSent] = useState(false);
+    const [regEmailOtpVerified, setRegEmailOtpVerified] = useState(false);
+    const [regEmailOtp, setRegEmailOtp] = useState('');
+    const [regEmailOtpLoading, setRegEmailOtpLoading] = useState(false);
+
+    const handleSendRegEmailOtp = async () => {
+        if (!regRequestEmail.trim()) {
+            toast.error("Please enter email address first");
+            return;
+        }
+        setRegEmailOtpLoading(true);
+        try {
+            await axios.post('/api/setup/send-otp', { phone: regRequestEmail.trim() });
+            setRegEmailOtpSent(true);
+            toast.success("OTP sent to your email!");
+        } catch (err) {
+            console.error("Email OTP error:", err);
+            toast.error(err.response?.data?.message || "Failed to send OTP");
+        } finally {
+            setRegEmailOtpLoading(false);
+        }
+    };
+
+    const handleVerifyRegEmailOtp = async () => {
+        if (!regEmailOtp.trim()) {
+            toast.error("Please enter OTP code");
+            return;
+        }
+        setRegEmailOtpLoading(true);
+        try {
+            await axios.post('/api/setup/verify-otp', { phone: regRequestEmail.trim(), otp: regEmailOtp.trim() });
+            setRegEmailOtpVerified(true);
+            toast.success("Email verified successfully!");
+        } catch (err) {
+            console.error("OTP verification error:", err);
+            toast.error(err.response?.data?.message || "Invalid OTP code");
+        } finally {
+            setRegEmailOtpLoading(false);
+        }
+    };
+
     const getCourseSubjects = (course) => {
         if (!course) return [];
         const subs = [];
@@ -394,7 +436,12 @@ const LandingPage = () => {
             return;
         }
 
-        if (registerRole === 'Teacher') {
+        if (!regEmailOtpVerified) {
+            toast.error("Please verify your email address with OTP first");
+            return;
+        }
+
+        if (registerRole === 'Teacher' || registerRole === 'Editor') {
             if (selectedCourseIds.length === 0) {
                 toast.error("Please select at least one Course");
                 return;
@@ -403,11 +450,6 @@ const LandingPage = () => {
                 toast.error("Please select at least one Subject");
                 return;
             }
-        }
-
-        if (registerRole === 'Editor' && !regTargetInstId) {
-            toast.error("Please select a target Institute");
-            return;
         }
 
         try {
@@ -419,7 +461,7 @@ const LandingPage = () => {
                 password: regRequestPassword,
                 phone: regPhone,
                 targetInstitute: (registerRole === 'Teacher' || registerRole === 'Editor') ? regTargetInstId : undefined,
-                subjectSpecialization: registerRole === 'Teacher' ? regSubjects : '',
+                subjectSpecialization: (registerRole === 'Teacher' || registerRole === 'Editor') ? regSubjects : '',
                 eligibility: registerRole === 'Editor' ? regEligibility : '',
                 instituteDetails: registerRole === 'Institute' ? {
                     code: regInstCode,
@@ -443,6 +485,18 @@ const LandingPage = () => {
             setRegRequestEmail('');
             setRegRequestPassword('');
             setRegPhone('');
+            setRegTargetInstId('');
+            setRegSubjects('');
+            setSelectedCourseIds([]);
+            setSelectedSubjectNames([]);
+            setRegEmailOtpSent(false);
+            setRegEmailOtpVerified(false);
+            setRegEmailOtp('');
+            setRegEligibility('');
+            setRegInstCode('');
+            setRegInstAddress('');
+            setRegInstContactEmail('');
+            setRegInstPhone('');
             setRegTargetInstId('');
             setRegSubjects('');
             setRegEligibility('');
@@ -2544,16 +2598,62 @@ const LandingPage = () => {
                                                                                 className="w-full px-3 py-2 bg-slate-50 border border-slate-200 focus:border-[#0b1329] focus:outline-none rounded-xl text-xs font-semibold"
                                                                             />
                                                                         </div>
-                                                                        <div className="space-y-1">
-                                                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Email Address *</label>
-                                                                            <input
-                                                                                type="email"
-                                                                                value={regRequestEmail}
-                                                                                onChange={(e) => setRegRequestEmail(e.target.value)}
-                                                                                required
-                                                                                placeholder="e.g. info@oxford.com"
-                                                                                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 focus:border-[#0b1329] focus:outline-none rounded-xl text-xs font-semibold"
-                                                                            />
+                                                                        <div className="space-y-1 sm:col-span-2">
+                                                                            <div className="flex items-center justify-between">
+                                                                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Email Address *</label>
+                                                                                {regEmailOtpVerified && (
+                                                                                    <span className="text-[10px] font-bold text-emerald-600 flex items-center gap-1">
+                                                                                        <CheckCircle size={12} /> Verified
+                                                                                    </span>
+                                                                                )}
+                                                                            </div>
+                                                                            <div className="flex gap-2">
+                                                                                <input
+                                                                                    type="email"
+                                                                                    value={regRequestEmail}
+                                                                                    onChange={(e) => {
+                                                                                        setRegRequestEmail(e.target.value);
+                                                                                        setRegEmailOtpVerified(false);
+                                                                                        setRegEmailOtpSent(false);
+                                                                                    }}
+                                                                                    required
+                                                                                    disabled={regEmailOtpVerified}
+                                                                                    placeholder="e.g. info@oxford.com"
+                                                                                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 focus:border-[#0b1329] focus:outline-none rounded-xl text-xs font-semibold disabled:bg-emerald-50/50 disabled:border-emerald-200"
+                                                                                />
+                                                                                {!regEmailOtpVerified && (
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        onClick={handleSendRegEmailOtp}
+                                                                                        disabled={regEmailOtpLoading || !regRequestEmail.trim()}
+                                                                                        className="px-3 py-2 bg-indigo-600 hover:bg-indigo-750 text-white rounded-xl text-xs font-bold whitespace-nowrap active:scale-95 transition-all shadow-sm disabled:opacity-50 cursor-pointer"
+                                                                                    >
+                                                                                        {regEmailOtpLoading ? 'Sending...' : regEmailOtpSent ? 'Resend OTP' : 'Send OTP'}
+                                                                                    </button>
+                                                                                )}
+                                                                            </div>
+
+                                                                            {/* OTP Input & Verify Button */}
+                                                                            {regEmailOtpSent && !regEmailOtpVerified && (
+                                                                                <div className="flex gap-2 mt-2 p-2 bg-indigo-50/60 border border-indigo-150 rounded-xl animate-in fade-in slide-in-from-top-1 duration-150">
+                                                                                    <input
+                                                                                        type="text"
+                                                                                        value={regEmailOtp}
+                                                                                        onChange={(e) => setRegEmailOtp(e.target.value)}
+                                                                                        placeholder="Enter 4-digit OTP"
+                                                                                        maxLength={6}
+                                                                                        className="w-full px-3 py-1.5 bg-white border border-slate-200 focus:border-indigo-600 focus:outline-none rounded-lg text-xs font-bold tracking-widest text-center"
+                                                                                    />
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        onClick={handleVerifyRegEmailOtp}
+                                                                                        disabled={regEmailOtpLoading || !regEmailOtp.trim()}
+                                                                                        className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold whitespace-nowrap active:scale-95 transition-all shadow-sm disabled:opacity-50 cursor-pointer"
+                                                                                    >
+                                                                                        {regEmailOtpLoading ? 'Verifying...' : 'Verify OTP'}
+                                                                                    </button>
+                                                                                </div>
+                                                                            )}
                                                                         </div>
                                                                     </div>
 
@@ -2620,8 +2720,8 @@ const LandingPage = () => {
                                                                         </div>
                                                                     )}
 
-                                                                    {/* Teacher Specific Fields */}
-                                                                    {registerRole === 'Teacher' && (
+                                                                    {/* Teacher & Editor Specific Fields (Courses & Subjects) */}
+                                                                    {(registerRole === 'Teacher' || registerRole === 'Editor') && (
                                                                         <div className="space-y-3.5 border-t border-slate-100 pt-3">
                                                                             <h4 className="text-[11px] font-bold text-indigo-900 uppercase tracking-wider">Professional Profile</h4>
                                                                             
@@ -2736,35 +2836,18 @@ const LandingPage = () => {
                                                                         </div>
                                                                     )}
 
-                                                                    {/* Editor Specific Fields */}
+                                                                    {/* Editor Specific Additional Fields */}
                                                                     {registerRole === 'Editor' && (
-                                                                        <div className="space-y-3.5 border-t border-slate-100 pt-3">
-                                                                            <h4 className="text-[11px] font-bold text-indigo-900 uppercase tracking-wider">Professional Profile</h4>
-                                                                            <div className="space-y-1">
-                                                                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Target Institute *</label>
-                                                                                <select
-                                                                                    value={regTargetInstId}
-                                                                                    onChange={(e) => setRegTargetInstId(e.target.value)}
-                                                                                    required
-                                                                                    className="w-full bg-slate-50 border border-slate-200 focus:border-[#0b1329] focus:outline-none rounded-xl text-xs font-semibold px-3 py-2"
-                                                                                >
-                                                                                    <option value="">Select target institute</option>
-                                                                                    {institutes.map(inst => (
-                                                                                        <option key={inst._id} value={inst._id}>{inst.name} ({inst.code})</option>
-                                                                                    ))}
-                                                                                </select>
-                                                                            </div>
-                                                                            <div className="space-y-1">
-                                                                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Eligibility / Qualifications Summary *</label>
-                                                                                <textarea
-                                                                                    value={regEligibility}
-                                                                                    onChange={(e) => setRegEligibility(e.target.value)}
-                                                                                    required
-                                                                                    placeholder="Detail your professional experience, qualifications, and curriculum design credentials."
-                                                                                    rows={3}
-                                                                                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 focus:border-[#0b1329] focus:outline-none rounded-xl text-xs font-semibold resize-none"
-                                                                                />
-                                                                            </div>
+                                                                        <div className="space-y-1">
+                                                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Eligibility / Qualifications Summary *</label>
+                                                                            <textarea
+                                                                                value={regEligibility}
+                                                                                onChange={(e) => setRegEligibility(e.target.value)}
+                                                                                required
+                                                                                placeholder="Detail your professional experience, qualifications, and curriculum design credentials."
+                                                                                rows={3}
+                                                                                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 focus:border-[#0b1329] focus:outline-none rounded-xl text-xs font-semibold resize-none"
+                                                                            />
                                                                         </div>
                                                                     )}
 

@@ -2614,7 +2614,7 @@ const StaffList = () => {
                     staffId={viewAttendanceStaff._id}
                     roleType="staff"
                     onClose={() => setViewAttendanceStaff(null)}
-                    onDataChange={fetchData}
+                    onDataChange={fetchStaffData}
                 />
             )}
             {showAddTaskModal && createPortal(

@@ -620,25 +620,39 @@ const submitApplication = asyncHandler(async (req, res) => {
 // @route   GET /api/setup/applications
 // @access  Public
 const getApplications = asyncHandler(async (req, res) => {
-    const { phone } = req.query;
+    const { phone, name } = req.query;
 
-    if (!phone) {
+    const searchStr = (phone || name || '').trim();
+
+    if (!searchStr) {
         res.status(400);
-        throw new Error('Please provide a phone number or email');
+        throw new Error('Please provide a phone number, email, or name');
     }
 
-    const searchStr = phone.trim();
+    const searchRegex = new RegExp(searchStr.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&'), 'i');
 
     const applications = await Application.find({
-        $or: [{ guestPhone: searchStr }, { guestEmail: searchStr }]
+        $or: [
+            { guestPhone: searchStr },
+            { guestEmail: searchStr },
+            { guestPhone: searchRegex },
+            { guestEmail: searchRegex },
+            { guestName: searchRegex }
+        ]
     })
         .populate('course', 'name code description')
         .populate('institute', 'name code address contactEmail helplineNumber');
 
-    // Fetch Teacher, Editor, Institute registration requests matching phone OR email
+    // Fetch Teacher, Editor, Institute registration requests matching phone, email OR name
     const RegistrationRequest = require('../../models/RegistrationRequest');
     const regRequests = await RegistrationRequest.find({
-        $or: [{ phone: searchStr }, { email: searchStr }]
+        $or: [
+            { phone: searchStr },
+            { email: searchStr },
+            { phone: searchRegex },
+            { email: searchRegex },
+            { name: searchRegex }
+        ]
     }).populate('targetInstitute', 'name code address contactEmail helplineNumber');
 
     const formattedRegRequests = regRequests.map(r => ({

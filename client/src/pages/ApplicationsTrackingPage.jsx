@@ -240,11 +240,17 @@ const ApplicationsTrackingPage = () => {
         }
     };
 
-    const fetchApplications = async () => {
-        if (!phone) return;
+    const [searchInput, setSearchInput] = useState(phone || (guestName !== 'Guest' ? guestName : ''));
+
+    const fetchApplications = async (queryTerm) => {
+        const term = queryTerm !== undefined ? queryTerm : (searchInput || phone || guestName);
+        if (!term || term.trim() === 'Guest') {
+            setLoading(false);
+            return;
+        }
         try {
             setLoading(true);
-            const { data } = await axios.get(`/api/setup/applications?phone=${encodeURIComponent(phone)}`);
+            const { data } = await axios.get(`/api/setup/applications?phone=${encodeURIComponent(term.trim())}`);
             setApplications(data.filter(app => app.status !== 'Registered'));
         } catch (err) {
             console.error('Error fetching apps:', err);
@@ -254,8 +260,8 @@ const ApplicationsTrackingPage = () => {
     };
 
     useEffect(() => {
-        fetchApplications();
-    }, [phone]);
+        fetchApplications(phone || guestName);
+    }, [phone, guestName]);
 
     const getStatusColor = (status) => {
         switch (status) {
@@ -277,7 +283,7 @@ const ApplicationsTrackingPage = () => {
 
     const sections = [
         { id: 'activity', label: 'My Activity', icon: FileText, locked: false, desc: 'Track your application status' },
-        { id: 'preview', label: 'Portal Preview', icon: Compass, locked: false, desc: 'Explore student portal demo' },
+        { id: 'preview', label: 'Portal Preview', icon: Compass, locked: false, desc: 'Explore portal demo' },
         { id: 'resources', label: 'Study Resources', icon: BookOpen, locked: true, desc: 'Course materials & files' },
         { id: 'support', label: 'Student Support', icon: Shield, locked: true, desc: 'Help & guidance center' },
     ];
@@ -301,8 +307,8 @@ const ApplicationsTrackingPage = () => {
                     </div>
                 </div>
                 <button
-                    onClick={fetchApplications}
-                    className="p-2 bg-white/10 hover:bg-white/20 text-white rounded-xl transition-all"
+                    onClick={() => fetchApplications()}
+                    className="p-2 bg-white/10 hover:bg-white/20 text-white rounded-xl transition-all cursor-pointer"
                     title="Refresh"
                 >
                     <RefreshCw size={16} />
@@ -310,6 +316,23 @@ const ApplicationsTrackingPage = () => {
             </header>
 
             <div className="max-w-5xl mx-auto px-4 md:px-8 py-8 space-y-6">
+
+                {/* Application Search Bar */}
+                <form onSubmit={(e) => { e.preventDefault(); fetchApplications(searchInput); }} className="flex items-center gap-2 bg-white/45 backdrop-blur-md border border-white/65 p-2 rounded-2xl shadow-sm">
+                    <input
+                        type="text"
+                        value={searchInput}
+                        onChange={(e) => setSearchInput(e.target.value)}
+                        placeholder="Search application by Mobile, Email, or Name..."
+                        className="flex-1 bg-transparent px-3 py-1.5 text-sm text-slate-800 font-semibold focus:outline-none placeholder:text-slate-400"
+                    />
+                    <button
+                        type="submit"
+                        className="px-5 py-2 bg-[#0b1329] hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer active:scale-95"
+                    >
+                        Search Application
+                    </button>
+                </form>
 
                 {/* Section Navigation */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

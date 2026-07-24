@@ -70,7 +70,7 @@ const TestsList = () => {
     useEffect(() => {
         if (userInfo?.role === 'Editor' && editorControls?.activities) {
             const act = editorControls.activities;
-            if (activeTab === 'lms' && act.lmsConnectedTests === false) {
+            if ((activeTab === 'lms' || activeTab === 'lms-single' || activeTab === 'lms-selected') && act.lmsConnectedTests === false) {
                 if (act.publicWebTests !== false) setActiveTab('public');
                 else if (act.draftTests !== false) setActiveTab('draft');
             } else if (activeTab === 'public' && act.publicWebTests === false) {
@@ -414,7 +414,7 @@ const TestsList = () => {
             return;
         }
 
-        if (activeTab === 'lms' || activeTab === 'draft') {
+        if (activeTab === 'lms' || activeTab === 'lms-single' || activeTab === 'lms-selected' || activeTab === 'draft') {
             fetchLmsTests();
         } else {
             fetchPublicTests();
@@ -435,7 +435,7 @@ const TestsList = () => {
         if (!window.confirm('Are you sure you want to delete this test?')) return;
         try {
             await axios.delete(`/api/tests/${id}`);
-            if (activeTab === 'lms' || activeTab === 'draft') {
+            if (activeTab === 'lms' || activeTab === 'lms-single' || activeTab === 'lms-selected' || activeTab === 'draft') {
                 setTests(tests.filter(t => t._id !== id));
             } else {
                 setPublicTests(publicTests.filter(t => t._id !== id));
@@ -462,7 +462,7 @@ const TestsList = () => {
                     toast.success('Successfully deleted selected tests');
                     setSelectedIds(new Set());
                     setBulkAction('');
-                    if (activeTab === 'lms' || activeTab === 'draft') {
+                    if (activeTab === 'lms' || activeTab === 'lms-single' || activeTab === 'lms-selected' || activeTab === 'draft') {
                         fetchLmsTests();
                     } else {
                         fetchPublicTests();
@@ -851,8 +851,18 @@ const TestsList = () => {
 
     // Filter tests
     const filteredTests = tests.filter(test => {
-        const tabMatch = activeTab === 'draft' ? test.publishMode === 'draft' : test.publishMode === 'connected';
-        if (!tabMatch) return false;
+        if (activeTab === 'draft') {
+            if (test.publishMode !== 'draft') return false;
+        } else if (activeTab === 'lms-single') {
+            if (test.publishMode !== 'connected') return false;
+            if (test.assignmentType !== 'particular') return false;
+        } else if (activeTab === 'lms-selected') {
+            if (test.publishMode !== 'connected') return false;
+            if (test.assignmentType !== 'selected') return false;
+        } else {
+            // 'lms' tab: show all connected tests
+            if (test.publishMode !== 'connected') return false;
+        }
 
         const titleMatch = (test.title || 'Untitled').toLowerCase().includes(debouncedSearchTerm.toLowerCase());
         const subjectMatch = filterSubject === 'All' || 
@@ -870,7 +880,7 @@ const TestsList = () => {
         return new Date(b.createdAt) - new Date(a.createdAt);
     });
 
-    const currentTestsList = (activeTab === 'lms' || activeTab === 'draft') ? tests : publicTests;
+    const currentTestsList = (activeTab === 'lms' || activeTab === 'lms-single' || activeTab === 'lms-selected' || activeTab === 'draft') ? tests : publicTests;
 
     const filteredPublicTests = publicTests.filter(test => {
         const titleMatch = (test.title || '').toLowerCase().includes(debouncedSearchTerm.toLowerCase());
@@ -2469,6 +2479,28 @@ const TestsList = () => {
                             LMS Connected Tests
                         </button>
                     )}
+                    {((userInfo?.role !== 'Editor') || (userInfo?.role === 'Editor' && editorControls?.activities?.lmsConnectedTests !== false)) && (
+                        <button
+                            onClick={() => setActiveTab('lms-single')}
+                            className={`px-5 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'lms-single'
+                                ? 'bg-white text-[#0b1329] shadow-sm border border-slate-200/50'
+                                : 'text-slate-500 hover:text-slate-800'
+                                }`}
+                        >
+                            LMS Single Student
+                        </button>
+                    )}
+                    {((userInfo?.role !== 'Editor') || (userInfo?.role === 'Editor' && editorControls?.activities?.lmsConnectedTests !== false)) && (
+                        <button
+                            onClick={() => setActiveTab('lms-selected')}
+                            className={`px-5 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'lms-selected'
+                                ? 'bg-white text-[#0b1329] shadow-sm border border-slate-200/50'
+                                : 'text-slate-500 hover:text-slate-800'
+                                }`}
+                        >
+                            LMS Selected Students
+                        </button>
+                    )}
                     {((userInfo?.role !== 'Editor') || (userInfo?.role === 'Editor' && editorControls?.activities?.publicWebTests !== false)) && (
                         <button
                             onClick={() => setActiveTab('public')}
@@ -2493,7 +2525,7 @@ const TestsList = () => {
                     )}
                 </div>
 
-                {(activeTab === 'lms' || activeTab === 'public' || activeTab === 'draft') && (
+                {(activeTab === 'lms' || activeTab === 'lms-single' || activeTab === 'lms-selected' || activeTab === 'public' || activeTab === 'draft') && (
                     <button
                         onClick={() => setShowFolderExplorer(true)}
                         className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-[#0b1329] border border-slate-200 rounded-xl text-xs font-bold transition-all active:scale-95 shadow-sm shadow-sm"

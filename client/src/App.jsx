@@ -32,6 +32,7 @@ const TestBuilder = lazy(() => import('./pages/admin/TestBuilder'));
 const EditorDashboard = lazy(() => import('./pages/editor/EditorDashboard'));
 const ToolsPage = lazy(() => import('./pages/admin/ToolsPage'));
 const ToolsAnalyticsPage = lazy(() => import('./pages/admin/ToolsAnalyticsPage'));
+const UserUsageAnalyticsPage = lazy(() => import('./pages/admin/UserUsageAnalyticsPage'));
 const FormTemplatesPage = lazy(() => import('./pages/admin/FormTemplatesPage'));
 const DbTemplatesPage = lazy(() => import('./pages/admin/DbTemplatesPage'));
 const AdminAnnouncements = lazy(() => import('./pages/admin/AdminAnnouncements'));
@@ -616,6 +617,16 @@ function App() {
                                          <Route path="/admin/tools-analytics/:tab?" element={
                                              <PrivateRoute role={['Admin', 'Staff', 'Editor']}>
                                                  <ToolsAnalyticsPage />
+                                             </PrivateRoute>
+                                         } />
+                                         <Route path="/admin/user-analytics" element={
+                                             <PrivateRoute role={['Admin', 'Staff', 'Editor', 'Institute']}>
+                                                 <UserUsageAnalyticsPage />
+                                             </PrivateRoute>
+                                         } />
+                                         <Route path="/institute/user-analytics" element={
+                                             <PrivateRoute role={['Admin', 'Staff', 'Editor', 'Institute']}>
+                                                 <UserUsageAnalyticsPage />
                                              </PrivateRoute>
                                          } />
                                           <Route path="/admin/announcements" element={

@@ -193,6 +193,7 @@ const menuItems = {
         { name: 'Screen Recorder', icon: Video, path: '/admin/tools/screen-recorder' },
 
         { name: '_section_service_analytics', icon: BarChart3, path: null },
+        { name: 'User Usage Analytics', icon: BarChart3, path: '/admin/user-analytics' },
         { name: 'Drive Analytics', icon: HardDrive, path: '/admin/tools-analytics/drive' },
         { name: 'Chat Analytics', icon: MessageSquare, path: '/admin/tools-analytics/chat' },
         { name: 'Notes Analytics', icon: StickyNote, path: '/admin/tools-analytics/notes' },

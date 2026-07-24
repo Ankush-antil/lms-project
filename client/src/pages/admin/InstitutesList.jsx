@@ -719,8 +719,9 @@ const InstitutesList = () => {
                                                             <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">
                                                                 <TruncatedCell text={inst.contactEmail || 'No Email Listed'} maxLength={25} />
                                                             </div>
-                                                    </div>
-                                                </td>
+                                                            </div>
+                                                        </div>
+                                                    </td>
                                                 <td className="p-4 whitespace-nowrap">
                                                     <span className="font-mono text-xs bg-slate-100 text-slate-700 px-2.5 py-1 rounded-md font-bold">
                                                         {inst.code}

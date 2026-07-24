@@ -445,8 +445,8 @@ const AdminAnnouncements = () => {
 
     if (!isManager) {
         return (
-            <DashboardLayout role={user?.role || 'Student'}>
-                <div className="w-full px-2 py-5 font-sans">
+            <DashboardLayout role={user?.role || 'Student'} fullWidth={true}>
+                <div className="w-full px-1 py-4 font-sans">
                     {/* Header */}
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4 mb-6">
                         <div>
@@ -696,8 +696,8 @@ const AdminAnnouncements = () => {
     }
 
     return (
-        <DashboardLayout role={user?.role || 'Admin'}>
-            <div className="w-full px-2 py-5 font-sans">
+        <DashboardLayout role={user?.role || 'Admin'} fullWidth={true}>
+            <div className="w-full px-1 py-4 font-sans">
 
                 {/* Header */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4 mb-6">
@@ -847,7 +847,7 @@ const AdminAnnouncements = () => {
                         <table className="w-full text-left border-collapse whitespace-nowrap">
                             <thead>
                                 <tr className="bg-slate-50/70 text-slate-400 font-extrabold text-[11px] uppercase tracking-wider border-b border-slate-100">
-                                    <th className="py-3.5 px-6 text-left w-10">
+                                    <th className="py-3 px-3 text-left w-10">
                                         <input
                                             type="checkbox"
                                             checked={currentEntries.length > 0 && currentEntries.every(ann => selectedIds.has(ann._id))}
@@ -865,14 +865,14 @@ const AdminAnnouncements = () => {
                                             className="w-4 h-4 rounded border-slate-300 text-indigo-650 focus:ring-indigo-500 cursor-pointer"
                                         />
                                     </th>
-                                    <th className="py-3.5 px-6">Announcement Title</th>
-                                    <th className="py-3.5 px-4">Institute scope</th>
-                                    <th className="py-3.5 px-4">Audience</th>
-                                    <th className="py-3.5 px-4">Created By</th>
-                                    <th className="py-3.5 px-4 text-center">Status</th>
-                                    <th className="py-3.5 px-4 text-right">Ending date</th>
-                                    <th className="py-3.5 px-4 text-right">Published date</th>
-                                    <th className="py-3.5 px-6 text-right">Actions</th>
+                                    <th className="py-3 px-3">Announcement Title</th>
+                                    <th className="py-3 px-2">Institute scope</th>
+                                    <th className="py-3 px-2">Audience</th>
+                                    <th className="py-3 px-2">Created By</th>
+                                    <th className="py-3 px-2 text-center">Status</th>
+                                    <th className="py-3 px-2 text-right">Ending date</th>
+                                    <th className="py-3 px-2 text-right">Published date</th>
+                                    <th className="py-3 px-3 text-right">Actions</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100 text-xs font-bold text-slate-700">
@@ -892,7 +892,7 @@ const AdminAnnouncements = () => {
                                 ) : (
                                     currentEntries.map((ann, idx) => (
                                         <tr key={ann._id || idx} className="hover:bg-slate-50/50 transition-colors">
-                                            <td className="py-3.5 px-6 text-left w-10">
+                                            <td className="py-3 px-3 text-left w-10">
                                                 <input
                                                     type="checkbox"
                                                     checked={selectedIds.has(ann._id)}
@@ -908,7 +908,7 @@ const AdminAnnouncements = () => {
                                                     className="w-4 h-4 rounded border-slate-300 text-indigo-650 focus:ring-indigo-500 cursor-pointer"
                                                 />
                                             </td>
-                                            <td className="py-3.5 px-6 font-extrabold text-slate-850">
+                                            <td className="py-3 px-3 font-extrabold text-slate-850">
                                                 <div className="flex flex-col text-left">
                                                     <span className="text-sm text-slate-800 flex items-center gap-1.5">
                                                         {ann.title}
@@ -921,19 +921,19 @@ const AdminAnnouncements = () => {
                                                     <span className="text-[10px] text-slate-400 font-medium truncate max-w-xs mt-0.5">{ann.content}</span>
                                                 </div>
                                             </td>
-                                            <td className="py-3.5 px-4">
+                                            <td className="py-3 px-2">
                                                 {ann.institute ? (
-                                                    <span className="px-2.5 py-1 bg-indigo-50 border border-indigo-100 text-indigo-750 rounded-xl text-[10px] font-black">
+                                                    <span className="px-2 py-0.5 bg-indigo-50 border border-indigo-100 text-indigo-750 rounded-xl text-[10px] font-black">
                                                         🏫 {ann.institute.name}
                                                     </span>
                                                 ) : (
-                                                    <span className="px-2.5 py-1 bg-teal-50 border border-teal-100 text-teal-750 rounded-xl text-[10px] font-black">
+                                                    <span className="px-2 py-0.5 bg-teal-50 border border-teal-100 text-teal-750 rounded-xl text-[10px] font-black">
                                                         🌐 Global
                                                     </span>
                                                 )}
                                             </td>
-                                            <td className="py-3.5 px-4">
-                                                <span className={`px-2.5 py-1 rounded-xl text-[10px] font-black ${ann.targetAudience === 'Student'
+                                            <td className="py-3 px-2">
+                                                <span className={`px-2 py-0.5 rounded-xl text-[10px] font-black ${ann.targetAudience === 'Student'
                                                     ? 'bg-blue-50 border border-blue-100 text-blue-755'
                                                     : ann.targetAudience === 'Teacher'
                                                         ? 'bg-emerald-50 border border-emerald-100 text-emerald-755'
@@ -946,11 +946,11 @@ const AdminAnnouncements = () => {
                                                     👥 {ann.targetAudience === 'limited' ? 'Guest User' : ann.targetAudience === 'guest' ? 'Limited User' : ann.targetAudience}
                                                 </span>
                                             </td>
-                                            <td className="py-3.5 px-4 text-slate-500 font-semibold">{ann.createdBy?.name || 'Admin'}</td>
+                                            <td className="py-3 px-2 text-slate-500 font-semibold">{ann.createdBy?.name || 'Admin'}</td>
                                             
                                             {/* Status Toggle Switch */}
-                                            <td className="py-3.5 px-4 text-center">
-                                                <div className="flex items-center justify-center gap-2">
+                                            <td className="py-3 px-2 text-center">
+                                                <div className="flex items-center justify-center gap-1.5">
                                                     <button
                                                         type="button"
                                                         onClick={() => handleToggleStatus(ann)}
@@ -973,11 +973,11 @@ const AdminAnnouncements = () => {
                                                 </div>
                                             </td>
 
-                                            <td className="py-3.5 px-4 text-right text-slate-500 font-semibold">
+                                            <td className="py-3 px-2 text-right text-slate-500 font-semibold">
                                                 {ann.endDate ? formatDate(ann.endDate) : '—'}
                                             </td>
-                                            <td className="py-3.5 px-4 text-right text-slate-400 font-semibold">{formatDate(ann.createdAt)}</td>
-                                            <td className="py-3.5 px-6 text-right space-x-1.5">
+                                            <td className="py-3 px-2 text-right text-slate-400 font-semibold">{formatDate(ann.createdAt)}</td>
+                                            <td className="py-3 px-3 text-right space-x-1">
                                                 <button
                                                     onClick={() => openViewModal(ann)}
                                                     title="View Announcement"

@@ -10,7 +10,7 @@ import {
     BarChart3, UserPlus, Trash2, Wallet, CreditCard, HardDrive,
     Calculator, Megaphone, Calendar, StickyNote, Briefcase, DollarSign, CheckSquare,
     RefreshCw, Award, Package, Mic, MonitorPlay, Camera, Video, Phone,
-    FileSignature, Database
+    FileSignature, Database, Shield
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useSocket } from '../../context/SocketContext';

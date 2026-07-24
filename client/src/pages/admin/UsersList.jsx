@@ -1421,7 +1421,7 @@ const UsersList = () => {
                                 <th className="p-4 font-semibold whitespace-nowrap">
                                     {viewTab === 'registered' ? 'User Details' : (viewTab === 'guest' || viewTab === 'applications') ? 'Guest Name & Email' : viewTab === 'role-requests' ? 'User Details' : 'Test Taker Details'}
                                 </th>
-                                {viewTab !== 'applications' && (
+                                {(viewTab === 'registered' || viewTab === 'role-requests') && (
                                     <th className="p-4 font-semibold whitespace-nowrap">
                                         Role
                                     </th>
@@ -1516,7 +1516,7 @@ const UsersList = () => {
                                         </td>
 
                                         {/* Role column */}
-                                        {viewTab !== 'applications' && (
+                                        {(viewTab === 'registered' || viewTab === 'role-requests') && (
                                             <td className="p-4 whitespace-nowrap">
                                                 {viewTab === 'role-requests' ? (
                                                     <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${getRoleBadgeClass(u.requestedRole)}`}>

@@ -11,7 +11,7 @@ import { colors, spacing, fontSizes, borderRadius } from '../../theme/colors';
 import { Ionicons } from '@expo/vector-icons';
 import { AppHeader, EmptyState } from '../../components/common/UIComponents';
 import * as DocumentPicker from 'expo-document-picker';
-import { BASE_URL } from '../../config/api';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { CameraView, Camera } from 'expo-camera';
 import { ImagePreviewModal } from '../../components/common/ImagePreviewModal';
 
@@ -611,10 +611,11 @@ const ChatScreen = ({ navigation }) => {
                 animationType="slide"
                 onRequestClose={handleCloseChat}
             >
-                <KeyboardAvoidingView
-                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                    style={{ flex: 1, backgroundColor: '#efeae2' }}
-                >
+                <SafeAreaView style={{ flex: 1, backgroundColor: '#efeae2' }} edges={['top', 'bottom']}>
+                    <KeyboardAvoidingView
+                        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                        style={{ flex: 1 }}
+                    >
                     <View style={styles.chatHeader}>
                         <TouchableOpacity onPress={handleCloseChat} style={styles.backBtn}>
                             <Ionicons name="arrow-back" size={24} color="#ffffff" />
@@ -905,7 +906,8 @@ const ChatScreen = ({ navigation }) => {
                         </>
                     )}
                 </KeyboardAvoidingView>
-            </Modal>
+            </SafeAreaView>
+        </Modal>
 
             <ImagePreviewModal
                 visible={showPreviewModal}

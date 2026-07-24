@@ -1,11 +1,11 @@
+import React, { useRef, useState, useEffect } from 'react';
 import * as XLSX from 'xlsx';
 import { useAuth } from '../../context/AuthContext';
-import { useRef,  useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../components/layout/DashboardLayout';
-import { Download,  Upload,  Search, Plus, Trash2, Edit, Filter, ChevronDown, Eye } from 'lucide-react';
+import { Download, Upload, Search, Plus, Trash2, Edit, Filter, ChevronDown, Eye } from 'lucide-react';
 import AddUserModal from '../../components/AddUserModal';
 import EditUserModal from '../../components/EditUserModal';
 import BulkEditModal from '../../components/common/BulkEditModal';
@@ -116,8 +116,8 @@ const AccountantsList = () => {
     const filteredAccountants = accountants.filter(accountant =>
         (filterInstitute === 'All' || (accountant.institute?._id === filterInstitute || accountant.institute === filterInstitute)) &&
         (accountant.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        accountant._id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        accountant.email.toLowerCase().includes(searchTerm.toLowerCase()))
+            accountant._id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            accountant.email.toLowerCase().includes(searchTerm.toLowerCase()))
     );
 
     const totalPages = Math.ceil(filteredAccountants.length / itemsPerPage);
@@ -465,7 +465,7 @@ const AccountantsList = () => {
                         onClick={() => setIsModalOpen(true)}
                         className="px-5 py-2.5 bg-indigo-600 text-white rounded-2xl hover:bg-indigo-700 hover:shadow-lg transition-all font-bold text-sm flex items-center justify-center gap-2 cursor-pointer"
                     >
-                        <Plus size={20} /> Add New Accountant
+                        <Plus size={20} /> Add Accountant
                     </button>
                 </div>
             </div>
@@ -656,22 +656,20 @@ const AccountantsList = () => {
                                         </td>
                                         <td className="p-4 text-slate-600 text-sm whitespace-nowrap">{accountant.mobileNumber || 'N/A'}</td>
                                         <td className="p-4 whitespace-nowrap">
-                                             <button
-                                                 type="button"
-                                                 onClick={() => handleToggleStatus(accountant._id, accountant.isActive)}
-                                                 className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${
-                                                     accountant.isActive !== false ? 'bg-emerald-500' : 'bg-slate-200'
-                                                 }`}
-                                                 title={accountant.isActive !== false ? 'Click to Deactivate Account' : 'Click to Activate Account'}
-                                             >
-                                                 <span className="sr-only">Toggle status</span>
-                                                 <span
-                                                     className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                                                         accountant.isActive !== false ? 'translate-x-5' : 'translate-x-0'
-                                                     }`}
-                                                 />
-                                             </button>
-                                         </td>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleToggleStatus(accountant._id, accountant.isActive)}
+                                                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${accountant.isActive !== false ? 'bg-emerald-500' : 'bg-slate-200'
+                                                    }`}
+                                                title={accountant.isActive !== false ? 'Click to Deactivate Account' : 'Click to Activate Account'}
+                                            >
+                                                <span className="sr-only">Toggle status</span>
+                                                <span
+                                                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${accountant.isActive !== false ? 'translate-x-5' : 'translate-x-0'
+                                                        }`}
+                                                />
+                                            </button>
+                                        </td>
                                         <td className="p-4 text-right whitespace-nowrap sticky right-0 bg-white group-hover:bg-slate-50 transition-colors border-l border-slate-100">
                                             <button
                                                 type="button"
@@ -754,10 +752,10 @@ const AccountantsList = () => {
                                             disabled={p === '...'}
                                             onClick={() => p !== '...' && setCurrentPage(p)}
                                             className={`w-8 h-8 text-xs font-bold rounded-xl transition-all ${p === '...'
-                                                    ? 'text-slate-400 cursor-default bg-transparent'
-                                                    : currentPage === p
-                                                        ? 'bg-[#0b1329] text-white shadow-md'
-                                                        : 'text-slate-600 hover:bg-slate-100 bg-transparent'
+                                                ? 'text-slate-400 cursor-default bg-transparent'
+                                                : currentPage === p
+                                                    ? 'bg-[#0b1329] text-white shadow-md'
+                                                    : 'text-slate-600 hover:bg-slate-100 bg-transparent'
                                                 }`}
                                         >
                                             {p}

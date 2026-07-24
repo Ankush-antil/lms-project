@@ -1,13 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
+import * as XLSX from 'xlsx';
 import { useAuth } from '../../context/AuthContext';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { 
     Megaphone, Plus, Search, Filter, Play, Pause, Edit, Trash2, 
     TrendingUp, DollarSign, Eye, MousePointerClick, BarChart2,
-    Calendar, ArrowRight, Sparkles, Check, X, ShieldAlert
+    Calendar, ArrowRight, Sparkles, Check, X, ShieldAlert, Upload, Download, ChevronDown
 } from 'lucide-react';
 
 const AdsManagement = () => {
@@ -325,6 +326,116 @@ const AdsManagement = () => {
         }).format(amount || 0);
     };
 
+    const [isExportDropdownOpen, setIsExportDropdownOpen] = useState(false);
+    const importCampaignsRef = useRef(null);
+
+    const exportCampaigns = (format) => {
+        const listToExport = filteredCampaigns;
+        if (!listToExport || listToExport.length === 0) {
+            toast.error('No campaign data to export');
+            return;
+        }
+
+        const dataRows = listToExport.map((c, idx) => ({
+            'S.No': idx + 1,
+            'Campaign Name': c.name || 'N/A',
+            'Platform': c.platform || 'Google Ads',
+            'Status': c.status || 'Active',
+            'Budget (INR)': c.budget || 0,
+            'Spent (INR)': c.spent || 0,
+            'Total Impressions': c.impressions || 0,
+            'Total Clicks': c.clicks || 0,
+            'Total Leads': c.leads || 0,
+            'Start Date': c.startDate || 'N/A',
+            'End Date': c.endDate || 'N/A',
+            'Institute': c.instituteName || c.institute?.name || 'N/A',
+            'Total Ads Count': c.ads?.length || 0
+        }));
+
+        if (format === 'json') {
+            const blob = new Blob([JSON.stringify(dataRows, null, 2)], { type: 'application/json;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `Advertising_Campaigns_Report_${new Date().toISOString().split('T')[0]}.json`;
+            link.click();
+            URL.revokeObjectURL(url);
+            toast.success(`Exported ${dataRows.length} campaigns to JSON`);
+        } else if (format === 'csv') {
+            const worksheet = XLSX.utils.json_to_sheet(dataRows);
+            const csv = XLSX.utils.sheet_to_csv(worksheet);
+            const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `Advertising_Campaigns_Report_${new Date().toISOString().split('T')[0]}.csv`;
+            link.click();
+            URL.revokeObjectURL(url);
+            toast.success(`Exported ${dataRows.length} campaigns to CSV`);
+        } else if (format === 'excel') {
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.json_to_sheet(dataRows);
+            XLSX.utils.book_append_sheet(wb, ws, 'Advertising Campaigns');
+            XLSX.writeFile(wb, `Advertising_Campaigns_Report_${new Date().toISOString().split('T')[0]}.xlsx`);
+            toast.success(`Exported ${dataRows.length} campaigns to Excel`);
+        }
+    };
+
+    const handleImportCampaigns = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+            try {
+                let importedList = [];
+                if (file.name.endsWith('.json')) {
+                    importedList = JSON.parse(evt.target.result);
+                } else {
+                    const data = new Uint8Array(evt.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+                    importedList = XLSX.utils.sheet_to_json(worksheet);
+                }
+
+                if (!Array.isArray(importedList) || importedList.length === 0) {
+                    toast.error('No valid campaign records found in file');
+                    return;
+                }
+
+                const formattedNewCampaigns = importedList.map((row, idx) => ({
+                    _id: `imp_camp_${Date.now()}_${idx}`,
+                    name: row['Campaign Name'] || row.name || 'Imported Campaign',
+                    platform: row['Platform'] || row.platform || 'Google Ads',
+                    status: row['Status'] || row.status || 'Active',
+                    budget: Number(row['Budget (INR)'] || row.budget) || 10000,
+                    spent: Number(row['Spent (INR)'] || row.spent) || 0,
+                    clicks: Number(row['Total Clicks'] || row.clicks) || 0,
+                    impressions: Number(row['Total Impressions'] || row.impressions) || 0,
+                    leads: Number(row['Total Leads'] || row.leads) || 0,
+                    startDate: row['Start Date'] || row.startDate || new Date().toISOString().split('T')[0],
+                    endDate: row['End Date'] || row.endDate || '',
+                    ads: []
+                }));
+
+                setCampaigns(prev => [...prev, ...formattedNewCampaigns]);
+                toast.success(`Successfully imported ${formattedNewCampaigns.length} ad campaigns!`);
+            } catch (err) {
+                console.error("Import error:", err);
+                toast.error("Failed to parse file. Please check format.");
+            }
+        };
+
+        if (file.name.endsWith('.json')) {
+            reader.readAsText(file);
+        } else {
+            reader.readAsArrayBuffer(file);
+        }
+
+        e.target.value = '';
+    };
+
     return (
         <DashboardLayout role={user?.role || 'Institute'}>
             {/* Header */}
@@ -335,12 +446,62 @@ const AdsManagement = () => {
                     </h1>
                     <p className="text-slate-500 text-xs mt-1">Track ad spends, return on ad spend (ROAS), click-through-rates, and cost per lead</p>
                 </div>
-                <button
-                    onClick={() => setIsAddModalOpen(true)}
-                    className="px-4 py-2.5 bg-indigo-600 text-white font-bold rounded-2xl hover:bg-indigo-700 text-xs transition-all flex items-center gap-1.5 cursor-pointer shadow-md shadow-indigo-600/10 self-start"
-                >
-                    <Plus size={14} /> New Campaign
-                </button>
+                <div className="flex items-center gap-2 flex-wrap">
+                    <input
+                        type="file"
+                        ref={importCampaignsRef}
+                        onChange={handleImportCampaigns}
+                        accept=".json,.csv,.xlsx,.xls"
+                        className="hidden"
+                    />
+                    <button
+                        type="button"
+                        onClick={() => importCampaignsRef.current?.click()}
+                        className="px-4 py-2.5 bg-[#0b1329] hover:bg-slate-800 text-white font-bold rounded-2xl text-xs transition-all flex items-center gap-1.5 cursor-pointer shadow-md shadow-[#0b1329]/10 active:scale-95 whitespace-nowrap"
+                    >
+                        <Upload size={14} /> Import
+                    </button>
+                    <div className="relative">
+                        <button
+                            type="button"
+                            onClick={() => setIsExportDropdownOpen(!isExportDropdownOpen)}
+                            className="px-4 py-2.5 bg-[#0b1329] hover:bg-slate-800 text-white font-bold rounded-2xl text-xs transition-all flex items-center gap-1.5 cursor-pointer shadow-md shadow-[#0b1329]/10 active:scale-95 whitespace-nowrap"
+                        >
+                            <Download size={14} /> Export <ChevronDown size={12} />
+                        </button>
+                        {isExportDropdownOpen && (
+                            <div className="absolute right-0 mt-2 w-40 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 overflow-hidden py-1">
+                                <button
+                                    type="button"
+                                    onClick={() => { exportCampaigns('excel'); setIsExportDropdownOpen(false); }}
+                                    className="w-full text-left px-4 py-2 hover:bg-slate-50 text-xs font-semibold text-slate-700 flex items-center gap-2 cursor-pointer"
+                                >
+                                    Excel (.xlsx)
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => { exportCampaigns('csv'); setIsExportDropdownOpen(false); }}
+                                    className="w-full text-left px-4 py-2 hover:bg-slate-50 text-xs font-semibold text-slate-700 flex items-center gap-2 cursor-pointer"
+                                >
+                                    CSV (.csv)
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => { exportCampaigns('json'); setIsExportDropdownOpen(false); }}
+                                    className="w-full text-left px-4 py-2 hover:bg-slate-50 text-xs font-semibold text-slate-700 flex items-center gap-2 cursor-pointer"
+                                >
+                                    JSON (.json)
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                    <button
+                        onClick={() => setIsAddModalOpen(true)}
+                        className="px-4 py-2.5 bg-indigo-600 text-white font-bold rounded-2xl hover:bg-indigo-700 text-xs transition-all flex items-center gap-1.5 cursor-pointer shadow-md shadow-indigo-600/10 active:scale-95"
+                    >
+                        <Plus size={14} /> New Campaign
+                    </button>
+                </div>
             </div>
 
             {/* 4 Stat Cards */}

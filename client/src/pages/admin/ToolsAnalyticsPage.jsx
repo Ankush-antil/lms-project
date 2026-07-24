@@ -339,49 +339,6 @@ const ToolsAnalyticsPage = () => {
                     </div>
                 ) : (
                     <>
-                        {/* Summary KPI Cards */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                            <div className="bg-white p-5 rounded-2xl border border-slate-200/60 shadow-sm flex items-center gap-4">
-                                <div className="w-12 h-12 bg-indigo-50 text-indigo-650 rounded-2xl flex items-center justify-center font-black">
-                                    <Layers size={22} />
-                                </div>
-                                <div className="text-left">
-                                    <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Total Practice Actions</p>
-                                    <h3 className="text-2xl font-black text-slate-800 mt-0.5">{totalPracticeActions}</h3>
-                                </div>
-                            </div>
-
-                            <div className="bg-white p-5 rounded-2xl border border-slate-200/60 shadow-sm flex items-center gap-4">
-                                <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center font-black">
-                                    <HardDrive size={22} />
-                                </div>
-                                <div className="text-left">
-                                    <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Storage Consumed</p>
-                                    <h3 className="text-2xl font-black text-slate-800 mt-0.5">{formatBytes(totalBytesUsed)}</h3>
-                                </div>
-                            </div>
-
-                            <div className="bg-white p-5 rounded-2xl border border-slate-200/60 shadow-sm flex items-center gap-4">
-                                <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center font-black">
-                                    <Users size={22} />
-                                </div>
-                                <div className="text-left">
-                                    <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Active Tool Users</p>
-                                    <h3 className="text-2xl font-black text-slate-800 mt-0.5">{totalActiveUsers}</h3>
-                                </div>
-                            </div>
-
-                            <div className="bg-white p-5 rounded-2xl border border-slate-200/60 shadow-sm flex items-center gap-4">
-                                <div className="w-12 h-12 bg-orange-50 text-orange-600 rounded-2xl flex items-center justify-center font-black">
-                                    <FileSignature size={22} />
-                                </div>
-                                <div className="text-left">
-                                    <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Form Builder Items</p>
-                                    <h3 className="text-2xl font-black text-slate-800 mt-0.5">{formBuilderCount}</h3>
-                                </div>
-                            </div>
-                        </div>
-
                         {/* Tool-wise Usage Grid */}
                         {activeToolKeys.length > 0 && (
                             <div className="mb-8 animate-fade-in">

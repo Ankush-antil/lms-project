@@ -58,25 +58,28 @@ const createAnnouncement = asyncHandler(async (req, res) => {
 const getAnnouncements = asyncHandler(async (req, res) => {
     let query = { isDeleted: false };
 
-    // Filter out expired announcements (where endDate is not null and in the past)
-    // Using current time or start of day. Let's use current time.
-    query.$and = [{
-        $or: [
-            { endDate: null },
-            { endDate: { $gte: new Date() } }
-        ]
-    }];
+    const isManagementRole = ['Admin', 'Editor', 'Staff', 'Accountant', 'Teacher'].includes(req.user.role);
 
-    // If user is not Admin, filter by their institute and targetAudience
+    // If user is Student, only show active and unexpired announcements
+    if (!isManagementRole) {
+        query.isActive = { $ne: false };
+        query.$and = [{
+            $or: [
+                { endDate: null },
+                { endDate: { $gte: new Date() } }
+            ]
+        }];
+    }
+
+    // Filter by institute and targetAudience
     if (req.user.role !== 'Admin') {
-        // Show announcements that are global (institute is null) OR match user's institute
         query.$or = [
             { institute: null },
             { institute: req.user.institute }
         ];
 
-        // Filter targetAudience
         if (req.user.role === 'Student') {
+            if (!query.$and) query.$and = [];
             query.$and.push({
                 $or: [
                     { targetAudience: 'All' },
@@ -90,11 +93,9 @@ const getAnnouncements = asyncHandler(async (req, res) => {
                 ]
             });
         } else {
-            // Other roles see All, or matching their specific role
             query.targetAudience = { $in: ['All', req.user.role] };
         }
     } else {
-        // Admin gets all announcements, but if they pass an institute filter query parameter:
         const { institute } = req.query;
         if (institute && institute !== 'All') {
             query.institute = institute;
@@ -113,7 +114,7 @@ const getAnnouncements = asyncHandler(async (req, res) => {
 // @route   PUT /api/announcements/:id
 // @access  Private (Admin, Editor, Staff, Accountant, Teacher)
 const updateAnnouncement = asyncHandler(async (req, res) => {
-    const { title, content, instituteId, targetAudience, clearAttachment, endDate, studentAudienceType, selectedStudents } = req.body;
+    const { title, content, instituteId, targetAudience, clearAttachment, endDate, studentAudienceType, selectedStudents, isActive } = req.body;
     const announcement = await Announcement.findById(req.params.id);
 
     if (!announcement) {
@@ -127,8 +128,8 @@ const updateAnnouncement = asyncHandler(async (req, res) => {
         throw new Error('Not authorized to update this announcement');
     }
 
-    announcement.title = title || announcement.title;
-    announcement.content = content || announcement.content;
+    if (title) announcement.title = title;
+    if (content) announcement.content = content;
 
     let finalInstituteId = instituteId;
     if (finalInstituteId === 'null' || finalInstituteId === 'undefined') {
@@ -141,9 +142,14 @@ const updateAnnouncement = asyncHandler(async (req, res) => {
             announcement.institute = finalInstituteId || null;
         }
     }
-    announcement.targetAudience = targetAudience || announcement.targetAudience;
-    announcement.endDate = endDate !== undefined ? (endDate ? new Date(endDate) : null) : announcement.endDate;
-    announcement.studentAudienceType = studentAudienceType || announcement.studentAudienceType;
+    if (targetAudience) announcement.targetAudience = targetAudience;
+    if (endDate !== undefined) {
+        announcement.endDate = endDate ? new Date(endDate) : null;
+    }
+    if (studentAudienceType) announcement.studentAudienceType = studentAudienceType;
+    if (isActive !== undefined) {
+        announcement.isActive = Boolean(isActive === true || isActive === 'true');
+    }
 
     if (selectedStudents !== undefined) {
         try {

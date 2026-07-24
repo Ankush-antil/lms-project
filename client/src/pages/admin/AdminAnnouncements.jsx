@@ -36,6 +36,58 @@ const AdminAnnouncements = () => {
     const [bulkAction, setBulkAction] = useState('');
     const [isRecycleBinOpen, setIsRecycleBinOpen] = useState(false);
 
+    // Reactivate announcement modal state
+    const [reactivateModalOpen, setReactivateModalOpen] = useState(false);
+    const [reactivateAnnouncement, setReactivateAnnouncement] = useState(null);
+    const [reactivateEndDate, setReactivateEndDate] = useState('');
+
+    const isAnnouncementActive = (ann) => {
+        if (!ann) return false;
+        if (ann.isActive === false) return false;
+        if (ann.endDate && new Date(ann.endDate) < new Date()) return false;
+        return true;
+    };
+
+    const handleToggleStatus = async (ann) => {
+        const active = isAnnouncementActive(ann);
+        if (active) {
+            try {
+                await axios.put(`/api/announcements/${ann._id}`, { isActive: false });
+                toast.success('Announcement deactivated');
+                fetchAnnouncements();
+            } catch (err) {
+                console.error('[Deactivate Announcement Error]', err);
+                toast.error('Failed to deactivate announcement');
+            }
+        } else {
+            setReactivateAnnouncement(ann);
+            const defaultDate = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 16);
+            setReactivateEndDate(defaultDate);
+            setReactivateModalOpen(true);
+        }
+    };
+
+    const handleReactivateSubmit = async (e) => {
+        e.preventDefault();
+        if (!reactivateAnnouncement || !reactivateEndDate) {
+            return toast.error('Please select a valid ending date');
+        }
+
+        try {
+            await axios.put(`/api/announcements/${reactivateAnnouncement._id}`, {
+                isActive: true,
+                endDate: reactivateEndDate
+            });
+            toast.success('Announcement reactivated successfully!');
+            setReactivateModalOpen(false);
+            setReactivateAnnouncement(null);
+            fetchAnnouncements();
+        } catch (err) {
+            console.error('[Reactivate Announcement Error]', err);
+            toast.error('Failed to reactivate announcement');
+        }
+    };
+
     // Form inputs
     const [formData, setFormData] = useState({
         title: '',
@@ -710,6 +762,7 @@ const AdminAnnouncements = () => {
                                     <th className="py-3.5 px-4">Institute scope</th>
                                     <th className="py-3.5 px-4">Audience</th>
                                     <th className="py-3.5 px-4">Created By</th>
+                                    <th className="py-3.5 px-4 text-center">Status</th>
                                     <th className="py-3.5 px-4 text-right">Ending date</th>
                                     <th className="py-3.5 px-4 text-right">Published date</th>
                                     <th className="py-3.5 px-6 text-right">Actions</th>
@@ -718,7 +771,7 @@ const AdminAnnouncements = () => {
                             <tbody className="divide-y divide-slate-100 text-xs font-bold text-slate-700">
                                 {loading ? (
                                     <tr>
-                                        <td colSpan="8" className="text-center py-12 text-slate-400">
+                                        <td colSpan="9" className="text-center py-12 text-slate-400">
                                             <div className="flex flex-col items-center justify-center gap-2">
                                                 <RefreshCw size={24} className="animate-spin text-indigo-650" />
                                                 <span>Loading announcements...</span>
@@ -727,7 +780,7 @@ const AdminAnnouncements = () => {
                                     </tr>
                                 ) : currentEntries.length === 0 ? (
                                     <tr>
-                                        <td colSpan="8" className="text-center py-10 text-slate-400">No announcements found.</td>
+                                        <td colSpan="9" className="text-center py-10 text-slate-400">No announcements found.</td>
                                     </tr>
                                 ) : (
                                     currentEntries.map((ann, idx) => (
@@ -787,6 +840,32 @@ const AdminAnnouncements = () => {
                                                 </span>
                                             </td>
                                             <td className="py-3.5 px-4 text-slate-500 font-semibold">{ann.createdBy?.name || 'Admin'}</td>
+                                            
+                                            {/* Status Toggle Switch */}
+                                            <td className="py-3.5 px-4 text-center">
+                                                <div className="flex items-center justify-center gap-2">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleToggleStatus(ann)}
+                                                        className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                                                            isAnnouncementActive(ann) ? 'bg-emerald-500' : 'bg-slate-300'
+                                                        }`}
+                                                        title={isAnnouncementActive(ann) ? "Click to Deactivate" : "Click to Reactivate"}
+                                                    >
+                                                        <span
+                                                            className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                                                                isAnnouncementActive(ann) ? 'translate-x-4' : 'translate-x-0'
+                                                            }`}
+                                                        />
+                                                    </button>
+                                                    <span className={`text-[10px] font-black uppercase tracking-wider ${
+                                                        isAnnouncementActive(ann) ? 'text-emerald-600' : 'text-slate-400'
+                                                    }`}>
+                                                        {isAnnouncementActive(ann) ? 'Active' : 'Inactive'}
+                                                    </span>
+                                                </div>
+                                            </td>
+
                                             <td className="py-3.5 px-4 text-right text-slate-500 font-semibold">
                                                 {ann.endDate ? formatDate(ann.endDate) : '—'}
                                             </td>
@@ -1271,6 +1350,76 @@ const AdminAnnouncements = () => {
                     permanentDeleteUrlPattern={(id) => `/api/announcements/${id}/permanent`}
                     renderItemDetail={(item) => item.title}
                 />
+
+                {/* Reactivate Announcement Modal */}
+                {reactivateModalOpen && reactivateAnnouncement && (
+                    createPortal(
+                        <div className="fixed inset-0 z-[9999] bg-[#f2f4f8]/80 backdrop-blur-md flex items-center justify-center p-4">
+                            <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl border border-slate-200/80 overflow-hidden relative p-6 animate-slide-up">
+                                <div className="flex items-center justify-between mb-4">
+                                    <div className="flex items-center gap-2.5">
+                                        <div className="p-2.5 bg-emerald-50 text-emerald-600 rounded-2xl border border-emerald-100">
+                                            <Calendar size={20} />
+                                        </div>
+                                        <div>
+                                            <h3 className="text-base font-extrabold text-slate-800">Reactivate Announcement</h3>
+                                            <p className="text-xs text-slate-400 font-semibold truncate max-w-[220px]">{reactivateAnnouncement.title}</p>
+                                        </div>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setReactivateModalOpen(false);
+                                            setReactivateAnnouncement(null);
+                                        }}
+                                        className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-full transition-all cursor-pointer"
+                                    >
+                                        <X size={16} />
+                                    </button>
+                                </div>
+
+                                <form onSubmit={handleReactivateSubmit} className="space-y-4 pt-2">
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                                            Select New Ending Date <span className="text-rose-500">*</span>
+                                        </label>
+                                        <input
+                                            required
+                                            type="datetime-local"
+                                            value={reactivateEndDate}
+                                            onChange={(e) => setReactivateEndDate(e.target.value)}
+                                            min={new Date().toISOString().slice(0, 16)}
+                                            className="w-full bg-[#f8fafc] border border-slate-200 rounded-2xl py-3 px-4 text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all cursor-pointer"
+                                        />
+                                        <p className="text-[11px] text-slate-400 font-semibold mt-2">
+                                            This announcement will stay active until the specified ending date.
+                                        </p>
+                                    </div>
+
+                                    <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setReactivateModalOpen(false);
+                                                setReactivateAnnouncement(null);
+                                            }}
+                                            className="px-4 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition-all cursor-pointer"
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            type="submit"
+                                            className="px-5 py-2.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-md transition-all active:scale-95 cursor-pointer"
+                                        >
+                                            Activate Announcement
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>,
+                        document.body
+                    )
+                )}
 
             </div>
         </DashboardLayout>

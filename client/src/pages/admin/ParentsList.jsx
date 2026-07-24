@@ -702,7 +702,7 @@ const ParentsList = () => {
                 isOpen={isTrashOpen}
                 onClose={() => setIsTrashOpen(false)}
                 entityType="User"
-                fetchItems={fetchParents}
+                fetchItems={fetchData}
             />
         </DashboardLayout>
     );

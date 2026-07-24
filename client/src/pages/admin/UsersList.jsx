@@ -1364,16 +1364,14 @@ const UsersList = () => {
                                     {viewTab === 'registered' ? 'Institute' : (viewTab === 'guest' || viewTab === 'applications') ? 'Course & Institute' : viewTab === 'role-requests' ? 'Institute' : 'Test Title'}
                                 </th>
                                 <th className="p-4 font-semibold whitespace-nowrap">Mobile</th>
-                                {viewTab !== 'applications' && (
-                                    <th className="p-4 font-semibold whitespace-nowrap">Status</th>
-                                )}
+                                <th className="p-4 font-semibold whitespace-nowrap">Status</th>
                                 <th className="p-4 font-semibold text-right whitespace-nowrap sticky right-0 bg-slate-50 border-l border-slate-200 z-10 shadow-[-8px_0_16px_-4px_rgba(0,0,0,0.06)]">Actions</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
                             {loading ? (
                                 <tr>
-                                    <td colSpan={viewTab === 'applications' ? 7 : 9} className="p-8 text-center text-slate-500">
+                                    <td colSpan={9} className="p-8 text-center text-slate-500">
                                         <div className="flex justify-center items-center gap-2">
                                             <div className="w-5 h-5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
                                             Loading directory items...
@@ -1594,71 +1592,78 @@ const UsersList = () => {
                                         </td>
 
                                         {/* Status column */}
-                                        {viewTab !== 'applications' && (
-                                            <td className="p-4 whitespace-nowrap">
-                                                {viewTab === 'registered' ? (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => handleToggleStatus(u._id, u.isActive)}
-                                                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${u.isActive !== false ? 'bg-emerald-500' : 'bg-slate-200'
+                                        <td className="p-4 whitespace-nowrap">
+                                            {viewTab === 'registered' ? (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleToggleStatus(u._id, u.isActive)}
+                                                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${u.isActive !== false ? 'bg-emerald-500' : 'bg-slate-200'
+                                                        }`}
+                                                    title={u.isActive !== false ? 'Click to Deactivate Account' : 'Click to Activate Account'}
+                                                >
+                                                    <span className="sr-only">Toggle status</span>
+                                                    <span
+                                                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${u.isActive !== false ? 'translate-x-5' : 'translate-x-0'
                                                             }`}
-                                                        title={u.isActive !== false ? 'Click to Deactivate Account' : 'Click to Activate Account'}
-                                                    >
-                                                        <span className="sr-only">Toggle status</span>
-                                                        <span
-                                                            className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${u.isActive !== false ? 'translate-x-5' : 'translate-x-0'
-                                                                }`}
-                                                        />
-                                                    </button>
-                                                ) : viewTab === 'role-requests' ? (
-                                                    <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${u.status === 'Approved'
-                                                            ? 'bg-emerald-50 text-emerald-600 border border-emerald-100'
-                                                            : u.status === 'Rejected'
-                                                                ? 'bg-rose-50 text-rose-600 border border-rose-100'
-                                                                : 'bg-amber-50 text-amber-600 border border-amber-100'
-                                                        }`}>
-                                                        {u.status}
+                                                    />
+                                                </button>
+                                            ) : viewTab === 'role-requests' ? (
+                                                <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${u.status === 'Approved'
+                                                        ? 'bg-emerald-50 text-emerald-600 border border-emerald-100'
+                                                        : u.status === 'Rejected'
+                                                            ? 'bg-rose-50 text-rose-600 border border-rose-100'
+                                                            : 'bg-amber-50 text-amber-600 border border-amber-100'
+                                                    }`}>
+                                                    {u.status}
+                                                </span>
+                                            ) : viewTab === 'guest' ? (
+                                                <div className="flex flex-col items-center gap-1">
+                                                    <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-600 border border-emerald-100">
+                                                        Registered
                                                     </span>
-                                                ) : viewTab === 'guest' ? (
-                                                    <div className="flex flex-col items-center gap-1">
-                                                        <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-600 border border-emerald-100">
-                                                            Registered
+                                                    {u.guestProfile?.demoExpiryDate && (
+                                                        <span className={`text-[10px] font-bold ${new Date(u.guestProfile.demoExpiryDate) < new Date()
+                                                                ? 'text-rose-500 bg-rose-50 px-2 py-0.5 rounded-md border border-rose-100'
+                                                                : 'text-amber-600 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-100'
+                                                            }`}>
+                                                            {(() => {
+                                                                const diff = new Date(u.guestProfile.demoExpiryDate) - new Date();
+                                                                const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+                                                                return days <= 0 ? 'Expired' : `${days}d Left`;
+                                                            })()}
                                                         </span>
-                                                        {u.guestProfile?.demoExpiryDate && (
-                                                            <span className={`text-[10px] font-bold ${new Date(u.guestProfile.demoExpiryDate) < new Date()
-                                                                    ? 'text-rose-500 bg-rose-50 px-2 py-0.5 rounded-md border border-rose-100'
-                                                                    : 'text-amber-600 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-100'
-                                                                }`}>
-                                                                {(() => {
-                                                                    const diff = new Date(u.guestProfile.demoExpiryDate) - new Date();
-                                                                    const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
-                                                                    return days <= 0 ? 'Expired' : `${days}d Left`;
-                                                                })()}
+                                                    )}
+                                                </div>
+                                            ) : viewTab === 'applications' ? (
+                                                <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${u.status === 'Accepted' || u.status === 'Registered'
+                                                        ? 'bg-emerald-50 text-emerald-600 border border-emerald-100'
+                                                        : u.status === 'Rejected'
+                                                            ? 'bg-rose-50 text-rose-600 border border-rose-100'
+                                                            : 'bg-amber-50 text-amber-600 border border-amber-100'
+                                                    }`}>
+                                                    {u.status}
+                                                </span>
+                                            ) : (
+                                                (() => {
+                                                    if (u.submissions?.length === 1) {
+                                                        const singleSub = u.submissions[0];
+                                                        const isCompleted = singleSub.completedStatus === 'Completed' || !singleSub.completedStatus;
+                                                        return (
+                                                            <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${isCompleted ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-slate-100 text-slate-500 border border-slate-200'}`}>
+                                                                {singleSub.completedStatus || 'Completed'} (Score: {singleSub.score || 0})
                                                             </span>
-                                                        )}
-                                                    </div>
-                                                ) : (
-                                                    (() => {
-                                                        if (u.submissions?.length === 1) {
-                                                            const singleSub = u.submissions[0];
-                                                            const isCompleted = singleSub.completedStatus === 'Completed' || !singleSub.completedStatus;
-                                                            return (
-                                                                <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${isCompleted ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-slate-100 text-slate-500 border border-slate-200'}`}>
-                                                                    {singleSub.completedStatus || 'Completed'} (Score: {singleSub.score || 0})
-                                                                </span>
-                                                            );
-                                                        } else {
-                                                            const completedCount = u.submissions?.filter(s => s.completedStatus === 'Completed' || !s.completedStatus).length || 0;
-                                                            return (
-                                                                <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-650 border border-indigo-100">
-                                                                    {completedCount}/{u.submissions?.length} Completed
-                                                                </span>
-                                                            );
-                                                        }
-                                                    })()
-                                                )}
-                                            </td>
-                                        )}
+                                                        );
+                                                    } else {
+                                                        const completedCount = u.submissions?.filter(s => s.completedStatus === 'Completed' || !s.completedStatus).length || 0;
+                                                        return (
+                                                            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-650 border border-indigo-100">
+                                                                {completedCount}/{u.submissions?.length} Completed
+                                                            </span>
+                                                        );
+                                                    }
+                                                })()
+                                            )}
+                                        </td>
 
                                         {/* Actions column */}
                                         <td className="p-4 text-right whitespace-nowrap sticky right-0 bg-white group-hover:bg-slate-50 transition-colors border-l border-slate-100 shadow-[-8px_0_16px_-4px_rgba(0,0,0,0.06)]">
@@ -1761,7 +1766,7 @@ const UsersList = () => {
                                                 </div>
                                             ) : viewTab === 'applications' ? (
                                                 <div className="flex items-center justify-end gap-1.5">
-                                                    {(u.status === 'Applied' || u.status === 'Pending' || u.status === 'Under Review') ? (
+                                                    {(u.status === 'Applied' || u.status === 'Pending' || u.status === 'Under Review') && (
                                                         <>
                                                             <button
                                                                 onClick={() => handleUpdateAppStatus(u._id, 'Accepted')}
@@ -1778,10 +1783,6 @@ const UsersList = () => {
                                                                 Reject
                                                             </button>
                                                         </>
-                                                    ) : (
-                                                        <span className={`text-xs font-bold px-3 ${u.status === 'Accepted' || u.status === 'Registered' ? 'text-emerald-600' : 'text-rose-600'}`}>
-                                                            {u.status}
-                                                        </span>
                                                     )}
                                                     <button
                                                         onClick={() => handleDeleteGuestApplication(u._id)}

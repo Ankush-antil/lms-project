@@ -825,16 +825,17 @@ const AdminDrive = () => {
 
             {/* Folder creation Modal */}
             {showFolderModal && (
-                <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4">
-                    <div className="bg-white w-full max-w-md rounded-[32px] shadow-2xl border border-slate-100 overflow-hidden relative p-6 animate-slide-up">
+                <div className="fixed inset-0 z-[9999] bg-[#f2f4f8]/80 backdrop-blur-md flex items-center justify-center p-4">
+                    <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl border border-slate-200/80 overflow-hidden relative p-6 animate-slide-up">
                         <div className="flex items-center justify-between mb-5">
                             <h3 className="text-lg font-bold text-slate-800">New Folder</h3>
                             <button
+                                type="button"
                                 onClick={() => {
                                     setShowFolderModal(false);
                                     setFolderName('');
                                 }}
-                                className="p-1.5 bg-slate-50 hover:bg-slate-100 text-slate-500 rounded-full transition-all"
+                                className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-full transition-all cursor-pointer"
                             >
                                 <X size={16} />
                             </button>
@@ -844,7 +845,7 @@ const AdminDrive = () => {
                                 required
                                 autoFocus
                                 type="text"
-                                className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3.5 px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
+                                className="w-full bg-[#f8fafc] border border-slate-200 rounded-2xl py-3.5 px-4 text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all placeholder:text-slate-400"
                                 value={folderName}
                                 onChange={(e) => setFolderName(e.target.value)}
                                 placeholder="Folder Name"
@@ -856,13 +857,13 @@ const AdminDrive = () => {
                                         setShowFolderModal(false);
                                         setFolderName('');
                                     }}
-                                    className="px-4 py-2.5 text-xs font-bold text-slate-500 hover:bg-slate-50 rounded-xl transition-all"
+                                    className="px-4 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition-all cursor-pointer"
                                 >
                                     Cancel
                                 </button>
                                 <button
                                     type="submit"
-                                    className="px-5 py-2.5 text-xs font-bold text-white bg-indigo-650 hover:bg-indigo-700 rounded-xl transition-all shadow-md"
+                                    className="px-5 py-2.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-all shadow-md active:scale-95 cursor-pointer"
                                 >
                                     Create
                                 </button>

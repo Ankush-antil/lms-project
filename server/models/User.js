@@ -117,6 +117,11 @@ const userSchema = new mongoose.Schema({
         controls: { type: mongoose.Schema.Types.Mixed, default: {} }
     },
     accountantProfile: {
+        assignedCourses: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Course' }],
+        subjects: [{ type: String }],
+        studentAssignmentMode: { type: String, enum: ['all', 'section', 'selected'], default: 'all' },
+        assignedSections: [{ type: String }],
+        assignedStudents: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
         controls: { type: mongoose.Schema.Types.Mixed, default: {} }
     },
     marketerProfile: {

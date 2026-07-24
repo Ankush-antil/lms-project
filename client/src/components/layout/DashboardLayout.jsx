@@ -192,8 +192,9 @@ const menuItems = {
         { name: 'Screenshot Tool', icon: Camera, path: '/admin/tools/screenshot' },
         { name: 'Screen Recorder', icon: Video, path: '/admin/tools/screen-recorder' },
 
-        { name: 'Service Analytics', icon: BarChart3, path: '/admin/tools-analytics', standalone: true },
-        { name: 'User Analytics', icon: BarChart3, path: '/admin/user-analytics', standalone: true },
+        { name: '_section_analytics', icon: BarChart3, path: null },
+        { name: 'Service Analytics', icon: BarChart3, path: '/admin/tools-analytics' },
+        { name: 'User Analytics', icon: BarChart3, path: '/admin/user-analytics' },
     ],
     Institute: [
         { name: 'Dashboard', icon: LayoutDashboard, path: '/institute' },
@@ -229,8 +230,9 @@ const menuItems = {
         { name: 'Notes', icon: StickyNote, path: '/institute/notes' },
         { name: 'Chat', icon: MessageSquare, path: '/institute/chat' },
 
-        { name: 'Service Analytics', icon: BarChart3, path: '/admin/tools-analytics', standalone: true },
-        { name: 'User Analytics', icon: BarChart3, path: '/institute/user-analytics', standalone: true },
+        { name: '_section_analytics', icon: BarChart3, path: null },
+        { name: 'Service Analytics', icon: BarChart3, path: '/admin/tools-analytics' },
+        { name: 'User Analytics', icon: BarChart3, path: '/institute/user-analytics' },
     ],
     Teacher: [
         { name: 'Dashboard', icon: LayoutDashboard, path: '/teacher' },

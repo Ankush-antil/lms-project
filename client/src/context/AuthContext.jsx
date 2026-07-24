@@ -2,7 +2,7 @@ import React, { createContext, useState, useEffect, useContext } from 'react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 
-const AuthContext = createContext();
+const AuthContext = window.__AuthContext || (window.__AuthContext = createContext());
 
 // Set axios defaults globally
 axios.defaults.withCredentials = true;
@@ -238,4 +238,19 @@ export const AuthProvider = ({ children }) => {
     );
 };
 
-export const useAuth = () => useContext(AuthContext);
+export const useAuth = () => {
+    const context = useContext(AuthContext);
+    if (!context) {
+        return {
+            user: null,
+            setUser: () => {},
+            loading: false,
+            login: async () => {},
+            logout: async () => {},
+            refreshUser: async () => {},
+            switchAccount: () => {},
+            removeAccount: () => {}
+        };
+    }
+    return context;
+};

@@ -196,8 +196,8 @@ const StaffAttendanceDetailModal = ({ staffId, onClose, onDataChange }) => {
 
     return (
         <>
-            <div className="fixed inset-0 z-[9995] flex items-center justify-center animate-fade-in" style={{ animation: 'slideInRight 0.22s cubic-bezier(0.4,0,0.2,1) both' }}>
-                <div className="bg-white w-full h-full flex flex-col overflow-hidden">
+            <div className="fixed inset-0 z-[50] bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-3 md:p-6 lg:pl-72 lg:pt-20 animate-fade-in" onClick={onClose}>
+                <div className="bg-white w-full max-w-6xl h-[88vh] flex flex-col overflow-hidden rounded-3xl shadow-2xl border border-slate-200" onClick={e => e.stopPropagation()}>
 
                 {/* Header */}
                 <div className="flex items-center gap-4 px-6 py-5 border-b border-slate-100 bg-gradient-to-r from-slate-900 to-slate-800 text-white shrink-0">

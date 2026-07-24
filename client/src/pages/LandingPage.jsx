@@ -310,12 +310,81 @@ const LandingPage = () => {
     const [regPhone, setRegPhone] = useState('');
     const [regTargetInstId, setRegTargetInstId] = useState('');
     const [regSubjects, setRegSubjects] = useState('');
+    const [selectedCourseIds, setSelectedCourseIds] = useState([]);
+    const [selectedSubjectNames, setSelectedSubjectNames] = useState([]);
     const [regEligibility, setRegEligibility] = useState('');
     const [regInstCode, setRegInstCode] = useState('');
     const [regInstAddress, setRegInstAddress] = useState('');
     const [regInstContactEmail, setRegInstContactEmail] = useState('');
     const [regInstPhone, setRegInstPhone] = useState('');
     const [submittingRegRequest, setSubmittingRegRequest] = useState(false);
+
+    const getCourseSubjects = (course) => {
+        if (!course) return [];
+        const subs = [];
+        if (Array.isArray(course.subjects)) {
+            course.subjects.forEach(s => {
+                if (typeof s === 'string') subs.push(s);
+                else if (s && s.subjectName) subs.push(s.subjectName);
+                else if (s && s.name) subs.push(s.name);
+            });
+        }
+        if (Array.isArray(course.subjectDurations)) {
+            course.subjectDurations.forEach(sd => {
+                if (sd && sd.subjectName && !subs.includes(sd.subjectName)) {
+                    subs.push(sd.subjectName);
+                }
+            });
+        }
+        return subs.filter(Boolean);
+    };
+
+    const handleCourseCheckboxToggle = (courseObj, isChecked) => {
+        let nextCourseIds = [];
+        if (isChecked) {
+            nextCourseIds = [...selectedCourseIds, courseObj._id];
+        } else {
+            nextCourseIds = selectedCourseIds.filter(id => id !== courseObj._id);
+        }
+        setSelectedCourseIds(nextCourseIds);
+
+        const firstCourse = courses.find(c => nextCourseIds.includes(c._id));
+        if (firstCourse) {
+            const instId = typeof firstCourse.institute === 'object' ? firstCourse.institute?._id : firstCourse.institute;
+            setRegTargetInstId(instId || '');
+        } else {
+            setRegTargetInstId('');
+        }
+
+        const allAvailableSubjects = nextCourseIds.flatMap(cId => {
+            const crs = courses.find(c => c._id === cId);
+            return crs ? getCourseSubjects(crs) : [];
+        });
+        const nextSubjects = selectedSubjectNames.filter(sub => allAvailableSubjects.includes(sub));
+        setSelectedSubjectNames(nextSubjects);
+        setRegSubjects(nextSubjects.join(', '));
+    };
+
+    const handleSubjectCheckboxToggle = (subName, isChecked) => {
+        let nextSubjects = [];
+        if (isChecked) {
+            if (!selectedSubjectNames.includes(subName)) {
+                nextSubjects = [...selectedSubjectNames, subName];
+            } else {
+                nextSubjects = selectedSubjectNames;
+            }
+        } else {
+            nextSubjects = selectedSubjectNames.filter(s => s !== subName);
+        }
+        setSelectedSubjectNames(nextSubjects);
+        setRegSubjects(nextSubjects.join(', '));
+    };
+
+    const handleSelectAllSubjectsForCourse = (crsSubjects) => {
+        const newSubjects = Array.from(new Set([...selectedSubjectNames, ...crsSubjects]));
+        setSelectedSubjectNames(newSubjects);
+        setRegSubjects(newSubjects.join(', '));
+    };
 
     const handleRegisterRequestSubmit = async (e) => {
         e.preventDefault();
@@ -325,7 +394,18 @@ const LandingPage = () => {
             return;
         }
 
-        if ((registerRole === 'Teacher' || registerRole === 'Editor') && !regTargetInstId) {
+        if (registerRole === 'Teacher') {
+            if (selectedCourseIds.length === 0) {
+                toast.error("Please select at least one Course");
+                return;
+            }
+            if (selectedSubjectNames.length === 0 && !regSubjects.trim()) {
+                toast.error("Please select at least one Subject");
+                return;
+            }
+        }
+
+        if (registerRole === 'Editor' && !regTargetInstId) {
             toast.error("Please select a target Institute");
             return;
         }
@@ -2544,31 +2624,114 @@ const LandingPage = () => {
                                                                     {registerRole === 'Teacher' && (
                                                                         <div className="space-y-3.5 border-t border-slate-100 pt-3">
                                                                             <h4 className="text-[11px] font-bold text-indigo-900 uppercase tracking-wider">Professional Profile</h4>
-                                                                            <div className="space-y-1">
-                                                                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Target Institute *</label>
-                                                                                <select
-                                                                                    value={regTargetInstId}
-                                                                                    onChange={(e) => setRegTargetInstId(e.target.value)}
-                                                                                    required
-                                                                                    className="w-full bg-slate-50 border border-slate-200 focus:border-[#0b1329] focus:outline-none rounded-xl text-xs font-semibold px-3 py-2"
-                                                                                >
-                                                                                    <option value="">Select target institute</option>
-                                                                                    {institutes.map(inst => (
-                                                                                        <option key={inst._id} value={inst._id}>{inst.name} ({inst.code})</option>
-                                                                                    ))}
-                                                                                </select>
+                                                                            
+                                                                            {/* Course Selection with Checkboxes */}
+                                                                            <div className="space-y-1.5">
+                                                                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center justify-between">
+                                                                                    <span>Select Target Course(s) *</span>
+                                                                                    {selectedCourseIds.length > 0 && (
+                                                                                        <span className="text-[9px] text-indigo-600 font-bold bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-100">
+                                                                                            {selectedCourseIds.length} Selected
+                                                                                        </span>
+                                                                                    )}
+                                                                                </label>
+                                                                                <div className="border border-slate-200 rounded-xl p-2 bg-slate-50 max-h-36 overflow-y-auto space-y-1.5 custom-scrollbar">
+                                                                                    {courses.length > 0 ? (
+                                                                                        courses.map(course => {
+                                                                                            const instName = course.institute?.name || (typeof course.institute === 'string' ? course.institute : 'Institute');
+                                                                                            const isChecked = selectedCourseIds.includes(course._id);
+                                                                                            return (
+                                                                                                <label
+                                                                                                    key={course._id}
+                                                                                                    className={`flex items-center gap-2.5 p-2 rounded-lg border transition-all cursor-pointer select-none text-xs font-semibold ${
+                                                                                                        isChecked
+                                                                                                            ? 'bg-indigo-50/90 border-indigo-300 text-indigo-950 shadow-sm'
+                                                                                                            : 'bg-white border-slate-200/80 text-slate-700 hover:bg-slate-100/70'
+                                                                                                    }`}
+                                                                                                >
+                                                                                                    <input
+                                                                                                        type="checkbox"
+                                                                                                        checked={isChecked}
+                                                                                                        onChange={(e) => handleCourseCheckboxToggle(course, e.target.checked)}
+                                                                                                        className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 accent-indigo-650 cursor-pointer"
+                                                                                                    />
+                                                                                                    <div className="flex flex-col min-w-0 flex-1">
+                                                                                                        <span className="font-bold truncate text-slate-900">{course.name} ({course.code})</span>
+                                                                                                        <span className="text-[10px] text-slate-400 font-medium truncate">{instName}</span>
+                                                                                                    </div>
+                                                                                                </label>
+                                                                                            );
+                                                                                        })
+                                                                                    ) : (
+                                                                                        <p className="text-xs text-slate-400 p-2 text-center">No courses available.</p>
+                                                                                    )}
+                                                                                </div>
                                                                             </div>
-                                                                            <div className="space-y-1">
-                                                                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Subject Specialization(s) *</label>
-                                                                                <input
-                                                                                    type="text"
-                                                                                    value={regSubjects}
-                                                                                    onChange={(e) => setRegSubjects(e.target.value)}
-                                                                                    required
-                                                                                    placeholder="e.g. Mathematics, Physics, Chemistry"
-                                                                                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 focus:border-[#0b1329] focus:outline-none rounded-xl text-xs font-semibold"
-                                                                                />
-                                                                                <p className="text-[9px] text-slate-400 italic">Separate multiple subjects with a comma (,)</p>
+
+                                                                            {/* Subject Selection with Checkboxes */}
+                                                                            <div className="space-y-1.5">
+                                                                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center justify-between">
+                                                                                    <span>Select Subject Specialization(s) *</span>
+                                                                                    {selectedSubjectNames.length > 0 && (
+                                                                                        <span className="text-[9px] text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
+                                                                                            {selectedSubjectNames.length} Selected
+                                                                                        </span>
+                                                                                    )}
+                                                                                </label>
+                                                                                <div className="border border-slate-200 rounded-xl p-2 bg-slate-50 max-h-40 overflow-y-auto space-y-2 custom-scrollbar">
+                                                                                    {selectedCourseIds.length === 0 ? (
+                                                                                        <p className="text-xs text-slate-400 italic p-3 text-center">Select one or more courses above to view and choose subjects.</p>
+                                                                                    ) : (
+                                                                                        selectedCourseIds.map(cId => {
+                                                                                            const crs = courses.find(c => c._id === cId);
+                                                                                            if (!crs) return null;
+                                                                                            const crsSubjects = getCourseSubjects(crs);
+                                                                                            return (
+                                                                                                <div key={crs._id} className="space-y-1.5 bg-white p-2 rounded-lg border border-slate-200/80 shadow-xs">
+                                                                                                    <div className="text-[10px] font-extrabold text-indigo-900 uppercase tracking-wider px-1 border-b border-slate-100 pb-1 flex items-center justify-between">
+                                                                                                        <span>{crs.name} Subjects</span>
+                                                                                                        {crsSubjects.length > 0 && (
+                                                                                                            <button
+                                                                                                                type="button"
+                                                                                                                onClick={() => handleSelectAllSubjectsForCourse(crsSubjects)}
+                                                                                                                className="text-[9px] text-indigo-650 hover:underline font-bold"
+                                                                                                            >
+                                                                                                                Select All
+                                                                                                            </button>
+                                                                                                        )}
+                                                                                                    </div>
+                                                                                                    {crsSubjects.length > 0 ? (
+                                                                                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pt-1">
+                                                                                                            {crsSubjects.map(subName => {
+                                                                                                                const isSubChecked = selectedSubjectNames.includes(subName);
+                                                                                                                return (
+                                                                                                                    <label
+                                                                                                                        key={subName}
+                                                                                                                        className={`flex items-center gap-2 p-1.5 rounded-md border transition-all cursor-pointer select-none text-xs ${
+                                                                                                                            isSubChecked
+                                                                                                                                ? 'bg-emerald-50 border-emerald-300 text-emerald-950 font-bold'
+                                                                                                                                : 'bg-slate-50/60 border-slate-200/70 text-slate-700 hover:bg-slate-100'
+                                                                                                                        }`}
+                                                                                                                    >
+                                                                                                                        <input
+                                                                                                                            type="checkbox"
+                                                                                                                            checked={isSubChecked}
+                                                                                                                            onChange={(e) => handleSubjectCheckboxToggle(subName, e.target.checked)}
+                                                                                                                            className="w-3.5 h-3.5 rounded text-emerald-600 focus:ring-emerald-500 accent-emerald-600 cursor-pointer"
+                                                                                                                        />
+                                                                                                                        <span className="truncate">{subName}</span>
+                                                                                                                    </label>
+                                                                                                                );
+                                                                                                            })}
+                                                                                                        </div>
+                                                                                                    ) : (
+                                                                                                        <p className="text-[10px] text-slate-400 italic px-1">No specific subjects listed for this course.</p>
+                                                                                                    )}
+                                                                                                </div>
+                                                                                            );
+                                                                                        })
+                                                                                    )}
+                                                                                </div>
                                                                             </div>
                                                                         </div>
                                                                     )}

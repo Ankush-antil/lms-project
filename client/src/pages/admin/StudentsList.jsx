@@ -1487,12 +1487,11 @@ const StudentsList = () => {
                                         </th>
                                         {[
                                             'Name',
-                                            'Role',
                                             'Attendance Type',
                                             'Attendance By',
                                             'Attendance Status',
-                                            'Admin Note',
-                                            'Staff Note',
+                                            'Teacher Note',
+                                            'Student Note',
                                             'Check-In',
                                             'Check-Out',
                                             'Time Spent',
@@ -1546,14 +1545,7 @@ const StudentsList = () => {
                                                         </div>
                                                     </td>
 
-                                                    {/* 2. Role */}
-                                                    <td className="p-4">
-                                                        <span className="px-2.5 py-0.5 text-[10px] font-extrabold rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-100">
-                                                            Student
-                                                        </span>
-                                                    </td>
-
-                                                    {/* 3. Attendance Type */}
+                                                    {/* 2. Attendance Type */}
                                                     <td className="p-4">
                                                         <span className="text-xs font-bold text-slate-600 bg-slate-50 px-2 py-1 rounded-md border border-slate-200 inline-block">
                                                             {record.attendanceType || 'Physical'}

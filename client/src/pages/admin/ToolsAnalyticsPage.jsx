@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import { 
+import {
     BarChart3, Users, HardDrive, FileSignature, Database, Mic, MonitorPlay, Camera, Video,
     Search, RefreshCw, Layers
 } from 'lucide-react';
@@ -18,6 +18,23 @@ const toolMeta = {
     'screenshot': { label: 'Screenshot Tool', icon: Camera, color: 'text-indigo-500 bg-indigo-50 border-indigo-200' },
     'screen-recorder': { label: 'Screen Recorder', icon: Video, color: 'text-emerald-500 bg-emerald-50 border-emerald-200' },
 };
+
+const ToggleSwitch = ({ checked, onChange, disabled }) => (
+    <button
+        type="button"
+        onClick={onChange}
+        disabled={disabled}
+        className={`relative inline-flex h-5 w-10 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+            checked ? 'bg-emerald-500' : 'bg-slate-300'
+        } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+    >
+        <span
+            className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                checked ? 'translate-x-5' : 'translate-x-0'
+            }`}
+        />
+    </button>
+);
 
 const ToolsAnalyticsPage = () => {
     const { user } = useAuth();
@@ -37,7 +54,7 @@ const ToolsAnalyticsPage = () => {
         'voice-recorder': 'voiceRecorder',
         'video-recorder': 'videoRecorder'
     };
-    
+
     const activeTab = tabMapping[tab] || 'drive';
 
     const activeToolKeys = {
@@ -176,7 +193,7 @@ const ToolsAnalyticsPage = () => {
         const hrs = Math.floor(seconds / 3600);
         const mins = Math.floor((seconds % 3600) / 60);
         const secs = Math.floor(seconds % 60);
-        
+
         let res = [];
         if (hrs > 0) res.push(`${hrs}h`);
         if (mins > 0) res.push(`${mins}m`);
@@ -191,12 +208,12 @@ const ToolsAnalyticsPage = () => {
 
     // Filter Students
     const filteredStudents = detailedData.filter(student => {
-        const matchesSearch = 
+        const matchesSearch =
             student.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
             student.email?.toLowerCase().includes(searchTerm.toLowerCase());
-        
+
         const matchesInstitute = selectedInstitute === 'All' || student.instituteName === selectedInstitute;
-        
+
         if (!matchesSearch || !matchesInstitute) return false;
 
         // Only show students who have actually worked/created data for the current tab
@@ -292,7 +309,7 @@ const ToolsAnalyticsPage = () => {
     return (
         <DashboardLayout role={user?.role || 'Admin'}>
             <div className="max-w-7xl mx-auto px-4 py-5 font-sans">
-                
+
                 {/* Header */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4 mb-6">
                     <div>
@@ -375,7 +392,7 @@ const ToolsAnalyticsPage = () => {
                                     {activeToolKeys.map(toolKey => {
                                         const meta = toolMeta[toolKey];
                                         const ToolIcon = meta.icon;
-                                        
+
                                         let count = 0;
                                         let sizeBytes = 0;
 
@@ -389,8 +406,8 @@ const ToolsAnalyticsPage = () => {
                                             sizeBytes = stat.totalSizeBytes;
                                         }
 
-                                        const percentage = totalPracticeActions > 0 && toolKey !== 'form-builder' && toolKey !== 'database-creator' 
-                                            ? Math.round((count / totalPracticeActions) * 100) 
+                                        const percentage = totalPracticeActions > 0 && toolKey !== 'form-builder' && toolKey !== 'database-creator'
+                                            ? Math.round((count / totalPracticeActions) * 100)
                                             : 0;
 
                                         return (
@@ -427,9 +444,9 @@ const ToolsAnalyticsPage = () => {
                                                     </div>
                                                     {!meta.isComingSoon && (
                                                         <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-                                                            <div 
-                                                                className="bg-indigo-650 h-2 rounded-full transition-all duration-500" 
-                                                                style={{ width: `${Math.min(100, percentage)}%` }} 
+                                                            <div
+                                                                className="bg-indigo-650 h-2 rounded-full transition-all duration-500"
+                                                                style={{ width: `${Math.min(100, percentage)}%` }}
                                                             />
                                                         </div>
                                                     )}
@@ -443,7 +460,7 @@ const ToolsAnalyticsPage = () => {
 
                         {/* Detailed Table Section */}
                         <div className="bg-white rounded-3xl border border-slate-200/60 shadow-sm overflow-hidden mb-8">
-                            
+
                             {/* Table Header & Controls */}
                             <div className="p-5 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
                                 <div className="text-left">
@@ -501,7 +518,7 @@ const ToolsAnalyticsPage = () => {
                             {/* Dynamic Tables depending on Active Tab */}
                             <div className="overflow-x-auto">
                                 <table className="w-full text-left border-collapse whitespace-nowrap">
-                                                                  {/* Tab 1: Drive Usage Analytics */}
+                                    {/* Tab 1: Drive Usage Analytics */}
                                     {activeTab === 'drive' && (
                                         <>
                                             <thead>
@@ -548,18 +565,16 @@ const ToolsAnalyticsPage = () => {
                                                                 {(() => {
                                                                     const enabled = row.user?.studentProfile?.controls?.toolsAccess?.drive !== false;
                                                                     return (
-                                                                        <button
-                                                                            onClick={() => handleToggleService(row)}
+                                                                        <ToggleSwitch
+                                                                            checked={enabled}
+                                                                            onChange={() => handleToggleService(row)}
                                                                             disabled={togglingId === row.user?._id}
-                                                                            className={`px-3 py-1 rounded-lg text-[10px] font-black border transition-all cursor-pointer ${enabled ? 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100' : 'bg-rose-50 text-rose-600 border-rose-200 hover:bg-rose-100'} disabled:opacity-50 disabled:cursor-not-allowed`}
-                                                                        >
-                                                                            {togglingId === row.user?._id ? '...' : enabled ? 'Enabled' : 'Disabled'}
-                                                                        </button>
+                                                                        />
                                                                     );
                                                                 })()}
                                                             </td>
                                                             <td className="py-3.5 px-6 text-right">
-                                                                <button 
+                                                                <button
                                                                     onClick={() => handleEditAccess(row.user)}
                                                                     className="px-3.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-650 text-[10px] font-black rounded-xl border border-indigo-100 transition-all cursor-pointer"
                                                                 >
@@ -630,11 +645,10 @@ const ToolsAnalyticsPage = () => {
                                                             <td className="py-3.5 px-4 text-right text-slate-400 font-semibold">{formatDate(row.chat.lastActivity)}</td>
                                                             <td className="py-3.5 px-4 text-center text-slate-600">{row.chat.totalDevices}</td>
                                                             <td className="py-3.5 px-4 text-center">
-                                                                <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase ${
-                                                                    row.isActive 
-                                                                        ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' 
+                                                                <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase ${row.isActive
+                                                                        ? 'bg-emerald-50 text-emerald-600 border border-emerald-200'
                                                                         : 'bg-slate-100 text-slate-450'
-                                                                }`}>
+                                                                    }`}>
                                                                     {row.chat.status}
                                                                 </span>
                                                             </td>
@@ -642,18 +656,16 @@ const ToolsAnalyticsPage = () => {
                                                                 {(() => {
                                                                     const enabled = row.user?.studentProfile?.controls?.toolsAccess?.chat !== false;
                                                                     return (
-                                                                        <button
-                                                                            onClick={() => handleToggleService(row)}
+                                                                        <ToggleSwitch
+                                                                            checked={enabled}
+                                                                            onChange={() => handleToggleService(row)}
                                                                             disabled={togglingId === row.user?._id}
-                                                                            className={`px-3 py-1 rounded-lg text-[10px] font-black border transition-all cursor-pointer ${enabled ? 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100' : 'bg-rose-50 text-rose-600 border-rose-200 hover:bg-rose-100'} disabled:opacity-50 disabled:cursor-not-allowed`}
-                                                                        >
-                                                                            {togglingId === row.user?._id ? '...' : enabled ? 'Enabled' : 'Disabled'}
-                                                                        </button>
+                                                                        />
                                                                     );
                                                                 })()}
                                                             </td>
                                                             <td className="py-3.5 px-6 text-right">
-                                                                <button 
+                                                                <button
                                                                     onClick={() => handleEditAccess(row.user)}
                                                                     className="px-3.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-650 text-[10px] font-black rounded-xl border border-indigo-100 transition-all cursor-pointer"
                                                                 >
@@ -708,18 +720,16 @@ const ToolsAnalyticsPage = () => {
                                                                 {(() => {
                                                                     const enabled = row.user?.studentProfile?.controls?.toolsAccess?.notes !== false;
                                                                     return (
-                                                                        <button
-                                                                            onClick={() => handleToggleService(row)}
+                                                                        <ToggleSwitch
+                                                                            checked={enabled}
+                                                                            onChange={() => handleToggleService(row)}
                                                                             disabled={togglingId === row.user?._id}
-                                                                            className={`px-3 py-1 rounded-lg text-[10px] font-black border transition-all cursor-pointer ${enabled ? 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100' : 'bg-rose-50 text-rose-600 border-rose-200 hover:bg-rose-100'} disabled:opacity-50 disabled:cursor-not-allowed`}
-                                                                        >
-                                                                            {togglingId === row.user?._id ? '...' : enabled ? 'Enabled' : 'Disabled'}
-                                                                        </button>
+                                                                        />
                                                                     );
                                                                 })()}
                                                             </td>
                                                             <td className="py-3.5 px-6 text-right">
-                                                                <button 
+                                                                <button
                                                                     onClick={() => handleEditAccess(row.user)}
                                                                     className="px-3.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-650 text-[10px] font-black rounded-xl border border-indigo-100 transition-all cursor-pointer"
                                                                 >
@@ -785,18 +795,16 @@ const ToolsAnalyticsPage = () => {
                                                                     {(() => {
                                                                         const enabled = row.user?.studentProfile?.controls?.toolsAccess?.[activeTab] !== false;
                                                                         return (
-                                                                            <button
-                                                                                onClick={() => handleToggleService(row)}
+                                                                            <ToggleSwitch
+                                                                                checked={enabled}
+                                                                                onChange={() => handleToggleService(row)}
                                                                                 disabled={togglingId === row.user?._id}
-                                                                                className={`px-3 py-1 rounded-lg text-[10px] font-black border transition-all cursor-pointer ${enabled ? 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100' : 'bg-rose-50 text-rose-600 border-rose-200 hover:bg-rose-100'} disabled:opacity-50 disabled:cursor-not-allowed`}
-                                                                            >
-                                                                                {togglingId === row.user?._id ? '...' : enabled ? 'Enabled' : 'Disabled'}
-                                                                            </button>
+                                                                            />
                                                                         );
                                                                     })()}
                                                                 </td>
                                                                 <td className="py-3.5 px-6 text-right">
-                                                                    <button 
+                                                                    <button
                                                                         onClick={() => handleEditAccess(row.user)}
                                                                         className="px-3.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-650 text-[10px] font-black rounded-xl border border-indigo-100 transition-all cursor-pointer"
                                                                     >
@@ -809,7 +817,7 @@ const ToolsAnalyticsPage = () => {
                                                 )}
                                             </tbody>
                                         </>
-                                    )}      )}
+                                    )}
 
                                 </table>
                             </div>
@@ -819,7 +827,7 @@ const ToolsAnalyticsPage = () => {
                                 <div className="text-xs font-semibold text-slate-400">
                                     Showing {filteredStudents.length > 0 ? indexOfFirstEntry + 1 : 0} to {Math.min(indexOfLastEntry, filteredStudents.length)} of {filteredStudents.length} entries
                                 </div>
-                                
+
                                 <div className="flex items-center gap-3">
                                     {/* Navigation Buttons exactly like mock */}
                                     {totalPages > 1 && (
@@ -828,11 +836,10 @@ const ToolsAnalyticsPage = () => {
                                             <button
                                                 disabled={currentPage === 1}
                                                 onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                                                className={`px-4 py-2 rounded-full border text-xs font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer ${
-                                                    currentPage === 1
+                                                className={`px-4 py-2 rounded-full border text-xs font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer ${currentPage === 1
                                                         ? 'bg-slate-50 border-slate-200 text-slate-400'
                                                         : 'bg-white hover:bg-slate-50 border-slate-250 text-slate-700'
-                                                }`}
+                                                    }`}
                                             >
                                                 Previous
                                             </button>
@@ -847,17 +854,16 @@ const ToolsAnalyticsPage = () => {
                                                             </span>
                                                         );
                                                     }
-                                                    
+
                                                     const isPageActive = currentPage === pageNum;
                                                     return (
                                                         <button
                                                             key={idx}
                                                             onClick={() => setCurrentPage(pageNum)}
-                                                            className={`w-8 h-8 rounded-full font-bold text-xs flex items-center justify-center transition-all cursor-pointer ${
-                                                                isPageActive
+                                                            className={`w-8 h-8 rounded-full font-bold text-xs flex items-center justify-center transition-all cursor-pointer ${isPageActive
                                                                     ? 'bg-[#0b1329] text-white shadow-md shadow-black/10'
                                                                     : 'hover:bg-slate-100 text-slate-700'
-                                                            }`}
+                                                                }`}
                                                         >
                                                             {pageNum}
                                                         </button>
@@ -869,11 +875,10 @@ const ToolsAnalyticsPage = () => {
                                             <button
                                                 disabled={currentPage === totalPages || totalPages === 0}
                                                 onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                                                className={`px-4 py-2 rounded-full border text-xs font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer ${
-                                                    (currentPage === totalPages || totalPages === 0)
+                                                className={`px-4 py-2 rounded-full border text-xs font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer ${(currentPage === totalPages || totalPages === 0)
                                                         ? 'bg-slate-50 border-slate-200 text-slate-400'
                                                         : 'bg-white hover:bg-slate-50 border-slate-250 text-slate-700'
-                                                }`}
+                                                    }`}
                                             >
                                                 Next
                                             </button>
@@ -890,18 +895,18 @@ const ToolsAnalyticsPage = () => {
 
             {/* Reusable Edit Access & Controls Modal */}
             {isEditModalOpen && selectedUserToEdit && (
-                <EditUserModal 
-                    user={selectedUserToEdit} 
-                    isOpen={isEditModalOpen} 
+                <EditUserModal
+                    user={selectedUserToEdit}
+                    isOpen={isEditModalOpen}
                     onClose={() => {
                         setIsEditModalOpen(false);
                         setSelectedUserToEdit(null);
-                    }} 
+                    }}
                     onSuccess={() => {
                         setIsEditModalOpen(false);
                         setSelectedUserToEdit(null);
                         fetchAnalytics();
-                    }} 
+                    }}
                 />
             )}
         </DashboardLayout>

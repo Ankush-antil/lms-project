@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import {
@@ -194,9 +195,9 @@ const StaffAttendanceDetailModal = ({ staffId, onClose, onDataChange }) => {
 
     const formatTime = (t) => t ? new Date(t).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '—';
 
-    return (
+    return createPortal(
         <>
-            <div className="fixed inset-0 z-[9999] bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 md:p-6 animate-fade-in" onClick={onClose}>
+            <div className="fixed inset-0 z-[99999] bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 md:p-6 animate-fade-in" onClick={onClose}>
                 <div className="bg-[#f5f5f5] w-full max-w-6xl h-[88vh] flex flex-col overflow-hidden rounded-3xl shadow-2xl border border-slate-200/80" onClick={e => e.stopPropagation()}>
 
                 {/* Header */}
@@ -567,7 +568,8 @@ const StaffAttendanceDetailModal = ({ staffId, onClose, onDataChange }) => {
                     to { transform: scale(1); opacity: 1; }
                 }
             `}</style>
-        </>
+        </>,
+        document.body
     );
 };
 

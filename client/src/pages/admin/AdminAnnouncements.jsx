@@ -446,7 +446,7 @@ const AdminAnnouncements = () => {
     if (!isManager) {
         return (
             <DashboardLayout role={user?.role || 'Student'}>
-                <div className="max-w-7xl mx-auto px-4 py-5 font-sans">
+                <div className="w-full px-2 py-5 font-sans">
                     {/* Header */}
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4 mb-6">
                         <div>
@@ -697,7 +697,7 @@ const AdminAnnouncements = () => {
 
     return (
         <DashboardLayout role={user?.role || 'Admin'}>
-            <div className="max-w-7xl mx-auto px-4 py-5 font-sans">
+            <div className="w-full px-2 py-5 font-sans">
 
                 {/* Header */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4 mb-6">

@@ -12,6 +12,7 @@ import {
     Modal,
     NativeModules
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Video, ResizeMode } from 'expo-av';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -23,6 +24,14 @@ import { parseDateToDdMmYyyy, getTodayDdMmYyyy } from '../../../utils/dateUtils'
 import Toast from 'react-native-toast-message';
 import { BASE_URL } from '../../../config/api';
 import GoogleDriveModal from '../../../components/common/GoogleDriveModal';
+
+let CameraViewModule = null;
+try {
+    const ExpoCamera = require('expo-camera');
+    CameraViewModule = ExpoCamera.CameraView || ExpoCamera.Camera;
+} catch (e) {
+    CameraViewModule = null;
+}
 import { ShareModal } from '../../../components/common/ShareModal';
 
 const VideoRecorderPage = ({ route, navigation }) => {
@@ -47,6 +56,12 @@ const VideoRecorderPage = ({ route, navigation }) => {
     // Google Drive state
     const [driveModalOpen, setDriveModalOpen] = useState(false);
     const [driveFileMeta, setDriveFileMeta] = useState({ name: '', uri: '' });
+
+    // Live Camera states
+    const [cameraModalVisible, setCameraModalVisible] = useState(false);
+    const [isCameraRecording, setIsCameraRecording] = useState(false);
+    const [facing, setFacing] = useState('back');
+    const cameraRef = React.useRef(null);
 
     // Share states
     const [shareModalVisible, setShareModalVisible] = useState(false);
@@ -106,73 +121,54 @@ const VideoRecorderPage = ({ route, navigation }) => {
         }
 
         // Check if native ExponentImagePicker exists in native build binary before executing require
-        const hasNativePicker = !!(
-            NativeModules && (
-                NativeModules.ExponentImagePicker ||
-                NativeModules.ExpoImagePicker ||
-                NativeModules.ExponentCamera ||
-                NativeModules.ExpoCamera
-            )
-        );
-
-        if (!hasNativePicker) {
-            // Open system picker/camera safely via DocumentPicker without native module crash
-            return handlePickVideo();
-        }
-
         let ImagePickerModule = null;
         try {
-            ImagePickerModule = require('expo-image-picker');
-        } catch (e) {
-            return handlePickVideo();
-        }
+            if (NativeModules && (NativeModules.ExponentImagePicker || NativeModules.ExpoImagePicker)) {
+                ImagePickerModule = require('expo-image-picker');
+            }
+        } catch (e) {}
 
         if (ImagePickerModule && typeof ImagePickerModule.launchCameraAsync === 'function') {
             try {
                 const { status: cameraStatus } = await ImagePickerModule.requestCameraPermissionsAsync();
-                const { status: audioStatus } = await ImagePickerModule.requestMicrophonePermissionsAsync();
+                if (cameraStatus === 'granted') {
+                    const mediaTypeOption = (ImagePickerModule.MediaTypeOptions && ImagePickerModule.MediaTypeOptions.Videos) ? ImagePickerModule.MediaTypeOptions.Videos : 'videos';
+                    const result = await ImagePickerModule.launchCameraAsync({
+                        mediaTypes: mediaTypeOption,
+                        quality: 1,
+                        allowsEditing: false
+                    });
 
-                if (cameraStatus !== 'granted') {
-                    Alert.alert("Permission Required", "Please allow camera access in settings to record videos.");
+                    if (result.canceled || !result.assets || result.assets.length === 0) return;
+
+                    const asset = result.assets[0];
+                    const newLog = {
+                        id: Date.now().toString(),
+                        timestamp: new Date().toISOString(),
+                        uri: asset.uri,
+                        filename: `video_rec_${Date.now()}.mp4`,
+                        size: asset.fileSize || 0,
+                        synced: false
+                    };
+
+                    const updatedList = [newLog, ...localVideos];
+                    setLocalVideos(updatedList);
+                    await AsyncStorage.setItem('practice_videos', JSON.stringify(updatedList));
+
+                    Toast.show({
+                        type: 'success',
+                        text1: 'Video Logged',
+                        text2: 'Video saved in local workspace!'
+                    });
                     return;
                 }
-
-                const mediaTypeOption = (ImagePickerModule.MediaTypeOptions && ImagePickerModule.MediaTypeOptions.Videos) ? ImagePickerModule.MediaTypeOptions.Videos : 'videos';
-
-                const result = await ImagePickerModule.launchCameraAsync({
-                    mediaTypes: mediaTypeOption,
-                    quality: 1,
-                    allowsEditing: false
-                });
-
-                if (result.canceled || !result.assets || result.assets.length === 0) return;
-
-                const asset = result.assets[0];
-                const newLog = {
-                    id: Date.now().toString(),
-                    timestamp: new Date().toISOString(),
-                    uri: asset.uri,
-                    filename: `video_rec_${Date.now()}.mp4`,
-                    size: asset.fileSize || 0,
-                    synced: false
-                };
-
-                const updatedList = [newLog, ...localVideos];
-                setLocalVideos(updatedList);
-                await AsyncStorage.setItem('practice_videos', JSON.stringify(updatedList));
-
-                Toast.show({
-                    type: 'success',
-                    text1: 'Video Logged',
-                    text2: 'Video saved in local workspace!'
-                });
             } catch (err) {
-                console.warn('Camera launch failed, falling back to picker:', err?.message);
-                handlePickVideo();
+                console.warn('ImagePicker launch failed:', err);
             }
-        } else {
-            handlePickVideo();
         }
+
+        // Open live camera screen/modal
+        setCameraModalVisible(true);
     };
 
     // Prompt user to Choose existing video or Record with camera
@@ -572,6 +568,129 @@ const VideoRecorderPage = ({ route, navigation }) => {
                             }}
                         />
                     </View>
+                </View>
+            </Modal>
+
+            {/* Live Camera View Modal */}
+            <Modal
+                visible={cameraModalVisible}
+                animationType="slide"
+                onRequestClose={() => setCameraModalVisible(false)}
+            >
+                <View style={{ flex: 1, backgroundColor: '#000000' }}>
+                    {CameraViewModule ? (
+                        <CameraViewModule
+                            style={{ flex: 1 }}
+                            facing={facing}
+                            mode="video"
+                            ref={cameraRef}
+                        >
+                            <SafeAreaView style={{ flex: 1, justifyContent: 'space-between', padding: 20 }}>
+                                {/* Top Controls */}
+                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 }}>
+                                    <TouchableOpacity
+                                        onPress={() => setCameraModalVisible(false)}
+                                        style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' }}
+                                    >
+                                        <Ionicons name="close" size={24} color="#ffffff" />
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                        onPress={() => setFacing(prev => prev === 'back' ? 'front' : 'back')}
+                                        style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' }}
+                                    >
+                                        <Ionicons name="camera-reverse" size={24} color="#ffffff" />
+                                    </TouchableOpacity>
+                                </View>
+
+                                {/* Bottom Recording Control */}
+                                <View style={{ alignItems: 'center', marginBottom: 30 }}>
+                                    <TouchableOpacity
+                                        onPress={async () => {
+                                            if (isCameraRecording) {
+                                                setIsCameraRecording(false);
+                                                if (cameraRef.current && cameraRef.current.stopRecording) {
+                                                    cameraRef.current.stopRecording();
+                                                }
+                                            } else {
+                                                if (cameraRef.current && cameraRef.current.recordAsync) {
+                                                    try {
+                                                        setIsCameraRecording(true);
+                                                        const videoRecord = await cameraRef.current.recordAsync({ maxDuration: 600 });
+                                                        setIsCameraRecording(false);
+                                                        if (videoRecord && videoRecord.uri) {
+                                                            const newLog = {
+                                                                id: Date.now().toString(),
+                                                                timestamp: new Date().toISOString(),
+                                                                uri: videoRecord.uri,
+                                                                filename: `video_rec_${Date.now()}.mp4`,
+                                                                size: 0,
+                                                                synced: false
+                                                            };
+                                                            const updatedList = [newLog, ...localVideos];
+                                                            setLocalVideos(updatedList);
+                                                            await AsyncStorage.setItem('practice_videos', JSON.stringify(updatedList));
+                                                            setCameraModalVisible(false);
+                                                            Toast.show({
+                                                                type: 'success',
+                                                                text1: 'Video Recorded',
+                                                                text2: 'Video saved to local workspace!'
+                                                            });
+                                                        }
+                                                    } catch (e) {
+                                                        console.error("Camera record error:", e);
+                                                        setIsCameraRecording(false);
+                                                        Alert.alert("Camera Error", "Failed to record video.");
+                                                    }
+                                                }
+                                            }
+                                        }}
+                                        style={{
+                                            width: 80,
+                                            height: 80,
+                                            borderRadius: 40,
+                                            borderWidth: 4,
+                                            borderColor: '#ffffff',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            backgroundColor: isCameraRecording ? 'rgba(239,68,68,0.5)' : 'transparent'
+                                        }}
+                                    >
+                                        <View style={{
+                                            width: isCameraRecording ? 30 : 60,
+                                            height: isCameraRecording ? 30 : 60,
+                                            borderRadius: isCameraRecording ? 6 : 30,
+                                            backgroundColor: '#ef4444'
+                                        }} />
+                                    </TouchableOpacity>
+                                    <Text style={{ color: '#ffffff', marginTop: 12, fontWeight: '700', fontSize: 14 }}>
+                                        {isCameraRecording ? '🔴 Recording... Tap to Stop' : 'Tap Red Button to Start Recording'}
+                                    </Text>
+                                </View>
+                            </SafeAreaView>
+                        </CameraViewModule>
+                    ) : (
+                        <SafeAreaView style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+                            <Ionicons name="videocam-outline" size={64} color={colors.textMuted} />
+                            <Text style={{ color: '#ffffff', fontSize: 16, marginTop: 16, textAlign: 'center', fontWeight: 'bold' }}>
+                                Camera View
+                            </Text>
+                            <Text style={{ color: colors.textMuted, fontSize: 13, marginTop: 8, textAlign: 'center', marginHorizontal: 20 }}>
+                                Please select a video file or record using your camera app.
+                            </Text>
+                            <TouchableOpacity
+                                onPress={() => { setCameraModalVisible(false); handlePickVideo(); }}
+                                style={{ marginTop: 24, backgroundColor: colors.accent, paddingHorizontal: 24, paddingVertical: 14, borderRadius: 24 }}
+                            >
+                                <Text style={{ color: '#ffffff', fontWeight: 'bold', fontSize: 15 }}>Select Video File</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                onPress={() => setCameraModalVisible(false)}
+                                style={{ marginTop: 16 }}
+                            >
+                                <Text style={{ color: colors.textMuted, fontSize: 14 }}>Cancel</Text>
+                            </TouchableOpacity>
+                        </SafeAreaView>
+                    )}
                 </View>
             </Modal>
 

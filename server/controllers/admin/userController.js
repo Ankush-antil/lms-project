@@ -110,6 +110,7 @@ const getUsers = asyncHandler(async (req, res) => {
         .populate('editorProfile.assignedCourses', 'name')
         .populate('accountantProfile.assignedCourses', 'name')
         .populate('accountantProfile.assignedStudents', 'name email studentProfile')
+        .populate('marketerProfile.assignedCourses', 'name')
         .populate('guestProfile.demoCourse', 'name');
 
     console.log(`[API] Found ${users.length} users for role: ${role || 'All'}`);
@@ -191,6 +192,13 @@ const createUser = asyncHandler(async (req, res) => {
             studentAssignmentMode: studentAssignmentMode || 'all',
             assignedSections: assignedSections || [],
             assignedStudents: assignedStudents || [],
+            controls: req.body.controls
+        };
+    } else if (role === 'Marketer') {
+        const finalAssignedCourses = req.body.assignedCourses || (course ? [course] : []);
+        userFields.marketerProfile = {
+            assignedCourses: finalAssignedCourses,
+            subjects: subjects ? (Array.isArray(subjects) ? subjects : subjects.split(',').map(s => s.trim())) : [],
             controls: req.body.controls
         };
     } else if (role === 'Staff') {
@@ -596,6 +604,21 @@ const updateUser = asyncHandler(async (req, res) => {
                         });
                     }
                 }
+            }
+        } else if (activeRole === 'Marketer') {
+            if (!user.marketerProfile) user.marketerProfile = {};
+            if (req.body.assignedCourses !== undefined) {
+                user.marketerProfile.assignedCourses = req.body.assignedCourses;
+            } else if (req.body.course !== undefined) {
+                user.marketerProfile.assignedCourses = req.body.course ? [req.body.course] : user.marketerProfile.assignedCourses;
+            }
+            if (req.body.subjects !== undefined) {
+                user.marketerProfile.subjects = Array.isArray(req.body.subjects) ? req.body.subjects : req.body.subjects.split(',').map(s => s.trim()).filter(Boolean);
+            }
+            user.markModified('marketerProfile');
+            if (req.body.controls !== undefined) {
+                user.marketerProfile.controls = req.body.controls;
+                user.markModified('marketerProfile.controls');
             }
         } else if (activeRole === 'Staff') {
             if (!user.staffProfile) user.staffProfile = {};

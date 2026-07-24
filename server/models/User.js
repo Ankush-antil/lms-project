@@ -125,6 +125,8 @@ const userSchema = new mongoose.Schema({
         controls: { type: mongoose.Schema.Types.Mixed, default: {} }
     },
     marketerProfile: {
+        assignedCourses: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Course' }],
+        subjects: [{ type: String }],
         controls: { type: mongoose.Schema.Types.Mixed, default: {} }
     },
     staffProfile: {

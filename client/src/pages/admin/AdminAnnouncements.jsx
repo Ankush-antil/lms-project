@@ -714,25 +714,25 @@ const AdminAnnouncements = () => {
                     <div className="flex items-center gap-2 self-start sm:self-auto">
                         <button
                             onClick={() => setIsRecycleBinOpen(true)}
-                            className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs rounded-xl transition-all cursor-pointer shadow-sm"
+                            className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs rounded-2xl transition-all cursor-pointer shadow-sm"
                         >
-                            <Trash2 size={14} className="text-red-500" />
+                            <Trash2 size={16} className="text-red-500" />
                             <span>Recycle Bin</span>
                         </button>
                         <button
                             onClick={() => importFileRef.current?.click()}
-                            className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs rounded-xl transition-all cursor-pointer shadow-sm"
+                            className="flex items-center gap-2 px-4 py-2.5 bg-[#0b1329] hover:bg-slate-800 text-white font-bold text-xs rounded-2xl transition-all cursor-pointer shadow-md shadow-[#0b1329]/10"
                             title="Import Announcements CSV/JSON"
                         >
-                            <Upload size={14} className="text-slate-600" />
+                            <Upload size={16} />
                             <span>Import</span>
                         </button>
                         <button
                             onClick={handleExportData}
-                            className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs rounded-xl transition-all cursor-pointer shadow-sm"
+                            className="flex items-center gap-2 px-4 py-2.5 bg-[#0b1329] hover:bg-slate-800 text-white font-bold text-xs rounded-2xl transition-all cursor-pointer shadow-md shadow-[#0b1329]/10"
                             title="Export Announcements CSV"
                         >
-                            <Download size={14} className="text-slate-600" />
+                            <Download size={16} />
                             <span>Export</span>
                         </button>
                         <input

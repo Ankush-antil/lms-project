@@ -771,17 +771,17 @@ const StudentsList = () => {
                         <button
                             type="button"
                             onClick={() => importUsersRef.current?.click()}
-                            className="px-3 sm:px-3.5 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-2xl transition-all flex items-center gap-1.5 text-xs sm:text-sm font-bold shadow-sm cursor-pointer whitespace-nowrap"
+                            className="px-3 sm:px-3.5 py-2.5 bg-[#0b1329] hover:bg-slate-800 text-white rounded-2xl transition-all flex items-center gap-1.5 text-xs sm:text-sm font-bold shadow-md shadow-[#0b1329]/10 cursor-pointer whitespace-nowrap"
                         >
-                            <Upload size={16} className="text-slate-600" /> <span className="hidden sm:inline">Import</span>
+                            <Upload size={16} /> <span className="hidden sm:inline">Import</span>
                         </button>
                         <div className="relative">
                             <button
                                 type="button"
                                 onClick={() => setIsExportDropdownOpen(!isExportDropdownOpen)}
-                                className="px-3 sm:px-3.5 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-2xl transition-all flex items-center gap-1.5 text-xs sm:text-sm font-bold shadow-sm cursor-pointer whitespace-nowrap"
+                                className="px-3 sm:px-3.5 py-2.5 bg-[#0b1329] hover:bg-slate-800 text-white rounded-2xl transition-all flex items-center gap-1.5 text-xs sm:text-sm font-bold shadow-md shadow-[#0b1329]/10 cursor-pointer whitespace-nowrap"
                             >
-                                <Download size={16} className="text-slate-600" /> <span className="hidden sm:inline">Export</span>
+                                <Download size={16} /> <span className="hidden sm:inline">Export</span>
                             </button>
                             {isExportDropdownOpen && (
                                 <div className="absolute right-0 mt-2 w-40 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 overflow-hidden py-1">

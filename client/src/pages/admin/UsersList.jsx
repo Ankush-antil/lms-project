@@ -1141,9 +1141,9 @@ const UsersList = () => {
                             <div className="relative">
                                 <button
                                     onClick={() => setIsExportDropdownOpen(v => !v)}
-                                    className="px-4 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-2xl transition-all flex items-center gap-1.5 text-sm font-bold shadow-sm cursor-pointer active:scale-95"
+                                    className="px-4 py-2.5 bg-[#0b1329] hover:bg-slate-800 text-white rounded-2xl transition-all flex items-center gap-1.5 text-sm font-bold shadow-md shadow-[#0b1329]/10 cursor-pointer active:scale-95"
                                 >
-                                    <Download size={15} className="text-slate-600" /> Export <ChevronDown size={13} />
+                                    <Download size={15} /> Export <ChevronDown size={13} />
                                 </button>
                                 {isExportDropdownOpen && (
                                     <div className="absolute right-0 top-full mt-1.5 w-36 bg-white border border-slate-200 rounded-xl shadow-lg z-50">
@@ -1169,9 +1169,9 @@ const UsersList = () => {
                             <>
                                 <button
                                     onClick={() => cfg.ref.current?.click()}
-                                    className="px-4 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-2xl transition-all flex items-center gap-1.5 text-sm font-bold shadow-sm cursor-pointer active:scale-95"
+                                    className="px-4 py-2.5 bg-[#0b1329] hover:bg-slate-800 text-white rounded-2xl transition-all flex items-center gap-1.5 text-sm font-bold shadow-md shadow-[#0b1329]/10 cursor-pointer active:scale-95"
                                 >
-                                    <Upload size={15} className="text-slate-600" /> Import
+                                    <Upload size={15} /> Import
                                 </button>
                                 <input ref={cfg.ref} type="file" accept=".json,.csv,.xlsx" onChange={cfg.handler} className="hidden" />
                             </>

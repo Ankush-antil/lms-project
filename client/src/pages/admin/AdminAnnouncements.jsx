@@ -466,9 +466,10 @@ const AdminAnnouncements = () => {
                                                 <td className="py-3.5 px-6 text-right space-x-1.5">
                                                     <button
                                                         onClick={() => openViewModal(ann)}
-                                                        className="px-2.5 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-655 text-[10px] font-extrabold rounded-xl border border-slate-200 transition-all cursor-pointer"
+                                                        title="View Announcement"
+                                                        className="p-2 bg-slate-50 hover:bg-slate-100 text-slate-655 rounded-xl border border-slate-200 transition-all cursor-pointer inline-flex items-center justify-center active:scale-95"
                                                     >
-                                                        <Eye size={12} className="inline mr-1" /> View
+                                                        <Eye size={15} />
                                                     </button>
                                                 </td>
                                             </tr>
@@ -881,23 +882,26 @@ const AdminAnnouncements = () => {
                                             <td className="py-3.5 px-6 text-right space-x-1.5">
                                                 <button
                                                     onClick={() => openViewModal(ann)}
-                                                    className="px-2.5 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-655 text-[10px] font-extrabold rounded-xl border border-slate-200 transition-all cursor-pointer"
+                                                    title="View Announcement"
+                                                    className="p-2 bg-slate-50 hover:bg-slate-100 text-slate-655 rounded-xl border border-slate-200 transition-all cursor-pointer inline-flex items-center justify-center active:scale-95"
                                                 >
-                                                    <Eye size={12} className="inline mr-1" /> View
+                                                    <Eye size={15} />
                                                 </button>
                                                 {(user?.role === 'Admin' || ann.createdBy?._id === user?._id) && (
                                                     <>
                                                         <button
                                                             onClick={() => openEditModal(ann)}
-                                                            className="px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-650 text-[10px] font-black rounded-xl border border-indigo-100 transition-all cursor-pointer"
+                                                            title="Edit Announcement"
+                                                            className="p-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-650 rounded-xl border border-indigo-100 transition-all cursor-pointer inline-flex items-center justify-center active:scale-95"
                                                         >
-                                                            <Edit2 size={12} className="inline mr-1" /> Edit
+                                                            <Edit2 size={15} />
                                                         </button>
                                                         <button
                                                             onClick={() => handleDelete(ann._id)}
-                                                            className="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-650 text-[10px] font-black rounded-xl border border-rose-100 transition-all cursor-pointer"
+                                                            title="Delete Announcement"
+                                                            className="p-2 bg-rose-50 hover:bg-rose-100 text-rose-650 rounded-xl border border-rose-100 transition-all cursor-pointer inline-flex items-center justify-center active:scale-95"
                                                         >
-                                                            <Trash2 size={12} className="inline mr-1" /> Delete
+                                                            <Trash2 size={15} />
                                                         </button>
                                                     </>
                                                 )}

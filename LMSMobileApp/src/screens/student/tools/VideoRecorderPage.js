@@ -9,7 +9,8 @@ import {
     Alert,
     Share,
     Linking,
-    Modal
+    Modal,
+    NativeModules
 } from 'react-native';
 import { Video, ResizeMode } from 'expo-av';
 import axios from 'axios';
@@ -104,11 +105,26 @@ const VideoRecorderPage = ({ route, navigation }) => {
             return;
         }
 
+        // Check if native ExponentImagePicker exists in native build binary before executing require
+        const hasNativePicker = !!(
+            NativeModules && (
+                NativeModules.ExponentImagePicker ||
+                NativeModules.ExpoImagePicker ||
+                NativeModules.ExponentCamera ||
+                NativeModules.ExpoCamera
+            )
+        );
+
+        if (!hasNativePicker) {
+            // Open system picker/camera safely via DocumentPicker without native module crash
+            return handlePickVideo();
+        }
+
         let ImagePickerModule = null;
         try {
             ImagePickerModule = require('expo-image-picker');
         } catch (e) {
-            console.warn('[VIDEO_RECORDER] expo-image-picker native module unavailable:', e?.message);
+            return handlePickVideo();
         }
 
         if (ImagePickerModule && typeof ImagePickerModule.launchCameraAsync === 'function') {
@@ -147,15 +163,14 @@ const VideoRecorderPage = ({ route, navigation }) => {
 
                 Toast.show({
                     type: 'success',
-                    text1: 'Video Recorded',
+                    text1: 'Video Logged',
                     text2: 'Video saved in local workspace!'
                 });
             } catch (err) {
-                console.warn('Camera launch failed, falling back to file picker:', err?.message);
+                console.warn('Camera launch failed, falling back to picker:', err?.message);
                 handlePickVideo();
             }
         } else {
-            // Fallback cleanly to document picker when ExponentImagePicker is not present in Expo Go build
             handlePickVideo();
         }
     };

@@ -164,6 +164,7 @@ const menuItems = {
         { name: 'Accountants', icon: Users, path: '/admin/accountants' },
         { name: 'Marketers', icon: Megaphone, path: '/admin/marketers' },
         { name: 'Parents', icon: Users, path: '/admin/parents' },
+        { name: 'User Analytics', icon: BarChart3, path: '/admin/user-analytics' },
 
         { name: '_section_content', icon: BookOpen, path: null },
         { name: 'Courses', icon: BookOpen, path: '/admin/courses' },
@@ -193,7 +194,6 @@ const menuItems = {
         { name: 'Screen Recorder', icon: Video, path: '/admin/tools/screen-recorder' },
 
         { name: '_section_service_analytics', icon: BarChart3, path: null },
-        { name: 'User Usage Analytics', icon: BarChart3, path: '/admin/user-analytics' },
         { name: 'Drive Analytics', icon: HardDrive, path: '/admin/tools-analytics/drive' },
         { name: 'Chat Analytics', icon: MessageSquare, path: '/admin/tools-analytics/chat' },
         { name: 'Notes Analytics', icon: StickyNote, path: '/admin/tools-analytics/notes' },
@@ -213,6 +213,7 @@ const menuItems = {
         { name: 'Editors', icon: Users, path: '/institute/editors' },
         { name: 'Accountants', icon: Users, path: '/institute/accountants' },
         { name: 'Parents', icon: Users, path: '/institute/parents' },
+        { name: 'User Analytics', icon: BarChart3, path: '/institute/user-analytics' },
 
         { name: '_section_content', icon: BookOpen, path: null },
         { name: 'Courses', icon: BookOpen, path: '/institute/courses' },
@@ -234,8 +235,7 @@ const menuItems = {
         { name: '_section_services', icon: Settings, path: null },
         { name: 'Drive', icon: HardDrive, path: '/institute/drive' },
         { name: 'Notes', icon: StickyNote, path: '/institute/notes' },
-        { name: 'Chat', icon: MessageSquare, path: '/institute/chat' },
-        { name: 'User Usage Analytics', icon: BarChart3, path: '/institute/user-analytics' }
+        { name: 'Chat', icon: MessageSquare, path: '/institute/chat' }
     ],
     Teacher: [
         { name: 'Dashboard', icon: LayoutDashboard, path: '/teacher' },

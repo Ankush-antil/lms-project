@@ -1555,7 +1555,7 @@ const StudentsList = () => {
                                                     {/* 4. Attendance By */}
                                                     <td className="p-4">
                                                         <span className="text-xs font-bold text-slate-600 bg-slate-50 px-2 py-1 rounded-md border border-slate-200 inline-block">
-                                                            {record.markedBy || 'Admin'}
+                                                            {record.markedBy || 'Teacher'}
                                                         </span>
                                                     </td>
 

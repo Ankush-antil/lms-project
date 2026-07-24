@@ -1467,11 +1467,11 @@ const StudentsList = () => {
 
                     {/* Students list for attendance */}
                     <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-                        <div className="w-full overflow-hidden">
-                            <table className="w-full text-left border-collapse table-fixed">
+                        <div className="w-full overflow-x-auto">
+                            <table className="w-full text-left border-collapse min-w-[1100px]">
                                 <thead>
                                     <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 text-xs uppercase tracking-wider">
-                                        <th className="p-4 w-[5%] text-left">
+                                        <th className="p-4 w-10 text-left">
                                             <input
                                                 type="checkbox"
                                                 checked={paginatedStudents.length > 0 && selectedIds.size === paginatedStudents.length}
@@ -1485,22 +1485,32 @@ const StudentsList = () => {
                                                 className="w-4 h-4 rounded text-indigo-650 focus:ring-indigo-500 cursor-pointer accent-indigo-650"
                                             />
                                         </th>
-                                        <th className="p-4 font-bold w-[20%] text-left">Student Name</th>
-                                        <th className="p-4 font-bold text-center w-[10%]">ID</th>
-                                        <th className="p-4 font-bold w-[20%] text-left">Course & Section</th>
-                                        <th className="p-4 font-bold text-center w-[15%]">Attendance Status</th>
-                                        <th className="p-4 font-bold text-center w-[15%]">Check-In / Out</th>
-                                        <th className="p-4 font-bold text-center w-[8%]">Time</th>
-                                        <th className="p-4 font-bold text-right w-[7%]">Actions</th>
+                                        {[
+                                            'Name',
+                                            'Role',
+                                            'Attendance Type',
+                                            'Attendance By',
+                                            'Attendance Status',
+                                            'Admin Note',
+                                            'Staff Note',
+                                            'Check-In',
+                                            'Check-Out',
+                                            'Time Spent',
+                                            'Action'
+                                        ].map(h => (
+                                            <th key={h} className="p-4 text-xs font-black text-slate-500 uppercase tracking-wider whitespace-nowrap" style={{ textAlign: h === 'Action' ? 'center' : 'left' }}>
+                                                {h}
+                                            </th>
+                                        ))}
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100">
                                     {paginatedStudents.length > 0 ? (
                                         paginatedStudents.map((student) => {
-                                            const record = attendanceRecords[student._id] || { status: '', checkInTime: '', checkOutTime: '' };
+                                            const record = attendanceRecords[student._id] || { status: '', attendanceType: 'Physical', markedBy: 'Admin', teacherNote: '', studentNote: '', checkInTime: '', checkOutTime: '' };
                                             return (
                                                 <tr key={student._id} className="hover:bg-slate-50/50 transition-colors group">
-                                                    <td className="p-4 w-[5%]">
+                                                    <td className="p-4 w-10">
                                                         <input
                                                             type="checkbox"
                                                             checked={selectedIds.has(student._id)}
@@ -1518,13 +1528,15 @@ const StudentsList = () => {
                                                             className="w-4 h-4 rounded text-indigo-655 focus:ring-indigo-500 cursor-pointer accent-indigo-650"
                                                         />
                                                     </td>
-                                                    <td className="p-4">
+
+                                                    {/* 1. Name */}
+                                                    <td className="p-4 min-w-[170px]">
                                                         <div className="flex items-center gap-3">
-                                                            <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-xs shrink-0">
+                                                            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 text-white flex items-center justify-center font-bold text-xs shrink-0">
                                                                 {student.avatar ? (
                                                                     <img src={student.avatar} alt={student.name} className="w-full h-full object-cover rounded-full" />
                                                                 ) : (
-                                                                    student.name[0]
+                                                                    student.name?.[0]?.toUpperCase() || 'S'
                                                                 )}
                                                             </div>
                                                             <div className="flex flex-col min-w-0">
@@ -1533,47 +1545,84 @@ const StudentsList = () => {
                                                             </div>
                                                         </div>
                                                     </td>
-                                                    <td className="p-4 text-center text-slate-500 text-[11px] font-bold" title={student._id}>
-                                                        #{student._id.slice(-6)}
-                                                    </td>
+
+                                                    {/* 2. Role */}
                                                     <td className="p-4">
-                                                        <div className="flex flex-col min-w-0">
-                                                            <span className="text-xs font-bold text-slate-700 truncate" title={student.studentProfile?.course?.name || 'N/A'}>
-                                                                {student.studentProfile?.course?.name || 'N/A'}
-                                                            </span>
-                                                            <span className="text-[10px] text-slate-400 font-extrabold uppercase">Section {student.studentProfile?.section || 'A'}</span>
-                                                        </div>
-                                                    </td>
-                                                    <td className="p-4 text-center">
-                                                        {renderStatusBadge(record.status)}
-                                                    </td>
-                                                    <td className="p-4 text-center">
-                                                        <span className="text-xs font-bold text-slate-650">
-                                                            {record.checkInTime || record.checkOutTime ? (
-                                                                `${record.checkInTime || '—'} to ${record.checkOutTime || '—'}`
-                                                            ) : '—'}
+                                                        <span className="px-2.5 py-0.5 text-[10px] font-extrabold rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-100">
+                                                            Student
                                                         </span>
                                                     </td>
-                                                    <td className="p-4 text-center text-xs font-bold text-slate-500">
-                                                        {calculateSpendingTime(record.checkInTime, record.checkOutTime)}
+
+                                                    {/* 3. Attendance Type */}
+                                                    <td className="p-4">
+                                                        <span className="text-xs font-bold text-slate-600 bg-slate-50 px-2 py-1 rounded-md border border-slate-200 inline-block">
+                                                            {record.attendanceType || 'Physical'}
+                                                        </span>
                                                     </td>
-                                                    <td className="p-4 text-right">
-                                                        <div className="flex items-center justify-end gap-1.5">
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => setSelectedStudentId(student._id)}
-                                                                className="px-2.5 py-1.5 text-xs font-bold text-indigo-650 hover:text-indigo-850 bg-indigo-50 hover:bg-indigo-100 rounded-lg border border-indigo-100 transition cursor-pointer"
-                                                            >
-                                                                Logs
-                                                            </button>
-                                                        </div>
+
+                                                    {/* 4. Attendance By */}
+                                                    <td className="p-4">
+                                                        <span className="text-xs font-bold text-slate-600 bg-slate-50 px-2 py-1 rounded-md border border-slate-200 inline-block">
+                                                            {record.markedBy || 'Admin'}
+                                                        </span>
+                                                    </td>
+
+                                                    {/* 5. Attendance Status */}
+                                                    <td className="p-4 text-left">
+                                                        {renderStatusBadge(record.status)}
+                                                    </td>
+
+                                                    {/* 6. Admin Note */}
+                                                    <td className="p-4 min-w-[120px]">
+                                                        <span className={`text-xs font-semibold ${record.teacherNote ? 'text-slate-700' : 'text-slate-400'}`}>
+                                                            {record.teacherNote || '—'}
+                                                        </span>
+                                                    </td>
+
+                                                    {/* 7. Staff Note */}
+                                                    <td className="p-4 min-w-[120px]">
+                                                        <span className={`text-xs font-semibold ${record.studentNote ? 'text-slate-700' : 'text-slate-400'}`}>
+                                                            {record.studentNote || '—'}
+                                                        </span>
+                                                    </td>
+
+                                                    {/* 8. Check-In */}
+                                                    <td className="p-4">
+                                                        <span className="text-xs font-semibold text-slate-600">
+                                                            {record.checkInTime || '—'}
+                                                        </span>
+                                                    </td>
+
+                                                    {/* 9. Check-Out */}
+                                                    <td className="p-4">
+                                                        <span className="text-xs font-semibold text-slate-600">
+                                                            {record.checkOutTime || '—'}
+                                                        </span>
+                                                    </td>
+
+                                                    {/* 10. Time Spent */}
+                                                    <td className="p-4">
+                                                        <span className="text-xs font-bold text-indigo-600">
+                                                            {calculateSpendingTime(record.checkInTime, record.checkOutTime)}
+                                                        </span>
+                                                    </td>
+
+                                                    {/* 11. Action */}
+                                                    <td className="p-4 text-center">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setSelectedStudentId(student._id)}
+                                                            className="px-2.5 py-1.5 text-xs font-bold text-indigo-650 hover:text-indigo-850 bg-indigo-50 hover:bg-indigo-100 rounded-lg border border-indigo-100 transition cursor-pointer"
+                                                        >
+                                                            Logs
+                                                        </button>
                                                     </td>
                                                 </tr>
                                             );
                                         })
                                     ) : (
                                         <tr>
-                                            <td colSpan="8" className="p-8 text-center text-slate-400 italic">No matching students found</td>
+                                            <td colSpan="12" className="p-8 text-center text-slate-400 italic">No matching students found</td>
                                         </tr>
                                     )}
                                 </tbody>
